@@ -13,6 +13,16 @@ export function error(code: string, message: string, status: number, details?: A
   return NextResponse.json({ error: { code, message, ...(details ? { details } : {}) } }, { status })
 }
 
+// Mappe une Error métier (throw new Error('CODE')) vers une réponse HTTP,
+// via une table { CODE: { status, message } } propre à chaque domaine.
+export function errorFromException(err: unknown, map: Record<string, { status: number; message: string }>): NextResponse {
+  const code = err instanceof Error ? err.message : ''
+  const entry = map[code]
+  if (entry) return error(code, entry.message, entry.status)
+  console.error('[INTERNAL_ERROR]', err)
+  return error('INTERNAL_ERROR', 'Erreur interne', 500)
+}
+
 const PUBLIC_ROUTES: { method: string; prefix: string }[] = [
   { method: 'POST', prefix: '/api/auth/register' },
   { method: 'POST', prefix: '/api/auth/otp' },
