@@ -3,120 +3,280 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ==========================================================================
+   NkamVa — design tokens extraits de la maquette (assets/nkamva.css)
+   Vert forêt sur papier chaud · Bricolage Grotesque + Instrument Sans
+   ==========================================================================
+   Écarts assumés vs maquette, pour respecter WCAG AA :
+   - --color-ink-3 : #84908a (2.88:1 sur papier) → #626e69 (4.67:1).
+     La valeur d'origine est conservée sous --color-hairline pour les traits
+     purement décoratifs (séparateurs, contours) qui ne portent pas de sens.
+   - --color-clay / --color-gold restent les teintes de remplissage de la
+     maquette, mais le texte sur pastille utilise --color-clay-ink (5.2:1) et
+     --color-gold-ink (5.5:1) : les valeurs d'origine tombaient à 3.7 et 2.8:1.
+   ========================================================================== */
+
+/* Bloc non-`inline` : les tokens sont émis comme variables CSS sur :root, donc
+   utilisables à la fois par les utilitaires Tailwind et par du CSS manuel. */
+@theme {
+  /* — surfaces & encres — */
+  --color-paper: #f6f3ec;
+  --color-card: #fffefa;
+  --color-ink: #15211b;
+  --color-ink-2: #4c5a52;
+  --color-ink-3: #626e69;
+  --color-hairline: #84908a;
+  --color-line: #e4dfd2;
+  --color-line-2: #eeeadf;
+
+  /* — accent de marque (vert forêt) — */
+  --color-brand: #0d6b4d;
+  --color-brand-dark: #0a563e;
+  --color-brand-tint: #e0efe7;
+  --color-brand-tint-2: #cfe6da;
+
+  /* — accents secondaires (remplissage / texte lisible) — */
+  --color-clay: #c05f21;
+  --color-clay-ink: #9c4713;
+  --color-clay-tint: #f8e8dc;
+  --color-gold: #b98a12;
+  --color-gold-ink: #7d5c05;
+  --color-gold-tint: #f7eed6;
+  --color-danger: #b3402e;
+  --color-danger-tint: #f9e7e3;
+  --color-info: #2b5fa8;
+  --color-info-tint: #e4edf8;
+
+  /* — rayons — */
+  --radius-nk-sm: 10px;
+  --radius-nk: 16px;
+  --radius-nk-lg: 24px;
+
+  /* — ombres — */
+  --shadow-nk-sm: 0 1px 2px rgba(21, 33, 27, 0.05), 0 2px 6px rgba(21, 33, 27, 0.04);
+  --shadow-nk: 0 10px 30px rgba(21, 33, 27, 0.09);
+  --shadow-nk-lg: 0 24px 60px rgba(21, 33, 27, 0.16);
+  --shadow-brand: 0 8px 20px rgba(13, 107, 77, 0.3);
+
+  /* — typographie — */
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
+  --font-sans: var(--font-instrument), system-ui, sans-serif;
+
+  /* — gabarit — */
+  --container-wrap: 1220px;
+}
+
+/* Bloc `inline` : réexpose les tokens sémantiques shadcn/ui (qui changent avec
+   le thème clair/sombre) sans les figer dans les utilitaires. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 16px;
+  --background: #f6f3ec;
+  --foreground: #15211b;
+  --card: #fffefa;
+  --card-foreground: #15211b;
+  --popover: #fffefa;
+  --popover-foreground: #15211b;
+  --primary: #0d6b4d;
+  --primary-foreground: #ffffff;
+  --secondary: #eeeadf;
+  --secondary-foreground: #15211b;
+  --muted: #eeeadf;
+  --muted-foreground: #626e69;
+  --accent: #e0efe7;
+  --accent-foreground: #0a563e;
+  --destructive: #b3402e;
+  --destructive-foreground: #ffffff;
+  --border: #e4dfd2;
+  --input: #e4dfd2;
+  --ring: #0d6b4d;
+  --chart-1: #0d6b4d;
+  --chart-2: #2b5fa8;
+  --chart-3: #b98a12;
+  --chart-4: #c05f21;
+  --chart-5: #4c5a52;
+  --sidebar: #15211b;
+  --sidebar-foreground: #f3f1ea;
+  --sidebar-primary: #0d6b4d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(246, 243, 236, 0.06);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(246, 243, 236, 0.09);
+  --sidebar-ring: #0d6b4d;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #101a15;
+  --foreground: #f0eee6;
+  --card: #16221c;
+  --card-foreground: #f0eee6;
+  --popover: #16221c;
+  --popover-foreground: #f0eee6;
+  --primary: #3fa07c;
+  --primary-foreground: #0b1611;
+  --secondary: #1e2c25;
+  --secondary-foreground: #f0eee6;
+  --muted: #1e2c25;
+  --muted-foreground: #a3b0a8;
+  --accent: #1c3229;
+  --accent-foreground: #b7e2ce;
+  --destructive: #e07a66;
+  --destructive-foreground: #170a07;
+  --border: rgba(240, 238, 230, 0.12);
+  --input: rgba(240, 238, 230, 0.16);
+  --ring: #3fa07c;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-paper text-ink font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* Voile de couleur du fond papier — décoratif, ne capte aucun événement. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(13, 107, 77, 0.06), transparent 60%),
+      radial-gradient(900px 400px at -10% 110%, rgba(192, 95, 33, 0.05), transparent 60%);
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-[-0.02em];
+  }
+
+  ::selection {
+    background: var(--color-brand-tint-2);
+  }
+
+  /* Anneau de focus unique pour tout ce qui est actionnable. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer utilities {
+  /* Conteneur central de la maquette (.wrap) */
+  .nk-wrap {
+    width: 100%;
+    max-width: var(--container-wrap);
+    margin-inline: auto;
+    padding-inline: 1.125rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (min-width: 860px) {
+    .nk-wrap {
+      padding-inline: 1.75rem;
+    }
+  }
+
+  /* Lien d'évitement clavier */
+  .nk-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 200;
+  }
+  .nk-skip:focus {
+    left: 1rem;
+    top: 1rem;
+  }
+}
+
+/* Animation de brillance des squelettes de chargement. */
+@keyframes nk-shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Apparition en cascade des blocs de contenu. */
+@keyframes nk-reveal {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes nk-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
