@@ -18,5 +18,6 @@ export const config = {
     "/profil/:path*",
     "/formateur/:path*",
     "/candidature/:path*",
+    "/admin/:path*",
   ],
 };

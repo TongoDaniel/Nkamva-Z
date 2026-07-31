@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import {
   BadgeCheck,
   BarChart3,
@@ -76,19 +76,25 @@ function isActive(pathname: string, href: string) {
 }
 
 /** Coquille admin — port de `.adm-shell` / `.adm-side` / `.adm-main`. */
+export interface AdminUser {
+  name: string;
+  email: string;
+  adminRole: string | null;
+}
+
 export function AdminShell({
   children,
   nav = ADMIN_NAV,
+  user,
 }: {
   children: React.ReactNode;
   nav?: AdminNavGroup[];
+  /** Fourni par le layout serveur : `useSession()` est vide au premier rendu. */
+  user: AdminUser;
 }) {
   const pathname = usePathname() ?? "/admin";
   const [open, setOpen] = React.useState(false);
-  const { data: session } = useSession();
-  const email = session?.user?.email ?? "";
-  const name = session?.user?.name || email.split("@")[0] || "Administrateur";
-  const adminRole = (session?.user as { adminRole?: string | null } | undefined)?.adminRole;
+  const { name, email, adminRole } = user;
 
   React.useEffect(() => {
     setOpen(false);
