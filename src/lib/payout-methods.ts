@@ -24,10 +24,16 @@ export const PAYOUT_METHOD_ERRORS: Record<string, { status: number; message: str
   JUSTIFICATION_REQUIRED: { status: 400, message: 'Justification requise' },
 }
 
-const DIACRITICS_RE = /[̀-ͯ]/g
+export type NameLookupResult = 'MATCH' | 'NO_MATCH' | 'UNAVAILABLE'
 
-function normalizeName(name: string): string {
-  return name.normalize('NFD').replace(DIACRITICS_RE, '').toLowerCase().trim().split(/\s+/).sort().join(' ')
+// §5.4 : lookup du nom associé au numéro Mobile Money auprès de l'opérateur
+// (Wave/Orange/MTN/M-Pesa). Aucune intégration API n'est câblée dans ce
+// projet : ce point d'extension retourne systématiquement UNAVAILABLE tant
+// qu'un vrai provider n'y est pas branché. Ne comparez jamais holderName à
+// verifiedLegalName en local à la place d'un lookup réel — une déclaration
+// du formateur ne prouve rien (décision 22a, voir docs/decisions-nkamva.md).
+async function lookupMobileMoneyName(_operator: MobileMoneyOperator, _mobilePhone: string): Promise<NameLookupResult> {
+  return 'UNAVAILABLE'
 }
 
 export interface CreatePayoutMethodInput {
@@ -59,16 +65,15 @@ export async function createPayoutMethod(trainerId: string, userId: string, data
 
   let verificationStatus: 'PENDING_REVIEW' | 'AUTO_VERIFIED' = 'PENDING_REVIEW'
   let verificationMethod: 'NAME_LOOKUP' | null = null
-  let nameLookupResult: string | null = null
+  let nameLookupResult: NameLookupResult | null = null
 
-  // §5.4 : name lookup Mobile Money (Wave/Orange/MTN/M-Pesa). Airtel : revue manuelle.
-  // Aucune API de lookup externe n'est disponible ici (pas de clé configurée) :
-  // on compare le nom déclaré au nom légal vérifié du formateur, à défaut de mieux.
-  if (data.type === 'MOBILE_MONEY' && data.holderName && data.mobileOperator !== 'AIRTEL_MONEY') {
-    const matched = normalizeName(data.holderName) === normalizeName(profile.verifiedLegalName)
-    nameLookupResult = matched ? 'MATCH' : 'NO_MATCH'
+  // §5.4 : name lookup Mobile Money (Wave/Orange/MTN/M-Pesa). Airtel : toujours
+  // revue manuelle, indépendamment de la disponibilité d'une API. AUTO_VERIFIED
+  // n'est atteignable que sur un MATCH renvoyé par un vrai lookup opérateur.
+  if (data.type === 'MOBILE_MONEY' && data.mobileOperator && data.mobileOperator !== 'AIRTEL_MONEY' && data.mobilePhone) {
+    nameLookupResult = await lookupMobileMoneyName(data.mobileOperator, data.mobilePhone)
     verificationMethod = 'NAME_LOOKUP'
-    verificationStatus = matched ? 'AUTO_VERIFIED' : 'PENDING_REVIEW'
+    verificationStatus = nameLookupResult === 'MATCH' ? 'AUTO_VERIFIED' : 'PENDING_REVIEW'
   }
 
   const method = await db.$transaction(async (tx) => {
