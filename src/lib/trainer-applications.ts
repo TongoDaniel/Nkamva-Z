@@ -32,8 +32,12 @@ export const DOCUMENT_LIMITS: Record<TrainerDocumentType, { mimes: string[]; max
   VIDEO: { mimes: ['video/mp4'], maxSize: 2_147_483_648 },
 }
 
-/** Statuts dans lesquels une pièce compte comme fournie et en attente de revue. */
-const AWAITING_REVIEW = ['PENDING', 'RESUBMITTED'] as const
+/**
+ * Statuts dans lesquels une pièce compte comme fournie.
+ * APPROVED en fait partie : après un rejet partiel, les pièces déjà validées
+ * restent acquises et ne doivent pas bloquer la re-soumission du dossier.
+ */
+const PROVIDED_STATUSES = ['PENDING', 'RESUBMITTED', 'APPROVED'] as const
 
 export class TrainerApplicationError extends Error {
   constructor(message: string) {
@@ -309,7 +313,7 @@ export async function confirmDocumentUpload(userId: string, documentId: string) 
 /** Pièces courantes manquantes ou pas encore confirmées. */
 export async function missingDocuments(applicationId: string): Promise<TrainerDocumentType[]> {
   const documents = await db.trainerDocument.findMany({
-    where: { applicationId, isCurrent: true, status: { in: [...AWAITING_REVIEW] } },
+    where: { applicationId, isCurrent: true, status: { in: [...PROVIDED_STATUSES] } },
     select: { type: true },
   })
   const provided = new Set(documents.map((d) => d.type))
