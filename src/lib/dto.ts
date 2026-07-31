@@ -5,11 +5,19 @@
 
 export interface TrainerSummary {
   id: string;
-  user: { id?: string; fullName: string | null };
+  user: { id?: string; fullName: string | null; bio?: string | null };
   ratingAverage: number;
   ratingCount: number;
   studentsCount?: number;
-  bio?: string | null;
+  /** Accroche courte du formateur (TrainerProfile.slogan). */
+  slogan?: string | null;
+  /** Présentation publique (TrainerProfile.description). */
+  description?: string | null;
+}
+
+/** Présentation à afficher : description du profil, sinon bio du compte. */
+export function trainerBio(trainer?: TrainerSummary | null): string | null {
+  return trainer?.description || trainer?.user?.bio || null;
 }
 
 /** Élément du catalogue — GET /api/catalog/courses */
@@ -36,10 +44,7 @@ export interface CourseDetail extends CourseListItem {
   language: string;
   lessonsCount: number | null;
   status: string;
-  trainerProfile: Required<Pick<TrainerSummary, "id" | "user" | "ratingAverage" | "ratingCount">> & {
-    studentsCount: number;
-    bio: string | null;
-  };
+  trainerProfile: TrainerSummary & { studentsCount: number };
 }
 
 export type PaymentProvider = "STRIPE" | "CINETPAY";
