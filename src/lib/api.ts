@@ -71,6 +71,19 @@ export async function requireTrainer(): Promise<AuthContext | NextResponse> {
   return ctx
 }
 
+export const MAX_PAGE_SIZE = 50
+
+/**
+ * Pagination normalisée : `page >= 1`, `pageSize` borné à MAX_PAGE_SIZE.
+ * Sans ce garde-fou, `?pageSize=100000` faisait charger toute la table.
+ */
+export function parsePagination(searchParams: URLSearchParams, defaultPageSize = 20): { page: number; pageSize: number } {
+  const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1)
+  const raw = Number.parseInt(searchParams.get('pageSize') || String(defaultPageSize), 10)
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number.isFinite(raw) ? raw : defaultPageSize))
+  return { page, pageSize }
+}
+
 export function checkStale(expectedUpdatedAt: string, actualUpdatedAt: Date): boolean {
   return new Date(expectedUpdatedAt).getTime() !== actualUpdatedAt.getTime()
 }
