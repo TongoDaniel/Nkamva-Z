@@ -18,6 +18,10 @@ function getClient(): S3Client | null {
 function getBucket(): string { return process.env.R2_BUCKET || 'nkamva-dev' }
 export const SIGNED_URL_TTL = 300
 
+export function isS3Configured(): boolean {
+  return !!(process.env.R2_ENDPOINT && process.env.R2_ACCESS_KEY && process.env.R2_SECRET_KEY)
+}
+
 export async function presignUpload(s3Key: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; expiresAt: Date }> {
   const s3 = getClient()
   if (!s3) return { uploadUrl: `data:placeholder-upload/${encodeURIComponent(s3Key)}`, expiresAt: new Date(Date.now() + SIGNED_URL_TTL * 1000) }
