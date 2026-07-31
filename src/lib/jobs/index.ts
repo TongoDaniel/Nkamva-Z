@@ -10,6 +10,7 @@
 import cron from 'node-cron'
 import { auditStandalone } from '../audit'
 import { purgeDeletedAccounts } from './purge-deleted-accounts'
+import { remindPendingDeletions } from './remind-pending-deletions'
 
 export interface JobDefinition {
   id: string
@@ -20,6 +21,14 @@ export interface JobDefinition {
 }
 
 export const JOBS: JobDefinition[] = [
+  {
+    id: 'remind-pending-deletions',
+    // 07h05 UTC : le rappel arrive en matinée sur les fuseaux visés (UTC à
+    // UTC+3), et bien avant la purge du lendemain matin.
+    schedule: '5 7 * * *',
+    description: "Prévient par e-mail avant l'effacement d'un compte (J-7 puis J-1)",
+    run: async () => ({ ...(await remindPendingDeletions()) }),
+  },
   {
     id: 'purge-deleted-accounts',
     // 03h17 UTC : hors des heures de pointe, et décalé d'une heure ronde pour
