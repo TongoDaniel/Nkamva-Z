@@ -5,6 +5,7 @@
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notifyAdminSubRole } from './notification'
+import { PAYOUT_REVIEW_SLA_HOURS } from './payouts'
 import type { AccountNature, MobileMoneyOperator, PayoutMethodType } from '@prisma/client'
 
 export const PAYOUT_METHOD_CARENCE_HOURS = 72
@@ -184,6 +185,20 @@ export async function expirePayoutMethodCarence(): Promise<number> {
     await db.payoutMethodReviewEvent.create({ data: { payoutMethodId: m.id, fromStatus: m.verificationStatus, toStatus: 'VERIFIED', actorRole: 'SYSTEM' } })
   }
   return due.length
+}
+
+// --- §5.3 : alerte SLA 48h (job horaire) — PayoutMethod PENDING_REVIEW en attente depuis trop longtemps ---
+
+export async function alertPayoutMethodSlaBreaches(): Promise<number> {
+  const cutoff = new Date(Date.now() - PAYOUT_REVIEW_SLA_HOURS * 3600000)
+  const breached = await db.payoutMethod.findMany({ where: { verificationStatus: 'PENDING_REVIEW', createdAt: { lt: cutoff } } })
+  if (breached.length > 0) {
+    await notifyAdminSubRole('FINANCES', {
+      type: 'PAYOUT_METHOD_SLA_BREACHED', title: `${breached.length} RIB en attente depuis plus de ${PAYOUT_REVIEW_SLA_HOURS}h`,
+      body: 'SLA de revue dépassé.', link: '/admin/payout-methods',
+    })
+  }
+  return breached.length
 }
 
 // --- PM6 : rejeter (Finances) — 3 rejets → BLOCKED + escalade ---
