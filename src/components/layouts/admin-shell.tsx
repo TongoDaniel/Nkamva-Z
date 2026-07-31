@@ -1,0 +1,284 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
+import {
+  BadgeCheck,
+  BarChart3,
+  FileClock,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Receipt,
+  Settings,
+  ShieldAlert,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
+import { Avatar } from "@/components/nk/avatar";
+import { cn } from "@/lib/utils";
+
+export interface AdminNavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
+}
+
+export interface AdminNavGroup {
+  title: string;
+  items: AdminNavItem[];
+}
+
+/**
+ * Rubriques admin. Chaque entrée pointe vers une page qui sera livrée par la
+ * tranche correspondante ; la navigation est donc la source unique de vérité
+ * sur le périmètre admin restant à construire.
+ */
+export const ADMIN_NAV: AdminNavGroup[] = [
+  {
+    title: "Pilotage",
+    items: [
+      { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Modération",
+    items: [
+      { href: "/admin/validation-formateurs", label: "Validation formateurs", icon: BadgeCheck },
+      { href: "/admin/signalements", label: "Signalements", icon: ShieldAlert },
+    ],
+  },
+  {
+    title: "Finances",
+    items: [
+      { href: "/admin/transactions", label: "Transactions", icon: Receipt },
+      { href: "/admin/retraits", label: "Retraits", icon: Wallet },
+    ],
+  },
+  {
+    title: "Administration",
+    items: [
+      { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users },
+      { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock },
+      { href: "/admin/parametres", label: "Paramètres", icon: Settings },
+    ],
+  },
+];
+
+function isActive(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Coquille admin — port de `.adm-shell` / `.adm-side` / `.adm-main`. */
+export function AdminShell({
+  children,
+  nav = ADMIN_NAV,
+}: {
+  children: React.ReactNode;
+  nav?: AdminNavGroup[];
+}) {
+  const pathname = usePathname() ?? "/admin";
+  const [open, setOpen] = React.useState(false);
+  const { data: session } = useSession();
+  const email = session?.user?.email ?? "";
+  const name = session?.user?.name || email.split("@")[0] || "Administrateur";
+  const adminRole = (session?.user as { adminRole?: string | null } | undefined)?.adminRole;
+
+  React.useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Échap referme le tiroir mobile.
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div className="flex min-h-screen bg-paper">
+      <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
+        Aller au contenu
+      </a>
+
+      {/* En-tête mobile (`.adm-mtop`) */}
+      <div className="sticky top-0 z-60 flex items-center gap-3 border-b border-line bg-card px-4.5 py-3.5 min-[861px]:hidden">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-expanded={open}
+          aria-controls="nk-admin-nav"
+          aria-label="Ouvrir la navigation"
+          className="grid size-[38px] shrink-0 cursor-pointer place-items-center rounded-nk-sm border border-line bg-card"
+        >
+          <Menu className="size-[19px]" aria-hidden="true" />
+        </button>
+        <b className="font-display text-base font-extrabold tracking-[-0.01em]">
+          Nkam<em className="not-italic">Va</em>
+        </b>
+        <span className="rounded-md bg-paper px-1.5 py-1 text-[9px] font-extrabold tracking-[0.12em] text-ink-3">
+          ADMIN
+        </span>
+      </div>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-90 bg-black/45 min-[861px]:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      ) : null}
+
+      <nav
+        id="nk-admin-nav"
+        aria-label="Navigation administration"
+        className={cn(
+          "z-100 flex w-[250px] shrink-0 flex-col overflow-y-auto bg-linear-to-b from-ink to-[#0f1712] text-[#f3f1ea]",
+          "max-[860px]:fixed max-[860px]:inset-y-0 max-[860px]:left-0 max-[860px]:transition-transform max-[860px]:duration-250",
+          "min-[861px]:sticky min-[861px]:top-0 min-[861px]:h-screen",
+          open ? "max-[860px]:translate-x-0 max-[860px]:shadow-nk-lg" : "max-[860px]:-translate-x-full",
+        )}
+      >
+        <div className="flex items-center gap-2.5 px-5 pb-4 pt-5.5">
+          <span
+            className="grid size-[34px] shrink-0 place-items-center rounded-nk-sm bg-brand shadow-[inset_0_-2px_0_rgba(0,0,0,.2)] font-display text-[17px] font-extrabold text-white"
+            aria-hidden="true"
+          >
+            N
+          </span>
+          <b className="font-display text-[17px] font-extrabold tracking-[-0.01em] text-white">
+            Nkam<em className="not-italic text-[#7fd4b4]">Va</em>
+          </b>
+          <span className="ml-auto rounded-md bg-white/10 px-1.5 py-1 text-[9.5px] font-extrabold tracking-[0.13em] text-[#98a49b]">
+            ADMIN
+          </span>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Fermer la navigation"
+            className="grid size-8 cursor-pointer place-items-center rounded-nk-sm text-[#98a49b] hover:bg-white/10 hover:text-white min-[861px]:hidden"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-4 px-3.5 pb-3.5">
+          {nav.map((group) => (
+            <div key={group.title} className="flex flex-col gap-0.5">
+              <h2 className="mb-1.5 px-2.5 font-sans text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#98a49b]">
+                {group.title}
+              </h2>
+              {group.items.map(({ href, label, icon: Icon, badge }) => {
+                const active = isActive(pathname, href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-nk-sm px-2.5 py-2.5 text-[13.7px] font-semibold transition duration-150",
+                      active ? "bg-brand text-white" : "text-[#98a49b] hover:bg-white/[0.06] hover:text-white",
+                    )}
+                  >
+                    <Icon className="size-[17px] shrink-0" aria-hidden="true" />
+                    {label}
+                    {badge ? (
+                      <span
+                        className={cn(
+                          "ml-auto min-w-4 rounded-full px-1 text-center text-[10px] font-extrabold leading-4",
+                          active ? "bg-white text-brand-dark" : "bg-gold text-[#241a02]",
+                        )}
+                      >
+                        {badge}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3 border-t border-white/10 px-4.5 pb-5 pt-3.5">
+          <Avatar name={name} size="sm" />
+          <div className="min-w-0">
+            <b className="block truncate text-[13.3px] text-white">{name}</b>
+            <small className="block truncate text-[11.3px] text-[#98a49b]">
+              {adminRole ?? email}
+            </small>
+          </div>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            aria-label="Se déconnecter"
+            className="ml-auto grid size-8 shrink-0 cursor-pointer place-items-center rounded-nk-sm text-[#98a49b] hover:bg-white/[0.06] hover:text-white"
+          >
+            <LogOut className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      </nav>
+
+      <main id="contenu" className="min-w-0 flex-1 px-4.5 pb-12 pt-5.5 md:px-8.5 md:pb-16 md:pt-7.5">
+        {children}
+      </main>
+    </div>
+  );
+}
+
+/** En-tête de page admin — port de `.adm-head`. */
+export function AdminHead({
+  title,
+  lead,
+  actions,
+}: {
+  title: string;
+  lead?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6.5 flex flex-wrap items-start justify-between gap-6">
+      <div>
+        <h1 className="mb-1 text-[26px] font-extrabold">{title}</h1>
+        {lead ? <p className="text-[14.5px] text-ink-2">{lead}</p> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
+    </div>
+  );
+}
+
+/** Carte de contenu admin — port de `.adm-card`. */
+export function AdminCard({
+  title,
+  action,
+  children,
+  className,
+}: {
+  title?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={cn("rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm", className)}
+      aria-label={title}
+    >
+      {title || action ? (
+        <div className="mb-4.5 flex flex-wrap items-center justify-between gap-3.5">
+          {title ? <h2 className="text-[16.5px] font-extrabold">{title}</h2> : <span />}
+          {action}
+        </div>
+      ) : null}
+      {children}
+    </section>
+  );
+}
