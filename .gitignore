@@ -54,7 +54,6 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
-.z-ai-config
 
 # Project-local temp files
 local-*
