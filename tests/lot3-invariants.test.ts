@@ -105,13 +105,19 @@ describe('Lot 3 — KYC, vérification RIB & payouts', () => {
   })
 
   // -------------------------------------------------------------------------
-  it('createPayoutMethod : MOBILE_MONEY avec nom concordant → AUTO_VERIFIED', async () => {
-    const { profile, user } = await createTrainer() // verifiedLegalName = 'Jean Dupont'
+  it('createPayoutMethod : MOBILE_MONEY sans API opérateur → jamais AUTO_VERIFIED, jamais crédité au KYC', async () => {
+    const { profile, user } = await createTrainer({ approvedDaysAgo: 40 })
+    // Même en déclarant un nom strictement identique au nom légal vérifié :
+    // sans lookup opérateur réel, ça ne prouve rien et ne doit jamais suffire.
     const method = await createPayoutMethod(profile.id, user.id, {
-      type: 'MOBILE_MONEY', accountNature: 'INDIVIDUAL', mobileOperator: 'ORANGE_MONEY', mobilePhone: '+2250700000000', holderName: 'Dupont Jean',
+      type: 'MOBILE_MONEY', accountNature: 'INDIVIDUAL', mobileOperator: 'ORANGE_MONEY', mobilePhone: '+2250700000000', holderName: 'Jean Dupont',
     })
-    expect(method.verificationStatus).toBe('AUTO_VERIFIED')
-    expect(method.nameLookupResult).toBe('MATCH')
+    expect(method.verificationStatus).toBe('PENDING_REVIEW')
+    expect(method.nameLookupResult).toBe('UNAVAILABLE')
+
+    const kyc = await computeKycScore(profile.id)
+    expect(kyc.criteria.ribVerified).toBe(false)
+    expect(kyc.score).toBe(10) // ancienneté uniquement — aucun point RIB tant que Finances n'a pas vérifié manuellement
   })
 
   // -------------------------------------------------------------------------
