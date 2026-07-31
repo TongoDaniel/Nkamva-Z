@@ -54,7 +54,6 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
-.z-ai-config
 
 # Project-local temp files
 local-*
@@ -62,6 +61,9 @@ tmp/
 temp/
 test/
 prompt/
+
+# Local Postgres data dir (if a local server is ever run outside Docker)
+.pgdata/
 
 # Skills directory
 /skills/
