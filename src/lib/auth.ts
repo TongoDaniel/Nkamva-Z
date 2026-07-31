@@ -3,6 +3,17 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from './db'
 import { verifyPassword } from './password'
 
+/**
+ * Un jeton est révoqué s'il a été émis strictement avant la seconde où les
+ * sessions ont été invalidées. L'égalité est acceptée : `iat` n'a pas la
+ * précision nécessaire pour ordonner deux événements de la même seconde, et un
+ * jeton n'est émis qu'après une vérification d'identifiants réussie.
+ */
+export function isRevoked(iatSeconds: number, sessionsValidAfter: string): boolean {
+  const cutoff = Math.floor(new Date(sessionsValidAfter).getTime() / 1000)
+  return iatSeconds < cutoff
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -30,9 +41,15 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      const sessionsValidAfter = new Date(token.sessionsValidAfter as string)
-      const iat = new Date((token.iat as number) * 1000)
-      if (iat < sessionsValidAfter) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
+      // `iat` est en secondes entières, `sessionsValidAfter` en millisecondes.
+      // Comparer les deux tels quels rejetait tout jeton émis dans la même
+      // seconde qu'un bump de sessionsValidAfter (inscription puis connexion,
+      // réinitialisation de mot de passe puis reconnexion) : le jeton était
+      // pourtant légitime, émis après la validation des identifiants. On
+      // compare donc à la seconde, résolution réelle de `iat`.
+      if (isRevoked(token.iat as number, token.sessionsValidAfter as string)) {
+        return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
+      }
       const tokenAge = Date.now() / 1000 - (token.iat as number)
       if (tokenAge > 300) {
         const dbUser = await db.user.findUnique({ where: { id: token.userId as string }, select: { role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } } })

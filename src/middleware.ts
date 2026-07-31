@@ -10,5 +10,12 @@ export default withAuth({
 });
 
 export const config = {
-  matcher: ["/accueil/:path*", "/mes-ressources/:path*", "/mes-achats/:path*", "/achat/:path*", "/profil/:path*"],
+  matcher: [
+    "/accueil/:path*",
+    "/mes-ressources/:path*",
+    "/mes-achats/:path*",
+    "/achat/:path*",
+    "/profil/:path*",
+    "/formateur/:path*",
+  ],
 };
