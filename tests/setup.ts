@@ -5,9 +5,12 @@
 import { PrismaClient } from '@prisma/client'
 
 // Override DATABASE_URL pour pointer sur la base de test.
-// TEST_DATABASE_URL permet de surcharger l'URL par défaut (utile quand le
-// port 5433 attendu n'est pas celui du Postgres réellement disponible).
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://nkamva@localhost:5433/nkamva_test?schema=public'
+// Le défaut suit docker-compose.yml : rôle `edulink`, port 5432. L'ancien
+// `nkamva@localhost:5433` ne correspondait à aucun serveur, et toute la suite
+// échouait sur un délai de connexion. TEST_DATABASE_URL reste prioritaire.
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL ||
+  'postgresql://edulink:edulink_dev_2025@localhost:5432/nkamva_test?schema=public'
 
 const prisma = new PrismaClient()
 

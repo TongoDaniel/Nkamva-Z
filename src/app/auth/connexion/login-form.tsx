@@ -34,7 +34,9 @@ export function LoginForm() {
     ? "Votre adresse e-mail est confirmée. Vous pouvez vous connecter."
     : params.get("reset")
       ? "Votre mot de passe a été réinitialisé. Connectez-vous avec le nouveau."
-      : null;
+      : params.get("password")
+        ? "Votre mot de passe a été modifié. Toutes vos sessions ont été déconnectées."
+        : null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
