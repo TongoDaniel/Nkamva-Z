@@ -4,8 +4,10 @@
 
 import { PrismaClient } from '@prisma/client'
 
-// Override DATABASE_URL pour pointer sur la base de test
-process.env.DATABASE_URL = 'postgresql://nkamva@localhost:5433/nkamva_test?schema=public'
+// Override DATABASE_URL pour pointer sur la base de test.
+// TEST_DATABASE_URL permet de surcharger l'URL par défaut (utile quand le
+// port 5433 attendu n'est pas celui du Postgres réellement disponible).
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://nkamva@localhost:5433/nkamva_test?schema=public'
 
 const prisma = new PrismaClient()
 

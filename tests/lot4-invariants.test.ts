@@ -8,7 +8,18 @@ import { searchCourses, getPublicCourse } from '@/lib/catalog'
 import { createCourse, publishCourse } from '@/lib/courses'
 import { initiatePurchase, reconcilePurchase } from '@/lib/purchases'
 import { checkCourseAccess, updateWatchProgress, markCourseDownloaded, getConsumptionPercent } from '@/lib/access'
-import { creditWalletOnPurchase } from '@/lib/wallet'
+import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
+
+function stripeSucceededRequest(providerTransactionId: string) {
+  return new Request('http://localhost/api/webhooks/stripe', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      type: 'payment_intent.succeeded',
+      data: { object: { id: providerTransactionId } },
+    }),
+  })
+}
 
 describe('Lot 4 — Parcours cœur', () => {
   beforeEach(async () => { await cleanDatabase() })
@@ -69,11 +80,13 @@ describe('Lot 4 — Parcours cœur', () => {
   })
 
   // -------------------------------------------------------------------------
-  it('achat Stripe complet : initiation → crédit wallet idempotent', async () => {
+  it('achat Stripe complet : initiation → webhook (simulé dev) → crédit wallet idempotent', async () => {
     const { profile, course } = await setupTrainerWithCourse({ price: 15000 })
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
 
-    // Initier l'achat
+    // Initier l'achat : en dev (pas de STRIPE_SECRET_KEY), initiatePurchase
+    // simule la réception du webhook en appelant réellement la route
+    // POST /api/webhooks/stripe (voir simulateStripeWebhook dans purchases.ts).
     const result = await initiatePurchase(course.id, learner.id, 'STRIPE')
     expect(result.provider).toBe('STRIPE')
     expect(result.providerTransactionId).toMatch(/^pi_/)
@@ -105,22 +118,58 @@ describe('Lot 4 — Parcours cœur', () => {
   })
 
   // -------------------------------------------------------------------------
-  it('webhook reçu deux fois → wallet crédité une seule fois', async () => {
+  it('paiement non confirmé : sans appel webhook, aucun wallet crédité', async () => {
     const { profile, course } = await setupTrainerWithCourse({ price: 10000 })
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
 
-    const result = await initiatePurchase(course.id, learner.id, 'STRIPE')
+    // Clé Stripe "présente" → initiatePurchase ne simule plus rien, la Purchase
+    // reste PENDING tant que le vrai webhook n'a pas confirmé le paiement.
+    const originalKey = process.env.STRIPE_SECRET_KEY
+    process.env.STRIPE_SECRET_KEY = 'sk_test_fake_present'
+    let result: Awaited<ReturnType<typeof initiatePurchase>>
+    try {
+      result = await initiatePurchase(course.id, learner.id, 'STRIPE')
+    } finally {
+      process.env.STRIPE_SECRET_KEY = originalKey
+    }
 
-    // Le crédit a déjà eu lieu à l'initiation. Simuler un webhook double.
-    await prisma.$transaction(async (tx) => {
-      await creditWalletOnPurchase(tx, result.providerTransactionId, 'STRIPE')
-    })
+    const purchase = await prisma.purchase.findUnique({ where: { id: result.purchaseId } })
+    expect(purchase?.providerStatus).toBe('PENDING')
+
+    const walletBefore = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
+    expect(walletBefore?.balance).toBe(0)
+
+    // Le webhook confirme enfin le paiement → c'est seulement là que le wallet est crédité
+    const res = await stripeWebhookHandler(stripeSucceededRequest(result.providerTransactionId))
+    expect(res.status).toBe(200)
+
+    const walletAfter = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
+    expect(walletAfter?.balance).toBe(8500) // 85% de 10000
+  })
+
+  // -------------------------------------------------------------------------
+  it('webhook Stripe rejoué deux fois → wallet crédité une seule fois', async () => {
+    const { profile, course } = await setupTrainerWithCourse({ price: 10000 })
+    const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
+
+    const originalKey = process.env.STRIPE_SECRET_KEY
+    process.env.STRIPE_SECRET_KEY = 'sk_test_fake_present'
+    let result: Awaited<ReturnType<typeof initiatePurchase>>
+    try {
+      result = await initiatePurchase(course.id, learner.id, 'STRIPE')
+    } finally {
+      process.env.STRIPE_SECRET_KEY = originalKey
+    }
+
+    // Le même événement webhook est livré deux fois (cas réel : retry provider)
+    await stripeWebhookHandler(stripeSucceededRequest(result.providerTransactionId))
+    await stripeWebhookHandler(stripeSucceededRequest(result.providerTransactionId))
 
     // Le wallet ne doit pas avoir été crédité deux fois
     const wallet = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
     expect(wallet?.balance).toBe(8500) // toujours 8500, pas 17000
 
-    // Vérifier qu'un audit WEBHOOK_DUPLICATE_IGNORED a été écrit
+    // Vérifier qu'un audit WEBHOOK_DUPLICATE_IGNORED a été écrit (une seule fois)
     const auditCount = await prisma.auditLog.count({
       where: { action: 'WEBHOOK_DUPLICATE_IGNORED' },
     })

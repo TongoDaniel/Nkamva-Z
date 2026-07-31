@@ -4,7 +4,37 @@
 
 import { db } from './db'
 import { auditStandalone } from './audit'
-import { creditWalletOnPurchase } from './wallet'
+import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
+import { POST as cinetpayWebhookHandler } from '@/app/api/webhooks/cinetpay/route'
+
+// Simule la réception du webhook provider en dev (pas de clé API configurée).
+// Passe par la même route webhook que la production : creditWalletOnPurchase
+// n'est jamais appelée directement depuis ce module.
+async function simulateStripeWebhook(providerTransactionId: string): Promise<void> {
+  const event = {
+    id: `evt_dev_${crypto.randomUUID()}`,
+    object: 'event',
+    type: 'payment_intent.succeeded',
+    data: { object: { id: providerTransactionId, object: 'payment_intent', status: 'succeeded' } },
+  }
+  const request = new Request('http://localhost/api/webhooks/stripe', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(event),
+  })
+  const res = await stripeWebhookHandler(request)
+  if (!res.ok) throw new Error('DEV_WEBHOOK_SIMULATION_FAILED')
+}
+
+async function simulateCinetPayWebhook(providerTransactionId: string): Promise<void> {
+  const request = new Request('http://localhost/api/webhooks/cinetpay', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ transactionId: providerTransactionId }),
+  })
+  const res = await cinetpayWebhookHandler(request)
+  if (!res.ok) throw new Error('DEV_WEBHOOK_SIMULATION_FAILED')
+}
 
 export interface InitiatePurchaseResult {
   purchaseId: string
@@ -82,12 +112,10 @@ export async function initiatePurchase(
     meta: { courseId, amountFcfa, provider, providerTransactionId },
   })
 
-  // En dev sans clés API : simuler le paiement immédiatement
+  // En dev sans clés API : simuler la confirmation en repassant par la vraie
+  // route webhook (creditWalletOnPurchase n'est appelée que depuis elle).
   if (provider === 'STRIPE' && !process.env.STRIPE_SECRET_KEY) {
-    // Simuler un paiement réussi
-    await db.$transaction(async (tx) => {
-      await creditWalletOnPurchase(tx, providerTransactionId, 'STRIPE')
-    })
+    await simulateStripeWebhook(providerTransactionId)
     return {
       purchaseId: purchase.id,
       providerTransactionId,
@@ -97,10 +125,7 @@ export async function initiatePurchase(
   }
 
   if (provider === 'CINETPAY' && !process.env.CINETPAY_API_KEY) {
-    // Simuler un paiement réussi
-    await db.$transaction(async (tx) => {
-      await creditWalletOnPurchase(tx, providerTransactionId, 'CINETPAY')
-    })
+    await simulateCinetPayWebhook(providerTransactionId)
     return {
       purchaseId: purchase.id,
       providerTransactionId,
@@ -109,20 +134,15 @@ export async function initiatePurchase(
     }
   }
 
-  // En production :
-  // - Stripe : créer un PaymentIntent, retourner clientSecret
-  // - CinetPay : créer un paiement, retourner paymentUrl
-  // Pour l'instant, on simule aussi
-
-  await db.$transaction(async (tx) => {
-    await creditWalletOnPurchase(tx, providerTransactionId, provider)
-  })
-
+  // Clés réelles configurées : création du paiement côté provider (PaymentIntent
+  // Stripe / paiement CinetPay) non implémentée à ce stade — hors périmètre de
+  // cette étape. La Purchase reste PENDING : le crédit n'intervient que lorsque
+  // le vrai webhook provider confirme le paiement (voir /api/webhooks/stripe et
+  // /api/webhooks/cinetpay). Un paiement non confirmé ne crédite jamais.
   return {
     purchaseId: purchase.id,
     providerTransactionId,
     provider,
-    ...(provider === 'STRIPE' ? { clientSecret: 'pi_dev_secret' } : {}),
   }
 }
 
