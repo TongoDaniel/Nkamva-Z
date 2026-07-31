@@ -1,5 +1,9 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+// Import statique : en dynamique, le bundler isole un chunk dont le nom porte
+// « node:crypto ». Le deux-points est un caractère interdit dans un nom de
+// fichier Windows, et la copie vers la sortie standalone échoue.
+import { createHash } from 'node:crypto'
 
 let client: S3Client | null = null
 
@@ -18,6 +22,20 @@ function getClient(): S3Client | null {
 function getBucket(): string { return process.env.R2_BUCKET || 'nkamva-dev' }
 export const SIGNED_URL_TTL = 300
 
+/**
+ * Le stockage objet est-il réellement branché ?
+ * Sans identifiants, les fonctions ci-dessous renvoient des valeurs de repli
+ * qui permettent au reste de l'application de tourner en développement. Les
+ * parcours qui dépendent d'un fichier réellement déposé doivent le savoir et
+ * le dire, au lieu de faire comme si l'envoi avait eu lieu.
+ */
+export function isS3Configured(): boolean {
+  return getClient() !== null
+}
+
+/** Au-delà, on ne relit pas l'objet entier pour en calculer l'empreinte. */
+export const SHA256_MAX_BYTES = 16 * 1024 * 1024
+
 export async function presignUpload(s3Key: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; expiresAt: Date }> {
   const s3 = getClient()
   if (!s3) return { uploadUrl: `data:placeholder-upload/${encodeURIComponent(s3Key)}`, expiresAt: new Date(Date.now() + SIGNED_URL_TTL * 1000) }
@@ -33,10 +51,34 @@ export async function presignDownload(s3Key: string): Promise<string> {
   return getSignedUrl(s3, command, { expiresIn: SIGNED_URL_TTL })
 }
 
-export async function headObject(s3Key: string): Promise<{ contentLength: number; contentType?: string } | null> {
+export async function headObject(s3Key: string): Promise<{ contentLength: number; contentType?: string; etag?: string } | null> {
   const s3 = getClient()
   if (!s3) return null
-  try { const resp = await s3.send(new HeadObjectCommand({ Bucket: getBucket(), Key: s3Key })); return { contentLength: resp.ContentLength ?? 0, contentType: resp.ContentType } } catch { return null }
+  try { const resp = await s3.send(new HeadObjectCommand({ Bucket: getBucket(), Key: s3Key })); return { contentLength: resp.ContentLength ?? 0, contentType: resp.ContentType, etag: resp.ETag?.replace(/"/g, '') } } catch { return null }
+}
+
+/**
+ * Empreinte d'intégrité de l'objet déposé.
+ * En deçà de SHA256_MAX_BYTES, l'objet est relu en flux et hashé réellement.
+ * Au-delà — une vidéo peut peser 2 Go — relire coûterait autant de trafic que
+ * l'envoi : on retombe alors sur l'ETag fourni par le stockage, préfixé pour
+ * qu'aucun appelant ne puisse le confondre avec un SHA-256.
+ */
+export async function computeObjectDigest(s3Key: string, sizeBytes: number): Promise<string> {
+  const s3 = getClient()
+  if (!s3) throw new Error('STORAGE_NOT_CONFIGURED')
+
+  if (sizeBytes > SHA256_MAX_BYTES) {
+    const head = await headObject(s3Key)
+    if (!head?.etag) throw new Error('CANNOT_READ_FILE')
+    return `etag:${head.etag}`
+  }
+
+  const hash = createHash('sha256')
+  const resp = await s3.send(new GetObjectCommand({ Bucket: getBucket(), Key: s3Key }))
+  if (!resp.Body) throw new Error('CANNOT_READ_FILE')
+  for await (const chunk of resp.Body as AsyncIterable<Uint8Array>) hash.update(chunk)
+  return `sha256:${hash.digest('hex')}`
 }
 
 export async function getRange(s3Key: string, start: number, end: number): Promise<Buffer | null> {

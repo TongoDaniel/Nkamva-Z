@@ -17,5 +17,6 @@ export const config = {
     "/achat/:path*",
     "/profil/:path*",
     "/formateur/:path*",
+    "/candidature/:path*",
   ],
 };
