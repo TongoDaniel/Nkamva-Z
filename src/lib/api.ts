@@ -32,7 +32,6 @@ const PUBLIC_ROUTES: { method: string; prefix: string }[] = [
 ]
 
 export function isPublicRoute(method: string, path: string): boolean {
-  if (path.startsWith('/api/auth/')) return true
   return PUBLIC_ROUTES.some(r => method === r.method && (path === r.prefix || path.startsWith(r.prefix)))
 }
 
