@@ -57,24 +57,25 @@ export default function DevenirFormateurPage() {
           aria-labelledby="candidature"
           className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
         >
-          <Chip tone="gold">Bientôt</Chip>
+          <Chip>Candidature</Chip>
           <h2 id="candidature" className="mb-2 mt-3 text-[19px] font-extrabold">
-            Les candidatures ouvrent prochainement
+            Déposez votre dossier
           </h2>
           <p className="mb-5 text-[14.5px] leading-relaxed text-ink-2">
-            Le dépôt de candidature en ligne — pièce d&apos;identité, diplôme, vidéo de
-            présentation — n&apos;est pas encore ouvert. Chaque profil est examiné avant
-            publication, et nous préférons ne pas collecter vos documents avant que ce parcours
-            soit complet.
+            Trois étapes : votre présentation, une pièce d&apos;identité, un diplôme ou une
+            attestation, et deux minutes de vidéo. Chaque profil est examiné avant publication.
           </p>
           <p className="mb-6 rounded-xl bg-brand-tint px-4 py-3 text-[13px] leading-relaxed text-brand-dark">
-            Vos coordonnées bancaires ne sont jamais demandées à l&apos;inscription : elles ne
+            Vos coordonnées bancaires ne sont jamais demandées à la candidature : elles ne
             servent qu&apos;au moment de votre premier retrait.
           </p>
           <Btn asChild block>
-            <Link href="/contact">Faire part de votre intérêt</Link>
+            <Link href="/candidature">Commencer ma candidature</Link>
           </Btn>
-          <Btn asChild variant="o" block className="mt-2.5">
+          <p className="mt-2.5 text-center text-[12.5px] text-ink-3">
+            Un compte NkamVa suffit pour démarrer.
+          </p>
+          <Btn asChild variant="o" block className="mt-4">
             <Link href="/ressources">Voir ce qui se publie déjà</Link>
           </Btn>
         </aside>
