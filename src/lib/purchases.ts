@@ -27,10 +27,13 @@ async function simulateStripeWebhook(providerTransactionId: string): Promise<voi
 }
 
 async function simulateCinetPayWebhook(providerTransactionId: string): Promise<void> {
+  // Reproduit le format réel (form-urlencoded, champ cpm_trans_id) pour
+  // exercer le même chemin de parsing qu'un vrai webhook CinetPay.
+  const body = new URLSearchParams({ cpm_trans_id: providerTransactionId, cpm_site_id: process.env.CINETPAY_SITE_ID || 'dev' }).toString()
   const request = new Request('http://localhost/api/webhooks/cinetpay', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ transactionId: providerTransactionId }),
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body,
   })
   const res = await cinetpayWebhookHandler(request)
   if (!res.ok) throw new Error('DEV_WEBHOOK_SIMULATION_FAILED')
