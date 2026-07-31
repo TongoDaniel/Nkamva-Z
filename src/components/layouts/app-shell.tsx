@@ -3,18 +3,24 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown, LogOut, Menu, Settings, ShoppingBag, User, X, Library } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Settings, ShoppingBag, X, Library } from "lucide-react";
 import { Logo } from "@/components/nk/logo";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const LEARNER_NAV = [
   { href: "/accueil", label: "Accueil" },
   { href: "/ressources", label: "Catalogue" },
   { href: "/mes-ressources", label: "Mes ressources" },
   { href: "/mes-achats", label: "Mes achats" },
+];
+
+/** Un formateur reste un apprenant : sa navigation ajoute, elle ne remplace pas. */
+const TRAINER_NAV = [
+  { href: "/formateur", label: "Espace formateur" },
+  { href: "/formateur/ressources", label: "Mes publications" },
 ];
 
 const ACCOUNT_LINKS = [
@@ -27,11 +33,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function AccountMenu() {
-  const { data: session } = useSession();
-  const email = session?.user?.email ?? "";
-  const name = session?.user?.name || email.split("@")[0] || "Mon compte";
-
+function AccountMenu({ name, email }: { name: string; email: string }) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
@@ -88,11 +90,21 @@ function AccountMenu() {
   );
 }
 
-/** Coquille de l'espace connecté : topbar applicative + pied de page compact. */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export interface ShellUser {
+  name: string;
+  email: string;
+  isTrainer: boolean;
+}
+
+/**
+ * Coquille de l'espace connecté : topbar applicative + pied de page compact.
+ * `user` vient du layout serveur : sans lui, `useSession()` est vide au premier
+ * rendu et la navigation formateur n'apparaîtrait qu'après hydratation.
+ */
+export function AppShell({ children, user }: { children: React.ReactNode; user: ShellUser }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = React.useState(false);
-  const { data: session, status } = useSession();
+  const nav = user.isTrainer ? [...LEARNER_NAV, ...TRAINER_NAV] : LEARNER_NAV;
 
   React.useEffect(() => {
     setOpen(false);
@@ -109,7 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Logo href="/accueil" compact />
 
           <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 min-[820px]:flex">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -127,15 +139,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="ml-auto flex items-center gap-2.5">
-            {status === "loading" ? (
-              <span className="size-[42px] animate-pulse rounded-full bg-line-2" aria-hidden="true" />
-            ) : session?.user ? (
-              <AccountMenu />
-            ) : (
-              <Link href="/auth/connexion" className="text-sm font-semibold text-brand">
-                Se connecter
-              </Link>
-            )}
+            <AccountMenu name={user.name} email={user.email} />
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
@@ -155,7 +159,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           hidden={!open}
           className="absolute inset-x-0 top-full z-[120] border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk min-[820px]:hidden"
         >
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
