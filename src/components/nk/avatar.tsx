@@ -50,7 +50,6 @@ export function Avatar({ className, size, tone, name, src, alt, ring, ...props }
       {...props}
     >
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" className="size-full object-cover" />
       ) : (
         label

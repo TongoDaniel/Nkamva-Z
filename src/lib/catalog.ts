@@ -76,9 +76,12 @@ export async function getPublicCourse(slug: string) {
       trainerProfile: {
         select: {
           id: true,
-          user: { select: { id: true, fullName: true } },
+          // `bio` vit sur User, pas sur TrainerProfile : la sélectionner ici
+          // faisait échouer la requête Prisma. La présentation publique du
+          // formateur est `TrainerProfile.description`, avec `User.bio` en repli.
+          user: { select: { id: true, fullName: true, bio: true } },
           ratingAverage: true, ratingCount: true, studentsCount: true,
-          bio: true,
+          slogan: true, description: true,
         },
       },
     },
