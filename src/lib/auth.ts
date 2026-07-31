@@ -41,21 +41,33 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      // `iat` est en secondes entières, `sessionsValidAfter` en millisecondes.
-      // Comparer les deux tels quels rejetait tout jeton émis dans la même
-      // seconde qu'un bump de sessionsValidAfter (inscription puis connexion,
-      // réinitialisation de mot de passe puis reconnexion) : le jeton était
-      // pourtant légitime, émis après la validation des identifiants. On
-      // compare donc à la seconde, résolution réelle de `iat`.
-      if (isRevoked(token.iat as number, token.sessionsValidAfter as string)) {
+      // Contrôle systématique en base plutôt que tous les 300 s.
+      //
+      // Le jeton transporte le `sessionsValidAfter` figé à la connexion : s'y
+      // fier revenait à ignorer toute révocation pendant 5 minutes. Un
+      // changement de mot de passe ne coupait donc pas les autres sessions, et
+      // une suspension de compte laissait l'accès ouvert autant de temps.
+      // Le coût est une lecture par clé primaire par requête authentifiée.
+      const dbUser = await db.user.findUnique({
+        where: { id: token.userId as string },
+        select: { role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } },
+      })
+      const revoked =
+        !dbUser ||
+        dbUser.deletedAt ||
+        dbUser.suspendedAt ||
+        // `iat` est en secondes entières, `sessionsValidAfter` en millisecondes :
+        // comparer les deux tels quels rejetait tout jeton émis dans la même
+        // seconde qu'une invalidation, alors qu'il venait d'être délivré après
+        // une vérification d'identifiants réussie.
+        isRevoked(token.iat as number, dbUser.sessionsValidAfter.toISOString())
+      if (revoked) {
         return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
       }
-      const tokenAge = Date.now() / 1000 - (token.iat as number)
-      if (tokenAge > 300) {
-        const dbUser = await db.user.findUnique({ where: { id: token.userId as string }, select: { role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } } })
-        if (!dbUser || dbUser.deletedAt || dbUser.suspendedAt) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
-        token.role = dbUser.role; token.adminRole = dbUser.adminRole; token.trainerId = dbUser.trainerProfile?.id ?? null; token.sessionsValidAfter = dbUser.sessionsValidAfter.toISOString()
-      }
+      token.role = dbUser.role
+      token.adminRole = dbUser.adminRole
+      token.trainerId = dbUser.trainerProfile?.id ?? null
+      token.sessionsValidAfter = dbUser.sessionsValidAfter.toISOString()
       return { ...session, user: { ...session.user, id: token.userId as string, role: token.role as string, adminRole: token.adminRole as string | null, trainerId: token.trainerId as string | null } }
     },
   },
