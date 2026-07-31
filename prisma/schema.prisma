@@ -1,0 +1,830 @@
+// ==========================================================================
+// NkamVa — Schéma Prisma complet (PostgreSQL) — Lots 0, 1, 2, 3, 4
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+enum Role {
+  LEARNER
+  PENDING_TRAINER
+  TRAINER
+  ADMIN
+}
+enum AdminRole {
+  SUPER_ADMIN
+  FINANCES
+  MODERATION
+}
+enum TrainerPlan {
+  STARTER
+  PRO
+  EXPERT
+}
+enum TrainerSubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+}
+enum PaymentProvider {
+  STRIPE
+  CINETPAY
+}
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  DISPUTED
+  CANCELED
+}
+enum CommunitySubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  BANNED
+  CANCELED
+  EXPIRED
+}
+enum PayoutMethodType {
+  BANK_IBAN
+  MOBILE_MONEY
+}
+enum AccountNature {
+  INDIVIDUAL
+  BUSINESS
+}
+enum MobileMoneyOperator {
+  WAVE
+  ORANGE_MONEY
+  MTN_MOMO
+  AIRTEL_MONEY
+  M_PESA
+}
+enum VerificationMethod {
+  NAME_LOOKUP
+  MANUAL_FINANCE
+  MICRO_DEPOSIT
+  ESCALATION
+}
+enum PayoutMethodVerificationStatus {
+  PENDING_REVIEW
+  AUTO_VERIFIED
+  MANUAL_VERIFIED
+  VERIFIED
+  REJECTED
+  BLOCKED
+  ARCHIVED
+}
+enum PayoutStatus {
+  PENDING
+  AUTO_APPROVED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+  FAILED
+}
+enum TrainerDocumentType {
+  ID_CARD
+  DIPLOMA
+  VIDEO
+}
+enum TrainerDocumentStatus {
+  AWAITING_UPLOAD
+  PENDING
+  APPROVED
+  REJECTED
+  RESUBMITTED
+}
+enum TrainerApplicationStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  RESUBMISSION_PENDING
+}
+enum DisputeSource {
+  LEARNER_REQUEST
+  STRIPE_CHARGEBACK
+  CINETPAY_DISPUTE
+  ADMIN_INITIATED
+}
+enum DisputeReason {
+  CONTENT_MISMATCH
+  DOUBLE_CHARGE
+  ACCESS_ISSUE
+  UNAUTHORIZED_CHARGE
+  OTHER
+}
+enum DisputeStatus {
+  OPEN
+  IN_REVIEW
+  WAITING_LEARNER
+  RESOLVED_REFUNDED
+  RESOLVED_REJECTED
+  RESOLVED_AUTO
+}
+enum DisputeResolution {
+  FULL_REFUND
+  PARTIAL_REFUND
+  REJECT
+  AUTO_TIMEOUT
+}
+enum DisputeMessageAuthorRole {
+  LEARNER
+  SUPPORT
+  SYSTEM
+}
+enum FundReservationStatus {
+  ACTIVE
+  RELEASED
+  DEBITED
+  PARTIALLY_DEBITED
+}
+
+// --- User ---
+model User {
+  id                          String   @id @default(uuid())
+  email                       String   @unique
+  emailVerifiedAt             DateTime?
+  passwordHash                String?
+  googleSub                   String?  @unique
+  fullName                    String?
+  preferredName               String?
+  phone                       String?
+  countryCode                 String?
+  avatarUrl                   String?
+  bio                         String?
+  role                        Role     @default(LEARNER)
+  adminRole                   AdminRole?
+  payoutMethodRejectionCount  Int      @default(0)
+  trainerApplications         TrainerApplication[]
+  trainerProfile              TrainerProfile?
+  courseViews                 CourseView[]
+  suspendedAt                 DateTime?
+  suspendedReason             String?
+  suspendedById               String?
+  sessionsValidAfter          DateTime @default(now())
+  gdprExportRequestedAt       DateTime?
+  gdprExportS3Key             String?
+  deletionRequestedAt         DateTime?
+  deletedAt                   DateTime?
+  purchases                   Purchase[]
+  communitySubscriptions      CommunitySubscription[]
+  notifications               Notification[]
+  disputesAsLearner           Dispute[]
+  supportTickets              SupportTicket[]
+  emailOtps                   EmailOtp[]
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  @@index([role])
+  @@index([adminRole])
+  @@index([suspendedAt])
+  @@map("users")
+}
+
+// --- TrainerProfile ---
+model TrainerProfile {
+  id                          String   @id @default(uuid())
+  userId                      String   @unique
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  slogan                      String?
+  description                 String?
+  websiteUrl                  String?
+  domains                     String[]
+  experienceYears             Int?
+  verifiedLegalName           String?
+  commissionRate              Float    @default(0.15)
+  plan                        TrainerPlan @default(STARTER)
+  subscriptionStatus          TrainerSubscriptionStatus @default(ACTIVE)
+  subscriptionProvider        PaymentProvider?
+  subscriptionProviderId      String?
+  subscriptionCurrentPeriodEnd DateTime?
+  subscriptionCanceledAt      DateTime?
+  wallet                      Wallet?
+  ratingAverage               Float    @default(0)
+  ratingCount                 Int      @default(0)
+  studentsCount               Int      @default(0)
+  approvedAt                  DateTime?
+  suspendedAt                 DateTime?
+  suspendedReason             String?
+  courses                     Course[]
+  purchasesAsTrainer          Purchase[]
+  payouts                     Payout[]
+  payoutMethods               PayoutMethod[]
+  communities                 Community[]
+  disputesAsTrainer           Dispute[]
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  @@index([plan])
+  @@index([subscriptionStatus])
+  @@map("trainer_profiles")
+}
+
+// --- Course ---
+model Course {
+  id              String   @id @default(uuid())
+  trainerId       String
+  trainerProfile  TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  slug            String   @unique
+  title           String
+  blurb           String
+  description     String
+  learnPoints     String[]
+  includes        String[]
+  category        String
+  format          String
+  coverS3Key      String?
+  priceFcfa       Int
+  level           String?
+  language        String   @default("fr")
+  durationSeconds Int?
+  lessonsCount    Int?
+  status          String   @default("draft")
+  publishedAt     DateTime?
+  livekitRoomName String?
+  purchases       Purchase[]
+  courseViews     CourseView[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([status, category])
+  @@index([trainerId, status])
+  @@index([publishedAt])
+  @@map("courses")
+}
+
+// --- Purchase ---
+model Purchase {
+  id                    String   @id @default(uuid())
+  learnerId             String
+  learner               User     @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  courseId              String?
+  course                Course?  @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  communityId           String?
+  community             Community? @relation(fields: [communityId], references: [id], onDelete: Restrict)
+  trainerId             String
+  trainerProfile        TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  amountFcfa            Int
+  commissionRate        Float
+  trainerShareFcfa      Int
+  platformShareFcfa     Int
+  amountEur             Decimal? @db.Decimal(10, 2)
+  eurRate               Decimal? @db.Decimal(10, 4)
+  provider              PaymentProvider
+  providerTransactionId String? @unique
+  providerStatus        PaymentStatus @default(PENDING)
+  acquisitionSource     String?
+  refundedAt            DateTime?
+  refundAmountFcfa      Int?
+  providerRefundId      String?
+  providerDisputeActive Boolean @default(false)
+  accessSuspended       Boolean @default(false)
+  accessSuspendedAt     DateTime?
+  accessRestoredAt      DateTime?
+  periodStart           DateTime?
+  periodEnd             DateTime?
+  communitySubscription CommunitySubscription?
+  disputes              Dispute[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  @@index([learnerId, createdAt])
+  @@index([trainerId, createdAt])
+  @@index([courseId])
+  @@index([communityId])
+  @@index([provider, providerStatus])
+  @@index([providerDisputeActive])
+  @@map("purchases")
+}
+
+// --- Community ---
+model Community {
+  id              String   @id @default(uuid())
+  trainerId       String
+  trainerProfile  TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  name            String
+  slug            String   @unique
+  description     String?
+  rules           String?
+  coverS3Key      String?
+  priceFcfa       Int
+  commissionRate  Float    @default(0.15)
+  forumEnabled        Boolean @default(true)
+  broadcastEnabled    Boolean @default(true)
+  messagingEnabled    Boolean @default(true)
+  resourcesEnabled    Boolean @default(true)
+  eventsEnabled       Boolean @default(true)
+  membersCount    Int      @default(0)
+  messagesPerDay  Int      @default(0)
+  status          String   @default("active")
+  purchases       Purchase[]
+  subscriptions   CommunitySubscription[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([trainerId, status])
+  @@map("communities")
+}
+
+// --- CommunitySubscription ---
+model CommunitySubscription {
+  id              String   @id @default(uuid())
+  communityId     String
+  community       Community @relation(fields: [communityId], references: [id], onDelete: Restrict)
+  learnerId       String
+  learner         User     @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  status          CommunitySubscriptionStatus @default(ACTIVE)
+  periodStart     DateTime
+  periodEnd       DateTime
+  provider        PaymentProvider
+  providerSubscriptionId String?
+  purchaseId      String?  @unique
+  purchase        Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  bannedAt        DateTime?
+  bannedReason    String?
+  bannedById      String?
+  canceledAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([status])
+  @@index([learnerId, status])
+  @@index([communityId, status])
+  @@map("community_subscriptions")
+}
+
+// --- Wallet ---
+model Wallet {
+  id                    String   @id @default(uuid())
+  trainerId             String   @unique
+  trainerProfile        TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  balance               Int      @default(0)
+  reservedBalance       Int      @default(0)
+  pendingPayoutBalance  Int      @default(0)
+  negativeSince         DateTime?
+  fundReservations      FundReservation[]
+  reconciliations       WalletReconciliation[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  @@map("wallets")
+}
+
+// --- WalletReconciliation ---
+model WalletReconciliation {
+  id              String   @id @default(uuid())
+  walletId        String
+  wallet          Wallet   @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  field           String
+  previousValue   Int
+  newValue        Int
+  delta           Int
+  reason          String
+  reconciledById  String
+  createdAt       DateTime @default(now())
+  @@index([walletId, createdAt])
+  @@map("wallet_reconciliations")
+}
+
+// --- PayoutMethod ---
+model PayoutMethod {
+  id                          String   @id @default(uuid())
+  trainerId                   String
+  trainerProfile              TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  type                        PayoutMethodType
+  accountNature               AccountNature
+  verifiedLegalNameAtCreation String
+  trainerEmailSnapshot        String
+  trainerPhoneSnapshot        String?
+  holderName                  String?
+  businessName                String?
+  businessDocS3Key            String?
+  legalRepProofS3Key          String?
+  iban                        String?
+  bic                         String?
+  mobileOperator              MobileMoneyOperator?
+  mobilePhone                 String?
+  verificationStatus          PayoutMethodVerificationStatus @default(PENDING_REVIEW)
+  verificationMethod          VerificationMethod?
+  nameLookupResult            String?
+  nameLookupRawName           String?
+  microDepositAmount1         Int?
+  microDepositAmount2         Int?
+  microDepositReference       String?
+  microDepositVerifiedAt      DateTime?
+  carenceUntil                DateTime?
+  isActive                    Boolean  @default(true)
+  archivedAt                  DateTime?
+  reviewedById                String?
+  reviewedAt                  DateTime?
+  rejectionReason             String?
+  payouts                     Payout[]
+  reviewEvents                PayoutMethodReviewEvent[]
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  @@index([trainerId, isActive])
+  @@index([verificationStatus])
+  @@index([carenceUntil])
+  @@map("payout_methods")
+}
+
+// --- Payout ---
+model Payout {
+  id                    String   @id @default(uuid())
+  trainerId             String
+  trainerProfile        TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  payoutMethodId        String
+  payoutMethod          PayoutMethod @relation(fields: [payoutMethodId], references: [id], onDelete: Restrict)
+  amountFcfa            Int
+  status                PayoutStatus @default(PENDING)
+  kycScoreSnapshot      Int?
+  kycBadgeSnapshot      String?
+  kycCriteriaSnapshot   Json?
+  isFirstPayout         Boolean  @default(false)
+  carenceHolds          Boolean  @default(false)
+  wireInitiatedAt       DateTime?
+  idempotencyKey        String?
+  submittedAt           DateTime @default(now())
+  reviewedById          String?
+  reviewedAt            DateTime?
+  approvedById          String?
+  approvedAt            DateTime?
+  rejectedById          String?
+  rejectedAt            DateTime?
+  rejectionReason       String?
+  paidAt                DateTime?
+  providerReference     String?
+  failedAt              DateTime?
+  failureReason         String?
+  receiptS3Key          String?
+  reviewEvents          PayoutReviewEvent[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  @@index([trainerId, status])
+  @@index([status, submittedAt])
+  @@map("payouts")
+}
+
+// --- PayoutMethodReviewEvent ---
+model PayoutMethodReviewEvent {
+  id              String   @id @default(uuid())
+  payoutMethodId  String
+  payoutMethod    PayoutMethod @relation(fields: [payoutMethodId], references: [id], onDelete: Cascade)
+  fromStatus      PayoutMethodVerificationStatus
+  toStatus        PayoutMethodVerificationStatus
+  actorId         String?
+  actorRole       String?
+  note            String?
+  createdAt       DateTime @default(now())
+  @@index([payoutMethodId, createdAt])
+  @@map("payout_method_review_events")
+}
+
+// --- PayoutReviewEvent ---
+model PayoutReviewEvent {
+  id          String   @id @default(uuid())
+  payoutId    String
+  payout      Payout   @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  fromStatus  PayoutStatus
+  toStatus    PayoutStatus
+  actorId     String?
+  actorRole   String?
+  note        String?
+  createdAt   DateTime @default(now())
+  @@index([payoutId, createdAt])
+  @@map("payout_review_events")
+}
+
+// --- AuditLog ---
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String?
+  actorRole   String?
+  action      String
+  targetType  String?
+  targetId    String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+// --- Notification ---
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+// --- Setting ---
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  @@map("settings")
+}
+
+// --- EmailOtp ---
+model EmailOtp {
+  id         String   @id @default(uuid())
+  email      String
+  codeHash   String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([email, expiresAt])
+  @@map("email_otps")
+}
+
+// --- PendingAttachment ---
+model PendingAttachment {
+  id          String   @id @default(uuid())
+  s3Key       String   @unique
+  issuerId    String
+  scope       String
+  disputeId   String?
+  status      String   @default("PENDING")
+  mimeType    String
+  sizeBytes   Int
+  sha256      String
+  consumedAt  DateTime?
+  consumedIn  String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  @@index([issuerId, status])
+  @@index([expiresAt])
+  @@index([scope, status])
+  @@map("pending_attachments")
+}
+
+// --- TrainerApplication ---
+model TrainerApplication {
+  id                    String   @id @default(uuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status                TrainerApplicationStatus @default(DRAFT)
+  slogan                String?
+  description           String?
+  websiteUrl            String?
+  domains               String[]
+  experienceYears       Int?
+  submittedAt           DateTime?
+  reviewedById          String?
+  reviewedAt            DateTime?
+  finalRejectionReason  String?
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  reopenedById          String?
+  reopenedAt            DateTime?
+  documents             TrainerDocument[]
+  reviewEvents          TrainerApplicationReviewEvent[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  @@index([status])
+  @@index([submittedAt])
+  @@map("trainer_applications")
+}
+
+// --- TrainerDocument ---
+model TrainerDocument {
+  id                String   @id @default(uuid())
+  applicationId     String
+  application       TrainerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  type              TrainerDocumentType
+  status            TrainerDocumentStatus @default(AWAITING_UPLOAD)
+  isCurrent         Boolean  @default(true)
+  s3Key             String
+  sha256            String
+  sizeBytes         Int
+  mimeType          String?
+  originalFileName  String?
+  rejectionReason   String?
+  resubmissionCount Int      @default(0)
+  reviewedById      String?
+  reviewedAt        DateTime?
+  purgedAt          DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  reviews           TrainerDocumentReviewEvent[]
+  @@index([applicationId, type, isCurrent])
+  @@index([status])
+  @@index([applicationId, status])
+  @@map("trainer_documents")
+}
+
+// --- TrainerApplicationReviewEvent ---
+model TrainerApplicationReviewEvent {
+  id             String   @id @default(uuid())
+  applicationId  String
+  application    TrainerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fromStatus     TrainerApplicationStatus
+  toStatus       TrainerApplicationStatus
+  actorId        String?
+  reason         String?
+  rejectedDocIds String[]
+  createdAt      DateTime @default(now())
+  @@index([applicationId, createdAt])
+  @@map("trainer_application_review_events")
+}
+
+// --- TrainerDocumentReviewEvent ---
+model TrainerDocumentReviewEvent {
+  id              String   @id @default(uuid())
+  documentId      String
+  document        TrainerDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fromStatus      TrainerDocumentStatus
+  toStatus        TrainerDocumentStatus
+  actorId         String?
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+  @@index([documentId, createdAt])
+  @@map("trainer_document_review_events")
+}
+
+// --- Dispute ---
+model Dispute {
+  id                    String   @id @default(uuid())
+  purchaseId            String
+  purchase              Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  learnerId             String
+  learner               User     @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  trainerId             String
+  trainerProfile        TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  source                DisputeSource
+  reason                DisputeReason
+  reasonDetail          String?
+  status                DisputeStatus @default(OPEN)
+  disputedAmountFcfa    Int
+  amountEur             Decimal? @db.Decimal(10, 2)
+  resolution            DisputeResolution?
+  resolutionNote        String?
+  overrideJustification String?
+  resolvedById          String?
+  resolvedAt            DateTime?
+  openedAt              DateTime @default(now())
+  lastActivityAt        DateTime @default(now())
+  learnerDeadlineAt     DateTime?
+  providerDisputeId     String?
+  consumptionSnapshotId String?
+  refundStatus          String?
+  refundProcessedAt     DateTime?
+  providerRefundId      String?
+  fundReservations      FundReservation[]
+  messages              DisputeMessage[]
+  reviewEvents          DisputeReviewEvent[]
+  supportTickets        SupportTicket[]
+  consumptionSnapshot   ConsumptionSnapshot?
+  manualRefundTask      ManualRefundTask?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  @@index([status])
+  @@index([purchaseId])
+  @@index([trainerId, status])
+  @@index([learnerId, status])
+  @@index([lastActivityAt])
+  @@map("disputes")
+}
+
+// --- DisputeMessage ---
+model DisputeMessage {
+  id            String   @id @default(uuid())
+  disputeId     String
+  dispute       Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  authorId      String?
+  authorRole    DisputeMessageAuthorRole
+  body          String
+  attachments   String[]
+  readBySupport Boolean  @default(false)
+  readByLearner Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  @@index([disputeId, createdAt])
+  @@map("dispute_messages")
+}
+
+// --- FundReservation ---
+model FundReservation {
+  id                 String   @id @default(uuid())
+  disputeId          String
+  dispute            Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  walletId           String
+  wallet             Wallet   @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  reservedAmountFcfa Int
+  status             FundReservationStatus @default(ACTIVE)
+  debitedAmount      Int      @default(0)
+  releasedAmount     Int      @default(0)
+  createdAt          DateTime @default(now())
+  releasedAt         DateTime?
+  releasedById       String?
+  releaseReason      String?
+  @@index([disputeId])
+  @@index([walletId, status])
+  @@map("fund_reservations")
+}
+
+// --- DisputeReviewEvent ---
+model DisputeReviewEvent {
+  id         String   @id @default(uuid())
+  disputeId  String
+  dispute    Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  fromStatus DisputeStatus
+  toStatus   DisputeStatus
+  actorId    String?
+  actorRole  String?
+  note       String?
+  createdAt  DateTime @default(now())
+  @@index([disputeId, createdAt])
+  @@map("dispute_review_events")
+}
+
+// --- ConsumptionSnapshot ---
+model ConsumptionSnapshot {
+  id                    String   @id @default(uuid())
+  disputeId             String   @unique
+  dispute               Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  courseId              String
+  courseFormat          String
+  watchedSeconds        Int?
+  courseDurationSeconds Int?
+  downloaded            Boolean?
+  consumptionPercent    Int
+  ruleApplies           Boolean
+  snapshotAt            DateTime @default(now())
+  @@map("consumption_snapshots")
+}
+
+// --- CourseView ---
+model CourseView {
+  id             String   @id @default(uuid())
+  courseId       String
+  course         Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  learnerId      String
+  learner        User     @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  watchedSeconds Int      @default(0)
+  downloaded     Boolean  @default(false)
+  downloadedAt   DateTime?
+  lastViewedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([courseId, learnerId])
+  @@index([learnerId, courseId])
+  @@map("course_views")
+}
+
+// --- ManualRefundTask ---
+model ManualRefundTask {
+  id               String   @id @default(uuid())
+  disputeId        String   @unique
+  dispute          Dispute  @relation(fields: [disputeId], references: [id], onDelete: Restrict)
+  provider         String   @default("CINETPAY")
+  refundAmountFcfa Int
+  trainerDebitFcfa Int
+  status           String   @default("PENDING")
+  errorMessage     String?
+  assignedToId     String?
+  completedAt      DateTime?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@index([status, createdAt])
+  @@map("manual_refund_tasks")
+}
+
+// --- SupportTicket ---
+model SupportTicket {
+  id             String   @id @default(uuid())
+  disputeId      String
+  dispute        Dispute  @relation(fields: [disputeId], references: [id], onDelete: Restrict)
+  trainerId      String
+  trainer        User     @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  reason         String
+  attachments    String[]
+  status         String   @default("OPEN")
+  resolutionNote String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([disputeId])
+  @@index([trainerId, status])
+  @@map("support_tickets")
+}
