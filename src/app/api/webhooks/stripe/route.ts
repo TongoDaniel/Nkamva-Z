@@ -1,14 +1,18 @@
 // Lot 0 §5.1 — Webhook Stripe : payment_intent.succeeded → crédit wallet idempotent
-import Stripe from 'stripe'
+// Lot 2 §5 — charge.dispute.created/closed → chargeback (T1/T9/T10, double débit)
 import { db } from '@/lib/db'
 import { creditWalletOnPurchase } from '@/lib/wallet'
 import { auditStandalone } from '@/lib/audit'
+import { getStripe } from '@/lib/stripe'
+import { openDisputeFromChargeback, closeDisputeFromChargeback } from '@/lib/disputes'
 
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
+const stripe = getStripe()
 
-// Événement minimal exploité ici (payment_intent.succeeded). Les événements de
-// litige (charge.dispute.created/closed) relèvent du Lot 2, hors périmètre.
-type StripeLikeEvent = { id?: string; type: string; data: { object: { id: string } } }
+type StripeLikeEvent = {
+  id?: string
+  type: string
+  data: { object: { id: string; payment_intent?: string; status?: string } }
+}
 
 export async function POST(request: Request) {
   const rawBody = await request.text()
@@ -39,6 +43,12 @@ export async function POST(request: Request) {
     await db.$transaction(async (tx) => {
       await creditWalletOnPurchase(tx, providerTransactionId, 'STRIPE')
     })
+  } else if (event.type === 'charge.dispute.created') {
+    const paymentIntentId = event.data.object.payment_intent || event.data.object.id
+    await openDisputeFromChargeback(paymentIntentId, event.data.object.id)
+  } else if (event.type === 'charge.dispute.closed') {
+    const won = event.data.object.status === 'won'
+    await closeDisputeFromChargeback(event.data.object.id, won)
   } else {
     await auditStandalone({ action: 'STRIPE_WEBHOOK_EVENT_IGNORED', meta: { type: event.type } })
   }
