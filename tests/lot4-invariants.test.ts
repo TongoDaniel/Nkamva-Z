@@ -9,6 +9,7 @@ import { createCourse, publishCourse } from '@/lib/courses'
 import { initiatePurchase, reconcilePurchase } from '@/lib/purchases'
 import { checkCourseAccess, updateWatchProgress, markCourseDownloaded, getConsumptionPercent } from '@/lib/access'
 import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
+import { POST as cinetpayWebhookHandler } from '@/app/api/webhooks/cinetpay/route'
 
 function stripeSucceededRequest(providerTransactionId: string) {
   return new Request('http://localhost/api/webhooks/stripe', {
@@ -115,6 +116,19 @@ describe('Lot 4 — Parcours cœur', () => {
 
     const wallet = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
     expect(wallet?.balance).toBe(6800) // 85% de 8000
+  })
+
+  // -------------------------------------------------------------------------
+  it('webhook CinetPay malformé : journalisé (WEBHOOK_MALFORMED), aucun crédit', async () => {
+    const res = await cinetpayWebhookHandler(new Request('http://localhost/api/webhooks/cinetpay', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'foo=bar', // ni cpm_trans_id en form-encoded, ni JSON valide
+    }))
+    expect(res.status).toBe(400)
+
+    const auditCount = await prisma.auditLog.count({ where: { action: 'WEBHOOK_MALFORMED' } })
+    expect(auditCount).toBe(1)
   })
 
   // -------------------------------------------------------------------------
