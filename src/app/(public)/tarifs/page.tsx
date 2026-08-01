@@ -1,157 +1,148 @@
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { CheckCircle2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Btn } from '@/components/nk/btn'
-import { Faq } from '@/components/nk/faq'
-import { PayBand } from '@/components/nk/pay-band'
-import { SectionHead } from '@/components/nk/page-head'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Check } from "lucide-react";
+import { PageHead } from "@/components/nk/page-head";
+import { Btn } from "@/components/nk/button";
+import { Chip } from "@/components/nk/chip";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: 'Tarifs — NkamVa',
-  description: 'Payez en FCFA, par mobile money. Sans engagement, annulable à tout moment.',
-}
+  title: "Tarifs",
+  description:
+    "Payez à l'unité en FCFA, par mobile money. Compte apprenant gratuit, sans abonnement obligatoire.",
+};
 
 const PLANS = [
   {
-    name: 'Apprenant',
+    name: "Apprenant",
     description: "Un compte gratuit, des ressources à l'unité.",
-    price: 'Gratuit',
+    price: "Gratuit",
+    note: "Aucun abonnement, aucune carte à enregistrer.",
     features: [
-      'Compte gratuit, sans abonnement',
+      "Compte gratuit, sans abonnement",
       "Chaque ressource s'achète à l'unité, en FCFA",
-      'Accès permanent à vos achats',
-      'Paiement mobile money',
-      'Favoris & bibliothèque personnelle',
+      "Accès à vie à ce que vous avez acheté",
+      "Paiement mobile money ou carte bancaire",
+      "Contestation possible sous 14 jours",
     ],
-    cta: { label: 'Créer mon compte', href: '/auth/inscription', variant: 'outline' as const },
+    cta: { href: "/auth/inscription", label: "Créer mon compte" },
+    variant: "o" as const,
     featured: false,
   },
   {
-    name: 'Communautés',
-    description: "L'espace privé d'un formateur, en accès membre.",
-    price: 'Selon la communauté',
-    badge: 'Le cœur de NkamVa',
+    name: "Formateur",
+    description: "Pour publier votre savoir et en vivre.",
+    price: "15 % de commission",
+    note: "Prélevés sur chaque vente. Rien à payer d'avance.",
     features: [
-      'Ressources réservées aux membres',
-      'Lives & replays',
-      'Forum et messagerie',
-      'Événements de la communauté',
-      'Tarif fixé par chaque formateur',
+      "Publication de ressources illimitée",
+      "Vous fixez librement vos prix, en FCFA",
+      "85 % de chaque vente vous reviennent",
+      "Tableau de bord des ventes et des revenus",
+      "Retraits par mobile money",
     ],
-    cta: { label: 'Découvrir les communautés', href: '/communautes', variant: 'primary' as const },
+    cta: { href: "/devenir-formateur", label: "Devenir formateur" },
+    variant: "p" as const,
     featured: true,
   },
-  {
-    name: 'Formateur',
-    description: 'Pour créer, animer et monétiser votre savoir.',
-    price: '15 000',
-    priceSuffix: 'FCFA / mois',
-    features: [
-      'Publication de ressources illimitée',
-      "Vente à l'unité ou en communauté",
-      'Monétisation & retraits mobile money',
-      'Tableau de bord revenus',
-      'Communauté privée avec lives & replays',
-    ],
-    cta: { label: 'Devenir formateur', href: '/devenir-formateur', variant: 'dark' as const },
-    featured: false,
-  },
-]
+];
 
-const FAQ_ITEMS = [
+const FAQ = [
   {
-    question: 'Le compte apprenant est-il vraiment gratuit ?',
-    answer: (
-      <p>
-        Oui. Vous ne payez que les ressources que vous achetez, à l&apos;unité. Aucun abonnement n&apos;est requis pour
-        acheter, consulter vos achats ou gérer vos favoris.
-      </p>
-    ),
+    q: "Y a-t-il un abonnement obligatoire ?",
+    a: "Non. Le compte apprenant est gratuit et chaque ressource s'achète à l'unité, au prix fixé par son formateur. Vous ne payez que ce que vous choisissez.",
   },
   {
-    question: 'Quelle commission NkamVa prélève-t-elle sur les ventes ?',
-    answer: (
-      <p>
-        15 % du prix payé. Le formateur est crédité de 85 % au moment de la vente, quel que soit le canal — vente
-        directe ou communauté.
-      </p>
-    ),
+    q: "Comment la commission est-elle calculée ?",
+    a: "NkamVa retient 15 % du prix de vente ; 85 % reviennent au formateur. La commission est prélevée à la vente, il n'y a pas de frais d'entrée ni d'abonnement pour publier.",
   },
   {
-    question: 'Puis-je résilier mon abonnement formateur ?',
-    answer: (
-      <p>
-        À tout moment, depuis votre espace formateur. Vos ressources déjà vendues restent accessibles à ceux qui les ont
-        achetées.
-      </p>
-    ),
+    q: "Quels moyens de paiement acceptez-vous ?",
+    a: "Mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — et carte bancaire. Les montants sont affichés en FCFA.",
   },
-]
+  {
+    q: "Puis-je être remboursé ?",
+    a: "Oui, dans les 14 jours suivant l'achat et si vous avez consulté moins de 30 % de la ressource. Un format téléchargeable, une fois récupéré, ne peut plus être remboursé : le fichier est chez vous.",
+  },
+  {
+    q: "Quand un formateur touche-t-il son argent ?",
+    a: "Chaque vente confirmée crédite son solde. Les retraits vers mobile money ouvriront avec le parcours de vérification d'identité, actuellement en construction.",
+  },
+];
 
-export default function PricingPage() {
+export default function TarifsPage() {
   return (
-    <>
-      <div className="wrap pt-11">
-        <div className="mx-auto max-w-[640px] text-center">
-          <h1 className="text-balance text-[clamp(30px,3.6vw,42px)] font-extrabold leading-[1.08]">
-            Des tarifs pensés pour l&apos;Afrique
-          </h1>
-          <p className="mt-3 text-[16.5px] leading-[1.6] text-ink2">
-            Payez en FCFA, par mobile money. Sans engagement, annulable à tout moment.
-          </p>
-        </div>
+    <div className="nk-wrap pb-16">
+      <PageHead
+        crumbs={[{ label: "Accueil", href: "/" }, { label: "Tarifs" }]}
+        title="Des tarifs pensés pour l'Afrique"
+        lead="Payez en FCFA, par mobile money. Pas d'abonnement obligatoire, ni pour apprendre, ni pour publier."
+      />
 
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
-          {PLANS.map(plan => (
-            <div
-              key={plan.name}
-              className={cn(
-                'relative flex flex-col rounded-xl border bg-card p-7',
-                plan.featured ? 'border-brand shadow-md lg:-mt-3 lg:pb-10 lg:pt-10' : 'border-line shadow-sm',
-              )}
-            >
-              {plan.badge && (
-                <span className="absolute -top-3 left-7 rounded-full bg-brand px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-white">
-                  {plan.badge}
-                </span>
-              )}
+      <div className="mx-auto mt-6 grid max-w-[860px] gap-5 md:grid-cols-2">
+        {PLANS.map((plan) => (
+          <section
+            key={plan.name}
+            aria-label={plan.name}
+            className={cn(
+              "flex flex-col rounded-nk-lg border bg-card p-7 shadow-nk-sm",
+              plan.featured ? "border-brand shadow-nk" : "border-line",
+            )}
+          >
+            {plan.featured ? <Chip className="mb-3 self-start">Pour publier</Chip> : null}
+            <h2 className="text-[21px] font-extrabold">{plan.name}</h2>
+            <p className="mt-1 text-[14px] text-ink-2">{plan.description}</p>
 
-              <h2 className="text-[21px] font-extrabold">{plan.name}</h2>
-              <p className="mt-1 text-sm text-ink2">{plan.description}</p>
+            <p className="mt-5 font-display text-[30px] font-extrabold tracking-[-0.02em]">
+              {plan.price}
+            </p>
+            <p className="mb-6 mt-1 text-[13px] text-ink-3">{plan.note}</p>
 
-              <div className="mt-5 font-display text-[30px] font-extrabold leading-none tracking-[-0.02em]">
-                {plan.price}
-                {plan.priceSuffix && <small className="ml-1.5 text-[13px] font-bold text-ink3">{plan.priceSuffix}</small>}
-              </div>
+            <ul className="mb-7 grid gap-3">
+              {plan.features.map((feature) => (
+                <li key={feature} className="flex items-start gap-3 text-[14.5px] leading-snug">
+                  <span
+                    className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-brand-tint text-brand"
+                    aria-hidden="true"
+                  >
+                    <Check className="size-3" />
+                  </span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
 
-              <ul className="mt-6 grid flex-1 gap-3 border-t border-line2 pt-5">
-                {plan.features.map(feature => (
-                  <li key={feature} className="flex items-start gap-2.5 text-[14px] leading-[1.5] text-ink2">
-                    <CheckCircle2 className="mt-px size-[18px] flex-none text-brand" strokeWidth={2.4} />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <Btn asChild variant={plan.cta.variant} className="mt-6 w-full">
-                <Link href={plan.cta.href}>{plan.cta.label}</Link>
-              </Btn>
-            </div>
-          ))}
-        </div>
+            <Btn asChild variant={plan.variant} block className="mt-auto">
+              <Link href={plan.cta.href}>{plan.cta.label}</Link>
+            </Btn>
+          </section>
+        ))}
       </div>
 
-      <div className="mt-14">
-        <PayBand />
-      </div>
-
-      <section className="pt-14 sm:pt-[76px]">
-        <div className="wrap">
-          <SectionHead centered kicker="Questions fréquentes" title="Ce que vous payez, exactement" />
-          <Faq items={FAQ_ITEMS} />
-        </div>
+      <section aria-labelledby="faq-tarifs" className="mx-auto mt-14 max-w-[760px]">
+        <h2 id="faq-tarifs" className="mb-6 text-center text-[clamp(22px,3vw,30px)] font-extrabold">
+          Questions sur les tarifs
+        </h2>
+        {FAQ.map((item) => (
+          <details
+            key={item.q}
+            className="group mb-3 overflow-hidden rounded-nk border border-line bg-card open:border-brand-tint-2"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4.5 text-[15.5px] font-bold hover:text-brand">
+              {item.q}
+              <span
+                className="grid size-7 shrink-0 place-items-center rounded-full bg-line-2 text-ink-2 transition group-open:rotate-45 group-open:bg-brand-tint group-open:text-brand"
+                aria-hidden="true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-3.5">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+            </summary>
+            <p className="px-5 pb-5 text-[14.5px] leading-relaxed text-ink-2">{item.a}</p>
+          </details>
+        ))}
       </section>
-    </>
-  )
+    </div>
+  );
 }

@@ -1,47 +1,54 @@
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { Btn } from '@/components/nk/btn'
-import { AuthShell } from '@/components/auth/auth-shell'
-import { FormError } from '@/components/form-error'
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { AuthShell, AuthAside, AuthHeading } from "@/components/layouts/auth-shell";
+import { Btn } from "@/components/nk/button";
 
 export const metadata: Metadata = {
-  title: 'Erreur d’authentification — NkamVa',
-}
+  title: "Connexion impossible",
+};
 
-/** Page pointée par `authOptions.pages.error`. */
 const MESSAGES: Record<string, string> = {
-  CredentialsSignin: 'Email ou mot de passe incorrect.',
-  ACCOUNT_SUSPENDED: 'Ce compte est suspendu. Contactez le support.',
-  SessionRequired: 'Cette page demande une session active.',
-  Configuration: "Le service d'authentification est mal configuré. Réessayez plus tard.",
-  AccessDenied: 'Accès refusé.',
-}
+  Configuration: "Le service d'authentification est mal configuré. Contactez le support.",
+  AccessDenied: "Votre compte n'a pas accès à cette page.",
+  Verification: "Ce lien de connexion a expiré ou a déjà été utilisé.",
+  ACCOUNT_SUSPENDED: "Ce compte est suspendu. Contactez le support pour en connaître la raison.",
+};
 
-export default async function AuthErrorPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams
-  const message = (error && MESSAGES[error]) || "La connexion n'a pas pu aboutir."
+async function ErrorBody({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
+  const message =
+    (error && MESSAGES[error]) ??
+    "La connexion n'a pas pu aboutir. Réessayez dans un instant.";
 
   return (
-    <AuthShell
-      title="Connexion impossible"
-      subtitle="Nous n'avons pas pu ouvrir votre session."
-      panelTitle="Besoin d'aide ?"
-      highlights={[
-        { title: 'Mot de passe oublié', body: 'un code de réinitialisation vous est envoyé par email.' },
-        { title: 'Support', body: 'écrivez-nous depuis la page contact, réponse sous 24 h.' },
-      ]}
-      back={{ href: '/', label: "Retour à l'accueil" }}
-    >
-      <FormError message={message} />
+    <>
+      <AuthHeading title="Connexion impossible" subtitle={message} />
+      <Btn asChild size="lg" block>
+        <Link href="/auth/connexion">Retour à la connexion</Link>
+      </Btn>
+      <p className="mt-5 text-center text-sm text-ink-2">
+        Besoin d&apos;aide ?{" "}
+        <Link href="/contact" className="font-bold text-brand">
+          Contacter le support
+        </Link>
+      </p>
+    </>
+  );
+}
 
-      <div className="mt-5 grid gap-2.5">
-        <Btn asChild size="lg">
-          <Link href="/auth/connexion">Réessayer</Link>
-        </Btn>
-        <Btn asChild variant="outline">
-          <Link href="/contact">Contacter le support</Link>
-        </Btn>
-      </div>
+export default function AuthErrorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  return (
+    <AuthShell
+      aside={<AuthAside quote="Un souci d'accès ? On le règle vite." author="Support NkamVa" />}
+    >
+      <Suspense fallback={<div className="h-64" aria-hidden="true" />}>
+        <ErrorBody searchParams={searchParams} />
+      </Suspense>
     </AuthShell>
-  )
+  );
 }

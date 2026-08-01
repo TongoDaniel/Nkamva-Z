@@ -1,41 +1,76 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* =========================================================================
-   NkamVa — design system issu de la maquette
-   « papier chaud + bleu marine du logo », Bricolage Grotesque + Instrument Sans.
-   Les tokens shadcn (background, primary, border…) sont remappés sur cette
-   palette : les primitives shadcn adoptent donc le style NkamVa sans surcharge.
-   ========================================================================= */
+@custom-variant dark (&:is(.dark *));
 
+/* ==========================================================================
+   NkamVa — design tokens extraits de la maquette (assets/nkamva.css)
+   Vert forêt sur papier chaud · Bricolage Grotesque + Instrument Sans
+   ==========================================================================
+   Écarts assumés vs maquette, pour respecter WCAG AA :
+   - --color-ink-3 : #84908a (2.88:1 sur papier) → #626e69 (4.67:1).
+     La valeur d'origine est conservée sous --color-hairline pour les traits
+     purement décoratifs (séparateurs, contours) qui ne portent pas de sens.
+   - --color-clay / --color-gold restent les teintes de remplissage de la
+     maquette, mais le texte sur pastille utilise --color-clay-ink (5.2:1) et
+     --color-gold-ink (5.5:1) : les valeurs d'origine tombaient à 3.7 et 2.8:1.
+   ========================================================================== */
+
+/* Bloc non-`inline` : les tokens sont émis comme variables CSS sur :root, donc
+   utilisables à la fois par les utilitaires Tailwind et par du CSS manuel. */
+@theme {
+  /* — surfaces & encres — */
+  --color-paper: #f6f3ec;
+  --color-card: #fffefa;
+  --color-ink: #15211b;
+  --color-ink-2: #4c5a52;
+  --color-ink-3: #626e69;
+  --color-hairline: #84908a;
+  --color-line: #e4dfd2;
+  --color-line-2: #eeeadf;
+
+  /* — accent de marque (vert forêt) — */
+  --color-brand: #0d6b4d;
+  --color-brand-dark: #0a563e;
+  --color-brand-tint: #e0efe7;
+  --color-brand-tint-2: #cfe6da;
+
+  /* — accents secondaires (remplissage / texte lisible) — */
+  --color-clay: #c05f21;
+  --color-clay-ink: #9c4713;
+  --color-clay-tint: #f8e8dc;
+  --color-gold: #b98a12;
+  --color-gold-ink: #7d5c05;
+  --color-gold-tint: #f7eed6;
+  --color-danger: #b3402e;
+  --color-danger-tint: #f9e7e3;
+  --color-info: #2b5fa8;
+  --color-info-tint: #e4edf8;
+
+  /* — rayons — */
+  --radius-nk-sm: 10px;
+  --radius-nk: 16px;
+  --radius-nk-lg: 24px;
+
+  /* — ombres — */
+  --shadow-nk-sm: 0 1px 2px rgba(21, 33, 27, 0.05), 0 2px 6px rgba(21, 33, 27, 0.04);
+  --shadow-nk: 0 10px 30px rgba(21, 33, 27, 0.09);
+  --shadow-nk-lg: 0 24px 60px rgba(21, 33, 27, 0.16);
+  --shadow-brand: 0 8px 20px rgba(13, 107, 77, 0.3);
+
+  /* — typographie — */
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
+  --font-sans: var(--font-instrument), system-ui, sans-serif;
+
+  /* — gabarit — */
+  --container-wrap: 1220px;
+}
+
+/* Bloc `inline` : réexpose les tokens sémantiques shadcn/ui (qui changent avec
+   le thème clair/sombre) sans les figer dans les utilitaires. */
 @theme inline {
-  /* Palette NkamVa */
-  --color-paper: var(--paper);
-  --color-ink: var(--ink);
-  --color-ink2: var(--ink2);
-  --color-ink3: var(--ink3);
-  --color-line: var(--line);
-  --color-line2: var(--line2);
-  --color-navy: var(--navy);
-  --color-navy2: var(--navy2);
-  --color-brand: var(--brand);
-  --color-brand-d: var(--brand-d);
-  --color-brand-t: var(--brand-t);
-  --color-brand-t2: var(--brand-t2);
-  --color-forest: var(--forest);
-  --color-clay: var(--clay);
-  --color-clay-t: var(--clay-t);
-  --color-gold: var(--gold);
-  --color-gold-t: var(--gold-t);
-  --color-danger: var(--danger);
-  --color-danger-t: var(--danger-t);
-  --color-info: var(--info);
-  --color-info-t: var(--info-t);
-
-  /* Tokens shadcn remappés */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
@@ -48,9 +83,15 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -59,80 +100,68 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-
-  /* Typographie */
-  --font-sans: var(--font-instrument-sans), system-ui, sans-serif;
-  --font-display: var(--font-bricolage), system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, monospace;
-
-  /* Rayons de la maquette */
-  --radius-sm: 10px;
-  --radius-md: 13px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-
-  /* Ombres de la maquette */
-  --shadow-sm: 0 1px 2px rgba(21, 33, 27, 0.05), 0 2px 6px rgba(21, 33, 27, 0.04);
-  --shadow-md: 0 10px 30px rgba(21, 33, 27, 0.09);
-  --shadow-lg: 0 24px 60px rgba(21, 33, 27, 0.16);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 8px);
 }
 
 :root {
-  --paper: #f6f3ec;
-  --ink: #15211b;
-  --ink2: #4c5a52;
-  --ink3: #84908a;
-  --line: #e4dfd2;
-  --line2: #eeeadf;
-
-  /* Accent produit : le bleu marine du logo. */
-  --brand: #1c5ed0;
-  --brand-d: #144aa8;
-  --brand-t: #e4ecf9;
-  --brand-t2: #d0dff5;
-  --navy: #022342;
-  --navy2: #06304f;
-
-  /* Vert forêt : conservé pour l'espace admin, qui se distingue du reste. */
-  --forest: #0d6b4d;
-
-  --clay: #c05f21;
-  --clay-t: #f8e8dc;
-  --gold: #b98a12;
-  --gold-t: #f7eed6;
-  --danger: #b3402e;
-  --danger-t: #f9e7e3;
-  --info: #2e7cf6;
-  --info-t: #e4edf8;
-
   --radius: 16px;
-
-  --background: var(--paper);
-  --foreground: var(--ink);
+  --background: #f6f3ec;
+  --foreground: #15211b;
   --card: #fffefa;
-  --card-foreground: var(--ink);
+  --card-foreground: #15211b;
   --popover: #fffefa;
-  --popover-foreground: var(--ink);
-  --primary: var(--brand);
+  --popover-foreground: #15211b;
+  --primary: #0d6b4d;
   --primary-foreground: #ffffff;
-  --secondary: var(--line2);
-  --secondary-foreground: var(--ink);
-  --muted: var(--line2);
-  --muted-foreground: var(--ink3);
-  --accent: var(--brand-t);
-  --accent-foreground: var(--brand-d);
-  --destructive: var(--danger);
-  --border: var(--line);
-  --input: var(--line);
-  --ring: var(--brand);
-  --sidebar: var(--ink);
+  --secondary: #eeeadf;
+  --secondary-foreground: #15211b;
+  --muted: #eeeadf;
+  --muted-foreground: #626e69;
+  --accent: #e0efe7;
+  --accent-foreground: #0a563e;
+  --destructive: #b3402e;
+  --destructive-foreground: #ffffff;
+  --border: #e4dfd2;
+  --input: #e4dfd2;
+  --ring: #0d6b4d;
+  --chart-1: #0d6b4d;
+  --chart-2: #2b5fa8;
+  --chart-3: #b98a12;
+  --chart-4: #c05f21;
+  --chart-5: #4c5a52;
+  --sidebar: #15211b;
   --sidebar-foreground: #f3f1ea;
-  --sidebar-primary: var(--forest);
+  --sidebar-primary: #0d6b4d;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgba(246, 243, 236, 0.06);
-  --sidebar-accent-foreground: #f3f1ea;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(246, 243, 236, 0.09);
-  --sidebar-ring: var(--forest);
+  --sidebar-ring: #0d6b4d;
+}
+
+.dark {
+  --background: #101a15;
+  --foreground: #f0eee6;
+  --card: #16221c;
+  --card-foreground: #f0eee6;
+  --popover: #16221c;
+  --popover-foreground: #f0eee6;
+  --primary: #3fa07c;
+  --primary-foreground: #0b1611;
+  --secondary: #1e2c25;
+  --secondary-foreground: #f0eee6;
+  --muted: #1e2c25;
+  --muted-foreground: #a3b0a8;
+  --accent: #1c3229;
+  --accent-foreground: #b7e2ce;
+  --destructive: #e07a66;
+  --destructive-foreground: #170a07;
+  --border: rgba(240, 238, 230, 0.12);
+  --input: rgba(240, 238, 230, 0.16);
+  --ring: #3fa07c;
 }
 
 @layer base {
@@ -140,14 +169,17 @@
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    font-size: 15px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 
-  /* Halo chaud de la maquette, fixe derrière tout le contenu. */
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* Voile de couleur du fond papier — décoratif, ne capte aucun événement. */
   body::before {
     content: "";
     position: fixed;
@@ -155,100 +187,96 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(1100px 500px at 85% -10%, rgba(28, 94, 208, 0.06), transparent 60%),
+      radial-gradient(1100px 500px at 85% -10%, rgba(13, 107, 77, 0.06), transparent 60%),
       radial-gradient(900px 400px at -10% 110%, rgba(192, 95, 33, 0.05), transparent 60%);
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
-    letter-spacing: -0.02em;
-  }
-
-  :focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(28, 94, 208, 0.22);
-    border-radius: 8px;
+    @apply font-display tracking-[-0.02em];
   }
 
   ::selection {
-    background: var(--brand-t2);
+    background: var(--color-brand-tint-2);
+  }
+
+  /* Anneau de focus unique pour tout ce qui est actionnable. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  [hidden] {
+    display: none !important;
   }
 }
 
-@layer components {
-  /* Conteneur central de la maquette : 1220px, gouttières 28px (18px en mobile). */
-  .wrap {
+@layer utilities {
+  /* Conteneur central de la maquette (.wrap) */
+  .nk-wrap {
     width: 100%;
-    max-width: 1220px;
+    max-width: var(--container-wrap);
     margin-inline: auto;
-    padding-inline: 18px;
+    padding-inline: 1.125rem;
     position: relative;
     z-index: 1;
   }
 
   @media (min-width: 860px) {
-    .wrap {
-      padding-inline: 28px;
+    .nk-wrap {
+      padding-inline: 1.75rem;
     }
+  }
+
+  /* Lien d'évitement clavier */
+  .nk-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 200;
+  }
+  .nk-skip:focus {
+    left: 1rem;
+    top: 1rem;
   }
 }
 
-/* Cascade d'apparition au montage (équivalent de [data-rv] dans la maquette). */
-@keyframes nk-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
+/* Animation de brillance des squelettes de chargement. */
+@keyframes nk-shine {
+  to {
+    transform: translateX(100%);
   }
+}
+
+/* Apparition en cascade des blocs de contenu. */
+@keyframes nk-reveal {
   to {
     opacity: 1;
     transform: none;
   }
 }
 
-.nk-reveal {
-  opacity: 0;
-  animation: nk-reveal 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
-  animation-delay: calc(var(--i, 0) * 70ms);
-}
-
-/* Bande défilante du hero et de la frise des moyens de paiement. */
-@keyframes nk-slide {
-  to {
-    transform: translateX(-50%);
+@keyframes nk-pop {
+  0% {
+    transform: scale(0.6);
   }
-}
-
-.nk-marquee {
-  display: flex;
-  width: max-content;
-  animation: nk-slide var(--speed, 46s) linear infinite;
-}
-
-.nk-marquee-mask {
-  -webkit-mask: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-  mask: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-}
-
-.nk-marquee-wrap:hover .nk-marquee,
-.nk-marquee-wrap:focus-within .nk-marquee {
-  animation-play-state: paused;
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nk-reveal {
-    opacity: 1;
-    animation: none;
-  }
-
-  .nk-marquee {
-    animation: none;
-  }
-
-  .nk-marquee-mask {
-    -webkit-mask: none;
-    mask: none;
-    overflow-x: auto;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

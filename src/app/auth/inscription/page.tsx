@@ -1,33 +1,29 @@
-import { Suspense } from 'react'
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { AuthShell, LEARNER_HIGHLIGHTS } from '@/components/auth/auth-shell'
-import { RegisterForm } from './register-form'
+import type { Metadata } from "next";
+import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
-  title: 'Créer un compte — NkamVa',
-  description: 'Créez votre compte NkamVa pour accéder aux ressources des formateurs.',
-}
+  title: "Créer un compte",
+  description: "Rejoignez la communauté des apprenants NkamVa à travers l'Afrique.",
+};
 
-export default function RegisterPage() {
+export default function InscriptionPage() {
   return (
     <AuthShell
-      title="Créer votre compte"
-      subtitle="Quelques informations suffisent. Le compte apprenant est gratuit."
-      highlights={LEARNER_HIGHLIGHTS}
-      footer={
-        <>
-          Vous avez déjà un compte ?{' '}
-          <Link href="/auth/connexion" className="font-bold text-ink hover:underline">
-            Se connecter
-          </Link>
-        </>
+      aside={
+        <AuthAside
+          title="Ce que vous obtenez"
+          points={[
+            "Un paiement à l'unité, en FCFA, sans abonnement obligatoire.",
+            "Un accès à vie à chaque ressource achetée.",
+            "Votre progression conservée, sur mobile comme sur ordinateur.",
+          ]}
+          quote="NkamVa a structuré ma communauté de 2 000 étudiants."
+          author="Une formatrice NkamVa"
+        />
       }
-      back={{ href: '/', label: "Retour à l'accueil" }}
     >
-      <Suspense fallback={<div className="h-80 animate-pulse rounded-xl bg-line2" />}>
-        <RegisterForm />
-      </Suspense>
+      <RegisterForm />
     </AuthShell>
-  )
+  );
 }

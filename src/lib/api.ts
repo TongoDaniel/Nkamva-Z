@@ -71,10 +71,6 @@ export async function requireTrainer(): Promise<AuthContext | NextResponse> {
   return ctx
 }
 
-export function checkStale(expectedUpdatedAt: string, actualUpdatedAt: Date): boolean {
-  return new Date(expectedUpdatedAt).getTime() !== actualUpdatedAt.getTime()
-}
-
 // Mapping mutualisé des erreurs métier levées par les services (`throw new
 // Error('CODE')`) vers l'enveloppe HTTP. Les routes n'ont plus qu'à relayer.
 const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {

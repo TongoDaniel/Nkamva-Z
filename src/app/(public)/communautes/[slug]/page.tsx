@@ -8,7 +8,7 @@ import { Price } from '@/components/nk/price'
 import { PageHead } from '@/components/nk/page-head'
 import { DemoNotice } from '@/components/nk/demo-notice'
 import { ResourceCard } from '@/components/nk/resource-card'
-import { resourcesByAuthor } from '@/features/demo/catalog-data'
+import { resourcesByAuthor, toCourseListItem } from '@/features/demo/catalog-data'
 import { COMMUNITIES, SALONS, communityBySlug } from '@/features/demo/community-data'
 
 export function generateStaticParams() {
@@ -44,11 +44,12 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
           { label: community.name },
         ]}
         title={community.name}
-      >
-        <Chip tone={community.category.tone} className="mt-3">
-          {community.category.label}
-        </Chip>
-      </PageHead>
+        lead={
+          <Chip tone={community.category.tone} className="mt-3">
+            {community.category.label}
+          </Chip>
+        }
+      />
       <DemoNotice className="mt-4" />
 
       <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1fr_320px]">
@@ -104,8 +105,8 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
             <section className="mt-9">
               <h2 className="mb-5 text-[21px] font-extrabold">Les ressources de {community.author.name}</h2>
               <div className="grid gap-[18px] sm:grid-cols-2">
-                {resources.map((resource, index) => (
-                  <ResourceCard key={resource.slug} resource={resource} index={index} />
+                {resources.map((resource) => (
+                  <ResourceCard key={resource.slug} course={toCourseListItem(resource)} />
                 ))}
               </div>
             </section>

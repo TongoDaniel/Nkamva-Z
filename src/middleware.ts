@@ -5,6 +5,9 @@ import { isSessionRevoked } from '@/lib/session-validity'
 /** Préfixes de pages qui exigent une session valide. */
 const PROTECTED_PREFIXES = [
   '/mon-compte',
+  '/accueil',
+  '/achat',
+  '/profil',
   '/candidature',
   '/mes-achats',
   '/mes-ressources',
@@ -63,6 +66,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/mon-compte/:path*',
+    '/accueil/:path*',
+    '/achat/:path*',
+    '/profil/:path*',
     '/candidature/:path*',
     '/mes-achats/:path*',
     '/mes-ressources/:path*',

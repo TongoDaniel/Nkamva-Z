@@ -1,186 +1,156 @@
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { CreditCard, GraduationCap, Rocket, Users } from 'lucide-react'
-import { Btn } from '@/components/nk/btn'
-import { Faq } from '@/components/nk/faq'
-import { SectionHead } from '@/components/nk/page-head'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { PageHead } from "@/components/nk/page-head";
+import { Btn } from "@/components/nk/button";
 
 export const metadata: Metadata = {
-  title: 'Aide & FAQ — NkamVa',
-  description: "Réponses sur les paiements, les communautés, l'espace formateur et bien plus.",
-}
-
-const TOPICS = [
-  { icon: Rocket, title: 'Démarrer', description: 'Créer un compte, premiers pas' },
-  { icon: CreditCard, title: 'Paiements', description: 'Mobile Money, FCFA, factures' },
-  { icon: Users, title: 'Communautés', description: 'Rejoindre, participer, résilier' },
-  { icon: GraduationCap, title: 'Espace formateur', description: 'Créer, vendre, retirer ses gains' },
-]
+  title: "Centre d'aide",
+  description:
+    "Achat, accès, remboursement, compte, publication : les réponses aux questions courantes sur NkamVa.",
+};
 
 const SECTIONS = [
   {
-    title: 'Démarrer',
+    id: "achat",
+    title: "Acheter une ressource",
     items: [
       {
-        question: 'Comment créer un compte sur NkamVa ?',
-        answer: (
-          <p>
-            Cliquez sur « S&apos;inscrire », renseignez votre email et un mot de passe. La création de compte apprenant
-            est gratuite et immédiate — aucun abonnement plateforme n&apos;est requis.
-          </p>
-        ),
+        q: "Comment payer ?",
+        a: "Par mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — ou par carte bancaire. Les prix sont affichés en FCFA et vous payez le montant exact indiqué sur la fiche.",
       },
       {
-        question: 'NkamVa est-il gratuit ?',
-        answer: (
-          <p>
-            Oui pour les apprenants : le compte est gratuit, vous ne payez que les ressources que vous achetez à
-            l&apos;unité ou les communautés auxquelles vous vous abonnez. Devenir formateur nécessite un abonnement
-            mensuel ou annuel.
-          </p>
-        ),
+        q: "Mon paiement est « en attente », que faire ?",
+        a: "En mobile money, la confirmation de l'opérateur prend parfois quelques minutes. L'écran de confirmation se met à jour tout seul, et la ressource apparaît dans votre espace dès que le paiement est validé. Vous pouvez fermer la page sans risque : rien n'est perdu.",
+      },
+      {
+        q: "Combien de temps ai-je accès à une ressource achetée ?",
+        a: "À vie. Une ressource achetée reste dans « Mes ressources », avec votre progression, sur mobile comme sur ordinateur.",
       },
     ],
   },
   {
-    title: 'Paiements',
+    id: "remboursement",
+    title: "Remboursements et contestations",
     items: [
       {
-        question: 'Quels moyens de paiement acceptez-vous ?',
-        answer: (
-          <p>
-            Wave, Orange Money, MTN MoMo, Airtel Money, M-Pesa, ainsi que la carte bancaire. Les opérateurs disponibles
-            dépendent de votre pays.
-          </p>
-        ),
+        q: "Dans quels cas puis-je être remboursé ?",
+        a: "Dans les 14 jours suivant l'achat, si vous avez consulté moins de 30 % de la ressource. Une ressource téléchargeable qui a été téléchargée ne peut plus être remboursée : le fichier est chez vous.",
       },
       {
-        question: 'Le paiement Mobile Money est-il sécurisé ?',
-        answer: (
-          <p>
-            Oui. Les transactions sont traitées par un prestataire de paiement certifié ; NkamVa ne stocke jamais votre
-            code secret Mobile Money.
-          </p>
-        ),
+        q: "Comment contester un achat ?",
+        a: "Depuis « Mes achats », le bouton « Contester » sur la ligne concernée. L'écran vous dit immédiatement si l'achat ouvre droit à remboursement, avant même que vous ne rédigiez quoi que ce soit.",
       },
       {
-        question: 'Puis-je être remboursé ?',
-        answer: (
-          <p>
-            Vous pouvez ouvrir un litige dans les 14 jours suivant l&apos;achat d&apos;une ressource, tant que vous
-            n&apos;en avez pas consulté plus de 30 %. Les abonnements restent actifs jusqu&apos;à la fin de la période
-            payée, sans remboursement au prorata.
-          </p>
-        ),
+        q: "Que se passe-t-il pendant l'examen ?",
+        a: "Votre accès à la ressource est suspendu le temps de l'instruction, et la part correspondante du formateur est gelée. Si la contestation n'est pas retenue, l'accès vous est rendu.",
+      },
+      {
+        q: "Combien de temps cela prend-il ?",
+        a: "L'équipe examine les dossiers dans leur ordre d'arrivée. Si une précision vous est demandée, vous disposez de 7 jours pour répondre ; sans réponse, le dossier se clôt et votre accès est rétabli.",
       },
     ],
   },
   {
-    title: 'Communautés',
+    id: "compte",
+    title: "Mon compte",
     items: [
       {
-        question: 'Comment rejoindre une communauté ?',
-        answer: (
-          <p>
-            Depuis la fiche d&apos;une communauté, cliquez sur « Rejoindre la communauté » et réglez le prix mensuel
-            fixé par le formateur. Vous accédez alors au forum, à la messagerie, aux ressources et aux lives.
-          </p>
-        ),
+        q: "Comment changer mon mot de passe ?",
+        a: "Depuis « Profil et paramètres », onglet Sécurité. Le changement déconnecte toutes vos sessions ouvertes, y compris celle en cours : c'est voulu.",
       },
       {
-        question: 'Puis-je annuler mon abonnement à une communauté ?',
-        answer: (
-          <p>
-            Oui, à tout moment depuis votre espace. La résiliation prend effet à la fin de la période déjà payée : vous
-            conservez l&apos;accès jusque-là.
-          </p>
-        ),
+        q: "Comment récupérer mes données ?",
+        a: "Onglet « Mes données » de votre profil : un fichier JSON contenant votre profil, vos achats, votre progression et vos notifications est produit à la demande.",
+      },
+      {
+        q: "Comment supprimer mon compte ?",
+        a: "Même onglet. La suppression est différée de 30 jours, pendant lesquels vous pouvez l'annuler vous-même. Vos achats sont ensuite conservés de façon anonymisée : la comptabilité l'impose.",
       },
     ],
   },
   {
-    title: 'Espace formateur',
+    id: "formateur",
+    title: "Publier sur NkamVa",
     items: [
       {
-        question: 'Comment devenir formateur ?',
-        answer: (
-          <p>
-            Déposez votre candidature depuis « Devenir formateur ». Chaque profil est examiné par notre équipe avant
-            validation. Une fois approuvé, souscrivez à l&apos;abonnement formateur pour publier vos ressources et
-            ouvrir votre communauté.
-          </p>
-        ),
+        q: "Comment devenir formateur ?",
+        a: "Déposez une candidature depuis « Devenir formateur » : une présentation, une pièce d'identité, un diplôme ou une attestation, et deux minutes de vidéo. Chaque dossier est examiné avant publication.",
       },
       {
-        question: 'Comment retirer mes revenus ?',
-        answer: (
-          <p>
-            Depuis votre tableau de bord revenus, demandez un retrait par mobile money. NkamVa prélève une commission de
-            15 % sur chaque vente ; le solde net est versé sous quelques jours ouvrés.
-          </p>
-        ),
+        q: "Combien NkamVa retient-il ?",
+        a: "15 % du prix de vente. Les 85 % restants vous reviennent, et sont crédités à chaque vente confirmée.",
+      },
+      {
+        q: "Un acheteur conteste ma ressource, que puis-je faire ?",
+        a: "Depuis « Litiges » dans votre espace formateur, vous pouvez transmettre des éléments à l'équipe de modération. Le motif détaillé rédigé par l'acheteur et son identité ne vous sont pas communiqués.",
       },
     ],
   },
-]
+];
 
-export default function HelpPage() {
+export default function AidePage() {
   return (
-    <>
-      <section className="relative overflow-hidden bg-gradient-to-br from-navy via-[#123a68] to-brand py-14 text-white">
-        <div className="wrap text-center">
-          <h1 className="text-balance text-[clamp(28px,3.4vw,40px)] font-extrabold leading-[1.08] text-white">
-            Comment pouvons-nous vous aider ?
-          </h1>
-          <p className="mx-auto mt-3 max-w-[52ch] text-[16.5px] leading-[1.6] text-[#b9c9dd]">
-            Trouvez des réponses sur les paiements, les communautés, l&apos;espace formateur et bien plus.
-          </p>
-        </div>
-      </section>
+    <div className="nk-wrap pb-16">
+      <PageHead
+        crumbs={[{ label: "Accueil", href: "/" }, { label: "Aide" }]}
+        title="Centre d'aide"
+        lead="Les réponses aux questions les plus fréquentes. Si la vôtre n'y figure pas, écrivez-nous."
+        actions={
+          <Btn asChild variant="o">
+            <Link href="/contact">Nous écrire</Link>
+          </Btn>
+        }
+      />
 
-      <div className="wrap">
-        <div className="-mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {TOPICS.map(topic => (
-            <div key={topic.title} className="rounded-xl border border-line bg-card p-5 shadow-sm">
-              <span className="grid size-10 place-items-center rounded-xl bg-brand-t text-brand">
-                <topic.icon className="size-5" />
-              </span>
-              <h2 className="mt-3 text-base font-bold">{topic.title}</h2>
-              <p className="mt-1 text-[13.5px] text-ink2">{topic.description}</p>
-            </div>
+      <nav aria-label="Sections de l'aide" className="mt-6">
+        <ul className="flex flex-wrap gap-2">
+          {SECTIONS.map((section) => (
+            <li key={section.id}>
+              <a
+                href={`#${section.id}`}
+                className="block rounded-full border border-line bg-card px-4 py-2 text-[13.5px] font-semibold text-ink-2 hover:border-ink-3 hover:text-ink"
+              >
+                {section.title}
+              </a>
+            </li>
           ))}
-        </div>
+        </ul>
+      </nav>
 
-        <section className="pt-14">
-          <SectionHead centered kicker="Questions fréquentes" title="Les réponses les plus demandées" />
-
-          <div className="mx-auto max-w-[780px]">
-            {SECTIONS.map(section => (
-              <div key={section.title} className="mb-8">
-                <h3 className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.12em] text-ink3">
-                  {section.title}
-                </h3>
-                <Faq items={section.items} />
-              </div>
+      <div className="mx-auto mt-8 max-w-[760px]">
+        {SECTIONS.map((section) => (
+          <section key={section.id} id={section.id} className="mb-10 scroll-mt-24">
+            <h2 className="mb-4 text-[22px] font-extrabold">{section.title}</h2>
+            {section.items.map((item) => (
+              <details
+                key={item.q}
+                className="group mb-3 overflow-hidden rounded-nk border border-line bg-card open:border-brand-tint-2"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4.5 text-[15.5px] font-bold hover:text-brand">
+                  {item.q}
+                  <span
+                    className="grid size-7 shrink-0 place-items-center rounded-full bg-line-2 text-ink-2 transition group-open:rotate-45 group-open:bg-brand-tint group-open:text-brand"
+                    aria-hidden="true"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-3.5">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </span>
+                </summary>
+                <p className="px-5 pb-5 text-[14.5px] leading-relaxed text-ink-2">{item.a}</p>
+              </details>
             ))}
-          </div>
-        </section>
+          </section>
+        ))}
 
-        <section className="mb-4 mt-6 rounded-xl border border-line bg-card p-8 text-center">
-          <h2 className="text-[21px] font-extrabold">Vous n&apos;avez pas trouvé votre réponse ?</h2>
-          <p className="mx-auto mt-2 max-w-[46ch] text-ink2">
-            Notre équipe support vous répond en français sous 24 h.
-          </p>
-          <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <Btn asChild>
-              <Link href="/contact">Contacter le support</Link>
-            </Btn>
-            <Btn asChild variant="outline">
-              <Link href="/communautes">Demander à la communauté</Link>
-            </Btn>
-          </div>
-        </section>
+        <p className="rounded-nk-lg border border-line bg-card px-5 py-4.5 text-[14px] leading-relaxed text-ink-2 shadow-nk-sm">
+          Votre question n&apos;a pas de réponse ici ?{" "}
+          <Link href="/contact" className="font-bold text-brand hover:text-brand-dark">
+            Écrivez au support
+          </Link>{" "}
+          — nous répondons sous 24 heures ouvrées.
+        </p>
       </div>
-    </>
-  )
+    </div>
+  );
 }

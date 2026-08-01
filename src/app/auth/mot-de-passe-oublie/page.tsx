@@ -1,30 +1,29 @@
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { AuthShell } from '@/components/auth/auth-shell'
-import { ForgotPasswordForm } from './forgot-password-form'
+import type { Metadata } from "next";
+import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import { ForgotForm } from "./forgot-form";
 
 export const metadata: Metadata = {
-  title: 'Mot de passe oublié — NkamVa',
-  description: 'Recevez un code pour réinitialiser le mot de passe de votre compte NkamVa.',
-}
+  title: "Mot de passe oublié",
+  description: "Recevez un code à 6 chiffres pour réinitialiser votre mot de passe NkamVa.",
+};
 
-export default function ForgotPasswordPage() {
+export default function MotDePasseOubliePage() {
   return (
     <AuthShell
-      title="Mot de passe oublié"
-      subtitle="Indiquez votre adresse : nous vous envoyons un code à 6 chiffres pour choisir un nouveau mot de passe."
-      panelTitle="Reprendre la main"
-      highlights={[
-        { title: 'Code à usage unique', body: 'valable 10 minutes, utilisable une seule fois.' },
-        { title: 'Sessions fermées', body: 'toutes vos sessions ouvertes tombent après la réinitialisation.' },
-      ]}
-      footer={
-        <Link href="/auth/connexion" className="font-bold text-ink hover:underline">
-          Retour à la connexion
-        </Link>
+      aside={
+        <AuthAside
+          title="Récupération sécurisée"
+          points={[
+            "Code à usage unique envoyé par e-mail.",
+            "Vos achats et votre progression sont conservés.",
+            "Le support répond en moins de 24 h.",
+          ]}
+          quote="On reprend là où on s'était arrêté, en deux minutes."
+          author="Support NkamVa · disponible 6j/7"
+        />
       }
     >
-      <ForgotPasswordForm />
+      <ForgotForm />
     </AuthShell>
-  )
+  );
 }

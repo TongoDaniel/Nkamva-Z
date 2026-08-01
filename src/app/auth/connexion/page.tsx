@@ -1,34 +1,26 @@
-import { Suspense } from 'react'
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { AuthShell, LEARNER_HIGHLIGHTS } from '@/components/auth/auth-shell'
-import { LoginForm } from './login-form'
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
-  title: 'Connexion — NkamVa',
-  description: 'Connectez-vous à votre compte NkamVa.',
-}
+  title: "Connexion",
+  description: "Connectez-vous pour reprendre votre apprentissage sur NkamVa.",
+};
 
-export default function LoginPage() {
+export default function ConnexionPage() {
   return (
     <AuthShell
-      title="Bon retour"
-      subtitle="Connectez-vous pour reprendre votre apprentissage."
-      highlights={LEARNER_HIGHLIGHTS}
-      panelTitle="Votre espace vous attend"
-      footer={
-        <>
-          Pas encore de compte ?{' '}
-          <Link href="/auth/inscription" className="font-bold text-ink hover:underline">
-            Créer un compte
-          </Link>
-        </>
+      aside={
+        <AuthAside
+          quote="Une plateforme simple, rapide et efficace."
+          author="Un apprenant NkamVa"
+        />
       }
-      back={{ href: '/', label: "Retour à l'accueil" }}
     >
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-line2" />}>
+      <Suspense fallback={<div className="h-96" aria-hidden="true" />}>
         <LoginForm />
       </Suspense>
     </AuthShell>
-  )
+  );
 }

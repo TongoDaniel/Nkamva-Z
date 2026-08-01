@@ -12,7 +12,7 @@
 //   - décision 3 : aucun RIB ici, il n'est collecté qu'avant le premier retrait
 // ==========================================================================
 
-import type { Prisma, TrainerApplicationStatus } from '@prisma/client'
+import type { Prisma, TrainerApplicationStatus, TrainerDocumentType, TrainerDocumentStatus } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
@@ -538,4 +538,42 @@ export async function getApplicationStats() {
     pending: (counts.SUBMITTED ?? 0) + (counts.RESUBMISSION_PENDING ?? 0),
     avgReviewHours,
   }
+}
+
+// ==========================================================================
+// Compatibilité front (écrans issus de la branche design tokens)
+// ==========================================================================
+// Mêmes valeurs que les constantes de référence : on les ré-expose ici sans
+// les redéfinir, pour que les deux modules ne puissent pas diverger.
+
+export { MAX_RESUBMISSIONS, DOCUMENT_RETENTION_DAYS } from './trainer-documents'
+
+/** Erreur métier des services de revue. Mappée en HTTP par les routes. */
+export class TrainerApplicationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TrainerApplicationError'
+  }
+}
+
+/** Alias de `REQUIRED_DOCUMENT_TYPES`, sous le nom attendu par les écrans. */
+export const REQUIRED_DOCUMENTS = REQUIRED_DOCUMENT_TYPES
+
+/**
+ * Statuts qui valent « pièce fournie » pour la complétude du dossier.
+ *
+ * Volontairement plus large que `CONFIRMED_DOCUMENT_STATUSES`, qui sert à
+ * décider d'une re-soumission : une pièce déjà validée reste fournie et ne
+ * doit pas être redemandée au candidat lors d'un renvoi partiel du dossier.
+ */
+const SUPPLIED_DOCUMENT_STATUSES: TrainerDocumentStatus[] = ['PENDING', 'RESUBMITTED', 'APPROVED']
+
+/** Types de pièces encore attendues pour que la candidature soit soumettable. */
+export async function missingDocuments(applicationId: string): Promise<TrainerDocumentType[]> {
+  const documents = await db.trainerDocument.findMany({
+    where: { applicationId, isCurrent: true, status: { in: SUPPLIED_DOCUMENT_STATUSES } },
+    select: { type: true },
+  })
+  const provided = new Set(documents.map(d => d.type))
+  return REQUIRED_DOCUMENT_TYPES.filter(type => !provided.has(type))
 }

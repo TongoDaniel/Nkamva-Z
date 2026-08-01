@@ -1,28 +1,32 @@
-import { Suspense } from 'react'
-import type { Metadata } from 'next'
-import { AuthShell } from '@/components/auth/auth-shell'
-import { VerifyCodeForm } from './verify-code-form'
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import { VerifyCodeForm } from "./verify-form";
 
 export const metadata: Metadata = {
-  title: 'Vérifier votre adresse — NkamVa',
-  description: 'Saisissez le code à 6 chiffres reçu par email.',
-}
+  title: "Vérifier le code",
+  description: "Saisissez le code à 6 chiffres reçu par e-mail.",
+};
 
-export default function VerifyCodePage() {
+export default function VerifierCodePage() {
   return (
     <AuthShell
-      title="Vérifiez votre adresse"
-      subtitle="Nous venons de vous envoyer un code à 6 chiffres. Il expire dans 10 minutes."
-      panelTitle="Presque terminé"
-      highlights={[
-        { title: 'Pourquoi ce code', body: 'il confirme que cette adresse est bien la vôtre.' },
-        { title: 'Pas reçu ?', body: 'vérifiez vos indésirables, puis demandez un nouveau code.' },
-      ]}
-      back={{ href: '/auth/inscription', label: "Revenir à l'inscription" }}
+      aside={
+        <AuthAside
+          title="Récupération sécurisée"
+          points={[
+            "Code à usage unique envoyé par e-mail.",
+            "Valable 10 minutes, 5 tentatives maximum.",
+            "Le support répond en moins de 24 h.",
+          ]}
+          quote="La double vérification protège votre compte à chaque connexion."
+          author="Sécurité NkamVa"
+        />
+      }
     >
-      <Suspense fallback={<div className="h-56 animate-pulse rounded-xl bg-line2" />}>
+      <Suspense fallback={<div className="h-96" aria-hidden="true" />}>
         <VerifyCodeForm />
       </Suspense>
     </AuthShell>
-  )
+  );
 }

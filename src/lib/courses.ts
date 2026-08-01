@@ -160,7 +160,9 @@ export async function presignCourseUpload(
   if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
 
   const limits = COURSE_UPLOAD_LIMITS[params.kind]
-  if (!limits.mimes.includes(params.mimeType)) throw new Error('MIME_NOT_ALLOWED')
+  // `mimes` est un tuple de littéraux : sans élargissement, `includes` refuse
+  // toute chaîne quelconque et ne compile pas.
+  if (!(limits.mimes as readonly string[]).includes(params.mimeType)) throw new Error('MIME_NOT_ALLOWED')
   if (params.sizeBytes > limits.maxSize) throw new Error('SIZE_EXCEEDS_LIMIT')
 
   const ext = params.mimeType.split('/')[1]

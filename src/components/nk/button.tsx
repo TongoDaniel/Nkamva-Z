@@ -1,0 +1,106 @@
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/**
+ * Bouton NkamVa — port de `.btn` / `.btn-p|dark|o|t` / `.btn-sm|lg` de la maquette.
+ * `asChild` permet de rendre un `<Link>` avec l'apparence d'un bouton.
+ */
+export const btnVariants = cva(
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap",
+    "font-sans font-semibold leading-none rounded-full border-[1.5px] border-transparent",
+    "cursor-pointer no-underline select-none",
+    "transition-[transform,box-shadow,background-color,border-color,color] duration-150",
+    "active:scale-[0.97]",
+    "disabled:opacity-50 disabled:pointer-events-none aria-disabled:opacity-50 aria-disabled:pointer-events-none",
+    "[&_svg]:shrink-0",
+  ],
+  {
+    variants: {
+      variant: {
+        p: "bg-brand text-white hover:bg-brand-dark hover:-translate-y-px hover:shadow-brand",
+        dark: "bg-ink text-paper hover:bg-black hover:text-white hover:-translate-y-px",
+        o: "bg-card text-ink border-line hover:border-ink",
+        t: "bg-transparent text-brand hover:bg-brand-tint",
+        danger: "bg-danger-tint text-danger border-danger-tint hover:bg-danger hover:text-white hover:border-danger",
+      },
+      size: {
+        sm: "px-4 py-[9px] text-[13.5px] [&_svg]:size-4",
+        md: "px-[22px] py-[13px] text-[15px] [&_svg]:size-[17px]",
+        lg: "px-7 py-4 text-base [&_svg]:size-[18px]",
+      },
+      block: {
+        true: "w-full",
+        false: "",
+      },
+    },
+    defaultVariants: { variant: "p", size: "md", block: false },
+  },
+);
+
+export interface BtnProps
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color">,
+    VariantProps<typeof btnVariants> {
+  asChild?: boolean;
+  /** Affiche un spinner et neutralise le bouton, en conservant sa largeur. */
+  loading?: boolean;
+}
+
+export const Btn = React.forwardRef<HTMLButtonElement, BtnProps>(function Btn(
+  { className, variant, size, block, asChild, loading, children, disabled, type, ...props },
+  ref,
+) {
+  const Comp = asChild ? Slot : "button";
+  return (
+    <Comp
+      ref={ref}
+      type={asChild ? undefined : (type ?? "button")}
+      className={cn(btnVariants({ variant, size, block }), className)}
+      disabled={asChild ? undefined : disabled || loading}
+      aria-busy={loading || undefined}
+      {...props}
+    >
+      {loading ? (
+        <>
+          <Loader2 className="animate-spin" aria-hidden="true" />
+          <span>{children}</span>
+        </>
+      ) : (
+        children
+      )}
+    </Comp>
+  );
+});
+
+/** Bouton icône rond de la topbar (`.icbtn`). */
+export const IconBtn = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { badge?: number | null }
+>(function IconBtn({ className, children, badge, type, ...props }, ref) {
+  return (
+    <button
+      ref={ref}
+      type={type ?? "button"}
+      className={cn(
+        "relative grid size-[42px] place-items-center rounded-full border border-line bg-card text-ink-2",
+        "cursor-pointer transition duration-150 hover:border-ink-3 hover:text-ink hover:-translate-y-px",
+        "[&_svg]:size-[19px]",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      {badge ? (
+        <span
+          className="absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-paper bg-clay px-[5px] text-center text-[10.5px] font-bold leading-[18px] text-white"
+          aria-hidden="true"
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
+    </button>
+  );
+});
