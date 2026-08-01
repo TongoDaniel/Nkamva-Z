@@ -21,6 +21,7 @@ const LEARNER_NAV = [
 const TRAINER_NAV = [
   { href: "/formateur", label: "Espace formateur" },
   { href: "/formateur/ressources", label: "Mes publications" },
+  { href: "/formateur/litiges", label: "Litiges" },
 ];
 
 const ACCOUNT_LINKS = [

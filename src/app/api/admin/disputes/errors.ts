@@ -35,6 +35,7 @@ const MAPPING: Record<string, { message: string; status: number }> = {
   ALREADY_REFUNDED: { message: 'Cet achat a déjà été remboursé.', status: 409 },
   TASK_NOT_FOUND: { message: 'Tâche introuvable.', status: 404 },
   TASK_NOT_PENDING: { message: 'Cette tâche a déjà été traitée.', status: 409 },
+  TICKET_NOT_OPEN: { message: 'Cette contestation a déjà reçu une réponse.', status: 409 },
   ERROR_MESSAGE_REQUIRED: { message: 'Indiquez la raison de l’échec.', status: 400 },
 }
 
