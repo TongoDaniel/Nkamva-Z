@@ -456,7 +456,7 @@ async function refundDispute(
 // --- FR2 à FR5 : mouvements de fonds ---
 
 /** FR2 / FR5 : la réserve est rendue, le solde n'est pas touché. */
-async function releaseReservations(
+export async function releaseReservations(
   tx: Parameters<Parameters<typeof db.$transaction>[0]>[0],
   disputeId: string,
   actorId: string | null,
