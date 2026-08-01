@@ -17,7 +17,8 @@
 | `vitest.config.ts` | ✅ Présent | Alias `@/` via `import.meta.url` |
 | `eslint.config.mjs` | ⚠️ Partiel | `ignores` ne contient pas `audit/**` — les fichiers de la maquette peuvent causer des erreurs de lint |
 | `src/instrumentation.ts` | ❌ **MANQUANT** | Les jobs planifiés ne sont pas démarrés |
-| `src/types/next-auth.d.ts` | ❌ **MANQUANT** | L'augmentation de types Session/JWT n'existe pas |
+| `src/types/next-auth.d.ts` | ✅ Présent | Augmentation `Session`/`User`/`JWT` avec `id`, `role`, `adminRole`, `trainerId`, `sessionsValidAfter` |
+| `src/middleware.ts` | ✅ Présent | Protection des pages par préfixe + garde `ADMIN`, redirection vers `/auth/connexion?callbackUrl=…` |
 
 ### 1.2 Constat critique : .env vs schema.prisma
 
@@ -104,29 +105,94 @@ La base `db/custom.db` (24 Ko) contient uniquement les tables `User` et `Post` d
 
 | Lot | Routes manquantes | Nombre |
 |---|---|---|
-| Lot 0 | `/api/auth/[...nextauth]`, `/api/auth/register`, `/api/health`, `/api/webhooks/stripe`, `/api/webhooks/cinetpay` | 5 |
+| Lot 0 | ~~toutes recréées~~ — voir §3.3 | 0 |
 | Lot 1 | `/api/trainer-applications/*` (5 routes), `/api/admin/trainer-applications/*` (8 routes) | 13 |
 | Lot 2 | `/api/me/disputes/*` (3 routes), `/api/admin/disputes/*` (6 routes), `/api/admin/manual-refund-tasks/*` (3 routes), `/api/trainer/disputes/*` (2 routes) | 14 |
 | Lot 3 | `/api/trainer/kyc-score`, `/api/trainer/payout-methods/*` (3 routes), `/api/trainer/payouts/*` (2 routes), `/api/admin/payout-methods/*` (6 routes), `/api/admin/payouts/*` (5 routes), `/api/admin/wallets/*` (2 routes) | 19 |
-| **Total manquant** | | **51 routes** |
+| **Total manquant** | | **46 routes** |
+
+### 3.3 Routes Lot 0 recréées
+
+| Route | Méthode | Notes |
+|---|---|---|
+| `/api/auth/[...nextauth]` | GET, POST | Point de montage NextAuth v4 sur `authOptions` |
+| `/api/auth/register` | POST | Crée un `LEARNER` non vérifié, audit `USER_REGISTERED`, émet un OTP. 409 `EMAIL_ALREADY_USED` (index unique en filet sur la course) |
+| `/api/auth/otp` | POST | Envoi d'un code à 6 chiffres. Réponse identique que le compte existe ou non (pas d'énumération) |
+| `/api/auth/verify-otp` | POST | Vérifie l'adresse, pose `emailVerifiedAt`, audit `EMAIL_VERIFIED` |
+| `/api/auth/reset-password` | POST | Consomme l'OTP, remplace le hash, bumpe `sessionsValidAfter`, audit `PASSWORD_RESET` |
+| `/api/health` | GET | `SELECT 1` sur Postgres, 503 `DATABASE_UNAVAILABLE` sinon |
+
+`EmailOtp` ne porte pas de colonne « purpose » : un code vaut preuve de contrôle de
+l'adresse, quel que soit l'usage. Émettre un nouveau code invalide donc le précédent
+pour cette adresse. TTL 10 minutes, 5 tentatives maximum (`src/lib/otp.ts`).
 
 ---
 
 ## 4. Pages frontend
 
+Le design vient de la maquette `Nkamva.zip` (75 écrans HTML statiques), reconstruit en
+Tailwind + shadcn. Les tokens de la maquette (papier chaud `#f6f3ec`, accent bleu marine
+`#1c5ed0`, Bricolage Grotesque + Instrument Sans) vivent dans `src/app/globals.css` et
+remappent les tokens shadcn : les primitives `ui/` adoptent le style NkamVa sans surcouche.
+
+### 4.1 Socle
+
+| Fichier | État | Contenu réel |
+|---|---|---|
+| `src/app/globals.css` | ✅ | Tokens NkamVa + remappage shadcn, halo de fond, animations `nk-reveal` / `nk-marquee` |
+| `src/app/layout.tsx` | ✅ | `lang="fr"`, polices Google, `Providers` (SessionProvider + TanStack Query), `Toaster` de **`sonner`** |
+| `src/app/providers.tsx` | ✅ | SessionProvider NextAuth + QueryClientProvider (un client par montage) |
+| `src/components/nk/*` | ✅ | Primitives de la maquette : `Btn`, `Chip`, `Price`, `Cover`, `ResourceCard`, `MiniCard`, `CommunityCard`, `Faq`, `PayBand`, `EmptyState`, `PageHead`, `DemoNotice` |
+| `src/components/layout/*` | ✅ | `Brand`, `SiteHeader` (session-aware + menu mobile), `SiteFooter` 4 colonnes |
+| `src/components/auth/*` | ✅ | `AuthShell` (formulaire + panneau dégradé), `AuthField`, `OtpInput` |
+| `src/features/demo/*` | ✅ | Jeu de données de la maquette (16 ressources, 7 formateurs, 7 communautés) — **seul endroit contenant du faux contenu** |
+
+### 4.2 Pages publiques — groupe `(public)`
+
+| Route | État | Notes |
+|---|---|---|
+| `/` | ✅ | Landing : hero + bande défilante, frise paiements, « comment ça marche », captures produit, aperçu catalogue, bloc formateur, FAQ, CTA |
+| `/ressources` | ✅ | Catalogue : recherche, filtres catégorie/format, tri, pastilles actives, pagination « afficher plus » |
+| `/ressources/[slug]` | ✅ | Fiche : programme en accordéon, formateur, avis, panneau d'achat collant |
+| `/formateurs` · `/formateurs/[trainerId]` | ✅ | Annuaire à onglets + profil et sa communauté |
+| `/communautes` · `/communautes/[slug]` | ✅ | Listing et détail (salons, membres, prix mensuel) |
+| `/tarifs` | ✅ | Trois offres, frise paiements, FAQ |
+| `/devenir-formateur` | ✅ | Parcours en 4 étapes, FAQ, CTA |
+| `/aide` · `/contact` | ✅ | FAQ par thème ; formulaire de contact (route API à écrire) |
+| `/legal/conditions` · `/legal/confidentialite` · `/legal/mentions` | ✅ | Texte en Markdown dans `src/content/legal/`, rendu par `LegalPage` |
+
+### 4.3 Pages d'authentification
+
+| Route | État | Notes |
+|---|---|---|
+| `/auth/connexion` | ✅ | Credentials, `callbackUrl`, message dédié pour `ACCOUNT_SUSPENDED` |
+| `/auth/inscription` | ✅ | Compte + acceptation CGU, puis redirection vers la vérification |
+| `/auth/verifier-code` | ✅ | Saisie du code à 6 chiffres, renvoi de code |
+| `/auth/mot-de-passe-oublie` · `/auth/nouveau-mot-de-passe` | ✅ | Demande de code, puis code + nouveau mot de passe |
+| `/auth/erreur` | ✅ | Cible de `authOptions.pages.error` |
+| `/mon-compte` · `not-found.tsx` · `error.tsx` | ✅ | Compte, 404, erreur applicative |
+
+### 4.4 Écrans de la maquette restant à construire
+
+Espace apprenant (tableau de bord, mes achats, mes ressources, favoris, messagerie,
+notifications, lives, profil), espace formateur (15 écrans) et espace admin (23 écrans).
+Plusieurs fichiers de la maquette sont le même écran dans deux shells
+(`Catalogue` / `Catalogue apprenant`…) : la topbar étant déjà session-aware, ces
+variantes se rejoignent sur une seule route.
+
 | Page | État | Contenu réel |
 |---|---|---|
-| `src/app/page.tsx` | ⚠️ **Template initial** | 30 lignes — logo Z.ai centré, pas la page de validation NkamVa |
-| `src/app/layout.tsx` | ⚠️ **Template initial** | Utilise `Toaster` de `@/components/ui/toaster` (pas `sonner`). Metadata "Z.ai Code Scaffold" |
-| `src/app/devenir-formateur/page.tsx` | ❌ **MANQUANT** | Wizard 4 étapes perdu |
-| `src/app/candidature/statut/page.tsx` | ❌ **MANQUANT** | Page statut perdue |
-| `src/app/admin/validation-formateurs/page.tsx` | ❌ **MANQUANT** | Page admin perdue |
+| `src/app/candidature/statut/page.tsx` | ❌ **MANQUANT** | Page statut — Lot 1 |
+| `src/app/admin/validation-formateurs/page.tsx` | ❌ **MANQUANT** | Page admin — Lot 1 |
 
-### 4.1 Composants shadcn/ui
+### 4.5 Composants shadcn/ui
 
-48 composants présents dans `src/components/ui/` (template initial, jamais modifiés). Tous les composants nécessaires sont disponibles : `button`, `card`, `dialog`, `input`, `textarea`, `label`, `checkbox`, `tabs`, `table`, `badge`, `avatar`, `select`, `sonner`, etc.
+48 composants présents dans `src/components/ui/` (template initial). Leurs tokens sont
+remappés sur la palette NkamVa par `globals.css`, ils n'ont donc pas été modifiés un par
+un. Les composants propres à la maquette (bouton pilule, pastilles, cartes) vivent dans
+`src/components/nk/` plutôt que d'être surchargés dans `ui/`.
 
-### 4.2 Hooks
+### 4.6 Hooks
 
 `use-mobile.ts` et `use-toast.ts` — template initial, jamais modifiés.
 
@@ -137,8 +203,8 @@ La base `db/custom.db` (24 Ko) contient uniquement les tables `User` et `Post` d
 | Fichier | État | Contenu |
 |---|---|---|
 | `tests/setup.ts` | ✅ Présent | PrismaClient + `cleanDatabase()` via TRUNCATE CASCADE |
-| `tests/lot4-invariants.test.ts` | ✅ Présent | 8 tests (catalogue, achat Stripe/CinetPay, webhook double, accessSuspended, CourseView) |
-| `tests/lot0-invariants.test.ts` | ❌ **MANQUANT** | 6 tests perdus |
+| `tests/lot4-invariants.test.ts` | ✅ Présent | 9 tests (catalogue, achat Stripe/CinetPay, webhook double, accessSuspended, CourseView) |
+| `tests/lot0-auth.test.ts` | ✅ Présent | 11 tests : cycle de vie OTP (usage unique, invalidation du précédent, plafond de tentatives, expiration), `register` (compte + audit + OTP, doublon), `reset-password` (hash, `sessionsValidAfter`, audit, code invalide), invalidation ciblée des sessions |
 | `tests/lot1-invariants.test.ts` | ❌ **MANQUANT** | 7 tests perdus |
 | `tests/lot2-invariants.test.ts` | ❌ **MANQUANT** | 7 tests perdus |
 | `tests/lot3-invariants.test.ts` | ❌ **MANQUANT** | 10 tests perdus |
@@ -194,8 +260,8 @@ Next.js 16, React 19, Prisma 6, @tanstack/react-query 5, zustand 5, react-hook-f
 | Erreurs | `{ error: { code, message } }` | Conforme | ✅ Conforme |
 | 422 pour règles métier | Oui | Oui | ✅ Conforme |
 | Pagination | page + pageSize (max 50) | Conforme | ✅ Conforme |
-| Toast | `sonner` | `Toaster` de shadcn (pas sonner) | ⚠️ **layout.tsx utilise `@/components/ui/toaster` au lieu de `sonner`** |
-| Polling (pas WebSocket) | TanStack Query 8s/15s | Non implémenté côté front | ❌ Front manquant |
+| Toast | `sonner` | `Toaster` de `@/components/ui/sonner` dans `layout.tsx` | ✅ Conforme |
+| Polling (pas WebSocket) | TanStack Query 8s/15s | `QueryClientProvider` monté, aucune vue à rafraîchir pour l'instant | ⚠️ Socle prêt, polling non utilisé |
 | i18n | Aucun (FR en dur) | `next-intl` installé mais non utilisé | ✅ Conforme (non utilisé) |
 | Hachage | argon2id | argon2id via `@node-rs/argon2` | ✅ Conforme |
 | Auth | NextAuth v4 | NextAuth v4 | ✅ Conforme |
@@ -213,6 +279,15 @@ La matrice est implémentée dans `src/lib/api.ts` via les fonctions :
 - `requireAdminSubRole(...subRoles)` — vérifie le sous-rôle admin
 - `requireTrainer()` — vérifie `trainerId` non null
 - `isPublicRoute(method, path)` — routes publiques par (méthode, préfixe)
+
+Côté pages, `src/middleware.ts` applique la même logique en amont du rendu : redirection
+vers `/auth/connexion?callbackUrl=…` sur les préfixes protégés, redirection des pages
+d'auth vers `/mon-compte` quand une session est déjà ouverte, et garde `ADMIN` sur
+`/admin/*`. Il rejoue l'invalidation ciblée via `isSessionRevoked()`
+(`src/lib/session-validity.ts`), partagé avec le callback `session` de NextAuth. Cette
+comparaison se fait à la seconde : `iat` est en secondes entières, une comparaison en
+millisecondes rejetait à tort une reconnexion faite dans la même seconde qu'une
+révocation.
 
 **Routes publiques définies** : `/api/auth/*`, `/api/catalog/*`, `/api/courses/*`, `/api/trainers`, `/api/communities`, `/api/tarifs`, `/api/legal/*`, `/api/contact`, `/api/aide`, `/api/webhooks/*`, `/api/health`.
 
