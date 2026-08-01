@@ -13,6 +13,7 @@ import { purgeDeletedAccounts } from './purge-deleted-accounts'
 import { remindPendingDeletions } from './remind-pending-deletions'
 import { purgeTrainerDocuments } from './purge-trainer-documents'
 import { autoCloseDisputes } from './auto-close-disputes'
+import { reconcileWallets, alertNegativeWallets } from './wallet-consistency'
 
 export interface JobDefinition {
   id: string
@@ -38,6 +39,20 @@ export const JOBS: JobDefinition[] = [
     schedule: '5 7 * * *',
     description: "Prévient par e-mail avant l'effacement d'un compte (J-7 puis J-1)",
     run: async () => ({ ...(await remindPendingDeletions()) }),
+  },
+  {
+    id: 'reconcile-wallets',
+    // 03h30 UTC. Passe avant l'alerte sur solde négatif : inutile d'alerter
+    // sur un solde dont les réservations n'ont pas encore été recalculées.
+    schedule: '30 3 * * *',
+    description: 'Recalcule les soldes dérivés des portefeuilles et journalise les écarts',
+    run: async () => ({ ...(await reconcileWallets()) }),
+  },
+  {
+    id: 'alert-negative-wallets',
+    schedule: '40 3 * * *',
+    description: 'Suit les soldes négatifs et alerte au-delà de 60 jours',
+    run: async () => ({ ...(await alertNegativeWallets()) }),
   },
   {
     id: 'purge-trainer-documents',
