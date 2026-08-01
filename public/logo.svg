@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="NkamVa">
-  <rect width="32" height="32" rx="8" fill="#0F172A"/>
-  <path d="M9 22.5V9.5h3.3l6.4 7.9V9.5H22v13h-3.3l-6.4-7.9v7.9H9z" fill="#FFFFFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32">
+  <rect width="48" height="48" rx="10" fill="#022342"></rect>
+  <g transform="translate(5.5 5.5) scale(0.77)">
+    <path d="M8 42V10h9l14 21V10h9v32h-9L17 21v21H8Z" fill="#fff"></path>
+    <path d="M7 43 36 12" stroke="#2E7CF6" stroke-width="7.5"></path>
+    <path d="M44 4 40.6 16.6 31.4 7.4 44 4Z" fill="#2E7CF6"></path>
+  </g>
 </svg>

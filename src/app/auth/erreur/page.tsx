@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Btn } from '@/components/nk/btn'
+import { AuthShell } from '@/components/auth/auth-shell'
+import { FormError } from '@/components/form-error'
 
 export const metadata: Metadata = {
   title: 'Erreur d’authentification — NkamVa',
@@ -21,19 +22,26 @@ export default async function AuthErrorPage({ searchParams }: { searchParams: Pr
   const message = (error && MESSAGES[error]) || "La connexion n'a pas pu aboutir."
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Connexion impossible</CardTitle>
-        <CardDescription>{message}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Button asChild className="w-full">
+    <AuthShell
+      title="Connexion impossible"
+      subtitle="Nous n'avons pas pu ouvrir votre session."
+      panelTitle="Besoin d'aide ?"
+      highlights={[
+        { title: 'Mot de passe oublié', body: 'un code de réinitialisation vous est envoyé par email.' },
+        { title: 'Support', body: 'écrivez-nous depuis la page contact, réponse sous 24 h.' },
+      ]}
+      back={{ href: '/', label: "Retour à l'accueil" }}
+    >
+      <FormError message={message} />
+
+      <div className="mt-5 grid gap-2.5">
+        <Btn asChild size="lg">
           <Link href="/auth/connexion">Réessayer</Link>
-        </Button>
-        <Button asChild variant="ghost" className="w-full">
-          <Link href="/">Retour à l’accueil</Link>
-        </Button>
-      </CardContent>
-    </Card>
+        </Btn>
+        <Btn asChild variant="outline">
+          <Link href="/contact">Contacter le support</Link>
+        </Btn>
+      </div>
+    </AuthShell>
   )
 }

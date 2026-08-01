@@ -1,7 +1,8 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import type { Metadata } from 'next'
+import { AuthShell, LEARNER_HIGHLIGHTS } from '@/components/auth/auth-shell'
 import { LoginForm } from './login-form'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export const metadata: Metadata = {
   title: 'Connexion — NkamVa',
@@ -10,16 +11,24 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Se connecter</CardTitle>
-        <CardDescription>Accédez à vos ressources et à votre espace formateur.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Suspense fallback={<div className="h-64 animate-pulse rounded-md bg-muted" />}>
-          <LoginForm />
-        </Suspense>
-      </CardContent>
-    </Card>
+    <AuthShell
+      title="Bon retour"
+      subtitle="Connectez-vous pour reprendre votre apprentissage."
+      highlights={LEARNER_HIGHLIGHTS}
+      panelTitle="Votre espace vous attend"
+      footer={
+        <>
+          Pas encore de compte ?{' '}
+          <Link href="/auth/inscription" className="font-bold text-ink hover:underline">
+            Créer un compte
+          </Link>
+        </>
+      }
+      back={{ href: '/', label: "Retour à l'accueil" }}
+    >
+      <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-line2" />}>
+        <LoginForm />
+      </Suspense>
+    </AuthShell>
   )
 }

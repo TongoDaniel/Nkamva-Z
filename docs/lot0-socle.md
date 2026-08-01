@@ -130,29 +130,69 @@ pour cette adresse. TTL 10 minutes, 5 tentatives maximum (`src/lib/otp.ts`).
 
 ## 4. Pages frontend
 
+Le design vient de la maquette `Nkamva.zip` (75 écrans HTML statiques), reconstruit en
+Tailwind + shadcn. Les tokens de la maquette (papier chaud `#f6f3ec`, accent bleu marine
+`#1c5ed0`, Bricolage Grotesque + Instrument Sans) vivent dans `src/app/globals.css` et
+remappent les tokens shadcn : les primitives `ui/` adoptent le style NkamVa sans surcouche.
+
+### 4.1 Socle
+
+| Fichier | État | Contenu réel |
+|---|---|---|
+| `src/app/globals.css` | ✅ | Tokens NkamVa + remappage shadcn, halo de fond, animations `nk-reveal` / `nk-marquee` |
+| `src/app/layout.tsx` | ✅ | `lang="fr"`, polices Google, `Providers` (SessionProvider + TanStack Query), `Toaster` de **`sonner`** |
+| `src/app/providers.tsx` | ✅ | SessionProvider NextAuth + QueryClientProvider (un client par montage) |
+| `src/components/nk/*` | ✅ | Primitives de la maquette : `Btn`, `Chip`, `Price`, `Cover`, `ResourceCard`, `MiniCard`, `CommunityCard`, `Faq`, `PayBand`, `EmptyState`, `PageHead`, `DemoNotice` |
+| `src/components/layout/*` | ✅ | `Brand`, `SiteHeader` (session-aware + menu mobile), `SiteFooter` 4 colonnes |
+| `src/components/auth/*` | ✅ | `AuthShell` (formulaire + panneau dégradé), `AuthField`, `OtpInput` |
+| `src/features/demo/*` | ✅ | Jeu de données de la maquette (16 ressources, 7 formateurs, 7 communautés) — **seul endroit contenant du faux contenu** |
+
+### 4.2 Pages publiques — groupe `(public)`
+
+| Route | État | Notes |
+|---|---|---|
+| `/` | ✅ | Landing : hero + bande défilante, frise paiements, « comment ça marche », captures produit, aperçu catalogue, bloc formateur, FAQ, CTA |
+| `/ressources` | ✅ | Catalogue : recherche, filtres catégorie/format, tri, pastilles actives, pagination « afficher plus » |
+| `/ressources/[slug]` | ✅ | Fiche : programme en accordéon, formateur, avis, panneau d'achat collant |
+| `/formateurs` · `/formateurs/[trainerId]` | ✅ | Annuaire à onglets + profil et sa communauté |
+| `/communautes` · `/communautes/[slug]` | ✅ | Listing et détail (salons, membres, prix mensuel) |
+| `/tarifs` | ✅ | Trois offres, frise paiements, FAQ |
+| `/devenir-formateur` | ✅ | Parcours en 4 étapes, FAQ, CTA |
+| `/aide` · `/contact` | ✅ | FAQ par thème ; formulaire de contact (route API à écrire) |
+| `/legal/conditions` · `/legal/confidentialite` · `/legal/mentions` | ✅ | Texte en Markdown dans `src/content/legal/`, rendu par `LegalPage` |
+
+### 4.3 Pages d'authentification
+
+| Route | État | Notes |
+|---|---|---|
+| `/auth/connexion` | ✅ | Credentials, `callbackUrl`, message dédié pour `ACCOUNT_SUSPENDED` |
+| `/auth/inscription` | ✅ | Compte + acceptation CGU, puis redirection vers la vérification |
+| `/auth/verifier-code` | ✅ | Saisie du code à 6 chiffres, renvoi de code |
+| `/auth/mot-de-passe-oublie` · `/auth/nouveau-mot-de-passe` | ✅ | Demande de code, puis code + nouveau mot de passe |
+| `/auth/erreur` | ✅ | Cible de `authOptions.pages.error` |
+| `/mon-compte` · `not-found.tsx` · `error.tsx` | ✅ | Compte, 404, erreur applicative |
+
+### 4.4 Écrans de la maquette restant à construire
+
+Espace apprenant (tableau de bord, mes achats, mes ressources, favoris, messagerie,
+notifications, lives, profil), espace formateur (15 écrans) et espace admin (23 écrans).
+Plusieurs fichiers de la maquette sont le même écran dans deux shells
+(`Catalogue` / `Catalogue apprenant`…) : la topbar étant déjà session-aware, ces
+variantes se rejoignent sur une seule route.
+
 | Page | État | Contenu réel |
 |---|---|---|
-| `src/app/layout.tsx` | ✅ | `lang="fr"`, `Providers` (SessionProvider + TanStack Query), `Toaster` de **`sonner`** |
-| `src/app/providers.tsx` | ✅ | SessionProvider NextAuth + QueryClientProvider (un client par montage) |
-| `src/app/page.tsx` | ✅ | Landing NkamVa : accroche, 3 piliers, CTA inscription/connexion |
-| `src/app/auth/connexion/page.tsx` | ✅ | Connexion Credentials, `callbackUrl`, message dédié pour `ACCOUNT_SUSPENDED` |
-| `src/app/auth/inscription/page.tsx` | ✅ | Inscription puis saisie du code à 6 chiffres, ouverture de session automatique |
-| `src/app/auth/mot-de-passe-oublie/page.tsx` | ✅ | Demande de code puis nouveau mot de passe |
-| `src/app/auth/erreur/page.tsx` | ✅ | Cible de `authOptions.pages.error` |
-| `src/app/mon-compte/page.tsx` | ✅ | Session, rôle, état de vérification email, déconnexion |
-| `src/app/not-found.tsx` · `src/app/error.tsx` | ✅ | 404 et erreur applicative |
-| `src/app/devenir-formateur/page.tsx` | ❌ **MANQUANT** | Wizard 4 étapes — Lot 1 |
 | `src/app/candidature/statut/page.tsx` | ❌ **MANQUANT** | Page statut — Lot 1 |
 | `src/app/admin/validation-formateurs/page.tsx` | ❌ **MANQUANT** | Page admin — Lot 1 |
 
-Le header ne propose aucun lien vers `/ressources`, `/formateurs` ou `/tarifs` :
-ces pages appartiennent aux lots suivants et un lien mort vaut moins que pas de lien.
+### 4.5 Composants shadcn/ui
 
-### 4.1 Composants shadcn/ui
+48 composants présents dans `src/components/ui/` (template initial). Leurs tokens sont
+remappés sur la palette NkamVa par `globals.css`, ils n'ont donc pas été modifiés un par
+un. Les composants propres à la maquette (bouton pilule, pastilles, cartes) vivent dans
+`src/components/nk/` plutôt que d'être surchargés dans `ui/`.
 
-48 composants présents dans `src/components/ui/` (template initial, jamais modifiés). Tous les composants nécessaires sont disponibles : `button`, `card`, `dialog`, `input`, `textarea`, `label`, `checkbox`, `tabs`, `table`, `badge`, `avatar`, `select`, `sonner`, etc.
-
-### 4.2 Hooks
+### 4.6 Hooks
 
 `use-mobile.ts` et `use-toast.ts` — template initial, jamais modifiés.
 
