@@ -1,11 +1,13 @@
 # Lot 1 — Validation des formateurs : Spécification d'implémentation
 
-> **État réel au disque** : vérifié le 31 juillet 2026.
-> La majorité du Lot 1 a été PERDUE lors d'un nettoyage du `/tmp`.
+> **État réel au disque** : vérifié le 31 juillet 2026, **recréé le 1er août 2026**
+> sur la branche `claude/lot-2-continuation-f46e0d`.
+> Les sections 1.2 à 1.6 décrivent l'état d'origine (tout manquant) ; la
+> section 4 décrit ce qui a été recréé.
 
 ---
 
-## 1. Ce qui existe RÉELLEMENT
+## 1. Ce qui existait avant la recréation
 
 ### 1.1 Schéma Prisma
 
@@ -141,3 +143,82 @@ export const REOPEN_MIN_DELAY_HOURS = 24;
 
 1. Purge des documents après 90 jours — quotidien 03:00 UTC
 2. Nettoyage des PendingAttachment expirés — quotidien 04:00 UTC
+
+---
+
+## 4. État après recréation (1er août 2026)
+
+### 4.1 Fichiers créés
+
+| Fichier | Contenu |
+|---|---|
+| `src/lib/trainer-applications.ts` | T1-T8, listing, stats, détail |
+| `src/lib/trainer-documents.ts` | D0-D7, presign, confirm (magic number), URL signée, purge 90 j |
+| `src/lib/pending-attachments.ts` | Nettoyage des pièces jointes non consommées |
+| `tests/lot1-invariants.test.ts` | 13 tests métier (les 7 attendus + purge, reprise d'upload, stats) |
+| `tests/lot1-routes.test.ts` | 6 tests HTTP (RBAC, décision 7, concurrence) |
+| `tests/auth-session.test.ts` | 5 tests de révocation de session (voir §4.3) |
+
+Les 13 routes de §1.3 existent toutes. Les 2 jobs sont câblés dans
+`src/lib/jobs.ts` (03:00 et 04:00 UTC), qui en compte désormais 5.
+
+### 4.2 Choix faits là où la spec était muette
+
+- **Approbation groupée des pièces** — la spec ne prévoit pas de route
+  d'approbation pièce par pièce (D2 dit seulement « si tous APPROVED →
+  `/approve` possible »). `/approve` passe donc toutes les pièces courantes en
+  APPROVED puis approuve le dossier, dans la même transaction.
+- **Rejet partiel** — seules les pièces listées passent REJECTED ; les autres
+  restent PENDING et n'ont pas à être renvoyées.
+- **Purge (D7)** — `s3Key` et `sha256` ne sont pas nullables au schéma : ils
+  sont vidés (`''`) plutôt que la ligne supprimée, pour conserver la trace de la
+  décision. L'objet R2 part avant le marquage, donc un échec de suppression fait
+  simplement réessayer le job au passage suivant.
+- **Reprise d'un upload abandonné** — une pièce restée AWAITING_UPLOAD peut être
+  re-présignée sans consommer de compteur de re-soumission (voir §4.3).
+
+### 4.3 Deux défauts trouvés par le test réel
+
+- **Un upload abandonné bloquait définitivement le type de pièce.** Un presign
+  jamais confirmé (échec réseau, abandon) laissait une pièce AWAITING_UPLOAD
+  `isCurrent`, et toute nouvelle demande renvoyait `DOCUMENT_ALREADY_SUBMITTED`
+  — sans aucun moyen de s'en sortir. La reprise est désormais distinguée de la
+  re-soumission : même `resubmissionCount`, quel que soit le statut du dossier.
+- **La révocation de session ne fonctionnait pas** (`src/lib/auth.ts`, Lot 0).
+  NextAuth v4 réémet le JWT à chaque requête, donc `token.iat` vaut toujours
+  « maintenant » et la comparaison `iat < sessionsValidAfter` n'était jamais
+  vraie : le bump exigé par T2/T3/T6/T8 était inerte. Une date d'ouverture de
+  session (`token.issuedAt`) est maintenant figée à la connexion, et le contrôle
+  s'exécute après le rafraîchissement périodique. Latence résiduelle assumée :
+  jusqu'à 5 minutes (compromis JWT documenté), couverte par `tests/auth-session.test.ts`.
+
+### 4.4 Vérifié de bout en bout (1er août 2026)
+
+Parcours curl complet contre le serveur de dev, avec R2 réellement configuré —
+c'est-à-dire le parcours de §2, rejoué :
+
+1. Register → 201, rôle LEARNER
+2. `POST /api/trainer-applications` (T1) → DRAFT, rôle inchangé
+3. Submit sans pièces → 422 `DOCUMENTS_INCOMPLETE`
+4. Presign + **PUT réel sur R2** + confirm pour les 3 types → 200
+5. Faux PDF téléversé (R2 accepte, HTTP 200) → confirm **422
+   `MAGIC_NUMBER_MISMATCH`** : le contrôle de contenu fait son travail
+6. Submit (T2) → SUBMITTED, `role = PENDING_TRAINER` en base
+7. Login Modération, file → 1 dossier, stats `pending = 1`
+8. Approve (T3) → APPROVED, `TrainerProfile` + `Wallet` créés,
+   `role = TRAINER`, 3 pièces APPROVED
+9. Invariant vérifié en SQL : exactement 1 pièce `isCurrent` par (dossier, type)
+
+L'email d'approbation a été refusé par Resend (adresse `example.com` interdite)
+— et **l'approbation a réussi quand même**, grâce à `deliverSideEffects`. C'est
+la validation en conditions réelles de cette résilience.
+
+Les 7 objets déposés sur R2 pendant ce test ont été supprimés du bucket.
+
+### 4.5 Écarts restants
+
+- Aucune page frontend (`devenir-formateur`, `candidature/statut`,
+  `admin/validation-formateurs`) — §1.4, non demandées.
+- Décision 10 : la liste blanche MIME des cours (`courses.ts`) ne couvre
+  toujours pas zip/xlsx/docx, et le quota par plan SaaS n'existe pas. Hors
+  périmètre du Lot 1 (ce sont les uploads de ressources, pas de candidature).

@@ -20,7 +20,7 @@ import type {
 } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
-import { notify, notifyAdminSubRole } from './notification'
+import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail } from './email'
 import { presignUpload } from './s3'
 import { getStripe } from './stripe'
@@ -51,14 +51,6 @@ export type RefundStatus = 'PENDING' | 'MANUAL_PENDING' | 'COMPLETED' | 'FAILED'
 
 export function trainerShareOf(amountFcfa: number): number {
   return Math.round(amountFcfa * TRAINER_SHARE_RATE)
-}
-
-// Les liens des notifications in-app restent relatifs (le routeur front les
-// résout), mais un href d'email DOIT être absolu : un client mail n'a aucune
-// origine pour résoudre « /formateur/litiges/... ».
-function absoluteUrl(path: string): string {
-  const base = process.env.WEB_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
-  return `${base.replace(/\/+$/, '')}${path}`
 }
 
 function daysAgo(days: number): Date {
@@ -297,30 +289,6 @@ async function debitReservations(
     })
   }
   return { debited: debitedTotal, released: releasedTotal }
-}
-
-/**
- * Notifications et emails partent APRÈS le commit. Une panne Resend, un
- * destinataire invalide ou un rate limit provider ne doit jamais faire échouer
- * une transition d'état déjà persistée : sinon l'appelant reçoit un 500 alors
- * que le litige existe, et son retry se heurte à `DISPUTE_ALREADY_ACTIVE`.
- * L'échec est journalisé pour être rejoué ou investigué.
- */
-export async function deliverSideEffects(
-  label: string,
-  target: { type: string; id: string },
-  run: () => Promise<void>,
-): Promise<void> {
-  try {
-    await run()
-  } catch (err) {
-    console.error('[NOTIFY:FAILED]', { label, target, error: String(err) })
-    await auditStandalone({
-      action: 'NOTIFICATION_DELIVERY_FAILED',
-      targetType: target.type, targetId: target.id,
-      meta: { label, error: String(err) },
-    }).catch(() => { /* l'audit ne doit pas masquer l'erreur d'origine */ })
-  }
 }
 
 async function recordTransition(

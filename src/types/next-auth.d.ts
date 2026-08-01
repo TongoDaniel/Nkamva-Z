@@ -30,7 +30,10 @@ declare module 'next-auth/jwt' {
     role: Role
     adminRole: AdminRole | null
     trainerId: string | null
-    // Sérialisé en ISO : comparé à `iat` pour invalider les sessions révoquées.
+    // Sérialisé en ISO : comparé à `issuedAt` pour invalider les sessions révoquées.
     sessionsValidAfter: string
+    // Date d'ouverture de session figée à la connexion. `iat` ne convient pas :
+    // NextAuth réémet le JWT à chaque requête et le remet à « maintenant ».
+    issuedAt: number
   }
 }

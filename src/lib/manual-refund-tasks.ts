@@ -8,8 +8,8 @@
 
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
-import { notify } from './notification'
-import { completeRefund, releaseFundReservation, deliverSideEffects } from './disputes'
+import { notify, deliverSideEffects } from './notification'
+import { completeRefund, releaseFundReservation } from './disputes'
 
 export type ManualRefundTaskStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED'
 
