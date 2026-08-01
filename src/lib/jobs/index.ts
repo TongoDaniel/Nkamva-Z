@@ -12,6 +12,7 @@ import { auditStandalone } from '../audit'
 import { purgeDeletedAccounts } from './purge-deleted-accounts'
 import { remindPendingDeletions } from './remind-pending-deletions'
 import { purgeTrainerDocuments } from './purge-trainer-documents'
+import { autoCloseDisputes } from './auto-close-disputes'
 
 export interface JobDefinition {
   id: string
@@ -22,6 +23,14 @@ export interface JobDefinition {
 }
 
 export const JOBS: JobDefinition[] = [
+  {
+    id: 'auto-close-disputes',
+    // Horaire : une échéance dépassée gèle l'argent du formateur et prive
+    // l'apprenant de sa ressource. Attendre la nuit prolongerait les deux.
+    schedule: '11 * * * *',
+    description: "Clôt les litiges restés sans réponse de l'apprenant au-delà du délai",
+    run: async () => ({ ...(await autoCloseDisputes()) }),
+  },
   {
     id: 'remind-pending-deletions',
     // 07h05 UTC : le rappel arrive en matinée sur les fuseaux visés (UTC à
