@@ -3,6 +3,7 @@ import type { Role, AdminRole } from '@prisma/client'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from './db'
 import { verifyPassword } from './password'
+import { isSessionRevoked } from './session-validity'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -37,8 +38,10 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      const issuedAt = new Date(((token.issuedAt as number | undefined) ?? (token.iat as number)) * 1000)
-      const tokenAge = Date.now() / 1000 - (((token.issuedAt as number | undefined) ?? (token.iat as number)))
+      // `token.issuedAt` est figé à la connexion ; `token.iat` est réémis à chaque
+      // requête. Le repli sur `iat` ne sert qu'aux jetons émis avant ce changement.
+      const issuedAt = (token.issuedAt as number | undefined) ?? (token.iat as number)
+      const tokenAge = Date.now() / 1000 - issuedAt
 
       // Rafraîchissement périodique depuis la base : c'est ce qui fait remonter
       // un changement de rôle, une suspension, ou un bump de sessionsValidAfter.
@@ -49,8 +52,10 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Révocation ciblée : toute session ouverte avant le dernier bump tombe.
-      const sessionsValidAfter = new Date(token.sessionsValidAfter as string)
-      if (issuedAt < sessionsValidAfter) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
+      // Contrôlée après le rafraîchissement, pour voir le bump du tour courant.
+      if (isSessionRevoked(issuedAt, token.sessionsValidAfter as string)) {
+        return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
+      }
 
       return { ...session, user: { ...session.user, id: token.userId as string, role: token.role as Role, adminRole: token.adminRole as AdminRole | null, trainerId: token.trainerId as string | null } }
     },
