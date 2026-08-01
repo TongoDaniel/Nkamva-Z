@@ -118,7 +118,14 @@ export function startScheduledJobs(): void {
   started = true
 
   for (const job of SCHEDULED_JOBS) {
-    cron.schedule(job.schedule, () => { void runJob(job) }, { timezone: 'UTC' })
+    // `noOverlap` : une exécution longue ne doit pas être doublée par le tick
+    // suivant. Les jobs sont idempotents sur les données, mais deux passes
+    // concurrentes se disputeraient les mêmes lignes pour rien.
+    // `name` rend la tâche retrouvable via `getTasks()` ; `unref` empêche le
+    // planificateur de maintenir le process en vie à lui seul.
+    cron.schedule(job.schedule, () => { void runJob(job) }, {
+      name: job.name, timezone: 'UTC', noOverlap: true, unref: true,
+    })
   }
 
   console.log(`[JOBS] ${SCHEDULED_JOBS.length} jobs planifiés démarrés`)
