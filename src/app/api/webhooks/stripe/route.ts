@@ -1,18 +1,30 @@
 // Lot 0 §5.1 — Webhook Stripe : payment_intent.succeeded → crédit wallet idempotent
-import Stripe from 'stripe'
+// Lot 2 — charge.dispute.created / charge.dispute.closed → machine à états litiges
 import { db } from '@/lib/db'
 import { creditWalletOnPurchase } from '@/lib/wallet'
 import { auditStandalone } from '@/lib/audit'
+import { getStripe } from '@/lib/stripe'
+import { openDisputeFromChargeback, closeChargeback } from '@/lib/disputes'
 
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
-
-// Événement minimal exploité ici (payment_intent.succeeded). Les événements de
-// litige (charge.dispute.created/closed) relèvent du Lot 2, hors périmètre.
-type StripeLikeEvent = { id?: string; type: string; data: { object: { id: string } } }
+type StripeLikeEvent = {
+  id?: string
+  type: string
+  data: {
+    object: {
+      id: string
+      // Présents sur les événements charge.dispute.*
+      payment_intent?: string | null
+      amount?: number | null
+      status?: string | null
+      reason?: string | null
+    }
+  }
+}
 
 export async function POST(request: Request) {
   const rawBody = await request.text()
   const signature = request.headers.get('stripe-signature')
+  const stripe = getStripe()
 
   let event: StripeLikeEvent
 
@@ -34,13 +46,52 @@ export async function POST(request: Request) {
     }
   }
 
-  if (event.type === 'payment_intent.succeeded') {
-    const providerTransactionId = event.data.object.id
-    await db.$transaction(async (tx) => {
-      await creditWalletOnPurchase(tx, providerTransactionId, 'STRIPE')
-    })
-  } else {
-    await auditStandalone({ action: 'STRIPE_WEBHOOK_EVENT_IGNORED', meta: { type: event.type } })
+  const object = event.data?.object
+  if (!object?.id) return new Response('Invalid payload', { status: 400 })
+
+  switch (event.type) {
+    case 'payment_intent.succeeded': {
+      await db.$transaction(async (tx) => {
+        await creditWalletOnPurchase(tx, object.id, 'STRIPE')
+      })
+      break
+    }
+
+    // T1 (source STRIPE_CHARGEBACK) — ou contestation automatique si la vente
+    // a déjà été remboursée, pour ne jamais débiter deux fois (décision 17).
+    case 'charge.dispute.created': {
+      if (!object.payment_intent) {
+        await auditStandalone({
+          action: 'CHARGEBACK_WITHOUT_PAYMENT_INTENT', meta: { providerDisputeId: object.id },
+        })
+        break
+      }
+      // `object.amount` est exprimé dans la devise de la charge (centimes si
+      // EUR) : on ne l'utilise pas comme montant FCFA. Le litige porte sur
+      // Purchase.amountFcfa, seule source de vérité côté plateforme.
+      await openDisputeFromChargeback({
+        providerDisputeId: object.id,
+        providerTransactionId: object.payment_intent,
+      })
+      break
+    }
+
+    // T9 (lost) / T10 (won)
+    case 'charge.dispute.closed': {
+      const outcome = object.status === 'lost' ? 'lost' : object.status === 'won' ? 'won' : null
+      if (!outcome) {
+        await auditStandalone({
+          action: 'CHARGEBACK_CLOSED_IGNORED',
+          meta: { providerDisputeId: object.id, status: object.status },
+        })
+        break
+      }
+      await closeChargeback(object.id, outcome)
+      break
+    }
+
+    default:
+      await auditStandalone({ action: 'STRIPE_WEBHOOK_EVENT_IGNORED', meta: { type: event.type } })
   }
 
   return new Response(null, { status: 200 })

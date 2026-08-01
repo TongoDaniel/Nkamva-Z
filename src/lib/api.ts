@@ -38,7 +38,7 @@ export function isPublicRoute(method: string, path: string): boolean {
 export async function getAuthContext(): Promise<AuthContext | null> {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return null
-  return { user: { id: session.user.id, email: session.user.email || '', role: (session.user as any).role as Role, adminRole: (session.user as any).adminRole as AdminRole | null, trainerId: (session.user as any).trainerId as string | null } }
+  return { user: { id: session.user.id, email: session.user.email || '', role: session.user.role, adminRole: session.user.adminRole, trainerId: session.user.trainerId } }
 }
 
 export async function requireAuth(): Promise<AuthContext | NextResponse> {
@@ -73,6 +73,53 @@ export async function requireTrainer(): Promise<AuthContext | NextResponse> {
 
 export function checkStale(expectedUpdatedAt: string, actualUpdatedAt: Date): boolean {
   return new Date(expectedUpdatedAt).getTime() !== actualUpdatedAt.getTime()
+}
+
+// Mapping mutualisé des erreurs métier levées par les services (`throw new
+// Error('CODE')`) vers l'enveloppe HTTP. Les routes n'ont plus qu'à relayer.
+const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
+  // Communs
+  NOT_OWNER: { message: 'Ressource non possédée', status: 403 },
+  // Lot 2 — litiges
+  PURCHASE_NOT_FOUND: { message: 'Achat introuvable', status: 404 },
+  PURCHASE_NOT_SUCCEEDED: { message: 'Achat non confirmé', status: 422 },
+  ALREADY_REFUNDED: { message: 'Achat déjà remboursé', status: 409 },
+  DISPUTE_NOT_FOUND: { message: 'Litige introuvable', status: 404 },
+  DISPUTE_ALREADY_ACTIVE: { message: 'Un litige est déjà en cours sur cet achat', status: 409 },
+  DISPUTE_ALREADY_RESOLVED: { message: 'Litige déjà résolu', status: 409 },
+  DISPUTE_CLOSED: { message: 'Litige clos', status: 409 },
+  DISPUTE_WINDOW_EXPIRED: { message: 'Le délai de 14 jours est dépassé', status: 422 },
+  RESOURCE_CONSUMED: { message: 'Ressource consultée à plus de 30 %', status: 422 },
+  RESOURCE_DOWNLOADED: { message: 'Ressource déjà téléchargée', status: 403 },
+  STALE_DISPUTE: { message: 'Le litige a été modifié entre-temps', status: 409 },
+  INVALID_STATUS: { message: 'Transition impossible depuis ce statut', status: 409 },
+  INVALID_RESOLUTION: { message: 'Résolution invalide', status: 400 },
+  INVALID_REFUND_AMOUNT: { message: 'Montant de remboursement invalide', status: 400 },
+  MESSAGE_TOO_LONG: { message: 'Message trop long', status: 400 },
+  PROVIDER_DISPUTE_ACTIVE: { message: 'Un chargeback provider est en cours sur cet achat', status: 409 },
+  OVERRIDE_FORBIDDEN: { message: 'Bypass réservé au Super-admin', status: 403 },
+  OVERRIDE_JUSTIFICATION_REQUIRED: { message: 'Justification obligatoire pour un bypass', status: 400 },
+  REFUND_RULE_NOT_MET: { message: 'La règle 14 jours / 30 % n\'est pas satisfaite', status: 422 },
+  CONTEST_ALREADY_OPEN: { message: 'Une contestation est déjà ouverte', status: 409 },
+  ATTACHMENT_INVALID: { message: 'Pièce jointe invalide ou expirée', status: 400 },
+  MIME_NOT_ALLOWED: { message: 'Type MIME non autorisé', status: 400 },
+  SIZE_EXCEEDS_LIMIT: { message: 'Taille dépassée', status: 400 },
+  TASK_NOT_FOUND: { message: 'Tâche introuvable', status: 404 },
+  TASK_NOT_PENDING: { message: 'Tâche déjà traitée', status: 409 },
+}
+
+export function errorFromException(err: unknown): NextResponse {
+  const code = err instanceof Error ? err.message : ''
+  const known = DOMAIN_ERRORS[code]
+  if (known) return error(code, known.message, known.status)
+  console.error('[API:UNEXPECTED_ERROR]', err)
+  return error('INTERNAL_ERROR', 'Erreur interne', 500)
+}
+
+export function parsePagination(url: URL): { page: number; pageSize: number } {
+  const page = Math.max(1, Number(url.searchParams.get('page')) || 1)
+  const pageSize = Math.min(50, Math.max(1, Number(url.searchParams.get('pageSize')) || 20))
+  return { page, pageSize }
 }
 
 export async function parseBody<T>(request: Request, schema: { parse: (data: unknown) => T }): Promise<{ data: T } | NextResponse> {
