@@ -12,6 +12,8 @@ import { autoCloseDisputes } from './disputes'
 import { reconcileAllWallets, alertNegativeWallets } from './wallet-reconciliation'
 import { purgeExpiredTrainerDocuments } from './trainer-documents'
 import { cleanupExpiredPendingAttachments } from './pending-attachments'
+import { expirePayoutMethodCarence, alertPayoutMethodSlaBreaches } from './payout-methods'
+import { alertPayoutSlaBreaches } from './payouts'
 
 export interface ScheduledJob {
   name: string
@@ -55,6 +57,22 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'PENDING_ATTACHMENT_CLEANUP',
     schedule: '0 4 * * *',
     run: async () => cleanupExpiredPendingAttachments(),
+  },
+  {
+    // PM5 — la carence 72 h s'achève : le RIB devient VERIFIED et vaut +30 au KYC.
+    name: 'PAYOUT_METHOD_CARENCE_EXPIRY',
+    schedule: '15 * * * *',
+    run: async () => expirePayoutMethodCarence(),
+  },
+  {
+    // Décision 23 — SLA de revue manuelle de 48 h, moyens de paiement et retraits.
+    name: 'PAYOUT_SLA_ALERT',
+    schedule: '45 * * * *',
+    run: async () => {
+      const methods = await alertPayoutMethodSlaBreaches()
+      const payouts = await alertPayoutSlaBreaches()
+      return { methodsBreached: methods.breached, payoutsBreached: payouts.breached }
+    },
   },
 ]
 

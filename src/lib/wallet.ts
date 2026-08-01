@@ -4,6 +4,30 @@ import type { PrismaTransaction } from './types'
 
 export interface CreditWalletOnPurchaseResult { credited: boolean; purchaseId: string | null; trainerId: string | null; amountFcfa: number; trainerShareFcfa: number }
 
+/** solde retirable = balance - reservedBalance - pendingPayoutBalance */
+export function withdrawableBalance(wallet: { balance: number; reservedBalance: number; pendingPayoutBalance: number }): number {
+  return wallet.balance - wallet.reservedBalance - wallet.pendingPayoutBalance
+}
+
+/**
+ * Invariant : `negativeSince` non null ⟺ solde retirable < 0.
+ * À rappeler après tout mouvement de solde — débit de litige comme payout —
+ * sinon l'alerte « wallet négatif > 60 jours » ne se déclenche jamais.
+ */
+export async function syncNegativeSince(tx: PrismaTransaction, walletId: string): Promise<void> {
+  const wallet = await tx.wallet.findUnique({
+    where: { id: walletId },
+    select: { balance: true, reservedBalance: true, pendingPayoutBalance: true, negativeSince: true },
+  })
+  if (!wallet) return
+  const withdrawable = withdrawableBalance(wallet)
+  if (withdrawable < 0 && !wallet.negativeSince) {
+    await tx.wallet.update({ where: { id: walletId }, data: { negativeSince: new Date() } })
+  } else if (withdrawable >= 0 && wallet.negativeSince) {
+    await tx.wallet.update({ where: { id: walletId }, data: { negativeSince: null } })
+  }
+}
+
 export async function creditWalletOnPurchase(tx: PrismaTransaction, providerTransactionId: string, provider: 'STRIPE' | 'CINETPAY'): Promise<CreditWalletOnPurchaseResult> {
   const result = await tx.purchase.updateMany({ where: { providerTransactionId, providerStatus: 'PENDING' }, data: { providerStatus: 'SUCCEEDED' } })
   if (result.count === 0) {

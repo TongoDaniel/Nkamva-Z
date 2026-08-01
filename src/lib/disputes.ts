@@ -23,6 +23,7 @@ import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail } from './email'
 import { presignUpload } from './s3'
+import { syncNegativeSince } from './wallet'
 import { getStripe } from './stripe'
 import type { PrismaTransaction } from './types'
 
@@ -168,22 +169,6 @@ async function getOrCreateWallet(tx: PrismaTransaction, trainerId: string) {
     meta: { trainerId, reason: 'wallet_missing_on_dispute_reservation' },
   })
   return created
-}
-
-// negativeSince non null ⟺ solde retirable < 0. Recalculé à chaque mouvement
-// de solde déclenché par un litige (le Lot 3 fait de même sur les payouts).
-async function syncNegativeSince(tx: PrismaTransaction, walletId: string): Promise<void> {
-  const wallet = await tx.wallet.findUnique({
-    where: { id: walletId },
-    select: { balance: true, reservedBalance: true, pendingPayoutBalance: true, negativeSince: true },
-  })
-  if (!wallet) return
-  const withdrawable = wallet.balance - wallet.reservedBalance - wallet.pendingPayoutBalance
-  if (withdrawable < 0 && !wallet.negativeSince) {
-    await tx.wallet.update({ where: { id: walletId }, data: { negativeSince: new Date() } })
-  } else if (withdrawable >= 0 && wallet.negativeSince) {
-    await tx.wallet.update({ where: { id: walletId }, data: { negativeSince: null } })
-  }
 }
 
 // FR1 : ∅ → ACTIVE
