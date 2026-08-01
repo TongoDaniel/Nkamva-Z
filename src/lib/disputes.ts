@@ -242,18 +242,28 @@ export interface OpenDisputeInput {
   source?: DisputeSource
 }
 
-export async function openDispute(learnerId: string, input: OpenDisputeInput) {
-  const { purchase, verdict } = await getDisputeEligibility(input.purchaseId, learnerId)
-  if (!verdict.eligible) fail(verdict.reason!)
-
-  const full = await db.purchase.findUnique({
-    where: { id: purchase.id },
-    select: { id: true, trainerId: true, amountFcfa: true, trainerShareFcfa: true },
-  })
-  if (!full) fail('PURCHASE_NOT_FOUND')
-
+/**
+ * Crée le dossier et pose les deux invariants : gel de la part formateur et
+ * suspension de l'accès. Extrait de `openDispute` pour être réutilisable par
+ * les chargebacks, qui ne passent pas par les contrôles de recevabilité — quand
+ * la banque conteste, ce n'est pas à nous de juger si la demande est recevable.
+ */
+export async function createDisputeWithFreeze(params: {
+  purchaseId: string
+  learnerId: string
+  trainerId: string
+  courseId: string
+  amountFcfa: number
+  source: DisputeSource
+  reason: DisputeReason
+  reasonDetail?: string | null
+  providerDisputeId?: string | null
+  assessment: ConsumptionAssessment
+  /** Auteur du premier message du fil, si le motif est rédigé. */
+  authorId?: string | null
+}): Promise<{ id: string; reservedAmountFcfa: number }> {
   const wallet = await db.wallet.findUnique({
-    where: { trainerId: full.trainerId },
+    where: { trainerId: params.trainerId },
     select: { id: true },
   })
   // Sans portefeuille, il n'y a rien à geler : on refuse plutôt que d'ouvrir un
@@ -262,53 +272,53 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
 
   // Le gel porte sur la part réellement versée au formateur, pas sur le prix
   // payé : la commission de la plateforme n'est pas dans son portefeuille.
-  const reservedAmountFcfa = Math.round(full.amountFcfa * TRAINER_SHARE_RATE)
+  const reservedAmountFcfa = Math.round(params.amountFcfa * TRAINER_SHARE_RATE)
 
-  const dispute = await db.$transaction(async (tx) => {
+  const created = await db.$transaction(async (tx) => {
     // Garde contre deux ouvertures concurrentes sur le même achat.
     const concurrent = await tx.dispute.count({
-      where: { purchaseId: purchase.id, status: { in: ['OPEN', 'IN_REVIEW', 'WAITING_LEARNER'] } },
+      where: { purchaseId: params.purchaseId, status: { in: ['OPEN', 'IN_REVIEW', 'WAITING_LEARNER'] } },
     })
     if (concurrent > 0) fail('DISPUTE_ALREADY_OPEN')
 
-    const created = await tx.dispute.create({
+    const dispute = await tx.dispute.create({
       data: {
-        purchaseId: purchase.id,
-        learnerId,
-        trainerId: full.trainerId,
-        source: input.source ?? 'LEARNER_REQUEST',
-        reason: input.reason,
-        reasonDetail: input.reasonDetail?.trim() || null,
+        purchaseId: params.purchaseId,
+        learnerId: params.learnerId,
+        trainerId: params.trainerId,
+        source: params.source,
+        reason: params.reason,
+        reasonDetail: params.reasonDetail?.trim() || null,
+        providerDisputeId: params.providerDisputeId ?? null,
         status: 'OPEN',
-        disputedAmountFcfa: full.amountFcfa,
+        disputedAmountFcfa: params.amountFcfa,
       },
       select: { id: true },
     })
 
-    // Le constat de consommation est figé maintenant : l'apprenant continue
-    // d'avoir accès jusqu'à la suspension, et le dossier doit refléter l'état
-    // au moment de la contestation, pas au moment de l'arbitrage.
+    // Le constat de consommation est figé maintenant : le dossier doit refléter
+    // l'état au moment de la contestation, pas au moment de l'arbitrage.
     const snapshot = await tx.consumptionSnapshot.create({
       data: {
-        disputeId: created.id,
-        courseId: purchase.courseId!,
-        courseFormat: verdict.assessment.courseFormat,
-        watchedSeconds: verdict.assessment.watchedSeconds,
-        courseDurationSeconds: verdict.assessment.courseDurationSeconds,
-        downloaded: verdict.assessment.downloaded,
-        consumptionPercent: verdict.assessment.consumptionPercent,
-        ruleApplies: verdict.assessment.ruleApplies,
+        disputeId: dispute.id,
+        courseId: params.courseId,
+        courseFormat: params.assessment.courseFormat,
+        watchedSeconds: params.assessment.watchedSeconds,
+        courseDurationSeconds: params.assessment.courseDurationSeconds,
+        downloaded: params.assessment.downloaded,
+        consumptionPercent: params.assessment.consumptionPercent,
+        ruleApplies: params.assessment.ruleApplies,
       },
       select: { id: true },
     })
     await tx.dispute.update({
-      where: { id: created.id },
+      where: { id: dispute.id },
       data: { consumptionSnapshotId: snapshot.id },
     })
 
     // FR1 : les fonds sont gelés, pas retirés. `balance` ne bouge pas.
     await tx.fundReservation.create({
-      data: { disputeId: created.id, walletId: wallet.id, reservedAmountFcfa, status: 'ACTIVE' },
+      data: { disputeId: dispute.id, walletId: wallet.id, reservedAmountFcfa, status: 'ACTIVE' },
     })
     await tx.wallet.update({
       where: { id: wallet.id },
@@ -317,17 +327,17 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
 
     // Décision 18 : la suspension vit sur l'achat, pas sur le litige.
     await tx.purchase.update({
-      where: { id: purchase.id },
+      where: { id: params.purchaseId },
       data: { accessSuspended: true, accessSuspendedAt: new Date() },
     })
 
-    if (input.reasonDetail?.trim()) {
+    if (params.reasonDetail?.trim()) {
       await tx.disputeMessage.create({
         data: {
-          disputeId: created.id,
-          authorId: learnerId,
-          authorRole: 'LEARNER',
-          body: input.reasonDetail.trim(),
+          disputeId: dispute.id,
+          authorId: params.authorId ?? null,
+          authorRole: params.authorId ? 'LEARNER' : 'SYSTEM',
+          body: params.reasonDetail.trim(),
         },
       })
     }
@@ -336,43 +346,86 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
     // transitions entre deux états, et il n'y a pas d'état de départ. La
     // création est portée par `openedAt` et l'entrée d'audit ci-dessous.
     await audit(tx, {
-      actorId: learnerId, actorRole: 'LEARNER',
-      action: 'DISPUTE_OPENED', targetType: 'Dispute', targetId: created.id,
+      actorId: params.authorId ?? null,
+      actorRole: params.authorId ? 'LEARNER' : 'SYSTEM',
+      action: 'DISPUTE_OPENED', targetType: 'Dispute', targetId: dispute.id,
       meta: {
-        purchaseId: purchase.id,
-        reason: input.reason,
+        purchaseId: params.purchaseId,
+        source: params.source,
+        reason: params.reason,
         reservedAmountFcfa,
-        consumptionPercent: verdict.assessment.consumptionPercent,
+        consumptionPercent: params.assessment.consumptionPercent,
       },
     })
 
-    return created
+    return dispute
   })
 
+  return { id: created.id, reservedAmountFcfa }
+}
+
+/** Prévient la modération et le formateur qu'un dossier vient de s'ouvrir. */
+export async function announceDispute(params: {
+  disputeId: string
+  trainerId: string
+  courseTitle: string
+  reason: DisputeReason
+}) {
   await notifyAdminSubRole('MODERATION', {
     type: 'DISPUTE_OPENED',
     title: 'Nouveau litige ouvert',
-    body: `Contestation sur « ${purchase.course!.title} ».`,
-    link: `/admin/litiges/${dispute.id}`,
+    body: `Contestation sur « ${params.courseTitle} ».`,
+    link: `/admin/litiges/${params.disputeId}`,
   })
 
   // Décision 19 : le formateur apprend le motif catégoriel, jamais le détail
   // rédigé par l'apprenant.
   const trainer = await db.trainerProfile.findUnique({
-    where: { id: full.trainerId },
+    where: { id: params.trainerId },
     select: { user: { select: { email: true } } },
   })
   if (trainer?.user?.email) {
     await sendEmail({
       to: trainer.user.email,
       subject: 'Un achat de votre ressource est contesté — NkamVa',
-      html: `<p>Un achat de « ${purchase.course!.title} » fait l'objet d'une contestation.</p><p><b>Motif déclaré :</b> ${REASON_LABELS[input.reason]}</p><p>La part correspondante de votre solde est gelée le temps de l'examen. Elle vous sera rendue si la contestation n'est pas retenue.</p><p>Vous pouvez apporter des éléments :<br><a href="${appUrl('/formateur/litiges')}">${appUrl('/formateur/litiges')}</a></p>`,
-      text: `Un achat de « ${purchase.course!.title} » est contesté.\nMotif : ${REASON_LABELS[input.reason]}\n\nLa part correspondante de votre solde est gelée le temps de l'examen.\n\n${appUrl('/formateur/litiges')}`,
+      html: `<p>Un achat de « ${params.courseTitle} » fait l'objet d'une contestation.</p><p><b>Motif déclaré :</b> ${REASON_LABELS[params.reason]}</p><p>La part correspondante de votre solde est gelée le temps de l'examen. Elle vous sera rendue si la contestation n'est pas retenue.</p><p>Vous pouvez apporter des éléments :<br><a href="${appUrl('/formateur/litiges')}">${appUrl('/formateur/litiges')}</a></p>`,
+      text: `Un achat de « ${params.courseTitle} » est contesté.\nMotif : ${REASON_LABELS[params.reason]}\n\nLa part correspondante de votre solde est gelée le temps de l'examen.\n\n${appUrl('/formateur/litiges')}`,
       tags: ['dispute'],
     })
   }
+}
 
-  return (await db.dispute.findUnique({ where: { id: dispute.id }, select: DISPUTE_SELECT }))!
+export async function openDispute(learnerId: string, input: OpenDisputeInput) {
+  const { purchase, verdict } = await getDisputeEligibility(input.purchaseId, learnerId)
+  if (!verdict.eligible) fail(verdict.reason!)
+
+  const full = await db.purchase.findUnique({
+    where: { id: purchase.id },
+    select: { id: true, trainerId: true, amountFcfa: true },
+  })
+  if (!full) fail('PURCHASE_NOT_FOUND')
+
+  const { id } = await createDisputeWithFreeze({
+    purchaseId: purchase.id,
+    learnerId,
+    trainerId: full.trainerId,
+    courseId: purchase.courseId!,
+    amountFcfa: full.amountFcfa,
+    source: input.source ?? 'LEARNER_REQUEST',
+    reason: input.reason,
+    reasonDetail: input.reasonDetail,
+    assessment: verdict.assessment,
+    authorId: learnerId,
+  })
+
+  await announceDispute({
+    disputeId: id,
+    trainerId: full.trainerId,
+    courseTitle: purchase.course!.title,
+    reason: input.reason,
+  })
+
+  return (await db.dispute.findUnique({ where: { id }, select: DISPUTE_SELECT }))!
 }
 
 export const REASON_LABELS: Record<DisputeReason, string> = {
