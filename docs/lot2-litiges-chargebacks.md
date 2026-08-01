@@ -1,11 +1,14 @@
 # Lot 2 — Litiges & chargebacks : Spécification d'implémentation
 
-> **État réel au disque** : vérifié le 31 juillet 2026.
-> La majorité du Lot 2 a été PERDUE lors d'un nettoyage du `/tmp`.
+> **État réel au disque** : vérifié le 31 juillet 2026, **recréé le 1er août 2026**
+> sur la branche `claude/lot-2-continuation-f46e0d`.
+> La majorité du Lot 2 avait été PERDUE lors d'un nettoyage du `/tmp` ; les
+> sections 1.2 à 1.6 ci-dessous décrivent l'état d'origine (tout manquant), la
+> section 4 décrit ce qui a été recréé.
 
 ---
 
-## 1. Ce qui existe RÉELLEMENT
+## 1. Ce qui existait avant la recréation
 
 ### 1.1 Schéma Prisma
 
@@ -163,3 +166,92 @@ Le Lot 2 dépend du Lot 4 pour `CourseView` :
 - `watchedSeconds` alimenté par `access.ts → updateWatchProgress()`
 - `downloaded` alimenté par `access.ts → markCourseDownloaded()`
 - Le `ConsumptionSnapshot` fige ces valeurs à l'ouverture du litige
+
+---
+
+## 4. État après recréation (1er août 2026)
+
+### 4.1 Fichiers créés
+
+| Fichier | Contenu |
+|---|---|
+| `src/lib/disputes.ts` | T1-T10, FR1-FR5, snapshot de consommation, pièces jointes, lectures |
+| `src/lib/manual-refund-tasks.ts` | File Finances : listing, complete (FR3/FR4), cancel (FR5) |
+| `src/lib/wallet-reconciliation.ts` | Cohérence `reservedBalance` / `pendingPayoutBalance`, alerte négatif 60 j |
+| `src/lib/jobs.ts` | 3 jobs `node-cron` (auto-timeout horaire, réconciliation et alerte 03:30 UTC) |
+| `src/instrumentation.ts` | Démarrage des jobs (désactivé en test et via `DISABLE_SCHEDULED_JOBS=1`) |
+| `src/lib/stripe.ts` | Client Stripe mémoïsé partagé webhooks / refunds / contestation |
+| `tests/lot2-invariants.test.ts` | 12 tests métier (les 7 attendus + prorata partiel, double débit, T9/T10, visibilité formateur, résilience email) |
+| `tests/lot2-routes.test.ts` | 9 tests HTTP (RBAC par sous-rôle, validation, concurrence, mapping d'erreurs) |
+| `tests/env-hermetic.test.ts` | Garde-fou : aucune clé de service réelle active pendant les tests |
+
+Les 15 routes listées en §1.3 existent toutes. Le webhook
+`/api/webhooks/stripe` gère désormais `charge.dispute.created` (T1 chargeback ou
+contestation anti-double-débit) et `charge.dispute.closed` (T9 / T10).
+
+`src/lib/api.ts` gagne `errorFromException()` (mapping mutualisé des erreurs
+métier) et `parsePagination()`. Les limites `DISPUTE_OPEN`, `DISPUTE_MESSAGE` et
+`UPLOAD_PRESIGN` de `rate-limit.ts` sont branchées sur les routes apprenant.
+
+### 4.2 Choix faits là où la spec était muette ou contradictoire
+
+- **§3.2 vs décision 14** — la vérification de consommation est appliquée à
+  **l'ouverture** (conformément à T1 et aux tests 6 et 7) : `RESOURCE_CONSUMED`
+  (422) pour un format streamé consulté à ≥ 30 %, `RESOURCE_DOWNLOADED` (403)
+  pour un format téléchargeable déjà téléchargé. La règle est re-vérifiée à la
+  résolution pour un `FULL_REFUND` sans `policyOverride`.
+- **FR5 (annulation d'une tâche de remboursement manuel)** — la spec ne
+  mentionne que l'effet wallet. Comme aucun argent n'a bougé, l'accès de
+  l'apprenant est **rétabli** et `Purchase.refundAmountFcfa` remis à null, en
+  plus de la libération de la réservation.
+- **`negativeSince`** — recalculé à chaque mouvement de solde déclenché par un
+  litige (`syncNegativeSince`), ce qui referme l'écart signalé dans
+  `decisions-nkamva.md` (« `completeRefund` ne recalcule pas `negativeSince` »).
+- **Décision 16** — le formateur est notifié **à la résolution** aussi, pas
+  seulement à l'ouverture (écart signalé comme partiel dans les décisions).
+- **Abonnement communauté** — `ConsumptionSnapshot.courseId` n'étant pas
+  nullable, l'identifiant de la communauté y est stocké, discriminé par
+  `courseFormat = 'community'`.
+- **Montant d'un chargeback** — `charge.dispute.created.amount` est exprimé dans
+  la devise de la charge et n'est donc **pas** repris comme montant FCFA ; le
+  litige porte sur `Purchase.amountFcfa`.
+
+### 4.3 Robustesse
+
+- **Effets de bord post-commit non bloquants** — notifications et emails partent
+  après le commit et sont encapsulés dans `deliverSideEffects()`. Une panne
+  Resend ne peut plus faire échouer une transition déjà persistée (sinon
+  l'appelant recevait un 500 alors que le litige existait, et son retry tombait
+  sur `DISPUTE_ALREADY_ACTIVE`). Les échecs sont journalisés en
+  `NOTIFICATION_DELIVERY_FAILED`.
+- **Liens d'email absolus** — construits via `WEB_BASE_URL` (`absoluteUrl()`) :
+  un href relatif est mort dans un client mail. Les liens des notifications
+  in-app restent relatifs, le routeur front les résout.
+
+### 4.4 Vérifié de bout en bout (1er août 2026)
+
+- `bun run test` : **32/32** contre un PostgreSQL réel (base `nkamva_test`).
+- `next build` : compile, les 15 routes Lot 2 sont enregistrées.
+- Smoke test sur services réels (base `nkamva`, Resend actif) : T1 puis T7,
+  réservation 12 750 FCFA posée puis libérée, accès suspendu puis rétabli,
+  0 échec de livraison. Les deux emails formateur ont été **délivrés** et leur
+  contenu vérifié : motif enum + titre uniquement, **aucun `reasonDetail`**
+  (décision 19 validée sur l'email réellement envoyé), liens absolus.
+
+### 4.5 Écarts restants
+
+- **Décision 15** — le chemin « tentative → repli » existe désormais pour les
+  deux providers : `stripe.refunds.create` (clé d'idempotence
+  `refund_{disputeId}`) et `attemptCinetPayRefund` (timeout 30 s, référence =
+  `disputeId`, aucun retry silencieux). ⚠️ CinetPay ne documentant pas
+  publiquement d'endpoint de remboursement stable, l'URL est surchargeable par
+  `CINETPAY_REFUND_URL` et **reste à valider** contre l'API réelle ; sans clés,
+  la fonction retourne `CINETPAY_NOT_CONFIGURED` sans émettre d'appel.
+- En dev sans `STRIPE_SECRET_KEY`, le refund Stripe est réputé accepté — même
+  convention que la simulation de paiement de `purchases.ts`.
+- Aucune page frontend Lot 2 (non demandée, et non listée dans cette spec).
+- **Hors Lot 2, bloquant pour l'usage réel des routes** :
+  `/api/auth/[...nextauth]/route.ts` (Lot 0) n'existe toujours pas — aucune
+  session ne peut être établie par un vrai client. Les routes sont testées avec
+  une session simulée. `src/types/next-auth.d.ts` manque également, d'où 2 des
+  7 erreurs `tsc` préexistantes.

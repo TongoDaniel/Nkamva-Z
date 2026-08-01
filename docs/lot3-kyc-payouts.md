@@ -1,11 +1,13 @@
 # Lot 3 — KYC, vérification RIB & payouts : Spécification d'implémentation
 
-> **État réel au disque** : vérifié le 31 juillet 2026.
-> La majorité du Lot 3 a été PERDUE lors d'un nettoyage du `/tmp`.
+> **État réel au disque** : vérifié le 31 juillet 2026, **recréé le 1er août 2026**
+> sur la branche `claude/lot-2-continuation-f46e0d`.
+> Les sections 1.2 à 1.6 décrivent l'état d'origine (tout manquant) ; la
+> section 4 décrit ce qui a été recréé.
 
 ---
 
-## 1. Ce qui existe RÉELLEMENT
+## 1. Ce qui existait avant la recréation
 
 ### 1.1 Schéma Prisma
 
@@ -184,3 +186,71 @@ export const CLEAN_SALES_WINDOW_DAYS = 90;
 ```
 stripe — SDK officiel pour Stripe Connect (virements, refunds)
 ```
+
+> Résolu : `stripe` v22.4.0 est installé et utilisé par `src/lib/stripe.ts`
+> (webhooks paiement + chargebacks, refunds du Lot 2).
+
+---
+
+## 4. État après recréation (1er août 2026)
+
+### 4.1 Fichiers créés
+
+| Fichier | Contenu |
+|---|---|
+| `src/lib/kyc.ts` | `computeKycScore` : 5 critères pondérés, badges, éligibilité |
+| `src/lib/payout-methods.ts` | PM1-PM10, name lookup, micro-virements, escalades, jobs carence/SLA |
+| `src/lib/payout-methods.ts` | (idem) `expirePayoutMethodCarence`, `alertPayoutMethodSlaBreaches` |
+| `src/lib/payouts.ts` | P1-P8, listings, stats, alerte SLA retraits |
+| `src/lib/wallet-reconciliation.ts` | `reconcileWalletField` ajouté (correction Super-admin tracée) |
+| `tests/lot3-invariants.test.ts` | 15 tests métier (les 10 attendus + P2, escalade, réconciliation) |
+| `tests/lot3-routes.test.ts` | 8 tests HTTP (RBAC décision 20, décision 28, concurrence) |
+
+Les 19 routes de §1.3 existent toutes. Les 2 jobs Lot 3 portent le total à **7**
+(`PAYOUT_METHOD_CARENCE_EXPIRY` horaire, `PAYOUT_SLA_ALERT` horaire).
+
+`syncNegativeSince` et `withdrawableBalance` ont été factorisés dans
+`src/lib/wallet.ts` : les litiges (Lot 2) et les retraits (Lot 3) maintiennent
+le même invariant `negativeSince ⟺ solde retirable < 0`.
+
+### 4.2 Écarts de la version précédente qui ont été fermés
+
+- **Décision 21** — le code d'erreur est bien `IDENTITY_NAME_MISSING` (409),
+  comme l'exige l'arbitrage, et non `VERIFIED_LEGAL_NAME_REQUIRED`.
+- **Décision 24** — la notification à l'**ancienne adresse email** est envoyée à
+  chaque changement de moyen de paiement, avec un lien de signalement. C'était
+  un écart constaté et non traité.
+- **Décision 27** — `verificationMethod` est désormais positionné à `ESCALATION`
+  quand le Super-admin tranche, et le compteur de rejets du formateur est remis
+  à zéro sur un déblocage.
+- **Décision 28** — les deux branches sont réellement distinctes :
+  `INDIVIDUAL` exige le nom du titulaire ; `BUSINESS` exige la dénomination
+  sociale, le document d'immatriculation ET la preuve de représentation légale.
+  Il n'y avait auparavant aucune logique dédiée.
+- **Décision 30** — le message de rejet reprend le motif et rappelle les deux
+  options légitimes, sans jamais afficher le `verifiedLegalName` complet.
+
+### 4.3 Écarts maintenus (et pourquoi)
+
+- **Décision 22a** — `lookupMobileMoneyName()` retourne toujours `UNAVAILABLE` :
+  aucune API opérateur n'est disponible. `AUTO_VERIFIED` reste donc inatteignable,
+  **y compris quand le nom déclaré est identique au nom légal** — un test le
+  vérifie explicitement. Toute comparaison locale serait une vérification
+  purement déclarative, ce que l'arbitrage interdit.
+- **Décision 22c** — les micro-virements sont générés et stockés en clair, mais
+  aucun virement bancaire réel n'est déclenché (provider bancaire non arbitré).
+- **Décision 23** — le SLA de 48 h est calendaire, pas « ouvré » : aucun
+  calendrier ouvré n'est modélisé.
+- **Décision 24** — la notification à l'ancien **numéro de téléphone** n'est
+  toujours pas envoyée : aucun provider SMS n'est configuré.
+- **Décisions 29 et 30** — la pédagogie avant saisie et le message en trois
+  parties relèvent du front, qui n'existe pas.
+
+### 4.4 Vérifié
+
+- `bun run test` : **79/79** contre PostgreSQL réel (l'ensemble des lots).
+- `next build` : 65 routes API enregistrées.
+- 7 jobs planifiés listés et démarrés au boot du serveur de dev.
+- RBAC vérifié en HTTP réel : 401 sans session ; 403 `NOT_TRAINER` sur
+  `/api/trainer/kyc-score` et 403 `FORBIDDEN_SUBROLE` sur les escalades pour un
+  compte non habilité.

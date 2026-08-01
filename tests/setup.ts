@@ -2,12 +2,36 @@
 // Lot 0 — Configuration des tests
 // ==========================================================================
 
+import { config } from 'dotenv'
 import { PrismaClient } from '@prisma/client'
+
+// Charger .env AVANT de neutraliser : sinon db.ts le chargerait plus tard et
+// réintroduirait les clés de service qu'on vient d'effacer (dotenv n'écrase
+// pas une variable déjà définie, y compris quand elle vaut '').
+config()
 
 // Override DATABASE_URL pour pointer sur la base de test.
 // TEST_DATABASE_URL permet de surcharger l'URL par défaut (utile quand le
 // port 5433 attendu n'est pas celui du Postgres réellement disponible).
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://nkamva@localhost:5433/nkamva_test?schema=public'
+
+// Les tests doivent rester hermétiques : le .env de dev porte des secrets
+// RÉELS (Resend actif, R2 production, Stripe test). Sans cette neutralisation,
+// la suite enverrait de vrais emails à trainer@test.com, écrirait dans le
+// bucket de production et appellerait l'API Stripe sur des PaymentIntent
+// inexistants — ce qui ferait en plus échouer le chemin de repli dev du Lot 2.
+//
+// On assigne '' plutôt que `delete` : plusieurs tests sauvegardent puis
+// restaurent ces variables, et restaurer `undefined` écrirait la chaîne
+// "undefined" (truthy) dans process.env.
+for (const key of [
+  'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PUBLISHABLE_KEY',
+  'CINETPAY_API_KEY', 'CINETPAY_SITE_ID',
+  'RESEND_API_KEY',
+  'R2_ENDPOINT', 'R2_ACCESS_KEY', 'R2_SECRET_KEY',
+]) {
+  process.env[key] = ''
+}
 
 const prisma = new PrismaClient()
 
