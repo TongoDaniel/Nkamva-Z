@@ -11,6 +11,7 @@ import cron from 'node-cron'
 import { auditStandalone } from '../audit'
 import { purgeDeletedAccounts } from './purge-deleted-accounts'
 import { remindPendingDeletions } from './remind-pending-deletions'
+import { purgeTrainerDocuments } from './purge-trainer-documents'
 
 export interface JobDefinition {
   id: string
@@ -28,6 +29,14 @@ export const JOBS: JobDefinition[] = [
     schedule: '5 7 * * *',
     description: "Prévient par e-mail avant l'effacement d'un compte (J-7 puis J-1)",
     run: async () => ({ ...(await remindPendingDeletions()) }),
+  },
+  {
+    id: 'purge-trainer-documents',
+    // 03h00 UTC, avant la purge des comptes : un compte effacé emporterait
+    // sinon ses candidatures sans que les fichiers aient été retirés.
+    schedule: '0 3 * * *',
+    description: "Efface les pièces justificatives 90 jours après la décision",
+    run: async () => ({ ...(await purgeTrainerDocuments()) }),
   },
   {
     id: 'purge-deleted-accounts',
