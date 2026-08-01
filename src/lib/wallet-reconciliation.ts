@@ -12,13 +12,11 @@
 //   negativeSince non null      ⟺ solde retirable < 0
 // ==========================================================================
 
-import type { PayoutStatus } from '@prisma/client'
 import { db } from './db'
-import { auditStandalone } from './audit'
+import { audit, auditStandalone } from './audit'
 import { notifyAdminSubRole } from './notification'
 import { WALLET_NEGATIVE_ALERT_DAYS } from './disputes'
-
-const IN_FLIGHT_PAYOUT_STATUSES: PayoutStatus[] = ['PENDING', 'AUTO_APPROVED', 'IN_REVIEW', 'APPROVED']
+import { IN_FLIGHT_PAYOUT_STATUSES } from './payouts'
 
 export interface WalletDiscrepancy {
   walletId: string
@@ -88,6 +86,57 @@ export async function reconcileAllWallets(): Promise<{ checked: number; discrepa
   }
 
   return { checked: wallets.length, discrepancies }
+}
+
+/**
+ * Correction d'un écart, réservée au Super-admin (jamais d'auto-réparation
+ * silencieuse : la détection alerte, la correction est un acte explicite).
+ * Chaque correction laisse une ligne `WalletReconciliation`.
+ */
+export async function reconcileWalletField(
+  walletId: string,
+  field: 'reservedBalance' | 'pendingPayoutBalance',
+  params: { actorId: string; reason: string },
+) {
+  const wallet = await db.wallet.findUnique({
+    where: { id: walletId },
+    select: { id: true, trainerId: true, reservedBalance: true, pendingPayoutBalance: true },
+  })
+  if (!wallet) throw new Error('WALLET_NOT_FOUND')
+
+  const expected = field === 'reservedBalance'
+    ? (await db.fundReservation.aggregate({
+      where: { walletId, status: 'ACTIVE' }, _sum: { reservedAmountFcfa: true },
+    }))._sum.reservedAmountFcfa ?? 0
+    : (await db.payout.aggregate({
+      where: { trainerId: wallet.trainerId, status: { in: IN_FLIGHT_PAYOUT_STATUSES } }, _sum: { amountFcfa: true },
+    }))._sum.amountFcfa ?? 0
+
+  const previousValue = wallet[field]
+  const delta = expected - previousValue
+
+  if (delta === 0) {
+    return { corrected: false, previousValue, newValue: previousValue, delta: 0 }
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.wallet.update({ where: { id: walletId }, data: { [field]: expected } })
+    await tx.walletReconciliation.create({
+      data: {
+        walletId, field,
+        previousValue, newValue: expected, delta,
+        reason: params.reason,
+        reconciledById: params.actorId,
+      },
+    })
+    await audit(tx, {
+      actorId: params.actorId, actorRole: 'SUPER_ADMIN',
+      action: 'WALLET_RECONCILED', targetType: 'Wallet', targetId: walletId,
+      meta: { field, previousValue, newValue: expected, delta, reason: params.reason },
+    })
+  })
+
+  return { corrected: true, previousValue, newValue: expected, delta }
 }
 
 /**
