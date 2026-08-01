@@ -2,6 +2,7 @@ import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from './db'
 import { verifyPassword } from './password'
+import { isSessionRevoked } from './session-validity'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -30,9 +31,7 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      const sessionsValidAfter = new Date(token.sessionsValidAfter as string)
-      const iat = new Date((token.iat as number) * 1000)
-      if (iat < sessionsValidAfter) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
+      if (isSessionRevoked(token.iat as number, token.sessionsValidAfter as string)) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
       const tokenAge = Date.now() / 1000 - (token.iat as number)
       if (tokenAge > 300) {
         const dbUser = await db.user.findUnique({ where: { id: token.userId as string }, select: { role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } } })
