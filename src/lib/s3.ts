@@ -87,10 +87,23 @@ export async function getRange(s3Key: string, start: number, end: number): Promi
   try { const resp = await s3.send(new GetObjectCommand({ Bucket: getBucket(), Key: s3Key, Range: `bytes=${start}-${end}` })); if (!resp.Body) return null; const chunks: Uint8Array[] = []; for await (const chunk of resp.Body as any) chunks.push(chunk); return Buffer.concat(chunks) } catch { return null }
 }
 
-export async function deleteObject(s3Key: string): Promise<void> {
+/**
+ * Supprime un objet. Renvoie `true` lorsque l'objet n'existe plus côté
+ * stockage — la suppression S3 est idempotente, un objet déjà absent compte
+ * comme supprimé. Renvoie `false` si l'opération a échoué ou si le stockage
+ * n'est pas configuré : un appelant qui efface la référence en base doit
+ * pouvoir s'abstenir plutôt que d'orpheliner le fichier.
+ */
+export async function deleteObject(s3Key: string): Promise<boolean> {
   const s3 = getClient()
-  if (!s3) return
-  try { await s3.send(new DeleteObjectCommand({ Bucket: getBucket(), Key: s3Key })) } catch (err) { console.error('[S3:DELETE_ERROR]', { s3Key, error: String(err) }) }
+  if (!s3) return false
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: getBucket(), Key: s3Key }))
+    return true
+  } catch (err) {
+    console.error('[S3:DELETE_ERROR]', { s3Key, error: String(err) })
+    return false
+  }
 }
 
 const MAGIC_NUMBERS: Record<string, { offset: number; bytes: number[] }> = {
