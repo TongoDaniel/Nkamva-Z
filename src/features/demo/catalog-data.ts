@@ -1,3 +1,5 @@
+import type { CourseListItem } from '@/lib/dto'
+
 /**
  * Données de démonstration reprises de la maquette (`assets/nkamva-data.js`).
  *
@@ -9,7 +11,7 @@
 
 export type CategoryId = 'dev' | 'biz' | 'dsg' | 'mkt'
 export type FormatId = 'video' | 'pdf' | 'kit' | 'notion' | 'tableur'
-export type ChipTone = 'brand' | 'clay' | 'info' | 'gold'
+export type ChipTone = 'brand' | 'clay' | 'blue' | 'gold'
 
 export interface Category {
   id: CategoryId
@@ -77,7 +79,7 @@ export interface Resource {
 export const CATEGORIES: Category[] = [
   { id: 'dev', label: 'Développement', tone: 'brand' },
   { id: 'biz', label: 'Business', tone: 'clay' },
-  { id: 'dsg', label: 'Design', tone: 'info' },
+  { id: 'dsg', label: 'Design', tone: 'blue' },
   { id: 'mkt', label: 'Marketing', tone: 'gold' },
 ]
 
@@ -430,4 +432,36 @@ export function coverLabel(resource: Resource): string {
 /** Formatage des montants en FCFA, séparateur d'espace insécable normalisé. */
 export function formatFcfa(amount: number): string {
   return amount.toLocaleString('fr-FR').replace(/ | /g, ' ')
+}
+
+/**
+ * Adapte une ressource de démonstration au DTO attendu par `ResourceCard`.
+ *
+ * Les écrans branchés sur Prisma fournissent un `CourseListItem` réel ; les
+ * écrans encore en démonstration passent par ici. Quand ils seront branchés,
+ * ce mappeur disparaît avec le reste du module.
+ */
+export function toCourseListItem(resource: Resource): CourseListItem {
+  return {
+    id: resource.slug,
+    slug: resource.slug,
+    title: resource.title,
+    blurb: resource.blurb,
+    category: resource.category.label,
+    format: resource.format.id,
+    priceFcfa: resource.price,
+    level: resource.level,
+    // La démo n'exprime la durée que sous forme libre (« 4 h 20 », « 24 pages ») :
+    // aucune seconde exploitable, la carte masque donc la durée.
+    durationSeconds: null,
+    publishedAt: null,
+    coverS3Key: null,
+    trainerProfile: {
+      id: resource.author.id,
+      user: { fullName: resource.author.name, bio: resource.author.bio },
+      ratingAverage: resource.rating,
+      ratingCount: resource.reviews,
+      studentsCount: resource.students,
+    },
+  }
 }

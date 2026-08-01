@@ -1,0 +1,183 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { Btn } from "@/components/nk/button";
+import { Cover, formatLabel } from "@/components/nk/cover";
+import { api } from "@/lib/client";
+import { fmtFcfa } from "@/lib/format";
+import type { PaymentProvider, PaymentStatus } from "@/lib/dto";
+
+/** Convention Lot 0 : polling TanStack Query, pas de WebSocket. */
+const POLL_INTERVAL_MS = 8_000;
+const POLL_TIMEOUT_MS = 120_000;
+
+const PROVIDER_LABEL: Record<PaymentProvider, string> = {
+  CINETPAY: "Mobile money",
+  STRIPE: "Carte bancaire",
+};
+
+export function ConfirmationStatus({
+  purchaseId,
+  initialStatus,
+  amountFcfa,
+  provider,
+  courseTitle,
+  courseSlug,
+  courseCategory,
+  courseFormat,
+}: {
+  purchaseId: string;
+  initialStatus: PaymentStatus;
+  amountFcfa: number;
+  provider: PaymentProvider;
+  courseTitle: string;
+  courseSlug: string | null;
+  courseCategory: string | null;
+  courseFormat: string | null;
+}) {
+  const [timedOut, setTimedOut] = React.useState(false);
+
+  // Au-delà du délai, on cesse d'interroger : l'achat reste suivi dans
+  // « Mes achats », le webhook créditera l'accès quand il arrivera.
+  React.useEffect(() => {
+    const id = setTimeout(() => setTimedOut(true), POLL_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, []);
+
+  const { data } = useQuery({
+    queryKey: ["purchase-reconcile", purchaseId],
+    queryFn: async () => {
+      const res = await api.get<{ status: string; credited: boolean }>(
+        `/api/purchases/${purchaseId}/reconcile`,
+      );
+      return res.data;
+    },
+    initialData: { status: initialStatus, credited: false },
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status && status !== "PENDING") return false;
+      return timedOut ? false : POLL_INTERVAL_MS;
+    },
+  });
+
+  const status = data?.status ?? initialStatus;
+  const settled = status === "SUCCEEDED";
+  const failed = status === "FAILED" || status === "CANCELED";
+
+  return (
+    <div className="grid items-start gap-8 pt-2 lg:grid-cols-[1fr_360px]">
+      <div
+        className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm sm:p-9"
+        aria-live="polite"
+        aria-busy={!settled && !failed && !timedOut}
+      >
+        {settled ? (
+          <>
+            <span className="mb-5 grid size-16 place-items-center rounded-full bg-brand-tint text-brand">
+              <CheckCircle2 className="size-8" aria-hidden="true" />
+            </span>
+            <h2 className="mb-2 text-[24px] font-extrabold">Paiement confirmé</h2>
+            <p className="mb-6 max-w-[52ch] text-ink-2">
+              <b className="text-ink">{courseTitle}</b> est ajoutée à vos ressources. L&apos;accès
+              est à vie : vous la retrouverez toujours dans votre espace.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Btn asChild size="lg">
+                <Link href="/mes-ressources">Accéder à ma ressource</Link>
+              </Btn>
+              <Btn asChild variant="o" size="lg">
+                <Link href="/mes-achats">Voir mes achats</Link>
+              </Btn>
+            </div>
+          </>
+        ) : failed ? (
+          <>
+            <span className="mb-5 grid size-16 place-items-center rounded-full bg-danger-tint text-danger">
+              <XCircle className="size-8" aria-hidden="true" />
+            </span>
+            <h2 className="mb-2 text-[24px] font-extrabold">Paiement non abouti</h2>
+            <p className="mb-6 max-w-[52ch] text-ink-2">
+              L&apos;opérateur a refusé ou annulé la transaction. Aucun montant n&apos;a été
+              prélevé et aucun accès n&apos;a été ouvert.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {courseSlug ? (
+                <Btn asChild size="lg">
+                  <Link href={`/achat/${courseSlug}`}>Réessayer le paiement</Link>
+                </Btn>
+              ) : null}
+              <Btn asChild variant="o" size="lg">
+                <Link href="/contact">Contacter le support</Link>
+              </Btn>
+            </div>
+          </>
+        ) : timedOut ? (
+          <>
+            <span className="mb-5 grid size-16 place-items-center rounded-full bg-gold-tint text-gold-ink">
+              <Clock className="size-8" aria-hidden="true" />
+            </span>
+            <h2 className="mb-2 text-[24px] font-extrabold">Paiement toujours en attente</h2>
+            <p className="mb-6 max-w-[52ch] text-ink-2">
+              L&apos;opérateur n&apos;a pas encore confirmé la transaction. C&apos;est fréquent en
+              mobile money. Dès qu&apos;elle est confirmée, la ressource apparaît dans votre
+              espace — rien n&apos;est perdu.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Btn asChild size="lg">
+                <Link href="/mes-achats">Suivre dans mes achats</Link>
+              </Btn>
+              <Btn variant="o" size="lg" onClick={() => window.location.reload()}>
+                Vérifier à nouveau
+              </Btn>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="mb-5 grid size-16 place-items-center rounded-full bg-brand-tint text-brand">
+              <Loader2 className="size-8 animate-spin" aria-hidden="true" />
+            </span>
+            <h2 className="mb-2 text-[24px] font-extrabold">Confirmation en cours…</h2>
+            <p className="max-w-[52ch] text-ink-2">
+              Nous attendons la confirmation de l&apos;opérateur. Vous pouvez laisser cette page
+              ouverte : elle se met à jour toute seule.
+            </p>
+          </>
+        )}
+      </div>
+
+      <aside
+        aria-label="Détail de la transaction"
+        className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm"
+      >
+        {courseCategory && courseFormat ? (
+          <Cover
+            category={courseCategory}
+            format={courseFormat}
+            typeLabel={formatLabel(courseFormat).toUpperCase()}
+          />
+        ) : null}
+        <dl className="grid gap-3 p-6 text-sm">
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-2">Ressource</dt>
+            <dd className="text-right font-bold">{courseTitle}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-2">Montant</dt>
+            <dd className="font-bold">{fmtFcfa(amountFcfa)}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-2">Moyen</dt>
+            <dd className="font-bold">{PROVIDER_LABEL[provider]}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-ink-2">Référence</dt>
+            <dd className="font-mono text-[12px] font-bold">{purchaseId.slice(0, 8)}</dd>
+          </div>
+        </dl>
+      </aside>
+    </div>
+  );
+}

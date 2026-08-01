@@ -1,234 +1,245 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import type { Metadata } from 'next'
-import { Check, MessageSquare, Play, ShieldCheck, Users } from 'lucide-react'
-import { Btn } from '@/components/nk/btn'
-import { Chip } from '@/components/nk/chip'
-import { Cover } from '@/components/nk/cover'
-import { Price } from '@/components/nk/price'
-import { ResourceCard } from '@/components/nk/resource-card'
-import { PageHead } from '@/components/nk/page-head'
-import { Curriculum } from './curriculum'
-import { RESOURCES, coverLabel, resourceBySlug } from '@/features/demo/catalog-data'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Check, Clock, Globe, ShieldCheck, Users } from "lucide-react";
+import { Btn } from "@/components/nk/button";
+import { Chip } from "@/components/nk/chip";
+import { Cover, formatLabel } from "@/components/nk/cover";
+import { Price, ResourceCard } from "@/components/nk/resource-card";
+import { PageHead } from "@/components/nk/page-head";
+import { initials } from "@/components/nk/avatar";
+import { getPublicCourse, searchCourses } from "@/lib/catalog";
+import { checkCourseAccess } from "@/lib/access";
+import { getAuthContext } from "@/lib/api";
+import { fmtDuration, fmtNumber } from "@/lib/format";
+import { trainerBio, type CourseDetail, type CourseListItem } from "@/lib/dto";
 
-export function generateStaticParams() {
-  return RESOURCES.map(resource => ({ slug: resource.slug }))
+export const dynamic = "force-dynamic";
+
+type Params = Promise<{ slug: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { slug } = await params;
+  const course = (await getPublicCourse(slug)) as CourseDetail | null;
+  if (!course) return { title: "Ressource introuvable" };
+  return {
+    title: course.title,
+    description: course.blurb,
+    openGraph: { title: course.title, description: course.blurb, type: "article" },
+  };
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params
-  const resource = resourceBySlug(slug)
-  if (!resource) return { title: 'Ressource introuvable — NkamVa' }
-  return { title: `${resource.title} — NkamVa`, description: resource.blurb }
-}
+export default async function FicheRessourcePage({ params }: { params: Params }) {
+  const { slug } = await params;
+  const course = (await getPublicCourse(slug)) as CourseDetail | null;
+  if (!course) notFound();
 
-export default async function ResourcePage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const resource = resourceBySlug(slug)
-  if (!resource) notFound()
+  // Un visiteur connecté qui possède déjà la ressource voit l'accès, pas l'achat.
+  const auth = await getAuthContext();
+  const access = auth ? await checkCourseAccess(course.id, auth.user.id) : null;
+  const owned = access?.granted ?? false;
+  const suspended = access?.reason === "ACCESS_SUSPENDED";
 
-  const sameCategory = RESOURCES.filter(r => r.category.id === resource.category.id && r.slug !== resource.slug)
-  const related = (sameCategory.length ? sameCategory : RESOURCES.filter(r => r.slug !== resource.slug)).slice(0, 3)
-  const author = resource.author
-  const isVideo = resource.format.id === 'video'
+  const related = (
+    await searchCourses({ category: course.category, sort: "newest", page: 1, pageSize: 4 })
+  ).items as unknown as CourseListItem[];
+  const relatedOthers = related.filter((c) => c.slug !== course.slug).slice(0, 3);
+
+  const trainer = course.trainerProfile;
+  const trainerName = trainer?.user?.fullName ?? "Formateur NkamVa";
+  const bio = trainerBio(trainer);
+  const duration = fmtDuration(course.durationSeconds);
+  const typeLabel = [formatLabel(course.format), duration].filter(Boolean).join(" · ").toUpperCase();
 
   return (
-    <div className="wrap">
-      <div className="grid items-start gap-9 lg:grid-cols-[1fr_360px]">
-        <div>
-          <PageHead
-            crumbs={[
-              { label: 'Ressources', href: '/ressources' },
-              { label: resource.category.label, href: '/ressources' },
-              { label: resource.title },
-            ]}
-            title={resource.title}
-          >
-            <Chip tone={resource.category.tone} className="order-first mb-3 mt-4 inline-flex">
-              {resource.category.label}
-            </Chip>
+    <div className="nk-wrap pb-16">
+      <PageHead
+        crumbs={[
+          { label: "Ressources", href: "/ressources" },
+          { label: course.category, href: `/ressources?category=${encodeURIComponent(course.category)}` },
+          { label: course.title },
+        ]}
+        title={
+          <>
+            <Chip className="mb-3">{course.category}</Chip>
+            <span className="block">{course.title}</span>
+          </>
+        }
+      />
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px] font-medium text-ink3">
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="size-4" />
-                {resource.students.toLocaleString('fr-FR')} apprenants
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <MessageSquare className="size-4" />
-                {resource.lang}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                ★ {resource.rating.toFixed(1)} · {resource.reviews} avis
-              </span>
-            </div>
-          </PageHead>
+      <div className="grid items-start gap-10 pt-2 lg:grid-cols-[1fr_372px]">
+        {/* Colonne principale */}
+        <div className="min-w-0 lg:order-1">
+          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-ink-2">
+            <li className="inline-flex items-center gap-2">
+              <Users className="size-4 text-ink-3" aria-hidden="true" />
+              {fmtNumber(trainer?.studentsCount ?? 0)} apprenants
+            </li>
+            <li className="inline-flex items-center gap-2">
+              <Globe className="size-4 text-ink-3" aria-hidden="true" />
+              {course.language === "fr" ? "Français" : course.language}
+            </li>
+            {duration ? (
+              <li className="inline-flex items-center gap-2">
+                <Clock className="size-4 text-ink-3" aria-hidden="true" />
+                {duration}
+              </li>
+            ) : null}
+          </ul>
 
-          <div className="mt-6 overflow-hidden rounded-xl border border-line shadow-sm">
-            <Cover
-              category={resource.category.id}
-              format={resource.format}
-              glyphClassName="size-[82px] [&_svg]:size-9"
-            >
-              {isVideo ? (
-                <>
-                  <button
-                    type="button"
-                    aria-label="Aperçu vidéo"
-                    className="absolute grid size-[74px] place-items-center rounded-full bg-brand text-white shadow-lg transition hover:scale-105 hover:bg-navy"
-                  >
-                    <Play className="size-7 fill-current" />
-                  </button>
-                  <span className="absolute bottom-3 left-3 rounded-full bg-ink/85 px-3 py-1.5 text-[11px] font-bold text-paper">
-                    Aperçu gratuit · 2 min
-                  </span>
-                </>
-              ) : (
-                <span className="absolute bottom-3 left-3 rounded-full bg-ink/85 px-3 py-1.5 text-[11px] font-bold text-paper">
-                  {resource.format.label} · {resource.meta}
-                </span>
-              )}
-            </Cover>
+          <div className="my-6 overflow-hidden rounded-nk-lg border border-line shadow-nk-sm">
+            <Cover category={course.category} format={course.format} typeLabel={typeLabel} />
           </div>
 
-          <section className="mt-9">
-            <h2 className="mb-3 text-[21px] font-extrabold">À propos de cette ressource</h2>
-            <p className="mb-3 leading-[1.65] text-ink2">{resource.blurb}</p>
-            <p className="leading-[1.65] text-ink2">
-              Vous l&apos;achetez une seule fois, en FCFA, par mobile money ou carte bancaire. Elle rejoint ensuite
-              votre espace « Mes achats » : accès à vie, progression conservée, sur mobile comme sur ordinateur.
+          <section className="py-8">
+            <h2 className="mb-4 text-[22px] font-extrabold">À propos de cette ressource</h2>
+            <p className="mb-3.5 text-[15.5px] leading-relaxed text-ink-2 text-pretty">
+              {course.blurb}
             </p>
-          </section>
-
-          <section className="mt-9">
-            <h2 className="mb-3 text-[21px] font-extrabold">Ce que vous apprendrez</h2>
-            <ul className="grid gap-2.5 sm:grid-cols-2">
-              {resource.learn.map(item => (
-                <li key={item} className="flex items-start gap-2.5 text-[14.5px] leading-[1.5] text-ink2">
-                  <span className="mt-0.5 grid size-5 flex-none place-items-center rounded-full bg-brand-t text-brand">
-                    <Check className="size-3" strokeWidth={3} />
-                  </span>
-                  {item}
-                </li>
+            {course.description
+              .split(/\n{2,}/)
+              .filter(Boolean)
+              .map((para, i) => (
+                <p key={i} className="mb-3.5 text-[15.5px] leading-relaxed text-ink-2 text-pretty">
+                  {para}
+                </p>
               ))}
-            </ul>
           </section>
 
-          <section className="mt-9">
-            <h2 className="mb-3 text-[21px] font-extrabold">{isVideo ? 'Programme' : 'Contenu'}</h2>
-            <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[13.5px] font-semibold text-ink3">
-              <span>{resource.curriculum.length} modules</span>
-              <span>
-                {resource.lessonsTotal} {isVideo ? 'leçons' : 'sections'}
+          {course.learnPoints?.length ? (
+            <section className="border-t border-line-2 py-8">
+              <h2 className="mb-4 text-[22px] font-extrabold">Ce que vous apprendrez</h2>
+              <ul className="grid gap-3.5 sm:grid-cols-2 sm:gap-x-6">
+                {course.learnPoints.map((point) => (
+                  <li key={point} className="flex items-start gap-3 text-[15px] leading-snug">
+                    <span
+                      className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-brand-tint text-brand"
+                      aria-hidden="true"
+                    >
+                      <Check className="size-3.5" />
+                    </span>
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <section className="border-t border-line-2 py-8">
+            <h2 className="mb-4 text-[22px] font-extrabold">Votre formateur</h2>
+            <div className="grid gap-4.5 rounded-nk-lg border border-line bg-card p-7 sm:grid-cols-[auto_1fr]">
+              <span
+                className="grid size-16 shrink-0 place-items-center rounded-full bg-linear-to-br from-brand to-info text-[22px] font-extrabold text-white"
+                aria-hidden="true"
+              >
+                {initials(trainerName)}
               </span>
-              <span>{resource.meta}</span>
-            </div>
-            <Curriculum modules={resource.curriculum} isVideo={isVideo} />
-          </section>
-
-          <section className="mt-9">
-            <h2 className="mb-3 text-[21px] font-extrabold">Votre formateur</h2>
-            <div className="rounded-xl border border-line bg-card p-6">
-              <div className="flex items-start gap-4">
-                <span className="grid size-[58px] flex-none place-items-center rounded-2xl bg-gradient-to-br from-brand to-info font-display text-lg font-extrabold text-white">
-                  {author.initials}
-                </span>
-                <div>
-                  <h3 className="text-[18px] font-bold">
-                    <Link href={`/formateurs/${author.id}`} className="text-ink hover:text-brand">
-                      {author.name}
-                    </Link>
-                  </h3>
-                  <p className="text-sm text-ink2">
-                    {author.role} · {author.city}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-4 text-[13.5px] text-ink2">
+              <div>
+                <h3 className="text-[19px] font-extrabold">{trainerName}</h3>
+                {trainer?.slogan ? (
+                  <p className="mb-2.5 mt-0.5 text-sm font-semibold text-ink-2">{trainer.slogan}</p>
+                ) : null}
+                <p className="flex flex-wrap gap-4.5 text-[13px] font-semibold text-ink-3">
+                  <span>
+                    <b className="text-[14.5px] font-extrabold text-ink">
+                      {fmtNumber(trainer?.studentsCount ?? 0)}
+                    </b>{" "}
+                    apprenants
+                  </span>
+                  {trainer?.ratingCount ? (
                     <span>
-                      <b className="font-bold text-ink">{author.students.toLocaleString('fr-FR')}</b> apprenants
+                      <b className="text-[14.5px] font-extrabold text-ink">
+                        {trainer.ratingAverage.toFixed(1)}
+                      </b>{" "}
+                      / 5 ({trainer.ratingCount} avis)
                     </span>
-                    <span>
-                      <b className="font-bold text-ink">{author.resourceCount}</b> ressources
-                    </span>
-                  </div>
-                </div>
+                  ) : null}
+                </p>
               </div>
-              <p className="mt-4 leading-[1.6] text-ink2">{author.bio}</p>
-            </div>
-          </section>
-
-          <section className="mt-9">
-            <h2 className="mb-3 text-[21px] font-extrabold">Avis des apprenants</h2>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {resource.reviewList.map((review, i) => (
-                <div key={`${review.name}-${i}`} className="rounded-xl border border-line bg-card p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="grid size-8 place-items-center rounded-full bg-brand-t2 text-[11px] font-bold text-brand-d">
-                      {review.initials}
-                    </span>
-                    <div>
-                      <b className="block text-sm font-bold">{review.name}</b>
-                      <span className="text-xs text-gold">{'★'.repeat(review.stars)}</span>
-                    </div>
-                  </div>
-                  <p className="text-[13.5px] leading-[1.55] text-ink2">{review.text}</p>
-                </div>
-              ))}
+              {bio ? (
+                <p className="text-[14.5px] leading-relaxed text-ink-2 sm:col-span-2">{bio}</p>
+              ) : null}
             </div>
           </section>
         </div>
 
         {/* Panneau d'achat */}
-        <aside className="lg:sticky lg:top-[86px]">
-          <div className="overflow-hidden rounded-xl border border-line bg-card shadow-sm">
-            <Cover category={resource.category.id} format={resource.format} label={coverLabel(resource)} />
+        <aside
+          aria-label="Acheter cette ressource"
+          className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk max-lg:order-first lg:sticky lg:top-[88px] lg:order-2"
+        >
+          <div className="max-lg:hidden">
+            <Cover category={course.category} format={course.format} typeLabel={typeLabel} />
+          </div>
+          <div className="p-6">
+            {owned ? (
+              <>
+                <p className="mb-4.5 flex items-center gap-2 text-[13.5px] font-bold text-brand">
+                  <Check className="size-4" aria-hidden="true" />
+                  Vous possédez déjà cette ressource
+                </p>
+                <Btn asChild size="lg" block>
+                  <Link href="/mes-ressources">Accéder à la ressource</Link>
+                </Btn>
+              </>
+            ) : suspended ? (
+              <>
+                <p className="mb-4.5 rounded-xl bg-danger-tint px-4 py-3 text-[13.5px] font-semibold text-danger">
+                  L&apos;accès à cette ressource est suspendu le temps d&apos;un litige en cours.
+                </p>
+                <Btn asChild variant="o" size="lg" block>
+                  <Link href="/contact">Contacter le support</Link>
+                </Btn>
+              </>
+            ) : (
+              <>
+                <p className="mb-1">
+                  <Price amountFcfa={course.priceFcfa} className="!text-[32px]" />
+                </p>
+                <p className="mb-4.5 text-[13px] font-semibold text-ink-3">
+                  Paiement à l&apos;unité · accès à vie
+                </p>
+                <Btn asChild size="lg" block>
+                  <Link href={`/achat/${course.slug}`}>Acheter maintenant</Link>
+                </Btn>
+              </>
+            )}
 
-            <div className="p-5">
-              <Price amount={resource.price} className="text-[28px]" />
-              <p className="mt-1 text-[13px] text-ink3">Paiement à l&apos;unité · accès à vie</p>
+            <p className="mt-4 flex items-center gap-2.5 border-t border-line-2 pt-4 text-[13px] font-semibold text-ink-2">
+              <ShieldCheck className="size-4 shrink-0 text-brand" aria-hidden="true" />
+              Accès immédiat après paiement
+            </p>
 
-              <Btn asChild size="lg" className="mt-4 w-full">
-                <Link href={`/auth/connexion?callbackUrl=/ressources/${resource.slug}`}>Acheter maintenant</Link>
-              </Btn>
-
-              <div className="mt-3 flex items-center gap-2 text-[13px] font-semibold text-ink2">
-                <ShieldCheck className="size-4 text-brand" />
-                Accès immédiat après paiement
-              </div>
-
-              <ul className="mt-4 grid gap-2 border-t border-line2 pt-4">
-                {resource.includes.map(item => (
-                  <li key={item} className="flex items-start gap-2 text-[13.5px] leading-[1.5] text-ink2">
-                    <Check className="mt-0.5 size-4 flex-none text-brand" strokeWidth={3} />
+            {course.includes?.length ? (
+              <ul className="mt-4 grid gap-3 border-t border-line-2 pt-4">
+                {course.includes.map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-sm leading-snug">
+                    <Check className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
                     {item}
                   </li>
                 ))}
               </ul>
+            ) : null}
 
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line2 pt-4">
-                <span className="flex h-9 items-center rounded-lg border border-black bg-black px-3">
-                  <Image src="/pay/orange-money.svg" alt="Orange Money" width={70} height={18} className="h-[18px] w-auto" />
-                </span>
-                <span className="flex h-9 items-center rounded-lg border border-[#eec000] bg-[#ffcb05] px-3">
-                  <Image src="/pay/mtn.svg" alt="MTN MoMo" width={54} height={16} className="h-4 w-auto" />
-                </span>
-                <span className="flex h-9 items-center rounded-lg border border-line bg-white px-3">
-                  <Image src="/pay/wave.png" alt="Wave" width={54} height={18} className="h-[18px] w-auto" />
-                </span>
-                <span className="text-[13px] font-semibold text-ink3">+ carte bancaire</span>
-              </div>
-            </div>
+            <p className="mt-4 text-xs font-semibold text-ink-3">
+              Orange Money · MTN MoMo · Wave · Airtel Money · M-Pesa · carte bancaire
+            </p>
           </div>
         </aside>
       </div>
 
-      <section className="mt-14">
-        <h2 className="mb-5 text-[21px] font-extrabold">Dans la même catégorie</h2>
-        <div className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-          {related.map((item, index) => (
-            <ResourceCard key={item.slug} resource={item} index={index} />
-          ))}
-        </div>
-      </section>
+      {relatedOthers.length > 0 ? (
+        <section className="pt-14" aria-labelledby="apparentees">
+          <h2 id="apparentees" className="mb-6 text-[22px] font-extrabold">
+            Dans la même catégorie
+          </h2>
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {relatedOthers.map((c) => (
+              <ResourceCard key={c.id} course={c} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
-  )
+  );
 }

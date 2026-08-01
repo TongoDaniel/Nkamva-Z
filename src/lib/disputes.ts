@@ -1430,7 +1430,8 @@ export async function getDisputeForLearner(disputeId: string, learnerId: string)
     select: {
       ...LEARNER_DISPUTE_SELECT,
       learnerId: true,
-      purchase: { select: { id: true, amountFcfa: true, course: { select: { title: true, slug: true } }, community: { select: { name: true } } } },
+      // createdAt / accessSuspended : affichés sur le détail du litige côté apprenant.
+      purchase: { select: { id: true, amountFcfa: true, createdAt: true, accessSuspended: true, course: { select: { title: true, slug: true } }, community: { select: { name: true } } } },
       messages: { orderBy: { createdAt: 'asc' } },
       consumptionSnapshot: true,
     },
@@ -1567,4 +1568,84 @@ export async function listTrainerDisputes(trainerProfileId: string, page = 1, pa
     db.dispute.count({ where: { trainerId: trainerProfileId } }),
   ])
   return { items, total, page, pageSize }
+}
+
+// ==========================================================================
+// Compatibilité front (écrans issus de la branche design tokens)
+// ==========================================================================
+// Ces écrans ont été écrits contre une autre implémentation du Lot 2. On ne
+// duplique pas les règles : tout ci-dessous s'adosse aux services ci-dessus.
+
+/** Erreur métier des services de revue. Mappée en HTTP par les routes. */
+export class DisputeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DisputeError'
+  }
+}
+
+/** Libellés des motifs, affichés à l'apprenant, au formateur et en revue. */
+export const REASON_LABELS: Record<DisputeReason, string> = {
+  CONTENT_MISMATCH: 'Le contenu ne correspond pas à la description',
+  DOUBLE_CHARGE: 'Double prélèvement',
+  ACCESS_ISSUE: "Problème d'accès à la ressource",
+  UNAUTHORIZED_CHARGE: 'Paiement non autorisé',
+  OTHER: 'Autre motif',
+}
+
+/** Alias : même signature et même retour que `getDisputeForLearner`. */
+export const getMyDispute = getDisputeForLearner
+
+export interface EligibilityVerdict {
+  eligible: boolean
+  reason?: string
+  daysSincePurchase: number
+  assessment: { consumptionPercent: number; ruleApplies: boolean; downloaded: boolean | null }
+}
+
+/**
+ * Pré-vol en lecture seule de `openDispute` : mêmes contrôles, dans le même
+ * ordre, sans rien écrire. Permet d'expliquer le refus à l'apprenant avant
+ * qu'il ne remplisse le dossier, plutôt que de le lui opposer ensuite.
+ *
+ * Toute règle d'ouverture ajoutée à `openDispute` doit l'être ici aussi.
+ */
+export async function getDisputeEligibility(purchaseId: string, learnerId: string) {
+  const purchase = await db.purchase.findUnique({
+    where: { id: purchaseId },
+    select: {
+      id: true, learnerId: true, providerStatus: true, refundedAt: true, createdAt: true,
+      courseId: true, communityId: true, periodStart: true, periodEnd: true,
+      course: { select: { id: true, title: true } },
+    },
+  })
+  if (!purchase) throw new DisputeError('PURCHASE_NOT_FOUND')
+  if (purchase.learnerId !== learnerId) throw new DisputeError('NOT_OWNER')
+
+  const consumption = await computeConsumptionSnapshot(purchase)
+  const assessment = {
+    consumptionPercent: consumption.consumptionPercent,
+    ruleApplies: consumption.ruleApplies,
+    downloaded: consumption.downloaded,
+  }
+  const daysSincePurchase = Math.floor((Date.now() - purchase.createdAt.getTime()) / 86_400_000)
+
+  const refuse = (reason: string): { purchase: typeof purchase; verdict: EligibilityVerdict } => ({
+    purchase,
+    verdict: { eligible: false, reason, daysSincePurchase, assessment },
+  })
+
+  if (purchase.providerStatus !== 'SUCCEEDED') return refuse('PURCHASE_NOT_SUCCEEDED')
+  if (purchase.refundedAt) return refuse('ALREADY_REFUNDED')
+
+  const active = await db.dispute.findFirst({
+    where: { purchaseId: purchase.id, status: { in: ACTIVE_DISPUTE_STATUSES } },
+    select: { id: true },
+  })
+  if (active) return refuse('DISPUTE_ALREADY_ACTIVE')
+
+  if (purchase.createdAt < daysAgo(DISPUTE_OPENING_WINDOW_DAYS)) return refuse('DISPUTE_WINDOW_EXPIRED')
+  if (consumption.blocked) return refuse(consumption.blocked)
+
+  return { purchase, verdict: { eligible: true, daysSincePurchase, assessment } as EligibilityVerdict }
 }

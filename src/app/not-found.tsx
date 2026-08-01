@@ -1,19 +1,29 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Brand } from '@/components/layout/brand'
+import Link from "next/link";
+import { Compass } from "lucide-react";
+import { PublicShell } from "@/components/layouts/public-shell";
+import { EmptyState } from "@/components/nk/empty-state";
+import { Btn } from "@/components/nk/button";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 text-center">
-      <Brand />
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">Erreur 404</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Cette page n’existe pas</h1>
-        <p className="mt-2 text-muted-foreground">Le lien est peut-être obsolète ou la page a été déplacée.</p>
+    <PublicShell>
+      <div className="nk-wrap py-20">
+        <EmptyState
+          icon={<Compass />}
+          title="Cette page n'existe pas"
+          description="Le lien est peut-être obsolète, ou la ressource a été retirée du catalogue."
+          action={
+            <div className="flex flex-wrap justify-center gap-3">
+              <Btn asChild>
+                <Link href="/ressources">Parcourir le catalogue</Link>
+              </Btn>
+              <Btn asChild variant="o">
+                <Link href="/">Retour à l&apos;accueil</Link>
+              </Btn>
+            </div>
+          }
+        />
       </div>
-      <Button asChild>
-        <Link href="/">Retour à l’accueil</Link>
-      </Button>
-    </div>
-  )
+    </PublicShell>
+  );
 }

@@ -1,152 +1,153 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { toast } from 'sonner'
-import { Btn } from '@/components/nk/btn'
-import { AuthField } from '@/components/auth/auth-field'
-import { FormError } from '@/components/form-error'
-import { ApiError, apiPost } from '@/lib/http'
+import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Btn } from "@/components/nk/button";
+import { Field, PasswordField } from "@/components/nk/input";
+import { AuthHeading, FormError } from "@/components/layouts/auth-shell";
+import { api, ApiError } from "@/lib/client";
 
-const PASSWORD_MIN_LENGTH = 10
+/** Miroir exact de la règle appliquée par POST /api/auth/register. */
+function localPasswordIssue(value: string): string | null {
+  if (value.length < 8) return "Au moins 8 caractères.";
+  if (!/[A-Z]/.test(value)) return "Au moins une majuscule.";
+  if (!/\d/.test(value)) return "Au moins un chiffre.";
+  return null;
+}
 
 export function RegisterForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  /** `?role=formateur` vient de « Devenir formateur » : on adapte seulement le discours. */
-  const wantsTrainer = searchParams.get('role') === 'formateur'
+  const router = useRouter();
+  const [fullName, setFullName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [accept, setAccept] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
+  const [pending, setPending] = React.useState(false);
 
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [passwordConfirm, setPasswordConfirm] = useState('')
-  const [accepted, setAccepted] = useState(false)
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
 
-  const [formError, setFormError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [pending, setPending] = useState(false)
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFormError(null)
-    setFieldErrors({})
-
-    if (password !== passwordConfirm) {
-      setFieldErrors({ passwordConfirm: 'Les deux mots de passe ne correspondent pas' })
-      return
+    const pwdIssue = localPasswordIssue(password);
+    if (pwdIssue) {
+      setFieldErrors({ password: pwdIssue });
+      return;
     }
-    if (password.length < PASSWORD_MIN_LENGTH) {
-      setFieldErrors({ password: `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères` })
-      return
-    }
-    if (!accepted) {
-      setFormError("Vous devez accepter les conditions d'utilisation pour créer un compte.")
-      return
-    }
+    setFieldErrors({});
+    setPending(true);
 
-    setPending(true)
     try {
-      await apiPost('/api/auth/register', { email, password, fullName })
-      toast.success('Compte créé. Un code de vérification vous a été envoyé.')
-      router.push(`/auth/verifier-code?email=${encodeURIComponent(email)}`)
+      await api.post("/api/auth/register", {
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        acceptTerms: true,
+      });
+      const target = new URLSearchParams({
+        email: email.trim().toLowerCase(),
+        purpose: "EMAIL_VERIFICATION",
+      });
+      router.push(`/auth/verifier-code?${target.toString()}`);
     } catch (err) {
       if (err instanceof ApiError) {
-        setFormError(err.message)
-        setFieldErrors(err.fieldErrors())
+        if (err.details?.length) {
+          setFieldErrors(
+            Object.fromEntries(
+              err.details
+                .filter((d) => d.field && d.reason)
+                .map((d) => [d.field as string, d.reason as string]),
+            ),
+          );
+        }
+        setError(err.message);
       } else {
-        setFormError('Une erreur est survenue. Réessayez.')
+        setError("La création du compte a échoué. Réessayez dans un instant.");
       }
-      setPending(false)
+    } finally {
+      setPending(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      {formError && <FormError message={formError} />}
-
-      {wantsTrainer && (
-        <p className="mb-4 rounded-xl border border-brand-t2 bg-brand-t px-3.5 py-2.5 text-[13px] font-medium text-brand-d">
-          Créez d&apos;abord votre compte : la candidature formateur se dépose ensuite depuis votre espace.
-        </p>
-      )}
-
-      <AuthField
-        label="Nom complet"
-        name="fullName"
-        autoComplete="name"
-        placeholder="Awa Traoré"
-        required
-        value={fullName}
-        onChange={e => setFullName(e.target.value)}
-        disabled={pending}
-        error={fieldErrors.fullName}
-        className={formError ? 'mt-4' : undefined}
+    <>
+      <AuthHeading
+        title="Créer votre compte"
+        subtitle="Rejoignez la communauté des apprenants à travers l'Afrique."
       />
-
-      <AuthField
-        label="Adresse e-mail"
-        type="email"
-        name="email"
-        autoComplete="email"
-        placeholder="votreadresse@exemple.com"
-        required
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        disabled={pending}
-        error={fieldErrors.email}
-      />
-
-      <AuthField
-        label="Mot de passe"
-        type="password"
-        name="password"
-        autoComplete="new-password"
-        placeholder="••••••••"
-        required
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        disabled={pending}
-        hint={`${PASSWORD_MIN_LENGTH} caractères minimum.`}
-        error={fieldErrors.password}
-      />
-
-      <AuthField
-        label="Confirmer le mot de passe"
-        type="password"
-        name="passwordConfirm"
-        autoComplete="new-password"
-        placeholder="••••••••"
-        required
-        value={passwordConfirm}
-        onChange={e => setPasswordConfirm(e.target.value)}
-        disabled={pending}
-        error={fieldErrors.passwordConfirm}
-      />
-
-      <label className="mb-5 flex items-start gap-2.5 text-[13px] leading-[1.5] text-ink2">
-        <input
-          type="checkbox"
-          checked={accepted}
-          onChange={e => setAccepted(e.target.checked)}
-          className="mt-[3px] size-4 flex-none accent-brand"
+      <FormError>{error}</FormError>
+      <form onSubmit={onSubmit} noValidate>
+        <Field
+          label="Nom complet"
+          name="fullName"
+          autoComplete="name"
+          required
+          placeholder="Aminata Diallo"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          error={fieldErrors.fullName}
         />
-        <span>
-          J&apos;accepte les{' '}
-          <Link href="/legal/conditions" className="font-semibold text-brand hover:underline">
-            conditions d&apos;utilisation
-          </Link>{' '}
-          et la{' '}
-          <Link href="/legal/confidentialite" className="font-semibold text-brand hover:underline">
-            politique de confidentialité
-          </Link>
-          .
-        </span>
-      </label>
-
-      <Btn type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? 'Création…' : 'Créer mon compte'}
-      </Btn>
-    </form>
-  )
+        <Field
+          label="Adresse e-mail"
+          type="email"
+          name="email"
+          autoComplete="email"
+          required
+          placeholder="votreadresse@exemple.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          error={fieldErrors.email}
+        />
+        <PasswordField
+          label="Mot de passe"
+          name="password"
+          autoComplete="new-password"
+          required
+          showStrength
+          placeholder="••••••••"
+          hint="Au moins 8 caractères, une majuscule et un chiffre."
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={fieldErrors.password}
+        />
+        <label className="mb-5 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">
+          <input
+            type="checkbox"
+            required
+            checked={accept}
+            onChange={(e) => setAccept(e.target.checked)}
+            className="mt-1 size-4 shrink-0 accent-brand"
+          />
+          <span>
+            J&apos;accepte les{" "}
+            <Link href="/legal/conditions" className="font-semibold text-brand">
+              CGU
+            </Link>{" "}
+            et la{" "}
+            <Link href="/legal/confidentialite" className="font-semibold text-brand">
+              Politique de confidentialité
+            </Link>
+            .<br />
+            En créant un compte, vous confirmez avoir 16 ans ou plus.
+          </span>
+        </label>
+        <Btn type="submit" size="lg" block loading={pending} disabled={!accept}>
+          Créer mon compte
+        </Btn>
+      </form>
+      <p className="mt-5 text-center text-sm text-ink-2">
+        Déjà un compte ?{" "}
+        <Link href="/auth/connexion" className="font-bold text-brand hover:text-brand-dark">
+          Se connecter
+        </Link>
+      </p>
+      <p className="mt-2.5 text-center text-[13px] text-ink-2">
+        Vous êtes formateur ?{" "}
+        <Link href="/devenir-formateur" className="font-bold text-brand hover:text-brand-dark">
+          Postulez pour enseigner sur NkamVa →
+        </Link>
+      </p>
+    </>
+  );
 }

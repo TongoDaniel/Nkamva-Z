@@ -1,178 +1,85 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { BadgeCheck, FileVideo, IdCard, Wallet } from 'lucide-react'
-import { Btn } from '@/components/nk/btn'
-import { Faq } from '@/components/nk/faq'
-import { Kicker, SectionHead } from '@/components/nk/page-head'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Check } from "lucide-react";
+import { PageHead } from "@/components/nk/page-head";
+import { Btn } from "@/components/nk/button";
+import { Chip } from "@/components/nk/chip";
 
 export const metadata: Metadata = {
-  title: 'Devenir formateur — NkamVa',
-  description: 'Publiez vos ressources, fixez vos prix en FCFA et retirez vos revenus par mobile money.',
-}
+  title: "Devenir formateur",
+  description:
+    "Publiez vos guides, cours vidéo et modèles sur NkamVa, et vendez-les à votre prix, en FCFA.",
+};
 
-const STEPS = [
-  {
-    icon: IdCard,
-    title: 'Déposez votre candidature',
-    body: "Identité, diplôme ou preuve d'expérience, et une courte vidéo de présentation. Comptez dix minutes.",
-  },
-  {
-    icon: BadgeCheck,
-    title: 'Notre équipe examine votre dossier',
-    body: 'Chaque candidature est revue par un humain. Vous recevez une réponse motivée, et pouvez corriger un document refusé.',
-  },
-  {
-    icon: FileVideo,
-    title: 'Publiez vos ressources',
-    body: 'PDF, vidéo, kits, modèles Notion ou tableurs. Vous fixez le prix de chaque ressource, en FCFA.',
-  },
-  {
-    icon: Wallet,
-    title: 'Retirez vos revenus',
-    body: 'Vos ventes créditent votre portefeuille. Demandez un retrait mobile money depuis votre espace formateur.',
-  },
-]
+const ARGUMENTS = [
+  ["Vous fixez vos prix", "Chaque ressource est vendue à l'unité, au tarif que vous décidez, en FCFA."],
+  ["Formats libres", "PDF, vidéo, kits, modèles Notion ou tableurs — publiez ce qui sert vraiment vos apprenants."],
+  ["Retraits par mobile money", "Suivez vos ventes depuis votre espace et retirez vos revenus."],
+  ["Votre audience vous suit", "Vos acheteurs gardent un accès à vie : votre catalogue travaille pour vous."],
+];
 
-const FAQ_ITEMS = [
-  {
-    question: 'Quels documents dois-je fournir ?',
-    answer: (
-      <p>
-        Une pièce d&apos;identité en cours de validité, un diplôme ou une preuve d&apos;expérience dans votre domaine,
-        et une vidéo de présentation de deux minutes. Vos pièces d&apos;identité sont supprimées 90 jours après la
-        décision.
-      </p>
-    ),
-  },
-  {
-    question: 'Dois-je fournir un RIB dès la candidature ?',
-    answer: (
-      <p>
-        Non. Vos coordonnées bancaires ou mobile money ne sont demandées qu&apos;au moment de votre premier retrait —
-        elles ne servent à rien avant.
-      </p>
-    ),
-  },
-  {
-    question: 'Combien NkamVa prélève-t-elle ?',
-    answer: (
-      <p>
-        15 % du prix payé par l&apos;apprenant. Vous êtes crédité de 85 % au moment de la vente, que celle-ci vienne du
-        catalogue ou de votre communauté.
-      </p>
-    ),
-  },
-  {
-    question: 'Que se passe-t-il si ma candidature est refusée ?',
-    answer: (
-      <p>
-        Vous recevez le motif du refus. Si un document seul pose problème, vous pouvez le remplacer et re-soumettre
-        votre dossier sans tout recommencer.
-      </p>
-    ),
-  },
-]
-
-export default function BecomeTrainerPage() {
+export default function DevenirFormateurPage() {
   return (
-    <>
-      <section className="pt-11">
-        <div className="wrap grid items-center gap-10 lg:grid-cols-[1.05fr_.95fr]">
-          <div>
-            <Kicker>Devenir formateur</Kicker>
-            <h1 className="text-balance text-[clamp(30px,3.8vw,46px)] font-extrabold leading-[1.06]">
-              Votre expertise a de la valeur. <em className="not-italic text-brand">Vendez-la.</em>
-            </h1>
-            <p className="mt-5 max-w-[54ch] text-pretty text-[16.5px] leading-[1.6] text-ink2">
-              Transformez ce que vous savez en guides, cours vidéo ou modèles, vendus à l&apos;unité en FCFA. Vous
-              fixez vos prix, vous gardez la main sur votre contenu, et vous êtes payé par mobile money.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Btn asChild size="lg">
-                <Link href="/auth/inscription?role=formateur">Déposer ma candidature</Link>
-              </Btn>
-              <Btn asChild size="lg" variant="outline">
-                <Link href="/tarifs">Voir les tarifs</Link>
-              </Btn>
-            </div>
-            <p className="mt-3.5 text-[13px] text-ink3">Chaque candidature est examinée avant publication.</p>
-          </div>
+    <div className="nk-wrap pb-16">
+      <PageHead
+        crumbs={[{ label: "Accueil", href: "/" }, { label: "Devenir formateur" }]}
+        title={
+          <>
+            Votre expertise a de la valeur.{" "}
+            <em className="not-italic text-brand">Vendez-la.</em>
+          </>
+        }
+        lead="Vous maîtrisez un sujet ? Transformez-le en guides, cours vidéo ou modèles, et vendez-les à votre prix sur NkamVa."
+      />
 
-          <div className="relative aspect-[16/11] overflow-hidden rounded-[28px] border border-line shadow-md">
-            <Image
-              src="/formateurs.webp"
-              alt="Formateurs en atelier autour d'un ordinateur"
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 520px"
-              priority
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="pt-14 sm:pt-[76px]">
-        <div className="wrap">
-          <SectionHead
-            kicker="Le parcours"
-            title={
-              <>
-                Quatre étapes, <em className="not-italic text-brand">pas une de plus</em>
-              </>
-            }
-          >
-            De la candidature au premier retrait, voici exactement ce qui vous attend.
-          </SectionHead>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            {STEPS.map((step, index) => (
-              <div key={step.title} className="rounded-xl border border-line bg-card p-6">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-11 place-items-center rounded-xl bg-brand-t text-brand">
-                    <step.icon className="size-5" />
-                  </span>
-                  <span className="font-display text-[26px] font-extrabold text-brand opacity-30">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
+      <div className="grid items-start gap-8 pt-4 lg:grid-cols-[1fr_360px]">
+        <div className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm sm:p-8">
+          <h2 className="mb-5 text-[22px] font-extrabold">Ce que NkamVa vous apporte</h2>
+          <dl className="grid gap-5 sm:grid-cols-2">
+            {ARGUMENTS.map(([title, body]) => (
+              <div key={title} className="flex gap-3">
+                <span
+                  className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-brand-tint text-brand"
+                  aria-hidden="true"
+                >
+                  <Check className="size-3.5" />
+                </span>
+                <div>
+                  <dt className="mb-1 font-bold">{title}</dt>
+                  <dd className="text-sm leading-relaxed text-ink-2">{body}</dd>
                 </div>
-                <h3 className="mt-4 text-[17px] font-bold">{step.title}</h3>
-                <p className="mt-1.5 text-[14.5px] leading-[1.55] text-ink2">{step.body}</p>
               </div>
             ))}
-          </div>
+          </dl>
         </div>
-      </section>
 
-      <section className="pt-14 sm:pt-[76px]">
-        <div className="wrap">
-          <SectionHead centered kicker="Questions fréquentes" title="Avant de candidater" />
-          <Faq items={FAQ_ITEMS} />
-        </div>
-      </section>
-
-      <section className="relative mt-[84px] overflow-hidden bg-navy">
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ background: 'radial-gradient(760px 340px at 50% -60px, rgba(46,124,246,.28), transparent 65%)' }}
-        />
-        <div className="relative mx-auto max-w-[720px] px-5 pb-16 pt-[72px] text-center">
-          <h2 className="text-balance text-[clamp(26px,3.2vw,36px)] font-extrabold leading-[1.1] text-white">
-            Prêt à transmettre ?
+        <aside
+          aria-labelledby="candidature"
+          className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+        >
+          <Chip>Candidature</Chip>
+          <h2 id="candidature" className="mb-2 mt-3 text-[19px] font-extrabold">
+            Déposez votre dossier
           </h2>
-          <p className="mx-auto mt-3 max-w-[46ch] text-[16.5px] leading-[1.6] text-[#b9c9dd]">
-            Créez votre compte, puis déposez votre candidature formateur. Dix minutes suffisent.
+          <p className="mb-5 text-[14.5px] leading-relaxed text-ink-2">
+            Trois étapes : votre présentation, une pièce d&apos;identité, un diplôme ou une
+            attestation, et deux minutes de vidéo. Chaque profil est examiné avant publication.
           </p>
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Btn asChild size="lg" variant="light">
-              <Link href="/auth/inscription?role=formateur">Créer mon compte formateur</Link>
-            </Btn>
-            <Btn asChild size="lg" variant="ghostOnDark">
-              <Link href="/aide">Consulter l&apos;aide</Link>
-            </Btn>
-          </div>
-        </div>
-      </section>
-    </>
-  )
+          <p className="mb-6 rounded-xl bg-brand-tint px-4 py-3 text-[13px] leading-relaxed text-brand-dark">
+            Vos coordonnées bancaires ne sont jamais demandées à la candidature : elles ne
+            servent qu&apos;au moment de votre premier retrait.
+          </p>
+          <Btn asChild block>
+            <Link href="/candidature">Commencer ma candidature</Link>
+          </Btn>
+          <p className="mt-2.5 text-center text-[12.5px] text-ink-3">
+            Un compte NkamVa suffit pour démarrer.
+          </p>
+          <Btn asChild variant="o" block className="mt-4">
+            <Link href="/ressources">Voir ce qui se publie déjà</Link>
+          </Btn>
+        </aside>
+      </div>
+    </div>
+  );
 }

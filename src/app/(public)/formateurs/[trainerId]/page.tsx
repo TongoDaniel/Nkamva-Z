@@ -7,7 +7,7 @@ import { Price } from '@/components/nk/price'
 import { ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
 import { DemoNotice } from '@/components/nk/demo-notice'
-import { resourcesByAuthor } from '@/features/demo/catalog-data'
+import { resourcesByAuthor, toCourseListItem } from '@/features/demo/catalog-data'
 import { TRAINERS, trainerById } from '@/features/demo/community-data'
 
 export function generateStaticParams() {
@@ -71,8 +71,8 @@ export default async function TrainerPage({ params }: { params: Promise<{ traine
           <section className="mt-9">
             <h2 className="mb-5 text-[21px] font-extrabold">Ses ressources</h2>
             <div className="grid gap-[18px] sm:grid-cols-2">
-              {resources.map((resource, index) => (
-                <ResourceCard key={resource.slug} resource={resource} index={index} />
+              {resources.map((resource) => (
+                <ResourceCard key={resource.slug} course={toCourseListItem(resource)} />
               ))}
             </div>
           </section>

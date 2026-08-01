@@ -14,6 +14,8 @@ import { purgeExpiredTrainerDocuments } from './trainer-documents'
 import { cleanupExpiredPendingAttachments } from './pending-attachments'
 import { expirePayoutMethodCarence, alertPayoutMethodSlaBreaches } from './payout-methods'
 import { alertPayoutSlaBreaches } from './payouts'
+import { purgeDeletedAccounts } from './jobs/purge-deleted-accounts'
+import { remindPendingDeletions } from './jobs/remind-pending-deletions'
 
 export interface ScheduledJob {
   name: string
@@ -74,6 +76,19 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
       return { methodsBreached: methods.breached, payoutsBreached: payouts.breached }
     },
   },
+  {
+    // RGPD — effacement définitif des comptes au terme du délai de grâce.
+    // Ferme la boucle ouverte par DELETE /api/me/deletion.
+    name: 'DELETED_ACCOUNT_PURGE',
+    schedule: '0 2 * * *',
+    run: async () => ({ ...(await purgeDeletedAccounts()) }),
+  },
+  {
+    // RGPD — rappels par e-mail à J-7 puis J-1 avant l'effacement.
+    name: 'PENDING_DELETION_REMINDER',
+    schedule: '30 2 * * *',
+    run: async () => ({ ...(await remindPendingDeletions()) }),
+  },
 ]
 
 export async function runJob(job: ScheduledJob): Promise<void> {
@@ -82,11 +97,13 @@ export async function runJob(job: ScheduledJob): Promise<void> {
     const result = await job.run()
     await auditStandalone({
       action: 'SCHEDULED_JOB_COMPLETED',
+      targetType: 'ScheduledJob', targetId: job.name,
       meta: { job: job.name, durationMs: Date.now() - startedAt, ...result },
     })
   } catch (err) {
     await auditStandalone({
       action: 'SCHEDULED_JOB_FAILED',
+      targetType: 'ScheduledJob', targetId: job.name,
       meta: { job: job.name, durationMs: Date.now() - startedAt, error: String(err) },
     })
   }

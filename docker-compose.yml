@@ -1,19 +1,32 @@
+# Base de développement NkamVa.
+#
+# Les noms suivent .env et tests/setup.ts : la base applicative est `nkamva`,
+# la base de test `nkamva_test`. Les deux sont créées à la première
+# initialisation du volume par docker/init/, sans étape manuelle — c'est ce qui
+# manquait jusqu'ici, et qui faisait qu'un volume supprimé emportait des bases
+# créées à la main que rien ne permettait de recréer.
+#
+#   docker compose up -d
+#   bunx prisma migrate deploy
+#   TEST_DATABASE_URL=postgresql://edulink:edulink_dev_2025@localhost:5432/nkamva_test bunx prisma migrate deploy
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: edulink
       POSTGRES_PASSWORD: edulink_dev_2025
-      POSTGRES_DB: edulink
+      POSTGRES_DB: nkamva
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+      # Scripts joués une seule fois, à la création du volume.
+      - ./docker/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U edulink"]
+      test: ["CMD-SHELL", "pg_isready -U edulink -d nkamva"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
   pg_data:
