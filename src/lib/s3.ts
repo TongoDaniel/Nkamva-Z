@@ -18,6 +18,11 @@ function getClient(): S3Client | null {
 function getBucket(): string { return process.env.R2_BUCKET || 'nkamva-dev' }
 export const SIGNED_URL_TTL = 300
 
+// Permet aux appelants de basculer sur un repli dev explicite plutôt que de
+// traiter un objet absent comme une erreur (aucun fichier n'est réellement
+// téléversé quand R2 n'est pas configuré).
+export function isS3Configured(): boolean { return getClient() !== null }
+
 export async function presignUpload(s3Key: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; expiresAt: Date }> {
   const s3 = getClient()
   if (!s3) return { uploadUrl: `data:placeholder-upload/${encodeURIComponent(s3Key)}`, expiresAt: new Date(Date.now() + SIGNED_URL_TTL * 1000) }
