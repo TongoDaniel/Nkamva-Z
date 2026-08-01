@@ -11,12 +11,12 @@ import { PrismaClient } from '@prisma/client'
 config()
 
 // Override DATABASE_URL pour pointer sur la base de test.
-// Le défaut suit docker-compose.yml : rôle `edulink`, port 5432. L'ancien
-// `nkamva@localhost:5433` ne correspondait à aucun serveur, et toute la suite
-// échouait sur un délai de connexion. TEST_DATABASE_URL reste prioritaire.
+// Le défaut suit .env.example : rôle `nkamva`, port 5433, auth trust — le
+// serveur de dev documenté depuis la suppression du docker-compose.
+// TEST_DATABASE_URL reste prioritaire pour pointer ailleurs.
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ||
-  'postgresql://edulink:edulink_dev_2025@localhost:5432/nkamva_test?schema=public'
+  'postgresql://nkamva@localhost:5433/nkamva_test?schema=public'
 
 // Les tests doivent rester hermétiques : le .env de dev porte des secrets
 // RÉELS (Resend actif, R2 production, Stripe test). Sans cette neutralisation,
@@ -29,7 +29,9 @@ process.env.DATABASE_URL =
 // "undefined" (truthy) dans process.env.
 for (const key of [
   'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PUBLISHABLE_KEY',
-  'CINETPAY_API_KEY', 'CINETPAY_SITE_ID',
+  // CINETPAY_SECRET_KEY : renseignée, le webhook exige un HMAC X-TOKEN valide
+  // et rejette en 400 les notifications forgées par les tests.
+  'CINETPAY_API_KEY', 'CINETPAY_SITE_ID', 'CINETPAY_SECRET_KEY',
   'RESEND_API_KEY',
   'R2_ENDPOINT', 'R2_ACCESS_KEY', 'R2_SECRET_KEY',
 ]) {
