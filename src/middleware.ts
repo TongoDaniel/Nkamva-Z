@@ -14,6 +14,7 @@ export const config = {
     "/accueil/:path*",
     "/mes-ressources/:path*",
     "/mes-achats/:path*",
+    "/mes-litiges/:path*",
     "/achat/:path*",
     "/profil/:path*",
     "/formateur/:path*",

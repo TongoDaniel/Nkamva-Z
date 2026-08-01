@@ -9,6 +9,8 @@ import { DataTable, type Column } from "@/components/nk/data-table";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
 import { listMyPurchases } from "@/lib/purchases";
+import { db } from "@/lib/db";
+import { DisputeButton } from "./dispute-button";
 import { fmtDate, fmtFcfa } from "@/lib/format";
 import type { PaymentStatus, PurchaseItem } from "@/lib/dto";
 
@@ -47,6 +49,16 @@ export default async function MesAchatsPage({
   const page = Math.max(1, Number.parseInt(rawPage ?? "1", 10) || 1);
   const result = await listMyPurchases(auth.user.id, page, PAGE_SIZE);
   const items = result.items as unknown as PurchaseItem[];
+
+  // Un achat déjà contesté ne propose plus le bouton : le dossier existe.
+  const disputed = new Set(
+    (
+      await db.dispute.findMany({
+        where: { learnerId: auth.user.id, purchaseId: { in: items.map((p) => p.id) } },
+        select: { purchaseId: true },
+      })
+    ).map((d) => d.purchaseId),
+  );
   const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
   const columns: Column<PurchaseItem>[] = [
@@ -117,6 +129,26 @@ export default async function MesAchatsPage({
       align: "right",
       cell: (row) => <b className="whitespace-nowrap text-sm font-extrabold">{fmtFcfa(row.amountFcfa)}</b>,
     },
+    {
+      key: "actions",
+      header: <span className="sr-only">Actions</span>,
+      width: "130px",
+      align: "right",
+      cell: (row) =>
+        // Contestable tant que l'achat est encaissé, non remboursé, et sans
+        // dossier déjà ouvert. Le délai et la consommation sont vérifiés à
+        // l'ouverture de la fenêtre, par l'API.
+        row.providerStatus === "SUCCEEDED" && !row.refundedAt && !disputed.has(row.id) ? (
+          <DisputeButton
+            purchaseId={row.id}
+            courseTitle={row.course?.title ?? "cette ressource"}
+          />
+        ) : disputed.has(row.id) ? (
+          <Link href="/mes-litiges" className="text-[13px] font-semibold text-brand">
+            Voir le dossier
+          </Link>
+        ) : null,
+    },
   ];
 
   return (
@@ -125,9 +157,14 @@ export default async function MesAchatsPage({
         title="Mes achats"
         lead="L'historique de vos paiements, avec leur état côté opérateur."
         actions={
-          <Btn asChild variant="o">
-            <Link href="/mes-ressources">Voir mes ressources</Link>
-          </Btn>
+          <>
+            <Btn asChild variant="o">
+              <Link href="/mes-litiges">Mes contestations</Link>
+            </Btn>
+            <Btn asChild variant="o">
+              <Link href="/mes-ressources">Voir mes ressources</Link>
+            </Btn>
+          </>
         }
       />
 
