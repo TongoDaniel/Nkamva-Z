@@ -1,4 +1,5 @@
 import type { NextAuthOptions } from 'next-auth'
+import type { Role, AdminRole } from '@prisma/client'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from './db'
 import { verifyPassword } from './password'
@@ -26,20 +27,32 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: '/auth/connexion', error: '/auth/erreur' },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) { token.userId = (user as any).id; token.role = (user as any).role; token.adminRole = (user as any).adminRole; token.trainerId = (user as any).trainerId; token.sessionsValidAfter = (user as any).sessionsValidAfter }
+      if (user) {
+        token.userId = (user as any).id; token.role = (user as any).role; token.adminRole = (user as any).adminRole; token.trainerId = (user as any).trainerId; token.sessionsValidAfter = (user as any).sessionsValidAfter
+        // `iat` est réémis par NextAuth à chaque requête : il ne peut pas servir
+        // de date d'ouverture de session. On fige la nôtre à la connexion, sinon
+        // la révocation par `sessionsValidAfter` ne se déclenche jamais.
+        token.issuedAt = Math.floor(Date.now() / 1000)
+      }
       return token
     },
     async session({ session, token }) {
-      const sessionsValidAfter = new Date(token.sessionsValidAfter as string)
-      const iat = new Date((token.iat as number) * 1000)
-      if (iat < sessionsValidAfter) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
-      const tokenAge = Date.now() / 1000 - (token.iat as number)
+      const issuedAt = new Date(((token.issuedAt as number | undefined) ?? (token.iat as number)) * 1000)
+      const tokenAge = Date.now() / 1000 - (((token.issuedAt as number | undefined) ?? (token.iat as number)))
+
+      // Rafraîchissement périodique depuis la base : c'est ce qui fait remonter
+      // un changement de rôle, une suspension, ou un bump de sessionsValidAfter.
       if (tokenAge > 300) {
         const dbUser = await db.user.findUnique({ where: { id: token.userId as string }, select: { role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } } })
         if (!dbUser || dbUser.deletedAt || dbUser.suspendedAt) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
         token.role = dbUser.role; token.adminRole = dbUser.adminRole; token.trainerId = dbUser.trainerProfile?.id ?? null; token.sessionsValidAfter = dbUser.sessionsValidAfter.toISOString()
       }
-      return { ...session, user: { ...session.user, id: token.userId as string, role: token.role as string, adminRole: token.adminRole as string | null, trainerId: token.trainerId as string | null } }
+
+      // Révocation ciblée : toute session ouverte avant le dernier bump tombe.
+      const sessionsValidAfter = new Date(token.sessionsValidAfter as string)
+      if (issuedAt < sessionsValidAfter) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
+
+      return { ...session, user: { ...session.user, id: token.userId as string, role: token.role as Role, adminRole: token.adminRole as AdminRole | null, trainerId: token.trainerId as string | null } }
     },
   },
   secret: process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production',

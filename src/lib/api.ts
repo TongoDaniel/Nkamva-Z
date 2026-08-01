@@ -106,6 +106,35 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   SIZE_EXCEEDS_LIMIT: { message: 'Taille dépassée', status: 400 },
   TASK_NOT_FOUND: { message: 'Tâche introuvable', status: 404 },
   TASK_NOT_PENDING: { message: 'Tâche déjà traitée', status: 409 },
+  // Lot 1 — candidatures formateur
+  USER_NOT_FOUND: { message: 'Utilisateur introuvable', status: 404 },
+  ALREADY_TRAINER: { message: 'Vous êtes déjà formateur', status: 409 },
+  APPLICATION_ALREADY_EXISTS: { message: 'Une candidature est déjà en cours', status: 409 },
+  APPLICATION_NOT_FOUND: { message: 'Candidature introuvable', status: 404 },
+  APPLICATION_NOT_EDITABLE: { message: 'La candidature n\'est plus modifiable', status: 409 },
+  APPLICATION_NOT_SUBMITTABLE: { message: 'La candidature ne peut pas être soumise dans cet état', status: 409 },
+  APPLICATION_NOT_SUBMITTED: { message: 'La candidature n\'est pas en attente d\'instruction', status: 409 },
+  APPLICATION_NOT_REJECTABLE: { message: 'La candidature ne peut pas être rejetée dans cet état', status: 409 },
+  APPLICATION_NOT_REJECTED: { message: 'La candidature n\'est pas rejetée', status: 409 },
+  ALREADY_REOPENED: { message: 'La candidature a déjà été rouverte une fois', status: 409 },
+  REOPEN_TOO_EARLY: { message: 'Réouverture possible seulement 24 h après le rejet', status: 422 },
+  REOPEN_IMPOSSIBLE: { message: 'Pièces purgées : le dossier ne peut plus être rouvert', status: 410 },
+  STALE_APPLICATION: { message: 'La candidature a été modifiée entre-temps', status: 409 },
+  DOCUMENTS_INCOMPLETE: { message: 'Les 3 pièces justificatives doivent être déposées', status: 422 },
+  NO_DOCUMENT_REJECTED: { message: 'Au moins une pièce doit être rejetée', status: 400 },
+  MAX_RESUBMISSIONS_REACHED: { message: 'Nombre maximal de re-soumissions atteint', status: 422 },
+  // Lot 1 — pièces justificatives
+  DOCUMENT_NOT_FOUND: { message: 'Pièce introuvable', status: 404 },
+  DOCUMENT_NOT_AWAITING_UPLOAD: { message: 'Pièce déjà confirmée', status: 409 },
+  DOCUMENT_ALREADY_SUBMITTED: { message: 'Une pièce de ce type a déjà été déposée', status: 409 },
+  DOCUMENT_NOT_REJECTED: { message: 'Seule une pièce refusée peut être remplacée', status: 409 },
+  DOCUMENT_NOT_REVIEWABLE: { message: 'Pièce non instruisible dans cet état', status: 409 },
+  DOCUMENT_PURGED: { message: 'Pièce purgée après 90 jours', status: 410 },
+  // Vérification du contenu réellement téléversé (s3.validateMagicNumber)
+  UPLOAD_NOT_FOUND: { message: 'Aucun fichier téléversé pour cette pièce', status: 422 },
+  EMPTY_FILE: { message: 'Fichier vide', status: 422 },
+  CANNOT_READ_FILE: { message: 'Fichier illisible', status: 422 },
+  MAGIC_NUMBER_MISMATCH: { message: 'Le contenu ne correspond pas au type déclaré', status: 422 },
 }
 
 export function errorFromException(err: unknown): NextResponse {

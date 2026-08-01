@@ -10,6 +10,8 @@ import cron from 'node-cron'
 import { auditStandalone } from './audit'
 import { autoCloseDisputes } from './disputes'
 import { reconcileAllWallets, alertNegativeWallets } from './wallet-reconciliation'
+import { purgeExpiredTrainerDocuments } from './trainer-documents'
+import { cleanupExpiredPendingAttachments } from './pending-attachments'
 
 export interface ScheduledJob {
   name: string
@@ -38,6 +40,21 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'WALLET_NEGATIVE_ALERT',
     schedule: '30 3 * * *',
     run: async () => alertNegativeWallets(),
+  },
+  {
+    // D7 — purge des pièces d'identité 90 jours après la décision.
+    name: 'TRAINER_DOCUMENT_PURGE',
+    schedule: '0 3 * * *',
+    run: async () => {
+      const { purged } = await purgeExpiredTrainerDocuments()
+      return { purged }
+    },
+  },
+  {
+    // Pièces jointes présignées jamais rattachées à un objet métier.
+    name: 'PENDING_ATTACHMENT_CLEANUP',
+    schedule: '0 4 * * *',
+    run: async () => cleanupExpiredPendingAttachments(),
   },
 ]
 
