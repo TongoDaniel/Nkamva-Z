@@ -14,6 +14,12 @@ const MAPPING: Record<string, { message: string; status: number }> = {
   DISPUTE_CLOSED: { message: 'Cette contestation est close.', status: 409 },
   MESSAGE_EMPTY: { message: 'Votre message est vide.', status: 400 },
   MESSAGE_TOO_LONG: { message: 'Message trop long.', status: 400 },
+  CONTEST_TOO_SHORT: { message: 'Détaillez les éléments que vous apportez.', status: 400 },
+  CONTEST_TOO_LONG: { message: 'Message trop long.', status: 400 },
+  CONTEST_ALREADY_OPEN: {
+    message: 'Une contestation est déjà en cours d’examen sur ce dossier.',
+    status: 409,
+  },
   TRAINER_WALLET_MISSING: {
     message: "Le dossier ne peut pas être ouvert pour l'instant. Contactez le support.",
     status: 422,

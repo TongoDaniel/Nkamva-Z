@@ -17,6 +17,7 @@ import {
   RESERVATION_STATUS,
 } from "../dispute-status";
 import { DisputeActions } from "./review-actions";
+import { TicketReply } from "./ticket-reply";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +141,42 @@ export default async function DisputeReviewPage({
                 );
               })}
             </ol>
+          </AdminCard>
+
+          <AdminCard title="Éléments apportés par le formateur">
+            {dispute.supportTickets.length === 0 ? (
+              <p className="text-[13.5px] text-ink-3">
+                Le formateur n&apos;a transmis aucun élément.
+              </p>
+            ) : (
+              <ol className="flex flex-col gap-3.5">
+                {dispute.supportTickets.map((ticket) => (
+                  <li key={ticket.id} className="rounded-nk border border-line p-4">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <b className="text-[13.5px]">
+                        {ticket.trainer.fullName ?? ticket.trainer.email}
+                      </b>
+                      <span className="text-[12px] text-ink-3">{fmtDate(ticket.createdAt)}</span>
+                    </div>
+                    <p className="whitespace-pre-line text-[14px] leading-relaxed text-ink">
+                      {ticket.reason}
+                    </p>
+                    {ticket.resolutionNote ? (
+                      <p className="mt-3 border-t border-line-2 pt-3 text-[13px] leading-relaxed text-ink-2">
+                        <b className="text-ink">Votre réponse :</b> {ticket.resolutionNote}
+                      </p>
+                    ) : (
+                      <div className="mt-3">
+                        <TicketReply ticketId={ticket.id} />
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+            <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+              Ce canal est séparé du fil : l&apos;acheteur n&apos;y a pas accès.
+            </p>
           </AdminCard>
 
           <AdminCard title="Historique des décisions">

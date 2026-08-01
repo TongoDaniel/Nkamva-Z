@@ -109,6 +109,16 @@ export async function getDisputeForReview(disputeId: string) {
         select: { fromStatus: true, toStatus: true, note: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
       },
+      // Les contestations du formateur : un canal séparé du fil, que
+      // l'apprenant ne voit pas.
+      supportTickets: {
+        select: {
+          id: true, reason: true, status: true, resolutionNote: true,
+          resolvedAt: true, createdAt: true,
+          trainer: { select: { fullName: true, email: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   })
   if (!dispute) return null
