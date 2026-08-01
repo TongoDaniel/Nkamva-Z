@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Btn } from '@/components/nk/btn'
+import { AuthField } from '@/components/auth/auth-field'
 import { FormError } from '@/components/form-error'
 
 /** Messages d'erreur renvoyés par le provider Credentials. */
@@ -21,10 +20,15 @@ export function LoginForm() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/mon-compte'
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(searchParams.get('email') ?? '')
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+
+  const justVerified = searchParams.get('verifie') === '1'
+  useEffect(() => {
+    if (justVerified) toast.success('Adresse vérifiée. Connectez-vous pour continuer.')
+  }, [justVerified])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -45,52 +49,43 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <FormError message={formError} />
+    <form onSubmit={handleSubmit} noValidate>
+      {formError && <FormError message={formError} />}
 
-      <div className="space-y-2">
-        <Label htmlFor="email">Adresse email</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          disabled={pending}
-        />
-      </div>
+      <AuthField
+        label="Adresse e-mail"
+        type="email"
+        name="email"
+        autoComplete="email"
+        placeholder="votreadresse@exemple.com"
+        required
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        disabled={pending}
+        className={formError ? 'mt-4' : undefined}
+      />
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Mot de passe</Label>
-          <Link href="/auth/mot-de-passe-oublie" className="text-sm text-muted-foreground hover:text-foreground">
-            Mot de passe oublié ?
-          </Link>
-        </div>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          disabled={pending}
-        />
-      </div>
+      <AuthField
+        label="Mot de passe"
+        type="password"
+        name="password"
+        autoComplete="current-password"
+        placeholder="••••••••"
+        required
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        disabled={pending}
+      />
 
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? 'Connexion…' : 'Se connecter'}
-      </Button>
-
-      <p className="text-center text-sm text-muted-foreground">
-        Pas encore de compte ?{' '}
-        <Link href="/auth/inscription" className="font-medium text-foreground hover:underline">
-          Créer un compte
+      <div className="mb-5 flex items-center justify-end text-[13.5px]">
+        <Link href="/auth/mot-de-passe-oublie" className="font-semibold text-brand hover:underline">
+          Mot de passe oublié ?
         </Link>
-      </p>
+      </div>
+
+      <Btn type="submit" size="lg" className="w-full" disabled={pending}>
+        {pending ? 'Connexion…' : 'Se connecter'}
+      </Btn>
     </form>
   )
 }

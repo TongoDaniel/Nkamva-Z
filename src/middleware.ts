@@ -17,7 +17,13 @@ const PROTECTED_PREFIXES = [
 const ADMIN_PREFIXES = ['/admin']
 
 /** Pages d'authentification : inaccessibles quand on est déjà connecté. */
-const AUTH_PAGES = ['/auth/connexion', '/auth/inscription', '/auth/mot-de-passe-oublie']
+const AUTH_PAGES = [
+  '/auth/connexion',
+  '/auth/inscription',
+  '/auth/mot-de-passe-oublie',
+  '/auth/verifier-code',
+  '/auth/nouveau-mot-de-passe',
+]
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
