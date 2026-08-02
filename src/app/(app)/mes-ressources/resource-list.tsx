@@ -68,11 +68,11 @@ function ResourceActions({ item }: { item: ResourceItem }) {
 export function ResourceList({
   items,
   filter,
-  total,
+  counts,
 }: {
   items: ResourceItem[];
   filter: "all" | "started" | "unstarted";
-  total: number;
+  counts: { all: number; started: number; unstarted: number };
 }) {
   const router = useRouter();
 
@@ -86,9 +86,9 @@ export function ResourceList({
           router.push(value === "all" ? "/mes-ressources" : `/mes-ressources?filter=${value}`)
         }
         items={[
-          { value: "all", label: "Toutes", count: total },
-          { value: "started", label: "Commencées" },
-          { value: "unstarted", label: "Non commencées" },
+          { value: "all", label: "Toutes", count: counts.all },
+          { value: "started", label: "Consultées", count: counts.started },
+          { value: "unstarted", label: "À ouvrir", count: counts.unstarted },
         ]}
         className="mt-6"
       />

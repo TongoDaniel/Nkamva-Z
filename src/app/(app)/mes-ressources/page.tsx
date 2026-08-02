@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Library } from "lucide-react";
+import { Library, BookOpen, PlayCircle, Inbox } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
+import { StatTile } from "@/components/nk/stat-tile";
 import { Btn } from "@/components/nk/button";
 import { getAuthContext } from "@/lib/api";
 import { listMyResources } from "@/lib/access";
@@ -30,24 +31,36 @@ export default async function MesRessourcesPage({
   const filter =
     rawFilter === "started" || rawFilter === "unstarted" ? rawFilter : ("all" as const);
 
-  // `listMyResources` filtre après pagination : les compteurs par onglet sont
-  // donc calculés sur la page courante, pas sur l'ensemble (voir rapport).
   const result = await listMyResources(auth.user.id, filter, 1, PAGE_SIZE);
   const items = result.items as unknown as ResourceItem[];
+  const { counts } = result;
 
   return (
     <div className="nk-wrap pb-16">
       <PageHead
         title="Mes ressources"
-        lead="Tout ce que vous avez acheté, avec votre progression. L'accès est à vie."
+        lead="Retrouvez ici toutes les ressources que vous avez acquises. L'accès est à vie."
         actions={
           <Btn asChild variant="o">
-            <Link href="/ressources">Parcourir le catalogue</Link>
+            <Link href="/ressources">Explorer le catalogue</Link>
           </Btn>
         }
       />
 
-      {result.total === 0 ? (
+      {counts.all > 0 ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <StatTile icon={<BookOpen />} value={counts.all} label="achetées" />
+          <StatTile
+            icon={<PlayCircle />}
+            value={counts.started}
+            label="consultées"
+            tone="blue"
+          />
+          <StatTile icon={<Inbox />} value={counts.unstarted} label="à ouvrir" tone="gold" />
+        </div>
+      ) : null}
+
+      {counts.all === 0 ? (
         <EmptyState
           className="mt-6"
           icon={<Library />}
@@ -60,7 +73,7 @@ export default async function MesRessourcesPage({
           }
         />
       ) : (
-        <ResourceList items={items} filter={filter} total={result.total} />
+        <ResourceList items={items} filter={filter} counts={counts} />
       )}
     </div>
   );

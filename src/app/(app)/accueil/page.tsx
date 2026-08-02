@@ -10,6 +10,7 @@ import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
 import { listMyResources } from "@/lib/access";
 import { searchCourses } from "@/lib/catalog";
+import { db } from "@/lib/db";
 import { consumptionPercent, isDownloadable, type CourseListItem, type ResourceItem } from "@/lib/dto";
 
 export const dynamic = "force-dynamic";
@@ -23,10 +24,19 @@ export default async function AccueilPage() {
   const auth = await getAuthContext();
   if (!auth) return null;
 
-  const [mine, suggestions] = await Promise.all([
+  const [mine, suggestions, profile] = await Promise.all([
     listMyResources(auth.user.id, "all", 1, 20),
     searchCourses({ sort: "newest", page: 1, pageSize: 3 }),
+    db.user.findUnique({
+      where: { id: auth.user.id },
+      select: { fullName: true, preferredName: true },
+    }),
   ]);
+
+  // La maquette accueille par le prénom. `preferredName` prime quand il existe ;
+  // sinon on prend le premier mot du nom complet, faute de champ dédié.
+  const firstName =
+    profile?.preferredName?.trim() || profile?.fullName?.trim().split(/\s+/)[0] || null;
 
   const items = mine.items as unknown as ResourceItem[];
   const inProgress = items.filter((i) => i.isStarted && !i.accessSuspended).slice(0, 3);
@@ -37,7 +47,7 @@ export default async function AccueilPage() {
   return (
     <div className="nk-wrap pb-16">
       <PageHead
-        title="Votre espace"
+        title={firstName ? `Bonjour, ${firstName} !` : "Votre espace"}
         lead="Reprenez là où vous en étiez, ou découvrez de nouvelles ressources."
       />
 
@@ -50,8 +60,12 @@ export default async function AccueilPage() {
             <Library className="size-5" />
           </span>
           <span>
-            <b className="block font-display text-[26px] font-extrabold leading-none">{mine.total}</b>
-            <small className="text-[13px] text-ink-2">ressource{mine.total > 1 ? "s" : ""} achetée{mine.total > 1 ? "s" : ""}</small>
+            <b className="block font-display text-[26px] font-extrabold leading-none">
+              {mine.counts.all}
+            </b>
+            <small className="text-[13px] text-ink-2">
+              ressource{mine.counts.all > 1 ? "s" : ""} achetée{mine.counts.all > 1 ? "s" : ""}
+            </small>
           </span>
           <ArrowRight className="ml-auto size-4 text-ink-3" aria-hidden="true" />
         </Link>
@@ -64,7 +78,7 @@ export default async function AccueilPage() {
           </span>
           <span>
             <b className="block font-display text-[26px] font-extrabold leading-none">
-              {inProgress.length}
+              {mine.counts.started}
             </b>
             <small className="text-[13px] text-ink-2">en cours de consultation</small>
           </span>

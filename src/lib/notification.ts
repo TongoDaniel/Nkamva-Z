@@ -37,6 +37,40 @@ export async function notify(userId: string, params: NotifyParams): Promise<void
   await db.notification.create({ data: { userId, type: params.type, title: params.title, body: params.body, link: params.link ?? null } })
 }
 
+// --- Lecture côté destinataire ---
+
+const NOTIFICATIONS_LIMIT = 50
+
+/**
+ * `notify()` écrit des notifications depuis les litiges, les paiements et la
+ * validation des candidatures ; jusqu'ici rien ne les relisait. La liste est
+ * plafonnée : au-delà de cinquante lignes, l'écran n'aide plus personne.
+ */
+export async function listMyNotifications(userId: string, limit = NOTIFICATIONS_LIMIT) {
+  return db.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  })
+}
+
+export async function countUnreadNotifications(userId: string): Promise<number> {
+  return db.notification.count({ where: { userId, readAt: null } })
+}
+
+/**
+ * Marque une notification, ou toutes si `id` est omis. Le `userId` est dans le
+ * `where` et non vérifié après coup : un identifiant appartenant à quelqu'un
+ * d'autre ne met simplement rien à jour.
+ */
+export async function markNotificationsRead(userId: string, id?: string): Promise<number> {
+  const result = await db.notification.updateMany({
+    where: { userId, readAt: null, ...(id ? { id } : {}) },
+    data: { readAt: new Date() },
+  })
+  return result.count
+}
+
 export async function notifyAdminSubRole(subRole: string, params: NotifyParams): Promise<void> {
   const admins = await db.user.findMany({ where: { role: 'ADMIN', adminRole: subRole as any, deletedAt: null, suspendedAt: null }, select: { id: true } })
   if (admins.length === 0) return

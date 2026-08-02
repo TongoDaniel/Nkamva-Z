@@ -189,3 +189,36 @@ export async function listMyPurchases(learnerId: string, page: number, pageSize:
 
   return { items, total, page, pageSize }
 }
+
+// --- Chiffres de tête de la page « Mes achats » ---
+
+export interface PurchaseSummary {
+  totalPaidFcfa: number
+  coursesCount: number
+  activeSubscriptions: number
+}
+
+/**
+ * Les trois compteurs portent sur l'ensemble des achats, pas sur la page
+ * affichée. Un achat remboursé sort du total payé et du décompte : l'apprenant
+ * ne l'a plus à sa charge et n'y a plus accès.
+ */
+export async function getPurchaseSummary(learnerId: string): Promise<PurchaseSummary> {
+  const settled = { learnerId, providerStatus: 'SUCCEEDED' as const, refundedAt: null }
+
+  const [paid, courses, subscriptions] = await Promise.all([
+    db.purchase.aggregate({ where: settled, _sum: { amountFcfa: true } }),
+    db.purchase.findMany({
+      where: { ...settled, courseId: { not: null } },
+      select: { courseId: true },
+      distinct: ['courseId'],
+    }),
+    db.communitySubscription.count({ where: { learnerId, status: 'ACTIVE' } }),
+  ])
+
+  return {
+    totalPaidFcfa: paid._sum.amountFcfa ?? 0,
+    coursesCount: courses.length,
+    activeSubscriptions: subscriptions,
+  }
+}

@@ -333,6 +333,113 @@ complet dans ce message.
 
 ---
 
+## Arbitrages 31-43 — Communautés, lives et messagerie
+
+*Arbitrages 31 à 39 tranchés le 2 août 2026 avec l'espace apprenant, 40 à 43 le même jour
+en ouvrant l'espace formateur. Aucun modèle correspondant n'existe encore : les écrans
+concernés (`/messagerie`, `/mes-lives`, `/mes-lives/live/[sessionId]`,
+`/mes-lives/replay/[replayId]`, `/formateur/lives`,
+`/formateur/lives/[sessionId]/console`) affichent des données de démonstration. Le détail
+de ce qu'il reste à brancher est dans `docs/espace-apprenant-a-brancher.md`.*
+
+**31. Prise de parole en live** — Le live est une visioconférence, pas une diffusion :
+apprenants et formateur peuvent tous parler. La main levée ne conditionne rien, elle
+signale seulement qu'un participant souhaite prendre la parole — une formule de
+politesse, pas une permission à accorder.
+> Statut : 📋 L'écran expose micro, caméra et main levée
+> (`src/app/(app)/mes-lives/live/[sessionId]/live-room.tsx`), sans transport temps réel.
+> `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` sont dans `.env` et lus par
+> personne. **Conséquence de coût** : tout participant émet, le dimensionnement n'est pas
+> celui d'une diffusion un-vers-tous.
+
+**32. Rattachement du live** — Un live appartient à une **communauté**, jamais à une
+ressource.
+> Statut : 📋 `Course.livekitRoomName` est donc un vestige : le champ désigne une salle
+> rattachée à une ressource, ce que cet arbitrage exclut. À retirer au moment de créer le
+> modèle de session.
+
+**33. Périmètre de la messagerie** — Un apprenant ne peut échanger avec un formateur que
+s'il est membre de sa communauté. L'achat d'une ressource à l'unité n'ouvre aucun droit
+de conversation : le fil se rattache à l'abonnement communautaire, pas à l'achat.
+> Statut : 📋 Aucun modèle de conversation dans `prisma/schema.prisma`. L'écran
+> `/messagerie` liste les formateurs des communautés rejointes, sur données de
+> démonstration.
+
+**34. Accès après résiliation** — Le membre qui quitte une communauté conserve l'accès
+aux replays et aux ressources de la communauté **intégrés pendant sa période
+d'adhésion**. Il perd l'accès à tout ce qui est ajouté après sa sortie. Pour un replay,
+**c'est la date du live qui fait foi**, pas celle de la mise en ligne de
+l'enregistrement.
+> Statut : 📋 Demande deux choses absentes : une relation `Community` → `Course` (elle
+> n'existe pas, l'onglet « Incluses (communauté) » de `/mes-ressources` est bloqué pour
+> cette raison) et une date d'intégration par contenu, pour trancher ce qui précède la
+> sortie. La période d'adhésion est déjà lisible sur `CommunitySubscription`
+> (`periodStart`, `periodEnd`, `canceledAt`).
+
+**35. Le formateur modère la parole** — Il peut couper le micro de tout le monde, d'un
+seul participant ou de plusieurs, et peut aussi rouvrir un micro. Le participant coupé
+par l'animateur ne se réactive pas seul.
+> Statut : 📋 Côté apprenant, l'état est déjà rendu :
+> `LiveParticipant.mutedByHost` désactive la commande micro et affiche « Votre micro a été
+> coupé par l'animateur ». **Le geste de modération lui-même appartient à l'écran
+> formateur** — c'est là qu'il faudra les commandes « couper tout le monde », « couper ce
+> participant », « rouvrir ».
+
+**36. File des demandes de parole** — Les mains levées sont **ordonnées et numérotées**,
+pour savoir qui a demandé la parole en premier.
+> Statut : 📋 Côté apprenant : `LiveParticipant.handRaisedAt` porte l'horodatage, la file
+> est triée dessus, chaque main levée reçoit son rang (pastille sur l'avatar) et
+> l'apprenant voit sa propre position. Le formateur devra voir la même file, et c'est lui
+> qui la consomme quand il donne la parole.
+
+**37. Locuteur actif** — L'interface indique qui parle à un instant donné.
+> Statut : 📋 Côté apprenant : `LiveParticipant.speaking` affiche « X a la parole » sous
+> la scène et une icône dans la liste des participants. La détection réelle viendra du
+> transport temps réel (LiveKit la fournit) ; rien à modéliser en base.
+
+**38. Enregistrement automatique** — Tout live est enregistré, sans décision au
+lancement. Un replay existe donc systématiquement.
+> Statut : 📋 Aucun enregistrement n'est déclenché : les variables `MUX_*` et `LIVEKIT_*`
+> de `.env` ne sont lues par aucun code.
+
+**39. Historique de conversation conservé** — Quand l'adhésion s'arrête, l'écriture
+cesse (arbitrage 33) mais **le fil reste lisible**, pour que le membre le retrouve s'il
+revient dans la communauté.
+> Statut : 📋 Aucun modèle de conversation. Conséquence : le fil ne peut pas être
+> supprimé à la résiliation, seulement passé en lecture seule.
+
+**40. Pas d'exclusion en séance** — Le formateur peut couper un micro (arbitrage 35), il
+ne peut pas retirer quelqu'un de la session en cours. Couper et exclure ne sont pas le
+même geste : écarter durablement quelqu'un relève du bannissement de la communauté
+(`CommunitySubscription.bannedAt`), pas de la console d'animation.
+> Statut : 📋 La console formateur n'expose aucune commande d'exclusion, et le dit
+> explicitement à l'écran. **Ne pas en ajouter** : c'est une absence décidée, pas un
+> oubli.
+
+**41. Réouverture du micro par la main levée** — Un participant coupé par l'animateur
+n'a qu'un canal pour demander son micro : lever la main. Il n'y a pas de demande de
+réouverture distincte de la demande de parole.
+> Statut : 📋 Conséquence directe : **une seule file** à modéliser et à afficher, celle
+> de l'arbitrage 36. Côté console, « Donner la parole » lève le verrou et baisse la main
+> d'un même geste. Rouvrir un micro **rend la commande** au participant, cela ne l'actionne
+> pas à sa place.
+
+**42. Le salon du live est conservé** — Les messages échangés pendant une session ne
+disparaissent pas à sa fin : ils sont rattachés au replay et restent lisibles.
+> Statut : 📋 Conséquence : le salon entre dans le périmètre de modération, au même titre
+> que la messagerie privée (question ouverte de l'arbitrage 33). Il demande un modèle de
+> messages rattaché à la session, pas un canal éphémère.
+
+**43. Téléchargement d'un replay lié au plan** — La possibilité de télécharger un replay
+dépend de la formule d'abonnement de la communauté. Ce n'est ni un réglage par session,
+ni une règle uniforme de plateforme.
+> Statut : 📋 Le champ `downloadable` par replay des données de démonstration est donc
+> faux : la règle se lira sur le plan. **Ne pas ajouter de case « téléchargeable »** dans
+> l'écran formateur. Suppose de modéliser les formules d'abonnement d'une communauté, ce
+> qui n'est pas fait.
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |
