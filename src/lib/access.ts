@@ -146,52 +146,85 @@ export async function markCourseDownloaded(
 
 // --- Lister les ressources achetées (avec CourseView) ---
 
+export interface MyResourcesCounts { all: number; started: number; unstarted: number }
+
+/**
+ * « Commencé » se décide sur le CourseView, que la base ne sait pas filtrer en
+ * même temps que la pagination des achats. On résout donc en deux temps : les
+ * identifiants d'abord — une liste courte, un achat par ressource — puis la
+ * page demandée seulement. Filtrer après avoir paginé, comme le faisait la
+ * version précédente, donnait des compteurs calculés sur la page courante et
+ * une pagination fausse dès qu'un apprenant dépassait `pageSize` achats.
+ *
+ * Les achats remboursés sortent de la liste (l'accès est retiré), et ceux qui
+ * portent sur une communauté n'ont pas de `courseId` : les inclure faisait
+ * chercher un CourseView sur un identifiant nul.
+ */
 export async function listMyResources(learnerId: string, filter?: 'all' | 'started' | 'unstarted', page = 1, pageSize = 20) {
-  const where: any = {
+  const where = {
     learnerId,
-    providerStatus: 'SUCCEEDED',
+    providerStatus: 'SUCCEEDED' as const,
+    refundedAt: null,
+    courseId: { not: null },
   }
 
-  const [purchases, total] = await Promise.all([
-    db.purchase.findMany({
-      where,
-      include: {
-        course: {
-          select: {
-            id: true, title: true, slug: true, format: true,
-            coverS3Key: true, durationSeconds: true, category: true,
-            trainerProfile: { select: { user: { select: { fullName: true } } } },
-          },
+  const owned = await db.purchase.findMany({
+    where,
+    select: { id: true, courseId: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const courseIds = owned.map((p) => p.courseId!).filter(Boolean)
+  const views = await db.courseView.findMany({
+    where: { learnerId, courseId: { in: courseIds } },
+  })
+  const viewByCourse = new Map(views.map((v) => [v.courseId, v]))
+
+  const isStarted = (courseId: string) => {
+    const view = viewByCourse.get(courseId)
+    return (view?.watchedSeconds ?? 0) > 0 || Boolean(view?.downloaded)
+  }
+
+  const counts: MyResourcesCounts = {
+    all: owned.length,
+    started: owned.filter((p) => isStarted(p.courseId!)).length,
+    unstarted: 0,
+  }
+  counts.unstarted = counts.all - counts.started
+
+  const selected =
+    filter === 'started' ? owned.filter((p) => isStarted(p.courseId!))
+    : filter === 'unstarted' ? owned.filter((p) => !isStarted(p.courseId!))
+    : owned
+
+  const total = selected.length
+  const pageIds = selected.slice((page - 1) * pageSize, page * pageSize).map((p) => p.id)
+
+  const purchases = await db.purchase.findMany({
+    where: { id: { in: pageIds } },
+    include: {
+      course: {
+        select: {
+          id: true, title: true, slug: true, format: true,
+          coverS3Key: true, durationSeconds: true, category: true,
+          trainerProfile: { select: { user: { select: { fullName: true } } } },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    db.purchase.count({ where }),
-  ])
+    },
+  })
 
-  // Enrichir avec CourseView
-  const enriched = await Promise.all(
-    purchases.map(async (p) => {
-      const view = await db.courseView.findUnique({
-        where: { courseId_learnerId: { courseId: p.courseId!, learnerId } },
-      })
-      return {
-        ...p,
-        courseView: view,
-        // Considéré comme "consulté" si watchedSeconds > 0 ou downloaded
-        isStarted: (view?.watchedSeconds || 0) > 0 || view?.downloaded,
-      };
-    }),
-  )
+  // `findMany` sur un `in` ne garantit pas l'ordre : on rétablit celui des ids.
+  const byId = new Map(purchases.map((p) => [p.id, p]))
+  const items = pageIds
+    .map((id) => byId.get(id))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p))
+    .map((p) => ({
+      ...p,
+      courseView: viewByCourse.get(p.courseId!) ?? null,
+      isStarted: isStarted(p.courseId!),
+    }))
 
-  // Filtrer
-  let filtered = enriched
-  if (filter === 'started') filtered = enriched.filter(p => p.isStarted)
-  else if (filter === 'unstarted') filtered = enriched.filter(p => !p.isStarted)
-
-  return { items: filtered, total, page, pageSize }
+  return { items, total, counts, page, pageSize }
 }
 
 // --- Obtenir le % de consommation d'un cours (pour affichage) ---

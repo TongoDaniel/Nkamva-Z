@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Receipt } from "lucide-react";
+import { Receipt, BookOpen, Users, Wallet } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Btn } from "@/components/nk/button";
 import { StPill } from "@/components/nk/status-pill";
+import { StatTile } from "@/components/nk/stat-tile";
 import { DataTable, type Column } from "@/components/nk/data-table";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
-import { listMyPurchases } from "@/lib/purchases";
+import { listMyPurchases, getPurchaseSummary } from "@/lib/purchases";
 import { db } from "@/lib/db";
 import { DisputeButton } from "./dispute-button";
 import { fmtDate, fmtFcfa } from "@/lib/format";
@@ -47,7 +48,10 @@ export default async function MesAchatsPage({
 
   const { page: rawPage } = await searchParams;
   const page = Math.max(1, Number.parseInt(rawPage ?? "1", 10) || 1);
-  const result = await listMyPurchases(auth.user.id, page, PAGE_SIZE);
+  const [result, summary] = await Promise.all([
+    listMyPurchases(auth.user.id, page, PAGE_SIZE),
+    getPurchaseSummary(auth.user.id),
+  ]);
   const items = result.items as unknown as PurchaseItem[];
 
   // Un achat déjà contesté ne propose plus le bouton : le dossier existe.
@@ -155,7 +159,7 @@ export default async function MesAchatsPage({
     <div className="nk-wrap pb-16">
       <PageHead
         title="Mes achats"
-        lead="L'historique de vos paiements, avec leur état côté opérateur."
+        lead="L'historique de vos paiements : ressources achetées à l'unité et abonnements à vos communautés."
         actions={
           <>
             <Btn asChild variant="o">
@@ -167,6 +171,28 @@ export default async function MesAchatsPage({
           </>
         }
       />
+
+      {result.total > 0 ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <StatTile
+            icon={<Wallet />}
+            value={fmtFcfa(summary.totalPaidFcfa)}
+            label="total payé"
+          />
+          <StatTile
+            icon={<BookOpen />}
+            value={summary.coursesCount}
+            label={`ressource${summary.coursesCount > 1 ? "s" : ""} achetée${summary.coursesCount > 1 ? "s" : ""}`}
+            tone="blue"
+          />
+          <StatTile
+            icon={<Users />}
+            value={summary.activeSubscriptions}
+            label={`abonnement${summary.activeSubscriptions > 1 ? "s" : ""} actif${summary.activeSubscriptions > 1 ? "s" : ""}`}
+            tone="gold"
+          />
+        </div>
+      ) : null}
 
       {result.total === 0 ? (
         <EmptyState

@@ -14,8 +14,18 @@
 
 import { db } from '../src/lib/db'
 import { creditWalletOnPurchase } from '../src/lib/wallet'
+import { openDispute, askLearner } from '../src/lib/disputes'
+import { hashPassword } from '../src/lib/password'
 
 const COMMISSION = 0.15
+
+/**
+ * Mot de passe commun à tous les comptes semés, pour pouvoir se connecter et
+ * parcourir les espaces authentifiés en développement. Un seul hachage est
+ * calculé puis partagé : argon2 est lent par construction, et un sel commun
+ * n'a aucune conséquence sur une base de démonstration.
+ */
+const DEV_PASSWORD = 'Nkamva!2026'
 
 /** Décalage de publication, pour que le tri « les plus récentes » ait un sens. */
 function daysAgo(days: number): Date {
@@ -351,14 +361,36 @@ const PURCHASES: Array<{ ref: string; courseSlug: string; learnerEmail: string; 
   { ref: 'seed_tx_17', courseSlug: 'kit-identite-de-marque', learnerEmail: 'aminata.diallo@example.com', provider: 'STRIPE', daysAgo: 2 },
 ]
 
+/**
+ * Progression de lecture. `watchedSeconds` à 0 laisse la ressource « à ouvrir » ;
+ * `downloaded` marque un format téléchargeable comme consulté. Sans ces lignes,
+ * l'onglet « Consultées » de /mes-ressources resterait vide.
+ */
+const VIEWS: Array<{ courseSlug: string; learnerEmail: string; watchedSeconds?: number; downloaded?: boolean; daysAgo: number }> = [
+  { courseSlug: 'architecture-hexagonale-en-pratique', learnerEmail: 'aminata.diallo@example.com', watchedSeconds: 4200, daysAgo: 2 },
+  { courseSlug: 'tests-automatises-de-zero-a-la-ci', learnerEmail: 'aminata.diallo@example.com', watchedSeconds: 900, daysAgo: 6 },
+  { courseSlug: 'architecture-hexagonale-en-pratique', learnerEmail: 'ibrahim.cisse@example.com', watchedSeconds: 11700, daysAgo: 1 },
+  { courseSlug: 'grille-de-revue-de-code', learnerEmail: 'ibrahim.cisse@example.com', downloaded: true, daysAgo: 4 },
+  { courseSlug: 'whatsapp-business-commerce-local', learnerEmail: 'rita.owusu@example.com', watchedSeconds: 6300, daysAgo: 3 },
+  { courseSlug: 'creer-sa-societe-en-zone-ohada', learnerEmail: 'omar.fall@example.com', downloaded: true, daysAgo: 9 },
+  { courseSlug: 'montage-video-le-rythme-avant-les-effets', learnerEmail: 'jean.kouame@example.com', watchedSeconds: 2400, daysAgo: 5 },
+]
+
 async function main() {
+  const passwordHash = await hashPassword(DEV_PASSWORD)
   const trainerIdByEmail = new Map<string, string>()
 
   for (const t of TRAINERS) {
     const user = await db.user.upsert({
       where: { email: t.email },
-      update: { fullName: t.fullName, role: 'TRAINER' },
-      create: { email: t.email, fullName: t.fullName, role: 'TRAINER', emailVerifiedAt: new Date() },
+      update: { fullName: t.fullName, role: 'TRAINER', passwordHash },
+      create: {
+        email: t.email,
+        fullName: t.fullName,
+        role: 'TRAINER',
+        passwordHash,
+        emailVerifiedAt: new Date(),
+      },
     })
     const profile = await db.trainerProfile.upsert({
       where: { userId: user.id },
@@ -386,8 +418,13 @@ async function main() {
   for (const l of LEARNERS) {
     const user = await db.user.upsert({
       where: { email: l.email },
-      update: { fullName: l.fullName },
-      create: { email: l.email, fullName: l.fullName, emailVerifiedAt: new Date() },
+      update: { fullName: l.fullName, passwordHash },
+      create: {
+        email: l.email,
+        fullName: l.fullName,
+        passwordHash,
+        emailVerifiedAt: new Date(),
+      },
     })
     learnerIdByEmail.set(l.email, user.id)
   }
@@ -457,6 +494,84 @@ async function main() {
     created++
   }
 
+  for (const v of VIEWS) {
+    const course = courseBySlug.get(v.courseSlug)
+    const learnerId = learnerIdByEmail.get(v.learnerEmail)
+    if (!course || !learnerId) throw new Error(`Progression ${v.courseSlug} : ressource ou apprenant inconnu`)
+    const seen = daysAgo(v.daysAgo)
+    const data = {
+      watchedSeconds: v.watchedSeconds ?? 0,
+      downloaded: v.downloaded ?? false,
+      downloadedAt: v.downloaded ? seen : null,
+      lastViewedAt: seen,
+    }
+    await db.courseView.upsert({
+      where: { courseId_learnerId: { courseId: course.id, learnerId } },
+      update: data,
+      create: { courseId: course.id, learnerId, ...data },
+    })
+  }
+
+  // Un litige réel plutôt que des lignes écrites à la main : `openDispute` pose
+  // l'instantané de consommation, la réservation de fonds et la suspension
+  // d'accès, et fait naître les notifications que le produit émet vraiment.
+  // Sans lui, /mes-litiges et /notifications resteraient vides — ou remplies de
+  // notifications inventées, qu'aucun chemin applicatif n'aurait pu écrire.
+  const support = await db.user.upsert({
+    where: { email: 'support@nkamva.dev' },
+    update: { fullName: 'Support NkamVa', role: 'ADMIN', adminRole: 'MODERATION', passwordHash },
+    create: {
+      email: 'support@nkamva.dev',
+      fullName: 'Support NkamVa',
+      role: 'ADMIN',
+      adminRole: 'MODERATION',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+    },
+  })
+
+  const disputedRef = 'seed_tx_17' // Kit identité de marque, acheté il y a 2 j
+  const disputedPurchase = await db.purchase.findUnique({
+    where: { providerTransactionId: disputedRef },
+    select: { id: true, learnerId: true },
+  })
+  // Le bloc converge vers l'état voulu au lieu de tout refaire : le litige est
+  // créé s'il manque, puis mis en attente de réponse s'il ne l'est pas encore.
+  // Relancer le seed ne duplique donc rien et n'exige aucun nettoyage préalable.
+  let disputeCreated = false
+  if (disputedPurchase) {
+    let dispute = await db.dispute.findFirst({
+      where: { purchaseId: disputedPurchase.id },
+      select: { id: true, status: true, updatedAt: true },
+    })
+
+    if (!dispute) {
+      const opened = await openDispute(disputedPurchase.learnerId, {
+        purchaseId: disputedPurchase.id,
+        reason: 'CONTENT_MISMATCH',
+        reasonDetail:
+          "Les gabarits annoncés pour les publications ne sont pas dans le fichier téléchargé : il ne contient que les palettes et la typographie.",
+      })
+      dispute = await db.dispute.findUniqueOrThrow({
+        where: { id: opened.id },
+        select: { id: true, status: true, updatedAt: true },
+      })
+      disputeCreated = true
+    }
+
+    // `postDisputeMessage` n'avertit pas le destinataire ; `askLearner` si, et
+    // place le dossier en attente de réponse — l'état qui donne quelque chose à
+    // voir sur /mes-litiges comme sur /notifications.
+    if (dispute.status === 'OPEN' || dispute.status === 'IN_REVIEW') {
+      await askLearner(dispute.id, {
+        actorId: support.id,
+        expectedUpdatedAt: dispute.updatedAt.toISOString(),
+        question:
+          "Bonjour, merci pour votre signalement. Pouvez-vous préciser quels gabarits étaient annoncés sur la fiche ? Une capture suffit.",
+      })
+    }
+  }
+
   // `studentsCount` n'est maintenu par aucun chemin applicatif aujourd'hui :
   // on l'aligne sur le nombre d'acheteurs distincts pour qu'il ne mente pas.
   for (const trainerId of trainerIdByEmail.values()) {
@@ -478,6 +593,9 @@ async function main() {
     db.course.count({ where: { status: 'draft' } }),
     db.purchase.count({ where: { providerStatus: 'SUCCEEDED' } }),
   ])
+  const views = await db.courseView.count()
+  const notifications = await db.notification.count()
+  const disputes = await db.dispute.count()
   const wallets = await db.wallet.findMany({ select: { balance: true } })
   const total = wallets.reduce((sum, w) => sum + w.balance, 0)
 
@@ -485,7 +603,13 @@ async function main() {
     `\nSeed terminé — ${users} comptes, ${trainers} formateurs, ` +
       `${published} ressources publiées, ${drafts} brouillons, ` +
       `${purchases} achats confirmés (${created} créés cette fois), ` +
-      `${total.toLocaleString('fr-FR')} FCFA répartis sur ${wallets.length} portefeuilles.`,
+      `${views} progressions de lecture, ` +
+      `${disputes} litige${disputes > 1 ? 's' : ''}${disputeCreated ? ' (ouvert cette fois)' : ''}, ` +
+      `${notifications} notifications, ` +
+      `${total.toLocaleString('fr-FR')} FCFA répartis sur ${wallets.length} portefeuilles.\n` +
+      `Connexion : n'importe quel email ci-dessus, mot de passe « ${DEV_PASSWORD} ».\n` +
+      `  apprenante  aminata.diallo@example.com  (3 ressources achetées)\n` +
+      `  formatrice  awa.sarr@nkamva.dev         (4 ressources publiées)\n`,
   )
 }
 

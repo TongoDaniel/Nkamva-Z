@@ -5,7 +5,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown, LogOut, Menu, Settings, ShoppingBag, X, Library } from "lucide-react";
+import {
+  Bell,
+  ChevronDown,
+  Heart,
+  LogOut,
+  MessageSquare,
+  Menu,
+  Radio,
+  Settings,
+  ShoppingBag,
+  X,
+  Library,
+} from "lucide-react";
 import { Logo } from "@/components/nk/logo";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
@@ -21,12 +33,24 @@ const LEARNER_NAV = [
 const TRAINER_NAV = [
   { href: "/formateur", label: "Espace formateur" },
   { href: "/formateur/ressources", label: "Mes publications" },
+  // « Mes sessions » et non « Mes lives » : le menu du compte porte déjà une
+  // entrée « Mes lives » côté apprenant, que le formateur voit aussi.
+  { href: "/formateur/lives", label: "Mes sessions" },
   { href: "/formateur/litiges", label: "Litiges" },
 ];
 
+/**
+ * Le menu du compte reprend la barre latérale apprenant de la maquette. Les
+ * quatre écrans encore en démonstration (lives, replays, messagerie) y figurent
+ * : les cacher rendrait leur état invisible et personne ne les relirait.
+ */
 const ACCOUNT_LINKS = [
   { href: "/mes-ressources", label: "Mes ressources", icon: Library },
+  { href: "/mes-lives", label: "Mes lives", icon: Radio },
+  { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
+  { href: "/favoris", label: "Favoris", icon: Heart },
   { href: "/mes-achats", label: "Mes achats", icon: ShoppingBag },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/profil", label: "Profil et paramètres", icon: Settings },
 ];
 
@@ -170,6 +194,22 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               {item.label}
             </Link>
           ))}
+
+          {/* Sous 820px le menu du compte n'existe pas : sans ce rappel, les
+              écrans qu'il contient seraient injoignables sur mobile. */}
+          {ACCOUNT_LINKS.filter((link) => !nav.some((item) => item.href === link.href)).map(
+            ({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isActive(pathname, href) ? "page" : undefined}
+                className="flex items-center gap-2.5 border-b border-line-2 px-1.5 py-3.5 text-[15px] font-semibold text-ink-2 hover:text-brand"
+              >
+                <Icon className="size-4 text-ink-3" aria-hidden="true" />
+                {label}
+              </Link>
+            ),
+          )}
         </nav>
       </header>
 

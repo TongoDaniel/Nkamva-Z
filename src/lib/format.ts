@@ -30,6 +30,29 @@ export function fmtDate(value?: string | Date | null): string | null {
 }
 
 /** Durée restante d'un compte à rebours, en « m:ss ». */
+/**
+ * Ancienneté abrégée, comme « il y a 2 h » de la maquette. Au-delà d'un mois on
+ * bascule sur la date : « il y a 7 sem. » ne dit plus rien d'utile.
+ */
+export function fmtRelative(value?: string | Date | null): string | null {
+  if (!value) return null;
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+
+  const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (seconds < 60) return "à l'instant";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours}${NBSP}h`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "hier";
+  if (days < 7) return `il y a ${days}${NBSP}j`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `il y a ${weeks} sem.`;
+  return fmtDate(d);
+}
+
 export function fmtCountdown(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
