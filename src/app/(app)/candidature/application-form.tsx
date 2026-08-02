@@ -7,6 +7,7 @@ import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
 import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
+import { isValidUrl, MIN_TRAINER_DESCRIPTION, URL_ERROR } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 const DOMAINS = ["Développement", "Business", "Design", "Marketing", "Langues", "Métiers manuels"];
@@ -27,7 +28,9 @@ export const EMPTY_DRAFT: ApplicationDraft = {
   experienceYears: "",
 };
 
-const MIN_DESCRIPTION = 50;
+// Seuil partagé avec le wizard « Devenir formateur » : deux valeurs
+// différentes pour le même champ produiraient des refus incompréhensibles.
+const MIN_DESCRIPTION = MIN_TRAINER_DESCRIPTION;
 
 /** Étape 1 du parcours : la présentation du candidat. */
 export function ApplicationForm({
@@ -65,6 +68,11 @@ export function ApplicationForm({
       issues.description = `Encore ${MIN_DESCRIPTION - draft.description.trim().length} caractères.`;
     }
     if (draft.domains.length === 0) issues.domains = "Choisissez au moins un domaine.";
+    // Facultatif, mais s'il est rempli il doit être exploitable : sans ce
+    // contrôle une adresse mal formée partait au serveur et revenait en 400.
+    if (draft.websiteUrl.trim() && !isValidUrl(draft.websiteUrl)) {
+      issues.websiteUrl = URL_ERROR;
+    }
     if (Object.keys(issues).length) {
       setFieldErrors(issues);
       return;

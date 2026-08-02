@@ -6,8 +6,7 @@ import { db } from '@/lib/db'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { SiteHeader } from '@/components/layout/site-header'
-import { SiteFooter } from '@/components/layout/site-footer'
+import { PublicShell } from '@/components/layouts/public-shell'
 import { SignOutButton } from './sign-out-button'
 
 export const metadata: Metadata = {
@@ -36,10 +35,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   if (!user) redirect('/auth/connexion')
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
+    <PublicShell>
+      <div className="mx-auto w-full max-w-3xl px-4 py-12">
         <h1 className="text-2xl font-semibold tracking-tight">Mon compte</h1>
 
         {erreur === 'acces-refuse' && (
@@ -87,9 +84,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <p className="mt-6 text-sm text-muted-foreground">
           L’espace apprenant (achats, ressources, litiges) et l’espace formateur arrivent avec les lots suivants.
         </p>
-      </main>
-
-      <SiteFooter />
-    </div>
+      </div>
+    </PublicShell>
   )
 }

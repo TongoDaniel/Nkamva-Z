@@ -5,16 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Field, PasswordField } from "@/components/nk/input";
+import { PasswordChecklist } from "@/components/nk/password-checklist";
 import { AuthHeading, FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
-
-/** Miroir exact de la règle appliquée par POST /api/auth/register. */
-function localPasswordIssue(value: string): string | null {
-  if (value.length < 8) return "Au moins 8 caractères.";
-  if (!/[A-Z]/.test(value)) return "Au moins une majuscule.";
-  if (!/\d/.test(value)) return "Au moins un chiffre.";
-  return null;
-}
+import { EMAIL_ERROR, isValidEmail, passwordError } from "@/lib/validation";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -26,15 +20,40 @@ export function RegisterForm() {
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const [pending, setPending] = React.useState(false);
 
+  /** Efface l'erreur d'un champ dès que l'utilisateur le corrige. */
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    const pwdIssue = localPasswordIssue(password);
-    if (pwdIssue) {
-      setFieldErrors({ password: pwdIssue });
+    // Le formulaire pose `noValidate` : toutes les règles sont revérifiées ici,
+    // et signalées d'un coup plutôt qu'une par une.
+    const issues: Record<string, string> = {};
+    if (!fullName.trim()) issues.fullName = "Renseignez votre nom complet.";
+    if (!email.trim()) issues.email = "Renseignez votre adresse e-mail.";
+    else if (!isValidEmail(email)) issues.email = EMAIL_ERROR;
+    if (!password) issues.password = "Choisissez un mot de passe.";
+    else {
+      const pwdIssue = passwordError(password);
+      if (pwdIssue) issues.password = pwdIssue;
+    }
+
+    if (Object.keys(issues).length > 0) {
+      setFieldErrors(issues);
+      if (Object.keys(issues).length > 1) {
+        setError("Plusieurs champs demandent une correction.");
+      }
       return;
     }
+
     setFieldErrors({});
     setPending(true);
 
@@ -85,7 +104,10 @@ export function RegisterForm() {
           required
           placeholder="Aminata Diallo"
           value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
+          onChange={(e) => {
+            setFullName(e.target.value);
+            clearFieldError("fullName");
+          }}
           error={fieldErrors.fullName}
         />
         <Field
@@ -93,10 +115,14 @@ export function RegisterForm() {
           type="email"
           name="email"
           autoComplete="email"
+          inputMode="email"
           required
           placeholder="votreadresse@exemple.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clearFieldError("email");
+          }}
           error={fieldErrors.email}
         />
         <PasswordField
@@ -106,11 +132,15 @@ export function RegisterForm() {
           required
           showStrength
           placeholder="••••••••"
-          hint="Au moins 8 caractères, une majuscule et un chiffre."
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          containerClassName="mb-2"
+          onChange={(e) => {
+            setPassword(e.target.value);
+            clearFieldError("password");
+          }}
           error={fieldErrors.password}
         />
+        <PasswordChecklist value={password} className="mb-[18px]" />
         <label className="mb-5 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">
           <input
             type="checkbox"

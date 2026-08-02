@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { Chip } from "./chip";
-import { Cover, formatLabel } from "./cover";
+import { categoryTone, Cover, formatLabel } from "./cover";
+import { FavButton } from "./fav-button";
 import { initials } from "./avatar";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import type { CourseListItem } from "@/lib/dto";
@@ -18,16 +19,34 @@ export function Price({ amountFcfa, className }: { amountFcfa: number; className
 }
 
 /** Carte ressource partagée catalogue / accueil / suggestions — port de `.rc`. */
-export function ResourceCard({ course }: { course: CourseListItem }) {
+export function ResourceCard({
+  course,
+  favoritable,
+  className,
+}: {
+  course: CourseListItem;
+  /** Affiche le cœur de mise en favori (non persisté à ce stade). */
+  favoritable?: boolean;
+  className?: string;
+}) {
   const duration = fmtDuration(course.durationSeconds);
   const trainerName = course.trainerProfile?.user?.fullName ?? "Formateur NkamVa";
   const typeLabel = [formatLabel(course.format), duration].filter(Boolean).join(" · ").toUpperCase();
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk focus-within:-translate-y-1 focus-within:shadow-nk">
-      <Cover category={course.category} format={course.format} typeLabel={typeLabel} />
+    <article
+      className={cn(
+        "group relative flex flex-col overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk focus-within:-translate-y-1 focus-within:shadow-nk",
+        className,
+      )}
+    >
+      <Cover category={course.category} format={course.format} typeLabel={typeLabel}>
+        {favoritable ? <FavButton courseTitle={course.title} /> : null}
+      </Cover>
       <div className="flex flex-1 flex-col gap-2 px-[18px] pb-[18px] pt-4">
-        <Chip className="self-start">{course.category}</Chip>
+        <Chip tone={categoryTone(course.category)} className="self-start">
+          {course.category}
+        </Chip>
         <h3 className="text-[16.5px] font-bold leading-tight">
           {/* Le lien couvre toute la carte : une seule cible cliquable, un seul
               élément dans l'ordre de tabulation. */}

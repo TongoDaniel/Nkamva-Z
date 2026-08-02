@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
 import { VerifyCodeForm } from "./verify-form";
@@ -13,12 +13,8 @@ export default function VerifierCodePage() {
     <AuthShell
       aside={
         <AuthAside
-          title="Récupération sécurisée"
-          points={[
-            "Code à usage unique envoyé par e-mail.",
-            "Valable 10 minutes, 5 tentatives maximum.",
-            "Le support répond en moins de 24 h.",
-          ]}
+          photoBrief="apprenante consultant son e-mail sur mobile"
+
           quote="La double vérification protège votre compte à chaque connexion."
           author="Sécurité NkamVa"
         />

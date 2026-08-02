@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
 import { ResetForm } from "./reset-form";
 
@@ -12,6 +12,7 @@ export default function NouveauMotDePassePage() {
     <AuthShell
       aside={
         <AuthAside
+          photoBrief="cadenas et écran de connexion, ambiance sobre"
           quote="Sécurisez votre compte en quelques secondes."
           author="Sécurité NkamVa"
         />

@@ -1,7 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-/** Logo NkamVa — port de `.logo` (pastille verte + mot-symbole). */
+/**
+ * Logo NkamVa — port de `.logo`.
+ * La maquette a abandonné la pastille générée au profit du vrai mot-symbole
+ * (`assets/img/mark.svg`, navy + éclair azur), servi depuis `public/mark.svg`.
+ */
 export function Logo({
   href = "/",
   className,
@@ -20,12 +25,14 @@ export function Logo({
         className,
       )}
     >
-      <span
-        className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-brand shadow-[inset_0_-2px_0_rgba(0,0,0,.18)]"
-        aria-hidden="true"
-      >
-        <span className="-translate-y-px font-display text-[19px] font-extrabold text-paper">N</span>
-      </span>
+      <Image
+        src="/mark.svg"
+        alt=""
+        width={36}
+        height={36}
+        priority
+        className="block size-9 shrink-0 rounded-[11px]"
+      />
       <span className={cn(compact && "max-[860px]:sr-only")}>
         Nkam<em className="not-italic text-brand">Va</em>
       </span>

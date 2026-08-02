@@ -3,23 +3,24 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Heart, Menu, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Logo } from "@/components/nk/logo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/ressources", label: "Ressources" },
+  { href: "/communautes", label: "Communautés" },
   { href: "/formateurs", label: "Formateurs" },
   { href: "/tarifs", label: "Tarifs" },
-  { href: "/aide", label: "Aide" },
 ];
 
 const FOOTER_COLUMNS: Array<{ title: string; links: Array<{ href: string; label: string }> }> = [
   {
-    title: "Explorer",
+    title: "Plateforme",
     links: [
-      { href: "/ressources", label: "Catalogue" },
+      { href: "/ressources", label: "Ressources" },
+      { href: "/communautes", label: "Communautés" },
       { href: "/formateurs", label: "Formateurs" },
       { href: "/tarifs", label: "Tarifs" },
     ],
@@ -28,8 +29,7 @@ const FOOTER_COLUMNS: Array<{ title: string; links: Array<{ href: string; label:
     title: "Formateurs",
     links: [
       { href: "/devenir-formateur", label: "Devenir formateur" },
-      { href: "/aide", label: "Centre d'aide" },
-      { href: "/contact", label: "Nous contacter" },
+      { href: "/aide", label: "Aide & FAQ" },
     ],
   },
   {
@@ -38,6 +38,7 @@ const FOOTER_COLUMNS: Array<{ title: string; links: Array<{ href: string; label:
       { href: "/legal/conditions", label: "Conditions d'utilisation" },
       { href: "/legal/confidentialite", label: "Confidentialité" },
       { href: "/legal/mentions", label: "Mentions légales" },
+      { href: "/contact", label: "Contact" },
     ],
   },
 ];
@@ -70,7 +71,7 @@ export function PublicTopbar() {
               className={cn(
                 "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
                 isActive(pathname, item.href)
-                  ? "bg-ink text-paper"
+                  ? "bg-navy text-paper"
                   : "text-ink-2 hover:bg-white/70 hover:text-ink",
               )}
             >
@@ -80,11 +81,18 @@ export function PublicTopbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2.5">
+          <Link
+            href="/favoris"
+            aria-label="Favoris"
+            className="grid size-[42px] place-items-center rounded-full border border-line bg-card text-ink-2 transition duration-150 hover:-translate-y-px hover:border-ink-3 hover:text-ink max-[560px]:hidden"
+          >
+            <Heart className="size-[19px]" aria-hidden="true" />
+          </Link>
           <Btn asChild variant="t" size="sm" className="max-[820px]:hidden">
             <Link href="/auth/connexion">Se connecter</Link>
           </Btn>
           <Btn asChild variant="p" size="sm">
-            <Link href="/auth/inscription">Créer un compte</Link>
+            <Link href="/auth/inscription">S&apos;inscrire</Link>
           </Btn>
           <button
             type="button"
@@ -94,7 +102,11 @@ export function PublicTopbar() {
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
             className="grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink min-[820px]:hidden"
           >
-            {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
+            {open ? (
+              <X className="size-5" aria-hidden="true" />
+            ) : (
+              <Menu className="size-5" aria-hidden="true" />
+            )}
           </button>
         </div>
       </div>
@@ -105,7 +117,7 @@ export function PublicTopbar() {
         hidden={!open}
         className="absolute inset-x-0 top-full z-[120] border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk min-[820px]:hidden"
       >
-        {NAV.map((item) => (
+        {[...NAV, { href: "/favoris", label: "Favoris" }].map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -120,7 +132,7 @@ export function PublicTopbar() {
             <Link href="/auth/connexion">Se connecter</Link>
           </Btn>
           <Btn asChild variant="p" size="sm" className="flex-1">
-            <Link href="/auth/inscription">Créer un compte</Link>
+            <Link href="/auth/inscription">S&apos;inscrire</Link>
           </Btn>
         </div>
       </nav>
@@ -132,12 +144,11 @@ export function PublicTopbar() {
 export function PublicFooter() {
   return (
     <footer className="mt-[72px] border-t border-line bg-card">
-      <div className="nk-wrap grid gap-10 py-[52px_40px] sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+      <div className="nk-wrap grid gap-10 pb-10 pt-[52px] sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
         <div>
           <Logo />
           <p className="mt-3 max-w-[34ch] text-sm leading-relaxed text-ink-2">
-            Cours vidéo, guides et modèles créés par des formateurs africains. Payez à l&apos;unité,
-            en FCFA — la ressource reste à vous, à vie.
+            Apprendre et former à l&apos;unité, en FCFA, par mobile money ou carte bancaire.
           </p>
         </div>
         {FOOTER_COLUMNS.map((col) => (
@@ -159,21 +170,10 @@ export function PublicFooter() {
       </div>
       <div className="border-t border-line-2">
         <div className="nk-wrap flex flex-wrap items-center justify-between gap-3.5 py-4.5">
+          <p className="text-[13px] text-ink-3">© {new Date().getFullYear()} NkamVa</p>
           <p className="text-[13px] text-ink-3">
-            © {new Date().getFullYear()} NkamVa. Tous droits réservés.
+            Paiement à l&apos;unité en FCFA · mobile money &amp; carte bancaire
           </p>
-          <ul className="flex flex-wrap gap-2" aria-label="Moyens de paiement acceptés">
-            {["Orange Money", "MTN MoMo", "Wave", "Airtel Money", "M-Pesa", "Carte bancaire"].map(
-              (p) => (
-                <li
-                  key={p}
-                  className="rounded-[7px] border border-line bg-paper px-2.5 py-1.5 text-[11px] font-bold leading-none text-ink-2"
-                >
-                  {p}
-                </li>
-              ),
-            )}
-          </ul>
         </div>
       </div>
     </footer>

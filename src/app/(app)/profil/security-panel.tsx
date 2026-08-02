@@ -4,18 +4,12 @@ import * as React from "react";
 import { signOut } from "next-auth/react";
 import { Btn } from "@/components/nk/button";
 import { PasswordField } from "@/components/nk/input";
+import { PasswordChecklist } from "@/components/nk/password-checklist";
 import { FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
+import { passwordError } from "@/lib/validation";
 import type { ProfileView } from "@/lib/profile";
 import { SettingCard, SettingRow } from "./setting-card";
-
-/** Miroir de la règle appliquée par POST /api/me/password. */
-function localPasswordIssue(value: string): string | null {
-  if (value.length < 8) return "Au moins 8 caractères.";
-  if (!/[A-Z]/.test(value)) return "Au moins une majuscule.";
-  if (!/\d/.test(value)) return "Au moins un chiffre.";
-  return null;
-}
 
 export function SecurityPanel({ profile }: { profile: ProfileView }) {
   const [current, setCurrent] = React.useState("");
@@ -29,13 +23,17 @@ export function SecurityPanel({ profile }: { profile: ProfileView }) {
     e.preventDefault();
     setError(null);
 
-    const issue = localPasswordIssue(next);
+    if (!next) {
+      setFieldError("Choisissez un nouveau mot de passe.");
+      return;
+    }
+    const issue = passwordError(next);
     if (issue) {
       setFieldError(issue);
       return;
     }
     if (next !== confirm) {
-      setFieldError("Les deux mots de passe ne correspondent pas.");
+      setFieldError("Ce mot de passe ne correspond pas au précédent.");
       return;
     }
     setFieldError(null);
@@ -78,9 +76,12 @@ export function SecurityPanel({ profile }: { profile: ProfileView }) {
               autoComplete="new-password"
               required
               showStrength
-              hint="Au moins 8 caractères, une majuscule et un chiffre."
               value={next}
-              onChange={(e) => setNext(e.target.value)}
+              containerClassName="mb-2"
+              onChange={(e) => {
+                setNext(e.target.value);
+                setFieldError(null);
+              }}
               error={fieldError}
             />
             <PasswordField
@@ -88,9 +89,14 @@ export function SecurityPanel({ profile }: { profile: ProfileView }) {
               autoComplete="new-password"
               required
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              containerClassName="mb-2"
+              onChange={(e) => {
+                setConfirm(e.target.value);
+                setFieldError(null);
+              }}
             />
           </div>
+          <PasswordChecklist value={next} className="mb-[18px]" />
         </form>
       </SettingCard>
 

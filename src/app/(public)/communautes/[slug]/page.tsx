@@ -1,10 +1,10 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { MessageSquare, PlayCircle, Users } from 'lucide-react'
-import { Btn } from '@/components/nk/btn'
+import { Btn } from '@/components/nk/button'
 import { Chip } from '@/components/nk/chip'
-import { Price } from '@/components/nk/price'
+import { Price } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
 import { DemoNotice } from '@/components/nk/demo-notice'
 import { ResourceCard } from '@/components/nk/resource-card'
@@ -36,7 +36,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
   const resources = resourcesByAuthor(community.author.id)
 
   return (
-    <div className="wrap">
+    <div className="nk-wrap">
       <PageHead
         crumbs={[
           { label: 'Accueil', href: '/' },
@@ -57,19 +57,19 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
           <div className="relative overflow-hidden rounded-xl border border-line bg-card">
             <div className="h-[140px] bg-gradient-to-br from-navy to-info" />
             <div className="px-6 pb-6">
-              <span className="-mt-8 grid size-[64px] place-items-center rounded-[18px] border-[3px] border-card bg-navy2 font-display text-xl font-extrabold text-white">
+              <span className="-mt-8 grid size-[64px] place-items-center rounded-[18px] border-[3px] border-card bg-navy-2 font-display text-xl font-extrabold text-white">
                 {community.author.initials}
               </span>
-              <p className="mt-3 text-[15px] text-ink2">
+              <p className="mt-3 text-[15px] text-ink-2">
                 Animée par{' '}
                 <Link href={`/formateurs/${community.author.id}`} className="font-bold text-ink hover:text-brand">
                   {community.author.name}
                 </Link>{' '}
                 · {community.author.role}
               </p>
-              <p className="mt-3 leading-[1.65] text-ink2">{community.description}</p>
+              <p className="mt-3 leading-[1.65] text-ink-2">{community.description}</p>
 
-              <div className="mt-5 flex flex-wrap gap-6 border-t border-line2 pt-4 text-sm text-ink2">
+              <div className="mt-5 flex flex-wrap gap-6 border-t border-line-2 pt-4 text-sm text-ink-2">
                 <span>
                   <b className="font-bold text-ink">{community.members.toLocaleString('fr-FR')}</b> membres
                 </span>
@@ -90,11 +90,11 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                 const Icon = SALON_ICONS[salon.key]
                 return (
                   <div key={salon.key} className="rounded-xl border border-line bg-card p-5">
-                    <span className="grid size-10 place-items-center rounded-xl bg-brand-t text-brand">
+                    <span className="grid size-10 place-items-center rounded-xl bg-brand-tint text-brand">
                       <Icon className="size-5" />
                     </span>
                     <h3 className="mt-3 text-base font-bold">{salon.label}</h3>
-                    <p className="mt-1 text-[13.5px] leading-[1.5] text-ink2">{salon.description}</p>
+                    <p className="mt-1 text-[13.5px] leading-[1.5] text-ink-2">{salon.description}</p>
                   </div>
                 )
               })}
@@ -116,16 +116,16 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
         <aside className="lg:sticky lg:top-[86px]">
           <div className="rounded-xl border border-line bg-card p-5 shadow-sm">
             <span>
-              <Price amount={community.price} className="text-[28px]" />
-              <small className="ml-1 text-[13px] font-semibold text-ink3">/ mois</small>
+              <Price amountFcfa={community.price} className="text-[28px]" />
+              <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
             </span>
-            <p className="mt-1 text-[13px] text-ink3">Résiliable à tout moment</p>
+            <p className="mt-1 text-[13px] text-ink-3">Résiliable à tout moment</p>
 
             <Btn asChild size="lg" className="mt-4 w-full">
               <Link href={`/auth/connexion?callbackUrl=/communautes/${community.slug}`}>Rejoindre la communauté</Link>
             </Btn>
 
-            <ul className="mt-4 grid gap-2 border-t border-line2 pt-4 text-[13.5px] text-ink2">
+            <ul className="mt-4 grid gap-2 border-t border-line-2 pt-4 text-[13.5px] text-ink-2">
               <li>Accès au forum et à l&apos;entraide entre membres</li>
               <li>Ressources partagées par l&apos;animateur</li>
               <li>Lives et rediffusions réservés aux membres</li>

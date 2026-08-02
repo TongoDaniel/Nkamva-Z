@@ -20,7 +20,10 @@ const avatarVariants = cva(
         lg: "size-16 text-[22px]",
       },
       tone: {
-        brand: "bg-linear-to-br from-brand to-[#0d8a63]",
+        // `.authcard .big` de la maquette : dégradé marque → azur. `.ava`
+        // gardait un vert codé en dur, resté de l'accent précédent — non repris,
+        // il produisait un dégradé bleu vers vert depuis la bascule de marque.
+        brand: "bg-linear-to-br from-brand to-azure",
         tint: "bg-brand-tint-2 !text-brand-dark",
         ink: "bg-ink",
       },
