@@ -18,7 +18,17 @@ export const metadata: Metadata = {
 };
 
 export default async function FormateursPage() {
-  const trainers = await listPublicTrainers();
+  // Une base injoignable ne doit pas renvoyer une 500 sur une page publique :
+  // on distingue « aucun formateur publié » de « liste indisponible », les deux
+  // états ne demandant pas la même chose au visiteur.
+  let trainers: Awaited<ReturnType<typeof listPublicTrainers>> = [];
+  let unavailable = false;
+  try {
+    trainers = await listPublicTrainers();
+  } catch (error) {
+    console.error("[FORMATEURS] listPublicTrainers a échoué", error);
+    unavailable = true;
+  }
 
   return (
     <div className="nk-wrap pb-16">
@@ -33,7 +43,19 @@ export default async function FormateursPage() {
         }
       />
 
-      {trainers.length === 0 ? (
+      {unavailable ? (
+        <EmptyState
+          className="mt-6"
+          icon={<Users />}
+          title="La liste des formateurs est momentanément indisponible"
+          description="Le service ne répond pas pour l'instant. Le catalogue, lui, reste consultable."
+          action={
+            <Btn asChild variant="o">
+              <Link href="/ressources">Voir le catalogue</Link>
+            </Btn>
+          }
+        />
+      ) : trainers.length === 0 ? (
         <EmptyState
           className="mt-6"
           icon={<Users />}

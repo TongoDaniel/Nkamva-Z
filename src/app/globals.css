@@ -4,8 +4,18 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ==========================================================================
-   NkamVa — design tokens extraits de la maquette (assets/nkamva.css)
-   Vert forêt sur papier chaud · Bricolage Grotesque + Instrument Sans
+   NkamVa — design tokens extraits de la maquette
+   (assets/nkamva.css + nkamva-app.css + nkamva-landing.css + nkamva-admin.css)
+   Papier chaud · Bricolage Grotesque + Instrument Sans
+   ==========================================================================
+   Deux accents, comme la maquette :
+   - Site public / espaces apprenant & formateur : bleu #1c5ed0 + navy #022342,
+     repris du logo (assets/img/mark.svg). C'est la valeur que `nkamva-app.css`
+     et `nkamva-landing.css` réinjectent par-dessus `nkamva.css`.
+   - Back-office admin : vert forêt #0d6b4d, conservé par `nkamva-admin.css`
+     pour distinguer l'admin du reste du produit sans nouvelle teinte.
+   La bascule se fait en posant `.nk-admin` sur la coquille admin : les tokens
+   d'accent sont indirects (`--brand` → `--color-brand`), donc un scope suffit.
    ==========================================================================
    Écarts assumés vs maquette, pour respecter WCAG AA :
    - --color-ink-3 : #84908a (2.88:1 sur papier) → #626e69 (4.67:1).
@@ -14,6 +24,8 @@
    - --color-clay / --color-gold restent les teintes de remplissage de la
      maquette, mais le texte sur pastille utilise --color-clay-ink (5.2:1) et
      --color-gold-ink (5.5:1) : les valeurs d'origine tombaient à 3.7 et 2.8:1.
+   Le bleu de marque passe AA sans retouche : 5.32:1 sur papier, 5.90:1 en
+   blanc sur aplat, 4.96:1 sur sa propre pastille.
    ========================================================================== */
 
 /* Bloc non-`inline` : les tokens sont émis comme variables CSS sur :root, donc
@@ -29,11 +41,10 @@
   --color-line: #e4dfd2;
   --color-line-2: #eeeadf;
 
-  /* — accent de marque (vert forêt) — */
-  --color-brand: #0d6b4d;
-  --color-brand-dark: #0a563e;
-  --color-brand-tint: #e0efe7;
-  --color-brand-tint-2: #cfe6da;
+  /* — bleu marine du logo : fonds sombres (CTA finale, sidebar, lecteur) — */
+  --color-navy: #022342;
+  --color-navy-2: #06304f;
+  --color-azure: #2e7cf6;
 
   /* — accents secondaires (remplissage / texte lisible) — */
   --color-clay: #c05f21;
@@ -56,7 +67,6 @@
   --shadow-nk-sm: 0 1px 2px rgba(21, 33, 27, 0.05), 0 2px 6px rgba(21, 33, 27, 0.04);
   --shadow-nk: 0 10px 30px rgba(21, 33, 27, 0.09);
   --shadow-nk-lg: 0 24px 60px rgba(21, 33, 27, 0.16);
-  --shadow-brand: 0 8px 20px rgba(13, 107, 77, 0.3);
 
   /* — typographie — */
   --font-display: var(--font-bricolage), system-ui, sans-serif;
@@ -64,6 +74,19 @@
 
   /* — gabarit — */
   --container-wrap: 1220px;
+
+  /* — animations de la maquette — */
+  --animate-nk-shine: nk-shine 1.5s infinite;
+  --animate-nk-pop: nk-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+
+/* Accent de marque, indirect pour pouvoir être basculé par scope. */
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-tint-2: var(--brand-tint-2);
+  --shadow-brand: 0 8px 20px var(--brand-shadow);
 }
 
 /* Bloc `inline` : réexpose les tokens sémantiques shadcn/ui (qui changent avec
@@ -107,6 +130,14 @@
 }
 
 :root {
+  /* Accent par défaut : le bleu du logo, utilisé par tout le produit sauf
+     l'admin (voir `.nk-admin` plus bas). */
+  --brand: #1c5ed0;
+  --brand-dark: #144aa8;
+  --brand-tint: #e4ecf9;
+  --brand-tint-2: #d0dff5;
+  --brand-shadow: rgba(28, 94, 208, 0.3);
+
   --radius: 16px;
   --background: #f6f3ec;
   --foreground: #15211b;
@@ -114,54 +145,70 @@
   --card-foreground: #15211b;
   --popover: #fffefa;
   --popover-foreground: #15211b;
-  --primary: #0d6b4d;
+  --primary: var(--brand);
   --primary-foreground: #ffffff;
   --secondary: #eeeadf;
   --secondary-foreground: #15211b;
   --muted: #eeeadf;
   --muted-foreground: #626e69;
-  --accent: #e0efe7;
-  --accent-foreground: #0a563e;
+  --accent: var(--brand-tint);
+  --accent-foreground: var(--brand-dark);
   --destructive: #b3402e;
   --destructive-foreground: #ffffff;
   --border: #e4dfd2;
   --input: #e4dfd2;
-  --ring: #0d6b4d;
-  --chart-1: #0d6b4d;
-  --chart-2: #2b5fa8;
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --chart-2: #0d6b4d;
   --chart-3: #b98a12;
   --chart-4: #c05f21;
   --chart-5: #4c5a52;
   --sidebar: #15211b;
   --sidebar-foreground: #f3f1ea;
-  --sidebar-primary: #0d6b4d;
+  --sidebar-primary: var(--brand);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgba(246, 243, 236, 0.06);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(246, 243, 236, 0.09);
-  --sidebar-ring: #0d6b4d;
+  --sidebar-ring: var(--brand);
+}
+
+/* Back-office : retour au vert forêt d'origine (`nkamva-admin.css`). Poser
+   cette classe sur la coquille admin suffit à repeindre tout l'accent. */
+.nk-admin {
+  --brand: #0d6b4d;
+  --brand-dark: #0a563e;
+  --brand-tint: #e0efe7;
+  --brand-tint-2: #cfe6da;
+  --brand-shadow: rgba(13, 107, 77, 0.3);
 }
 
 .dark {
-  --background: #101a15;
+  --brand: #6098ee;
+  --brand-dark: #8ab3f4;
+  --brand-tint: #16283f;
+  --brand-tint-2: #1d3a5c;
+  --brand-shadow: rgba(96, 152, 238, 0.28);
+
+  --background: #0e1620;
   --foreground: #f0eee6;
-  --card: #16221c;
+  --card: #16202b;
   --card-foreground: #f0eee6;
-  --popover: #16221c;
+  --popover: #16202b;
   --popover-foreground: #f0eee6;
-  --primary: #3fa07c;
-  --primary-foreground: #0b1611;
-  --secondary: #1e2c25;
+  --primary: var(--brand);
+  --primary-foreground: #0b1218;
+  --secondary: #1e2a37;
   --secondary-foreground: #f0eee6;
-  --muted: #1e2c25;
-  --muted-foreground: #a3b0a8;
-  --accent: #1c3229;
-  --accent-foreground: #b7e2ce;
+  --muted: #1e2a37;
+  --muted-foreground: #a5b1bd;
+  --accent: var(--brand-tint);
+  --accent-foreground: var(--brand-dark);
   --destructive: #e07a66;
   --destructive-foreground: #170a07;
   --border: rgba(240, 238, 230, 0.12);
   --input: rgba(240, 238, 230, 0.16);
-  --ring: #3fa07c;
+  --ring: var(--brand);
 }
 
 @layer base {
@@ -187,7 +234,7 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(1100px 500px at 85% -10%, rgba(13, 107, 77, 0.06), transparent 60%),
+      radial-gradient(1100px 500px at 85% -10%, rgba(28, 94, 208, 0.06), transparent 60%),
       radial-gradient(900px 400px at -10% 110%, rgba(192, 95, 33, 0.05), transparent 60%);
   }
 
@@ -241,6 +288,91 @@
     left: 1rem;
     top: 1rem;
   }
+
+  /* Couvertures générées, teintées par catégorie — port de `.cover` :
+     pas d'image à héberger, la rayure suffit à identifier la famille. */
+  .nk-cover {
+    background-image: repeating-linear-gradient(
+      -52deg,
+      var(--cv-a) 0 14px,
+      var(--cv-b) 14px 28px
+    );
+  }
+  .nk-cover-dev {
+    --cv-a: #dcebe3;
+    --cv-b: #e6f1ea;
+  }
+  .nk-cover-biz {
+    --cv-a: #f4e4d4;
+    --cv-b: #f8ecdf;
+  }
+  .nk-cover-dsg {
+    --cv-a: #e2e9f4;
+    --cv-b: #eaf0f8;
+  }
+  .nk-cover-mkt {
+    --cv-a: #f2e8d2;
+    --cv-b: #f7efdd;
+  }
+
+  /* Dégradé de bord des bandes défilantes (`.bandwrap`, `.pmarq`, `.rtrack`). */
+  .nk-fade-x {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  }
+
+  /* Bande infinie : la piste contient deux fois la même liste, on la décale
+     de la moitié de sa largeur. Le second exemplaire est `aria-hidden`.
+     La durée se règle par `--nk-marquee-duration` sur le conteneur. */
+  .nk-marquee {
+    display: flex;
+    width: max-content;
+    animation: nk-marquee var(--nk-marquee-duration, 46s) linear infinite;
+  }
+  .nk-marquee-pause:hover .nk-marquee,
+  .nk-marquee-pause:focus-within .nk-marquee {
+    animation-play-state: paused;
+  }
+
+  /* Squelette de chargement (`.sk`). */
+  .nk-skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #eae5d8;
+    color: transparent !important;
+  }
+  .nk-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, #fffef933, #fffef966, #fffef933, transparent);
+    animation: var(--animate-nk-shine);
+  }
+}
+
+/* Une bande défilante n'a pas de sens sans mouvement : en mouvement réduit on
+   retombe sur un défilement manuel plutôt que sur une liste tronquée. */
+@media (prefers-reduced-motion: reduce) {
+  .nk-fade-x {
+    -webkit-mask-image: none;
+    mask-image: none;
+    overflow-x: auto;
+  }
+  .nk-marquee {
+    animation: none;
+  }
+}
+
+/* Défilement horizontal sans barre visible (`.rtrack`). */
+.nk-scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.nk-scroll-x::-webkit-scrollbar {
+  display: none;
 }
 
 /* Animation de brillance des squelettes de chargement. */
@@ -267,6 +399,13 @@
   }
   100% {
     transform: scale(1);
+  }
+}
+
+/* Bande infinie : la piste est dupliquée, -50 % la ramène à son point de départ. */
+@keyframes nk-marquee {
+  to {
+    transform: translateX(-50%);
   }
 }
 

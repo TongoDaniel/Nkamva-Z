@@ -1,6 +1,10 @@
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+// `ImageIcon` est importé sous son nom d'export : `Image as ImageIcon` est
+// réécrit par l'optimisation d'imports de Next et entre alors en collision
+// avec le `Image` de `next/image` — le composant devient indéfini au rendu.
+import { ArrowLeft, ImageIcon } from "lucide-react";
 import { Logo } from "@/components/nk/logo";
 import { cn } from "@/lib/utils";
 
@@ -26,10 +30,7 @@ export function AuthShell({
       </div>
       <div
         aria-hidden="true"
-        className="relative m-3.5 ml-0 hidden overflow-hidden rounded-[22px] lg:block"
-        style={{
-          backgroundImage: "linear-gradient(150deg, #0a563e 0%, #0d6b4d 60%, #128a63 130%)",
-        }}
+        className="relative m-3.5 ml-0 hidden overflow-hidden rounded-[22px] bg-line-2 lg:block"
       >
         {aside}
       </div>
@@ -37,35 +38,39 @@ export function AuthShell({
   );
 }
 
-/** Contenu du panneau latéral : liste d'arguments + citation. */
+/**
+ * Contenu du panneau latéral : visuel + citation, port de `.authR`.
+ *
+ * La maquette réserve ici un emplacement photo (`image-slot`) sans fournir le
+ * fichier. Tant que la photo n'existe pas, on affiche l'emplacement et sa
+ * consigne de cadrage plutôt qu'un aplat décoratif : le manque reste visible.
+ * Dès que la photo est fournie, passer `photo` et le repère disparaît.
+ */
 export function AuthAside({
-  title,
-  points,
+  photo,
+  photoBrief,
   quote,
   author,
 }: {
-  title?: string;
-  points?: string[];
+  /** Chemin d'une image dans `public/`. */
+  photo?: string;
+  /** Description du visuel attendu, affichée tant que `photo` est absent. */
+  photoBrief: string;
   quote: string;
   author: string;
 }) {
   return (
     <>
-      {title && points?.length ? (
-        <div className="absolute inset-x-10 top-10 grid gap-4">
-          <h2 className="text-[17px] font-extrabold text-white">{title}</h2>
-          {points.map((p) => (
-            <div key={p} className="flex items-start gap-3">
-              <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-white/15 text-white">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              </span>
-              <p className="text-[14.5px] leading-snug text-[#eaf6f0]">{p}</p>
-            </div>
-          ))}
+      {photo ? (
+        <Image src={photo} alt="" fill sizes="50vw" className="object-cover" />
+      ) : (
+        <div className="absolute inset-0 grid place-items-center px-10 text-center">
+          <div>
+            <ImageIcon className="mx-auto mb-3 size-7 text-ink-3" />
+            <p className="text-[14.5px] text-ink-2">Photo — {photoBrief}</p>
+          </div>
         </div>
-      ) : null}
+      )}
       <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-8 text-white">
         <p className="mb-2 max-w-[420px] font-display text-[19px] font-bold leading-tight">
           « {quote} »

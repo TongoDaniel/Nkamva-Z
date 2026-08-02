@@ -13,6 +13,7 @@ export default function ConnexionPage() {
     <AuthShell
       aside={
         <AuthAside
+          photoBrief="apprenant souriant, mobile en main"
           quote="Une plateforme simple, rapide et efficace."
           author="Un apprenant NkamVa"
         />

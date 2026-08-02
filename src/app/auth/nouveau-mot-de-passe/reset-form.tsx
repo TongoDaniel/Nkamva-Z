@@ -4,16 +4,11 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { PasswordField } from "@/components/nk/input";
+import { PasswordChecklist } from "@/components/nk/password-checklist";
 import { AuthHeading, AuthBackLink, FormError } from "@/components/layouts/auth-shell";
 import { RESET_CODE_KEY } from "../verifier-code/verify-form";
 import { api, ApiError } from "@/lib/client";
-
-function localPasswordIssue(value: string): string | null {
-  if (value.length < 8) return "Au moins 8 caractères.";
-  if (!/[A-Z]/.test(value)) return "Au moins une majuscule.";
-  if (!/\d/.test(value)) return "Au moins un chiffre.";
-  return null;
-}
+import { passwordError } from "@/lib/validation";
 
 export function ResetForm() {
   const router = useRouter();
@@ -39,13 +34,17 @@ export function ResetForm() {
     e.preventDefault();
     setError(null);
 
-    const issue = localPasswordIssue(password);
+    if (!password) {
+      setFieldError("Choisissez un mot de passe.");
+      return;
+    }
+    const issue = passwordError(password);
     if (issue) {
       setFieldError(issue);
       return;
     }
     if (password !== confirm) {
-      setFieldError("Les deux mots de passe ne correspondent pas.");
+      setFieldError("Ce mot de passe ne correspond pas au précédent.");
       return;
     }
     setFieldError(null);
@@ -106,9 +105,14 @@ export function ResetForm() {
           showStrength
           placeholder="••••••••"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          containerClassName="mb-2"
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setFieldError(null);
+          }}
           error={fieldError}
         />
+        <PasswordChecklist value={password} className="mb-[18px]" />
         <PasswordField
           label="Confirmer le mot de passe"
           name="passwordConfirm"
@@ -116,8 +120,10 @@ export function ResetForm() {
           required
           placeholder="••••••••"
           value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          hint="Au moins 8 caractères, une majuscule et un chiffre."
+          onChange={(e) => {
+            setConfirm(e.target.value);
+            setFieldError(null);
+          }}
         />
         <p className="mb-4 rounded-xl bg-brand-tint px-4 py-3 text-[13px] leading-relaxed text-brand-dark">
           Toutes vos sessions ouvertes seront déconnectées après ce changement.

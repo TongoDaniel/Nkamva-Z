@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { Btn } from "@/components/nk/button";
 import { Field, PasswordField } from "@/components/nk/input";
 import { AuthHeading, FormError, FormNotice } from "@/components/layouts/auth-shell";
+import { EMAIL_ERROR, isValidEmail } from "@/lib/validation";
 
 /** Messages d'erreur renvoyés par NextAuth dans `?error=` ou par `signIn`. */
 function loginErrorMessage(code?: string | null): string | null {
@@ -28,6 +29,7 @@ export function LoginForm() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(loginErrorMessage(params.get("error")));
+  const [emailError, setEmailError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
   const notice = params.get("verified")
@@ -41,6 +43,20 @@ export function LoginForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // `noValidate` désactive le contrôle du navigateur : à refaire ici, sinon
+    // une saisie sans arobase remonte comme « identifiants incorrects », ce qui
+    // envoie chercher l'erreur au mauvais endroit.
+    if (!email.trim()) {
+      setEmailError("Renseignez votre adresse e-mail.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setEmailError(EMAIL_ERROR);
+      return;
+    }
+    setEmailError(null);
+
     setPending(true);
     try {
       const res = await signIn("credentials", {
@@ -73,10 +89,15 @@ export function LoginForm() {
           type="email"
           name="email"
           autoComplete="email"
+          inputMode="email"
           required
           placeholder="votreadresse@exemple.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          error={emailError}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError(null);
+          }}
         />
         <PasswordField
           label="Mot de passe"

@@ -1,9 +1,9 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { Btn } from '@/components/nk/btn'
+import { Btn } from '@/components/nk/button'
 import { Chip } from '@/components/nk/chip'
-import { Price } from '@/components/nk/price'
+import { Price } from '@/components/nk/resource-card'
 import { ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
 import { DemoNotice } from '@/components/nk/demo-notice'
@@ -29,7 +29,7 @@ export default async function TrainerPage({ params }: { params: Promise<{ traine
   const resources = resourcesByAuthor(trainer.id)
 
   return (
-    <div className="wrap">
+    <div className="nk-wrap">
       <PageHead
         crumbs={[
           { label: 'Accueil', href: '/' },
@@ -49,10 +49,10 @@ export default async function TrainerPage({ params }: { params: Promise<{ traine
             <div className="min-w-[220px] flex-1">
               <Chip tone={trainer.category.tone}>{trainer.category.label}</Chip>
               <p className="mt-2 text-[15px] font-semibold text-ink">{trainer.role}</p>
-              <p className="text-sm text-ink2">
+              <p className="text-sm text-ink-2">
                 {trainer.city} · formateur depuis {trainer.since}
               </p>
-              <div className="mt-3 flex flex-wrap gap-5 text-sm text-ink2">
+              <div className="mt-3 flex flex-wrap gap-5 text-sm text-ink-2">
                 <span>
                   <b className="font-bold text-ink">{trainer.students.toLocaleString('fr-FR')}</b> apprenants
                 </span>
@@ -66,7 +66,7 @@ export default async function TrainerPage({ params }: { params: Promise<{ traine
             </div>
           </div>
 
-          <p className="mt-5 leading-[1.7] text-ink2">{trainer.bio}</p>
+          <p className="mt-5 leading-[1.7] text-ink-2">{trainer.bio}</p>
 
           <section className="mt-9">
             <h2 className="mb-5 text-[21px] font-extrabold">Ses ressources</h2>
@@ -88,11 +88,11 @@ export default async function TrainerPage({ params }: { params: Promise<{ traine
                   {trainer.community.name}
                 </Link>
               </h3>
-              <p className="mt-1.5 text-[13.5px] leading-[1.55] text-ink2">{trainer.community.description}</p>
-              <div className="mt-4 flex items-center justify-between border-t border-line2 pt-4">
+              <p className="mt-1.5 text-[13.5px] leading-[1.55] text-ink-2">{trainer.community.description}</p>
+              <div className="mt-4 flex items-center justify-between border-t border-line-2 pt-4">
                 <span>
-                  <Price amount={trainer.community.price} className="text-[17px]" />
-                  <small className="ml-1 text-xs font-semibold text-ink3">/ mois</small>
+                  <Price amountFcfa={trainer.community.price} className="text-[17px]" />
+                  <small className="ml-1 text-xs font-semibold text-ink-3">/ mois</small>
                 </span>
                 <Btn asChild size="sm">
                   <Link href={`/communautes/${trainer.community.slug}`}>Rejoindre</Link>

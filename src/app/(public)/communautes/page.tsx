@@ -1,6 +1,6 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import type { Metadata } from 'next'
-import { Btn } from '@/components/nk/btn'
+import { Btn } from '@/components/nk/button'
 import { CommunityCard } from '@/components/nk/community-card'
 import { DemoNotice } from '@/components/nk/demo-notice'
 import { PageHead } from '@/components/nk/page-head'
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function CommunitiesPage() {
   return (
-    <div className="wrap">
+    <div className="nk-wrap">
       <PageHead
         crumbs={[{ label: 'Accueil', href: '/' }, { label: 'Communautés' }]}
         title="Les communautés"
@@ -21,7 +21,7 @@ export default function CommunitiesPage() {
       />
       <DemoNotice className="mt-4" />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-xl bg-gradient-to-r from-navy to-navy2 px-7 py-5 text-white">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-xl bg-gradient-to-r from-navy to-navy-2 px-7 py-5 text-white">
         <div>
           <b className="text-[17px] font-extrabold">Vous formez déjà ?</b>
           <p className="mt-0.5 text-sm text-[#b9c9dd]">
@@ -34,8 +34,8 @@ export default function CommunitiesPage() {
       </div>
 
       <div className="mt-8 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-        {COMMUNITIES.map((community, index) => (
-          <CommunityCard key={community.slug} community={community} index={index} />
+        {COMMUNITIES.map((community) => (
+          <CommunityCard key={community.slug} community={community} />
         ))}
       </div>
     </div>

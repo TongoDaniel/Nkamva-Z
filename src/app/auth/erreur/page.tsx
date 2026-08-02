@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthShell, AuthAside, AuthHeading } from "@/components/layouts/auth-shell";
@@ -44,7 +44,7 @@ export default function AuthErrorPage({
 }) {
   return (
     <AuthShell
-      aside={<AuthAside quote="Un souci d'accès ? On le règle vite." author="Support NkamVa" />}
+      aside={<AuthAside photoBrief="support NkamVa au téléphone" quote="Un souci d'accès ? On le règle vite." author="Support NkamVa" />}
     >
       <Suspense fallback={<div className="h-64" aria-hidden="true" />}>
         <ErrorBody searchParams={searchParams} />

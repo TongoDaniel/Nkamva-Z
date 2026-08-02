@@ -6,6 +6,7 @@ import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
+import { EMAIL_ERROR, isValidEmail } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 const SUBJECTS = [
@@ -32,6 +33,23 @@ export function ContactForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // `noValidate` désactive le contrôle du navigateur : à refaire ici.
+    const issues: Record<string, string> = {};
+    if (!name.trim()) issues.name = "Renseignez votre nom.";
+    if (!email.trim()) issues.email = "Renseignez votre adresse e-mail.";
+    else if (!isValidEmail(email)) issues.email = EMAIL_ERROR;
+    if (message.trim().length < MIN_MESSAGE) {
+      issues.message = `Décrivez votre demande en ${MIN_MESSAGE} caractères au minimum.`;
+    }
+    if (Object.keys(issues).length > 0) {
+      setFieldErrors(issues);
+      if (Object.keys(issues).length > 1) {
+        setError("Plusieurs champs demandent une correction.");
+      }
+      return;
+    }
+
     setFieldErrors({});
     setPending(true);
     try {
