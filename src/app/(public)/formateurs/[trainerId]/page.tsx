@@ -17,8 +17,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ trainerId: string }> }): Promise<Metadata> {
   const { trainerId } = await params
   const trainer = trainerById(trainerId)
-  if (!trainer) return { title: 'Formateur introuvable — NkamVa' }
-  return { title: `${trainer.name} — NkamVa`, description: trainer.bio }
+  if (!trainer) return { title: 'Formateur introuvable' }
+  return { title: trainer.name, description: trainer.bio }
 }
 
 export default async function TrainerPage({ params }: { params: Promise<{ trainerId: string }> }) {

@@ -14,8 +14,11 @@ export interface TabsProps {
   items: TabItem[];
   value: string;
   onValueChange: (value: string) => void;
-  /** `underline` = `.tabs` public · `pill` = `.adm-tabs` admin. */
-  variant?: "underline" | "pill";
+  /**
+   * `underline` = `.tabs` public · `pill` = `.adm-tabs` admin ·
+   * `chip` = `.ctabs`, la rangée de catégories des listings publics.
+   */
+  variant?: "underline" | "pill" | "chip";
   /** Libellé du groupe d'onglets, obligatoire pour les lecteurs d'écran. */
   label: string;
   /** id du conteneur piloté par les onglets. */
@@ -81,7 +84,9 @@ export function Tabs({
       className={cn(
         variant === "underline"
           ? "mb-6 flex gap-1.5 overflow-x-auto border-b-[1.5px] border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          : "flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-line bg-paper p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          : variant === "chip"
+            ? "flex flex-wrap gap-2"
+            : "flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-line bg-paper p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
@@ -109,10 +114,17 @@ export function Tabs({
                     active &&
                       "after:absolute after:inset-x-3 after:-bottom-[1.5px] after:h-[3px] after:rounded-sm after:bg-brand after:content-['']",
                   )
-                : cn(
-                    "rounded-full px-4 py-2 text-[13px]",
-                    active ? "bg-ink text-paper" : "text-ink-2 hover:text-ink",
-                  ),
+                : variant === "chip"
+                  ? cn(
+                      "rounded-full border-[1.5px] px-[18px] py-[9px] text-sm",
+                      active
+                        ? "border-ink bg-ink text-paper"
+                        : "border-line bg-card text-ink-2 hover:border-ink-3 hover:text-ink",
+                    )
+                  : cn(
+                      "rounded-full px-4 py-2 text-[13px]",
+                      active ? "bg-ink text-paper" : "text-ink-2 hover:text-ink",
+                    ),
             )}
           >
             {item.label}
