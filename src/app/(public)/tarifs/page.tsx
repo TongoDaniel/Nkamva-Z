@@ -121,7 +121,7 @@ export default function TarifsPage() {
 
       <section aria-labelledby="faq-tarifs" className="mx-auto mt-14 max-w-[760px]">
         <h2 id="faq-tarifs" className="mb-6 text-center text-[clamp(22px,3vw,30px)] font-extrabold">
-          Questions sur les tarifs
+          Avant de vous lancer
         </h2>
         {FAQ.map((item) => (
           <details

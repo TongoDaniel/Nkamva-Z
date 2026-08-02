@@ -10,7 +10,7 @@ import { PublicShell } from '@/components/layouts/public-shell'
 import { SignOutButton } from './sign-out-button'
 
 export const metadata: Metadata = {
-  title: 'Mon compte — NkamVa',
+  title: 'Mon compte',
 }
 
 const ROLE_LABELS: Record<string, string> = {

@@ -1,13 +1,13 @@
 ﻿import Link from 'next/link'
 import type { Metadata } from 'next'
 import { Btn } from '@/components/nk/button'
-import { CommunityCard } from '@/components/nk/community-card'
 import { DemoNotice } from '@/components/nk/demo-notice'
 import { PageHead } from '@/components/nk/page-head'
+import { CommunityDirectory } from './community-directory'
 import { COMMUNITIES } from '@/features/demo/community-data'
 
 export const metadata: Metadata = {
-  title: 'Les communautés — NkamVa',
+  title: 'Les communautés',
   description: "Rejoignez la communauté d'un formateur : forum, ressources partagées et lives.",
 }
 
@@ -33,11 +33,7 @@ export default function CommunitiesPage() {
         </Btn>
       </div>
 
-      <div className="mt-8 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-        {COMMUNITIES.map((community) => (
-          <CommunityCard key={community.slug} community={community} />
-        ))}
-      </div>
+      <CommunityDirectory communities={COMMUNITIES} />
     </div>
   )
 }

@@ -18,8 +18,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const community = communityBySlug(slug)
-  if (!community) return { title: 'Communauté introuvable — NkamVa' }
-  return { title: `${community.name} — NkamVa`, description: community.description }
+  if (!community) return { title: 'Communauté introuvable' }
+  return { title: community.name, description: community.description }
 }
 
 const SALON_ICONS = {

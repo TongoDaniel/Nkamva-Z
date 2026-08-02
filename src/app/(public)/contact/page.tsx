@@ -14,7 +14,7 @@ export default function ContactPage() {
     <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[{ label: "Accueil", href: "/" }, { label: "Contact" }]}
-        title="Nous écrire"
+        title="Parlons-en"
         lead="Une question, un problème, une demande particulière : le support vous répond."
       />
 

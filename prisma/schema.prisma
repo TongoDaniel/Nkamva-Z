@@ -8,7 +8,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // L'application lit par le pooler ; les migrations, elles, ont besoin d'une
+  // connexion directe : pgbouncer ne tient pas les verrous d'avis de Prisma.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // --- Enums ---

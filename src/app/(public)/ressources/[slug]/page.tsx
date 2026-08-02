@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Check, Clock, Globe, ShieldCheck, Users } from "lucide-react";
+import {
+  Check,
+  Clock,
+  Globe,
+  GraduationCap,
+  ListOrdered,
+  ListVideo,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
 import { Cover, formatLabel } from "@/components/nk/cover";
 import { Price, ResourceCard } from "@/components/nk/resource-card";
 import { PageHead } from "@/components/nk/page-head";
+import { StatTile } from "@/components/nk/stat-tile";
 import { initials } from "@/components/nk/avatar";
 import { getPublicCourse, searchCourses } from "@/lib/catalog";
 import { checkCourseAccess } from "@/lib/access";
@@ -50,6 +60,18 @@ export default async function FicheRessourcePage({ params }: { params: Params })
   const bio = trainerBio(trainer);
   const duration = fmtDuration(course.durationSeconds);
   const typeLabel = [formatLabel(course.format), duration].filter(Boolean).join(" · ").toUpperCase();
+
+  // Sommaire minimal — arbitrage 4 : pas de modèle `Lesson`, donc pas de liste
+  // de chapitres. `lessonsCount` et `durationSeconds` portés par `Course`
+  // suffisent à annoncer le volume ; en dessous de ça, la section n'a rien à
+  // dire et on ne rend pas un titre vide.
+  const isVideo = course.format === "video";
+  const lessonsCount = course.lessonsCount && course.lessonsCount > 0 ? course.lessonsCount : null;
+  // `level` est stocké en minuscules par le formulaire formateur (« débutant »).
+  const levelLabel = course.level
+    ? course.level.charAt(0).toUpperCase() + course.level.slice(1)
+    : null;
+  const hasSummary = Boolean(lessonsCount || duration || levelLabel);
 
   return (
     <div className="nk-wrap pb-16">
@@ -122,6 +144,38 @@ export default async function FicheRessourcePage({ params }: { params: Params })
                   </li>
                 ))}
               </ul>
+            </section>
+          ) : null}
+
+          {hasSummary ? (
+            <section className="border-t border-line-2 py-8">
+              <h2 className="mb-4 text-[22px] font-extrabold">
+                {isVideo ? "Programme" : "Contenu"}
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {lessonsCount ? (
+                  <StatTile
+                    icon={isVideo ? <ListVideo /> : <ListOrdered />}
+                    value={lessonsCount}
+                    label={
+                      isVideo
+                        ? `leçon${lessonsCount > 1 ? "s" : ""}`
+                        : `section${lessonsCount > 1 ? "s" : ""}`
+                    }
+                  />
+                ) : null}
+                {duration ? (
+                  <StatTile icon={<Clock />} value={duration} label="durée totale" tone="blue" />
+                ) : null}
+                {levelLabel ? (
+                  <StatTile
+                    icon={<GraduationCap />}
+                    value={levelLabel}
+                    label="niveau"
+                    tone="gold"
+                  />
+                ) : null}
+              </div>
             </section>
           ) : null}
 
