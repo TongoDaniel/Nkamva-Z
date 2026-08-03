@@ -271,4 +271,33 @@ describe('Lot 4 — Parcours cœur', () => {
       markCourseDownloaded(course.id, learner.id),
     ).rejects.toThrow('NOT_DOWNLOADABLE')
   })
+
+  // -------------------------------------------------------------------------
+  // Le contrôle « déjà acheté ? » de `initiatePurchase` lit avant d'écrire :
+  // deux requêtes simultanées voyaient toutes deux « aucun achat ». Sans l'index
+  // unique partiel, ce test échouait 2 fois sur 6 — deux achats et un
+  // portefeuille crédité du double, chaque achat ayant son propre
+  // `providerTransactionId` et échappant donc à l'idempotence du crédit.
+  it('un double clic sur « payer » ne crée qu\'un seul achat', async () => {
+    const { course, profile } = await setupTrainerWithCourse({ price: 15000 })
+    const learner = await prisma.user.create({ data: { email: 'double@test.com', role: 'LEARNER' } })
+
+    const results = await Promise.allSettled([
+      initiatePurchase(course.id, learner.id, 'STRIPE'),
+      initiatePurchase(course.id, learner.id, 'STRIPE'),
+    ])
+
+    // Les deux appels aboutissent : le perdant de la course retombe sur l'achat
+    // du gagnant plutôt que de renvoyer une erreur à un apprenant qui n'a rien
+    // fait de mal.
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(2)
+    const ids = results.map((r) => (r.status === 'fulfilled' ? r.value.purchaseId : null))
+    expect(ids[0]).toBe(ids[1])
+
+    expect(await prisma.purchase.count({ where: { learnerId: learner.id, courseId: course.id } })).toBe(1)
+
+    // Et le formateur n'est crédité qu'une fois.
+    const wallet = await prisma.wallet.findFirstOrThrow({ where: { trainerId: profile.id } })
+    expect(wallet.balance).toBe(Math.round(15000 * 0.85))
+  })
 })
