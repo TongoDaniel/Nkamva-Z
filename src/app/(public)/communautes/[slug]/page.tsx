@@ -60,12 +60,14 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
               <span className="-mt-8 grid size-[64px] place-items-center rounded-[18px] border-[3px] border-card bg-navy-2 font-display text-xl font-extrabold text-white">
                 {community.author.initials}
               </span>
+              {/* Le nom n'est pas cliquable : cette page sert encore des données
+                  de démonstration, et `/formateurs/[trainerId]` ne connaît plus
+                  que de vrais profils. Le lien pointait vers un identifiant
+                  fictif et tombait en 404. À rebrancher en même temps que les
+                  communautés. */}
               <p className="mt-3 text-[15px] text-ink-2">
-                Animée par{' '}
-                <Link href={`/formateurs/${community.author.id}`} className="font-bold text-ink hover:text-brand">
-                  {community.author.name}
-                </Link>{' '}
-                · {community.author.role}
+                Animée par <span className="font-bold text-ink">{community.author.name}</span> ·{' '}
+                {community.author.role}
               </p>
               <p className="mt-3 leading-[1.65] text-ink-2">{community.description}</p>
 
