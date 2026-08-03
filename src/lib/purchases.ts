@@ -95,20 +95,43 @@ export async function initiatePurchase(
     ? `pi_${crypto.randomUUID()}`
     : `cp_${crypto.randomUUID()}`
 
-  const purchase = await db.purchase.create({
-    data: {
-      learnerId,
-      trainerId: course.trainerProfile.id,
-      courseId,
-      amountFcfa,
-      commissionRate,
-      trainerShareFcfa,
-      platformShareFcfa,
-      provider,
-      providerTransactionId,
-      providerStatus: 'PENDING',
-    },
-  })
+  // Le contrôle d'achat existant ci-dessus lit avant d'écrire : deux requêtes
+  // simultanées voyaient toutes deux « aucun achat » et inséraient chacune la
+  // leur. L'apprenant était débité deux fois et le formateur crédité deux fois —
+  // chaque achat portant son propre `providerTransactionId`, l'idempotence de
+  // `creditWalletOnPurchase` ne rattrapait rien. Reproduit 2 fois sur 6.
+  // C'est désormais l'index unique partiel `purchases_active_course_unique` qui
+  // tranche, en base : le perdant de la course retombe sur l'achat du gagnant.
+  let purchase
+  try {
+    purchase = await db.purchase.create({
+      data: {
+        learnerId,
+        trainerId: course.trainerProfile.id,
+        courseId,
+        amountFcfa,
+        commissionRate,
+        trainerShareFcfa,
+        platformShareFcfa,
+        provider,
+        providerTransactionId,
+        providerStatus: 'PENDING',
+      },
+    })
+  } catch (err: any) {
+    if (err?.code !== 'P2002') throw err
+
+    const winner = await db.purchase.findFirst({
+      where: { learnerId, courseId, providerStatus: { in: ['SUCCEEDED', 'PENDING'] } },
+    })
+    if (!winner) throw err
+    if (winner.providerStatus === 'SUCCEEDED') throw new Error('ALREADY_PURCHASED')
+    return {
+      purchaseId: winner.id,
+      providerTransactionId: winner.providerTransactionId!,
+      provider: winner.provider,
+    }
+  }
 
   await auditStandalone({
     actorId: learnerId, actorRole: 'LEARNER',
