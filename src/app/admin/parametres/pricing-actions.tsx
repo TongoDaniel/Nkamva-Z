@@ -1,0 +1,273 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Tag } from "lucide-react";
+import { Btn } from "@/components/nk/button";
+import { Modal } from "@/components/nk/modal";
+import { Field } from "@/components/nk/input";
+import { toast } from "@/components/nk/toast";
+import { api, ApiError } from "@/lib/client";
+
+/** Demain, au format d'un `<input type="date">`. */
+function tomorrow(): string {
+  return new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Poser un tarif et accorder une réduction. Les deux portent une date d'effet :
+ * décision 59, une bascule ne s'applique jamais à l'instant du clic, et jamais
+ * au passé.
+ */
+export function PricingActions() {
+  const router = useRouter();
+  const [dialog, setDialog] = React.useState<null | "tariff" | "discount">(null);
+  const [pending, setPending] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const [cadence, setCadence] = React.useState<"MONTHLY" | "YEARLY">("MONTHLY");
+  const [amount, setAmount] = React.useState("");
+  const [validFrom, setValidFrom] = React.useState(tomorrow());
+  const [label, setLabel] = React.useState("");
+
+  const [kind, setKind] = React.useState<"CAMPAIGN" | "TRAINER" | "PROMO_CODE">("CAMPAIGN");
+  const [discountLabel, setDiscountLabel] = React.useState("");
+  const [discountAmount, setDiscountAmount] = React.useState("");
+  const [code, setCode] = React.useState("");
+  const [trainerId, setTrainerId] = React.useState("");
+  const [reason, setReason] = React.useState("");
+  const [validUntil, setValidUntil] = React.useState("");
+
+  async function submitTariff() {
+    setError(null);
+    const value = Number.parseInt(amount, 10);
+    if (!Number.isFinite(value) || value < 0) {
+      setError("Le montant doit être un entier positif ou nul. Zéro vaut gratuité.");
+      return;
+    }
+    setPending(true);
+    try {
+      await api.post("/api/admin/pricing/tariffs", {
+        cadence,
+        amountFcfa: value,
+        validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
+        ...(label.trim() ? { label: label.trim() } : {}),
+      });
+      toast.success("Tarif enregistré.");
+      setDialog(null);
+      setAmount("");
+      setLabel("");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "L'enregistrement a échoué.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function submitDiscount() {
+    setError(null);
+    const value = Number.parseInt(discountAmount, 10);
+    if (!Number.isFinite(value) || value <= 0) {
+      setError("Une réduction est un montant en FCFA, strictement positif.");
+      return;
+    }
+    setPending(true);
+    try {
+      await api.post("/api/admin/pricing/discounts", {
+        kind,
+        label: discountLabel.trim(),
+        amountFcfa: value,
+        ...(kind === "PROMO_CODE" ? { code: code.trim().toUpperCase() } : {}),
+        ...(kind === "TRAINER" ? { trainerId: trainerId.trim(), reason: reason.trim() } : {}),
+        validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
+        ...(validUntil ? { validUntil: new Date(`${validUntil}T00:00:00`).toISOString() } : {}),
+      });
+      toast.success("Réduction enregistrée.");
+      setDialog(null);
+      setDiscountLabel("");
+      setDiscountAmount("");
+      setCode("");
+      setTrainerId("");
+      setReason("");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "L'enregistrement a échoué.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="mt-5 flex flex-wrap gap-2.5">
+        <Btn size="sm" onClick={() => setDialog("tariff")}>
+          <Plus aria-hidden="true" />
+          Poser un tarif
+        </Btn>
+        <Btn size="sm" variant="o" onClick={() => setDialog("discount")}>
+          <Tag aria-hidden="true" />
+          Accorder une réduction
+        </Btn>
+      </div>
+
+      <Modal
+        open={dialog === "tariff"}
+        onOpenChange={(open) => setDialog(open ? "tariff" : null)}
+        title="Poser un tarif"
+        description="Il prend effet à la date choisie, et s'applique à chaque formateur à son propre renouvellement."
+        footer={
+          <>
+            <Btn loading={pending} onClick={submitTariff}>
+              Enregistrer
+            </Btn>
+            <Btn variant="o" onClick={() => setDialog(null)}>
+              Annuler
+            </Btn>
+          </>
+        }
+      >
+        {error ? (
+          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] font-semibold text-danger">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="mb-[18px]">
+          <label htmlFor="cadence" className="mb-1.5 block text-[13.5px] font-bold text-ink">
+            Cadence
+          </label>
+          <select
+            id="cadence"
+            value={cadence}
+            onChange={(e) => setCadence(e.target.value as "MONTHLY" | "YEARLY")}
+            className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
+          >
+            <option value="MONTHLY">Mensuelle</option>
+            <option value="YEARLY">Annuelle</option>
+          </select>
+        </div>
+
+        <Field
+          label="Montant (FCFA)"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          hint="Zéro vaut gratuité — c'est ainsi qu'on ouvre une période de lancement."
+        />
+        <Field
+          label="Date d'effet"
+          type="date"
+          value={validFrom}
+          onChange={(e) => setValidFrom(e.target.value)}
+          hint="Jamais dans le passé : un tarif ne réécrit pas une période facturée."
+        />
+        <Field
+          label="Libellé"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Gratuité de lancement"
+        />
+      </Modal>
+
+      <Modal
+        open={dialog === "discount"}
+        onOpenChange={(open) => setDialog(open ? "discount" : null)}
+        title="Accorder une réduction"
+        description="Trois canaux, un seul résultat : le montant consenti. La plus favorable l'emporte, elles ne s'additionnent jamais."
+        footer={
+          <>
+            <Btn loading={pending} disabled={discountLabel.trim().length < 3} onClick={submitDiscount}>
+              Enregistrer
+            </Btn>
+            <Btn variant="o" onClick={() => setDialog(null)}>
+              Annuler
+            </Btn>
+          </>
+        }
+      >
+        {error ? (
+          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] font-semibold text-danger">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="mb-[18px]">
+          <label htmlFor="kind" className="mb-1.5 block text-[13.5px] font-bold text-ink">
+            Canal
+          </label>
+          <select
+            id="kind"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as typeof kind)}
+            className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
+          >
+            <option value="CAMPAIGN">Campagne — valable pour tous</option>
+            <option value="TRAINER">Remise nominative — un formateur</option>
+            <option value="PROMO_CODE">Code promo — saisi à la souscription</option>
+          </select>
+        </div>
+
+        <Field
+          label="Libellé"
+          value={discountLabel}
+          onChange={(e) => setDiscountLabel(e.target.value)}
+          placeholder="Rentrée 2026"
+        />
+        <Field
+          label="Montant retiré (FCFA)"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          value={discountAmount}
+          onChange={(e) => setDiscountAmount(e.target.value)}
+          hint="Un montant, pas un pourcentage : deux réductions se comparent alors sans ambiguïté d'arrondi."
+        />
+
+        {kind === "PROMO_CODE" ? (
+          <Field
+            label="Code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="RENTREE26"
+            hint="Valable à la souscription uniquement, jamais au renouvellement."
+          />
+        ) : null}
+
+        {kind === "TRAINER" ? (
+          <>
+            <Field
+              label="Identifiant du formateur"
+              value={trainerId}
+              onChange={(e) => setTrainerId(e.target.value)}
+              placeholder="UUID du profil formateur"
+            />
+            <Field
+              label="Motif"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Geste commercial après incident de facturation"
+              hint="Obligatoire : une remise nominative contourne la grille, elle doit rester auditable."
+            />
+          </>
+        ) : null}
+
+        <Field
+          label="Valable à partir du"
+          type="date"
+          value={validFrom}
+          onChange={(e) => setValidFrom(e.target.value)}
+        />
+        <Field
+          label="Jusqu'au"
+          type="date"
+          value={validUntil}
+          onChange={(e) => setValidUntil(e.target.value)}
+          hint="Facultatif. Sans date de fin, la réduction court indéfiniment."
+        />
+      </Modal>
+    </>
+  );
+}

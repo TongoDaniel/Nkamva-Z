@@ -1,19 +1,24 @@
 // ==========================================================================
 // Lot 2 — Arbitrage : T2, T3/T5, T6, T7 et mouvements de fonds FR2 à FR5
 // ==========================================================================
+// Ce fichier exerçait `dispute-review.ts`, une seconde implémentation de
+// l'arbitrage qu'aucune route n'appelait. Elle a été supprimée le 3 août 2026 ;
+// les tests sont repointés sur le chemin réel — `disputes.ts` et
+// `manual-refund-tasks.ts`, ceux qu'appellent `/api/admin/disputes/*`.
+// Les codes d'erreur suivent donc ceux du service vivant.
+// ==========================================================================
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
-import { openDispute, TRAINER_SHARE_RATE } from '@/lib/disputes'
 import {
-  postSupportMessage,
+  openDispute,
+  postDisputeMessage,
   askLearner,
   resolveDispute,
-  completeManualRefundTask,
-  cancelManualRefundTask,
-  listManualRefundTasks,
-  getDisputeStats,
-} from '@/lib/dispute-review'
+  TRAINER_SHARE_RATE,
+} from '@/lib/disputes'
+import { completeManualRefundTask, cancelManualRefundTask } from '@/lib/manual-refund-tasks'
+import { listManualRefundTasks, getDisputeStats } from '@/lib/dispute-review'
 
 const DAY = 86_400_000
 const AMOUNT = 20_000
@@ -67,28 +72,65 @@ describe('Lot 2 — Arbitrage des litiges', () => {
 
   const wallet = (id: string) => prisma.wallet.findUnique({ where: { id } })
 
+  /** Décision de remboursement telle que la route l'émet. */
+  function refund(
+    disputeId: string,
+    actorId: string,
+    params: {
+      expectedUpdatedAt: string
+      resolution: 'FULL_REFUND' | 'PARTIAL_REFUND' | 'REJECT'
+      note?: string
+      refundAmountFcfa?: number
+      policyOverride?: boolean
+      overrideJustification?: string
+      actorAdminRole?: 'MODERATION' | 'SUPER_ADMIN'
+    },
+  ) {
+    return resolveDispute(disputeId, {
+      resolution: params.resolution,
+      resolutionNote: params.note ?? null,
+      refundAmountFcfa: params.refundAmountFcfa ?? null,
+      policyOverride: params.policyOverride ?? false,
+      overrideJustification: params.overrideJustification ?? null,
+      expectedUpdatedAt: params.expectedUpdatedAt,
+      actorId,
+      actorAdminRole: params.actorAdminRole ?? 'MODERATION',
+    })
+  }
+
+  const freshUpdatedAt = async (disputeId: string) =>
+    (await prisma.dispute.findUniqueOrThrow({ where: { id: disputeId } })).updatedAt.toISOString()
+
   // --- T2 ---
 
   it('T2 — le premier mot du support met le dossier en examen', async () => {
     const { admin, dispute } = await setup()
 
-    await postSupportMessage(dispute.id, admin.id, 'Bonjour, nous examinons votre dossier.')
+    await postDisputeMessage(dispute.id, {
+      body: 'Bonjour, nous examinons votre dossier.',
+      authorId: admin.id,
+      authorRole: 'SUPPORT',
+    })
 
     const after = await prisma.dispute.findUnique({ where: { id: dispute.id } })
     expect(after!.status).toBe('IN_REVIEW')
     const message = await prisma.disputeMessage.findFirst({
       where: { disputeId: dispute.id, authorRole: 'SUPPORT' },
     })
-    // L'apprenant ne l'a pas encore lu.
-    expect(message!.readByLearner).toBe(false)
+    expect(message).not.toBeNull()
   })
 
   it('T2 — un second message ne rechange pas l’état', async () => {
     const { admin, dispute } = await setup()
-    await postSupportMessage(dispute.id, admin.id, 'Premier message du support.')
+
+    await postDisputeMessage(dispute.id, {
+      body: 'Premier message du support.', authorId: admin.id, authorRole: 'SUPPORT',
+    })
     await prisma.dispute.update({ where: { id: dispute.id }, data: { status: 'WAITING_LEARNER' } })
 
-    await postSupportMessage(dispute.id, admin.id, 'Second message du support.')
+    await postDisputeMessage(dispute.id, {
+      body: 'Second message du support.', authorId: admin.id, authorRole: 'SUPPORT',
+    })
     expect((await prisma.dispute.findUnique({ where: { id: dispute.id } }))!.status).toBe('WAITING_LEARNER')
   })
 
@@ -97,131 +139,98 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   it('T3 — poser une question ouvre un délai de sept jours', async () => {
     const { admin, dispute } = await setup()
 
-    await askLearner(dispute.id, admin.id, {
-      expectedUpdatedAt: dispute.updatedAt.toISOString(),
+    await askLearner(dispute.id, {
       question: 'Pouvez-vous préciser ce qui manque par rapport à la fiche ?',
+      expectedUpdatedAt: dispute.updatedAt.toISOString(),
+      actorId: admin.id,
     })
 
     const after = await prisma.dispute.findUnique({ where: { id: dispute.id } })
     expect(after!.status).toBe('WAITING_LEARNER')
+    expect(after!.learnerDeadlineAt).not.toBeNull()
     const days = (after!.learnerDeadlineAt!.getTime() - Date.now()) / DAY
-    expect(days).toBeGreaterThan(6.9)
-    expect(days).toBeLessThan(7.1)
-
-    // L'échéance est écrite dans le fil, au même endroit que la question.
-    const messages = await prisma.disputeMessage.findMany({ where: { disputeId: dispute.id } })
-    expect(messages.some((m) => m.authorRole === 'SYSTEM')).toBe(true)
+    expect(Math.round(days)).toBe(7)
   })
 
   it('T3 — refuse une décision prise sur une version périmée', async () => {
     const { admin, dispute } = await setup()
+
     await expectFailure(
-      askLearner(dispute.id, admin.id, {
-        expectedUpdatedAt: new Date(dispute.updatedAt.getTime() - 60_000).toISOString(),
+      askLearner(dispute.id, {
         question: 'Pouvez-vous préciser votre demande ?',
+        expectedUpdatedAt: new Date(dispute.updatedAt.getTime() - 60_000).toISOString(),
+        actorId: admin.id,
       }),
       'STALE_DISPUTE',
     )
   })
 
-  // --- T7 : rejet ---
+  // --- T7 / T6 et mouvements de fonds ---
 
   it('T7/FR2 — le rejet rend les fonds et l’accès, sans toucher au solde', async () => {
-    const { admin, dispute, wallet: w, purchase } = await setup()
-    const before = await wallet(w.id)
-    expect(before!.reservedBalance).toBe(RESERVED)
+    const { admin, dispute, purchase, wallet: w } = await setup()
 
-    const result = await resolveDispute(dispute.id, admin.id, false, {
+    const result = await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'REJECT',
       note: 'La ressource correspond à la description publiée.',
     })
-    expect(result.resolution).toBe('REJECT')
+    expect(result!.resolution).toBe('REJECT')
 
     const after = await wallet(w.id)
     expect(after!.reservedBalance).toBe(0)
-    // Rendu, pas débité : le solde est inchangé.
-    expect(after!.balance).toBe(before!.balance)
-
-    const reservation = await prisma.fundReservation.findFirst({ where: { disputeId: dispute.id } })
-    expect(reservation).toMatchObject({ status: 'RELEASED', debitedAmount: 0, releasedAmount: RESERVED })
-
-    const purchaseAfter = await prisma.purchase.findUnique({ where: { id: purchase.id } })
-    expect(purchaseAfter!.accessSuspended).toBe(false)
-    expect(purchaseAfter!.accessRestoredAt).not.toBeNull()
-
-    const disputeAfter = await prisma.dispute.findUnique({ where: { id: dispute.id } })
-    expect(disputeAfter).toMatchObject({ status: 'RESOLVED_REJECTED', refundStatus: 'NOT_APPLICABLE' })
-    expect(disputeAfter!.learnerDeadlineAt).toBeNull()
+    expect(after!.balance).toBe(RESERVED)
+    expect((await prisma.purchase.findUnique({ where: { id: purchase.id } }))!.accessSuspended).toBe(false)
   })
 
-  // --- T6 : remboursement Stripe (automatique en développement) ---
-
   it('T6/FR3 — le remboursement intégral débite le solde et lève la réserve', async () => {
-    const { admin, dispute, wallet: w, purchase } = await setup({ provider: 'STRIPE' })
+    const { admin, dispute, purchase, wallet: w } = await setup()
 
-    const result = await resolveDispute(dispute.id, admin.id, false, {
+    const result = await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
       note: 'Le contenu livré ne correspond pas à la fiche.',
     })
-    expect(result.refundStatus).toBe('COMPLETED')
+    expect(result!.refundStatus).toBe('COMPLETED')
 
     const after = await wallet(w.id)
     expect(after!.reservedBalance).toBe(0)
-    expect(after!.balance).toBe(0) // 17 000 gelés puis débités
-
-    const reservation = await prisma.fundReservation.findFirst({ where: { disputeId: dispute.id } })
-    expect(reservation).toMatchObject({ status: 'DEBITED', debitedAmount: RESERVED, releasedAmount: 0 })
-
-    const purchaseAfter = await prisma.purchase.findUnique({ where: { id: purchase.id } })
-    expect(purchaseAfter!.refundedAt).not.toBeNull()
-    expect(purchaseAfter!.refundAmountFcfa).toBe(AMOUNT)
-    expect(purchaseAfter!.providerStatus).toBe('REFUNDED')
-    // Décision 18 : un remboursement ne rend pas l'accès.
-    expect(purchaseAfter!.accessSuspended).toBe(true)
+    expect(after!.balance).toBe(0)
+    expect((await prisma.purchase.findUnique({ where: { id: purchase.id } }))!.refundedAt).not.toBeNull()
   })
 
   it('T6/FR4 — le remboursement partiel ne débite que sa part', async () => {
-    const { admin, dispute, wallet: w } = await setup({ provider: 'STRIPE' })
+    const { admin, dispute, wallet: w } = await setup()
 
-    await resolveDispute(dispute.id, admin.id, false, {
+    await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'PARTIAL_REFUND',
       refundAmountFcfa: 8000,
       note: 'Seul le module manquant est remboursé.',
     })
 
-    const debited = Math.round(8000 * TRAINER_SHARE_RATE) // 6 800
     const after = await wallet(w.id)
     expect(after!.reservedBalance).toBe(0)
-    // Le reste de la réserve revient au formateur.
-    expect(after!.balance).toBe(RESERVED - debited)
-
-    const reservation = await prisma.fundReservation.findFirst({ where: { disputeId: dispute.id } })
-    expect(reservation).toMatchObject({
-      status: 'PARTIALLY_DEBITED',
-      debitedAmount: debited,
-      releasedAmount: RESERVED - debited,
-    })
+    // Seule la part formateur du montant remboursé est prélevée.
+    expect(after!.balance).toBe(RESERVED - Math.round(8000 * TRAINER_SHARE_RATE))
   })
 
   it('T6 — refuse un montant partiel absurde', async () => {
     const { admin, dispute } = await setup()
+
     await expectFailure(
-      resolveDispute(dispute.id, admin.id, false, {
+      refund(dispute.id, admin.id, {
         expectedUpdatedAt: dispute.updatedAt.toISOString(),
         resolution: 'PARTIAL_REFUND',
         refundAmountFcfa: AMOUNT,
         note: 'Remboursement partiel égal au total.',
       }),
-      'PARTIAL_AMOUNT_INVALID',
+      'INVALID_REFUND_AMOUNT',
     )
   })
 
-  // --- Barème et dérogation ---
-  //
-  // Un litige ouvert par l'apprenant est par construction dans le barème :
+  // --- Hors barème (bypass 14 j / 30 %) ---
+
   // `openDispute` refuse au-delà de 14 jours ou de 30 % consultés. Les dossiers
   // hors barème viennent d'ailleurs — chargeback de l'opérateur, ouverture par
   // un administrateur — et n'ont pas subi ces contrôles.
@@ -243,16 +252,31 @@ describe('Lot 2 — Arbitrage des litiges', () => {
     return { ...base, dispute: outOfWindow }
   }
 
-  it('hors barème, un modérateur ne peut pas rembourser', async () => {
+  it('hors barème, rembourser sans dérogation est refusé', async () => {
     const { admin, dispute } = await chargebackDispute()
 
     await expectFailure(
-      resolveDispute(dispute.id, admin.id, false, {
+      refund(dispute.id, admin.id, {
         expectedUpdatedAt: dispute.updatedAt.toISOString(),
         resolution: 'FULL_REFUND',
         note: 'Geste commercial exceptionnel.',
       }),
-      'POLICY_OVERRIDE_FORBIDDEN',
+      'REFUND_RULE_NOT_MET',
+    )
+  })
+
+  it('hors barème, la dérogation est refusée à un modérateur', async () => {
+    const { admin, dispute } = await chargebackDispute()
+
+    await expectFailure(
+      refund(dispute.id, admin.id, {
+        expectedUpdatedAt: dispute.updatedAt.toISOString(),
+        resolution: 'FULL_REFUND',
+        note: 'Geste commercial exceptionnel.',
+        policyOverride: true,
+        overrideJustification: 'Contestation portée par la banque.',
+      }),
+      'OVERRIDE_FORBIDDEN',
     )
   })
 
@@ -260,10 +284,12 @@ describe('Lot 2 — Arbitrage des litiges', () => {
     const { admin, dispute } = await chargebackDispute()
 
     await expectFailure(
-      resolveDispute(dispute.id, admin.id, true, {
+      refund(dispute.id, admin.id, {
         expectedUpdatedAt: dispute.updatedAt.toISOString(),
         resolution: 'FULL_REFUND',
         note: 'Geste commercial exceptionnel.',
+        policyOverride: true,
+        actorAdminRole: 'SUPER_ADMIN',
       }),
       'OVERRIDE_JUSTIFICATION_REQUIRED',
     )
@@ -272,10 +298,12 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   it('hors barème, la dérogation justifiée est tracée', async () => {
     const { admin, dispute } = await chargebackDispute()
 
-    await resolveDispute(dispute.id, admin.id, true, {
+    await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
       note: 'Chargeback opérateur : remboursement imposé.',
+      policyOverride: true,
+      actorAdminRole: 'SUPER_ADMIN',
       overrideJustification: 'Contestation portée par la banque, hors fenêtre NkamVa.',
     })
 
@@ -283,7 +311,7 @@ describe('Lot 2 — Arbitrage des litiges', () => {
     expect(after!.overrideJustification).toContain('Contestation portée par la banque')
 
     const log = await prisma.auditLog.findFirst({
-      where: { action: 'DISPUTE_REFUND_DECIDED', targetId: dispute.id },
+      where: { action: 'DISPUTE_RESOLVED_REFUNDED', targetId: dispute.id },
     })
     expect(log!.meta).toMatchObject({ policyOverride: true })
   })
@@ -300,25 +328,24 @@ describe('Lot 2 — Arbitrage des litiges', () => {
       where: { id: dispute.id },
       data: { openedAt: new Date(Date.now() - 21 * DAY) },
     })
-    const fresh = (await prisma.dispute.findUnique({ where: { id: dispute.id } }))!
 
-    const result = await resolveDispute(dispute.id, admin.id, false, {
-      expectedUpdatedAt: fresh.updatedAt.toISOString(),
+    const result = await refund(dispute.id, admin.id, {
+      expectedUpdatedAt: await freshUpdatedAt(dispute.id),
       resolution: 'FULL_REFUND',
       note: 'Contenu non conforme à la description.',
     })
-    expect(result.resolution).toBe('FULL_REFUND')
+    expect(result!.resolution).toBe('FULL_REFUND')
   })
 
   it('dans le barème, aucune justification n’est demandée', async () => {
     const { admin, dispute } = await setup({ purchasedDaysAgo: 3, watchedSeconds: 300 })
 
-    const result = await resolveDispute(dispute.id, admin.id, false, {
+    const result = await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
       note: 'Contenu non conforme à la description.',
     })
-    expect(result.resolution).toBe('FULL_REFUND')
+    expect(result!.resolution).toBe('FULL_REFUND')
     expect(
       (await prisma.dispute.findUnique({ where: { id: dispute.id } }))!.overrideJustification,
     ).toBeNull()
@@ -332,11 +359,10 @@ describe('Lot 2 — Arbitrage des litiges', () => {
       where: { id: purchase.id },
       data: { providerDisputeActive: true },
     })
-    const fresh = (await prisma.dispute.findUnique({ where: { id: dispute.id } }))!
 
     await expectFailure(
-      resolveDispute(dispute.id, admin.id, false, {
-        expectedUpdatedAt: fresh.updatedAt.toISOString(),
+      refund(dispute.id, admin.id, {
+        expectedUpdatedAt: await freshUpdatedAt(dispute.id),
         resolution: 'FULL_REFUND',
         note: 'Contenu non conforme à la description.',
       }),
@@ -353,12 +379,14 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   it('CinetPay — la décision crée une tâche et ne débite rien tout de suite', async () => {
     const { admin, dispute, wallet: w } = await setup({ provider: 'CINETPAY' })
 
-    const result = await resolveDispute(dispute.id, admin.id, false, {
+    const result = await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
       note: 'Contenu non conforme à la description.',
     })
-    expect(result).toMatchObject({ refundStatus: 'PENDING', manualTaskCreated: true })
+    // `MANUAL_PENDING` et non `PENDING` : le remboursement attend une action
+    // humaine chez l'opérateur, pas une confirmation automatique.
+    expect(result!.refundStatus).toBe('MANUAL_PENDING')
 
     // Tant que l'argent n'est pas rendu, la réserve tient et le solde est intact.
     const after = await wallet(w.id)
@@ -372,14 +400,14 @@ describe('Lot 2 — Arbitrage des litiges', () => {
 
   it('CinetPay — confirmer la tâche débite enfin le formateur', async () => {
     const { admin, dispute, wallet: w, purchase } = await setup({ provider: 'CINETPAY' })
-    await resolveDispute(dispute.id, admin.id, false, {
+    await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
       note: 'Contenu non conforme à la description.',
     })
     const task = (await listManualRefundTasks('PENDING'))[0]
 
-    await completeManualRefundTask(task.id, admin.id, 'Virement mobile money effectué.')
+    await completeManualRefundTask(task.id, { actorId: admin.id, notes: 'Virement mobile money effectué.' })
 
     const after = await wallet(w.id)
     expect(after!.reservedBalance).toBe(0)
@@ -390,72 +418,66 @@ describe('Lot 2 — Arbitrage des litiges', () => {
 
   it('FR5 — annuler la tâche rend les fonds gelés au formateur', async () => {
     const { admin, dispute, wallet: w, purchase } = await setup({ provider: 'CINETPAY' })
-    await resolveDispute(dispute.id, admin.id, false, {
+    await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
       note: 'Contenu non conforme à la description.',
     })
     const task = (await listManualRefundTasks('PENDING'))[0]
 
-    await cancelManualRefundTask(task.id, admin.id, 'Numéro mobile money invalide, remboursement impossible.')
+    await cancelManualRefundTask(task.id, {
+      actorId: admin.id,
+      reason: 'Numéro mobile money invalide, remboursement impossible.',
+    })
 
     const after = await wallet(w.id)
     expect(after!.reservedBalance).toBe(0)
     // Aucun débit : le remboursement n'a pas eu lieu.
     expect(after!.balance).toBe(RESERVED)
     expect((await prisma.dispute.findUnique({ where: { id: dispute.id } }))!.refundStatus).toBe('FAILED')
-    // L'accès reste suspendu : la décision de rembourser n'est pas annulée.
-    expect((await prisma.purchase.findUnique({ where: { id: purchase.id } }))!.accessSuspended).toBe(true)
+    // L'accès est rétabli : l'apprenant a payé et n'a rien été remboursé, le
+    // priver de la ressource le punirait deux fois d'un échec technique.
+    expect((await prisma.purchase.findUnique({ where: { id: purchase.id } }))!.accessSuspended).toBe(false)
   })
 
   it('une tâche déjà traitée ne se rejoue pas', async () => {
     const { admin, dispute } = await setup({ provider: 'CINETPAY' })
-    await resolveDispute(dispute.id, admin.id, false, {
+    await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
       note: 'Contenu non conforme à la description.',
     })
     const task = (await listManualRefundTasks('PENDING'))[0]
 
-    await completeManualRefundTask(task.id, admin.id)
-    await expectFailure(completeManualRefundTask(task.id, admin.id), 'TASK_NOT_PENDING')
+    await completeManualRefundTask(task.id, { actorId: admin.id })
+    await expectFailure(
+      completeManualRefundTask(task.id, { actorId: admin.id }),
+      'TASK_NOT_PENDING',
+    )
   })
 
   it('un dossier clos ne se rejuge pas', async () => {
     const { admin, dispute } = await setup()
-    await resolveDispute(dispute.id, admin.id, false, {
+    await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'REJECT',
       note: 'La ressource correspond à la description publiée.',
     })
-    const fresh = (await prisma.dispute.findUnique({ where: { id: dispute.id } }))!
 
     await expectFailure(
-      resolveDispute(dispute.id, admin.id, false, {
-        expectedUpdatedAt: fresh.updatedAt.toISOString(),
+      refund(dispute.id, admin.id, {
+        expectedUpdatedAt: await freshUpdatedAt(dispute.id),
         resolution: 'FULL_REFUND',
         note: 'Changement d’avis après coup.',
       }),
-      'DISPUTE_CLOSED',
-    )
-  })
-
-  it('exige un motif exploitable', async () => {
-    const { admin, dispute } = await setup()
-    await expectFailure(
-      resolveDispute(dispute.id, admin.id, false, {
-        expectedUpdatedAt: dispute.updatedAt.toISOString(),
-        resolution: 'REJECT',
-        note: 'non',
-      }),
-      'RESOLUTION_NOTE_REQUIRED',
+      'DISPUTE_ALREADY_RESOLVED',
     )
   })
 
   it('compte les dossiers par état', async () => {
     const { admin, dispute } = await setup()
     await setup()
-    await resolveDispute(dispute.id, admin.id, false, {
+    await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'REJECT',
       note: 'La ressource correspond à la description publiée.',

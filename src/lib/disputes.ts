@@ -21,7 +21,7 @@ import type {
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
-import { sendEmail } from './email'
+import { sendEmail, renderSimpleEmail } from './email'
 import { presignUpload } from './s3'
 import { syncNegativeSince } from './wallet'
 import { getStripe } from './stripe'
@@ -444,10 +444,17 @@ async function notifyDisputeOpened(
   await sendEmail({
     to: params.trainerEmail,
     subject: 'NkamVa — Litige ouvert sur une de vos ventes',
-    html: `<p>Un litige a été ouvert sur la vente « ${params.itemTitle} ».</p>
-<p>Motif déclaré : <strong>${params.reason}</strong>.</p>
-<p>Les fonds correspondants sont réservés sur votre portefeuille le temps de l'instruction par notre équipe.</p>
-<p><a href="${absoluteUrl(contestLink)}">Contester cette décision</a></p>`,
+    // `itemTitle` est un titre de ressource saisi par un formateur : il passe
+    // par le gabarit, qui l'échappe, et n'est jamais concaténé dans du balisage.
+    ...renderSimpleEmail({
+      title: 'Litige ouvert sur une de vos ventes',
+      paragraphs: [
+        `Un litige a été ouvert sur la vente « ${params.itemTitle} ».`,
+        `Motif déclaré : ${params.reason}.`,
+        'Les fonds correspondants sont réservés sur votre portefeuille le temps de l\'instruction par notre équipe.',
+      ],
+      cta: { label: 'Contester cette décision', url: absoluteUrl(contestLink) },
+    }),
     tags: ['dispute-opened'],
   })
   await notifyAdminSubRole('MODERATION', {
@@ -596,9 +603,14 @@ export async function askLearner(disputeId: string, input: AskLearnerInput) {
     await sendEmail({
       to: dispute.learner.email,
       subject: 'NkamVa — Le support attend votre réponse',
-      html: `<p>Notre équipe vous a posé une question sur votre litige.</p>
-<p>Merci d'y répondre avant le <strong>${deadline.toISOString().slice(0, 10)}</strong>. Sans réponse de votre part, le litige sera clos automatiquement.</p>
-<p><a href="${absoluteUrl(`/mes-litiges/${disputeId}`)}">Répondre</a></p>`,
+      ...renderSimpleEmail({
+        title: 'Le support attend votre réponse',
+        paragraphs: [
+          'Notre équipe vous a posé une question sur votre litige.',
+          `Merci d'y répondre avant le ${deadline.toISOString().slice(0, 10)}. Sans réponse de votre part, le litige sera clos automatiquement.`,
+        ],
+        cta: { label: 'Répondre', url: absoluteUrl(`/mes-litiges/${disputeId}`) },
+      }),
       tags: ['dispute-ask-learner'],
     })
   })
@@ -652,7 +664,10 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
   const full = input.resolution === 'FULL_REFUND'
   const refundAmountFcfa = full ? dispute.disputedAmountFcfa : (input.refundAmountFcfa ?? 0)
   if (!full) {
-    if (refundAmountFcfa <= 0 || refundAmountFcfa > dispute.disputedAmountFcfa) throw new Error('INVALID_REFUND_AMOUNT')
+    // Strictement inférieur au montant contesté : un « partiel » égal au total
+    // est un remboursement intégral déguisé, et il contournerait le contrôle
+    // 14 j / 30 % ci-dessous, qui ne s'applique qu'à FULL_REFUND.
+    if (refundAmountFcfa <= 0 || refundAmountFcfa >= dispute.disputedAmountFcfa) throw new Error('INVALID_REFUND_AMOUNT')
   }
 
   if (input.policyOverride) {
@@ -661,7 +676,15 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
     if (!input.overrideJustification) throw new Error('OVERRIDE_JUSTIFICATION_REQUIRED')
   } else if (full) {
     // FULL_REFUND sans override : la règle 14j + 30 % doit être satisfaite.
-    const withinWindow = dispute.purchase.createdAt >= daysAgo(DISPUTE_OPENING_WINDOW_DAYS)
+    //
+    // La fenêtre se mesure de l'achat à **l'ouverture du litige**, pas à
+    // l'instant de la décision. Comparer à `now` faisait perdre son droit à un
+    // apprenant qui avait contesté dans les temps mais dont le dossier
+    // attendait en file : le délai d'instruction devenait sa faute.
+    const openingDeadline = new Date(
+      dispute.purchase.createdAt.getTime() + DISPUTE_OPENING_WINDOW_DAYS * 86_400_000,
+    )
+    const withinWindow = dispute.openedAt <= openingDeadline
     const snapshot = dispute.consumptionSnapshot
     const consumptionOk = !snapshot
       || (snapshot.ruleApplies
@@ -813,9 +836,14 @@ async function notifyTrainerResolution(disputeId: string) {
   await sendEmail({
     to: dispute.trainerProfile.user.email,
     subject: refunded ? 'NkamVa — Remboursement accordé sur une de vos ventes' : 'NkamVa — Litige clos sans remboursement',
-    html: `<p>Le litige portant sur « ${itemTitle} » (motif : ${dispute.reason}) vient d'être tranché.</p>
-<p>Décision : <strong>${dispute.resolution}</strong>.</p>
-<p><a href="${absoluteUrl(contestLink)}">Contester cette décision</a></p>`,
+    ...renderSimpleEmail({
+      title: refunded ? 'Remboursement accordé sur une de vos ventes' : 'Litige clos sans remboursement',
+      paragraphs: [
+        `Le litige portant sur « ${itemTitle} » (motif : ${dispute.reason}) vient d'être tranché.`,
+        `Décision : ${dispute.resolution}.`,
+      ],
+      cta: { label: 'Contester cette décision', url: absoluteUrl(contestLink) },
+    }),
     tags: ['dispute-resolved'],
   })
 }

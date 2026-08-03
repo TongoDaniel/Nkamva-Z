@@ -145,6 +145,25 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   STALE_PAYOUT_METHOD: { message: 'Le moyen de paiement a été modifié entre-temps', status: 409 },
   MICRO_DEPOSIT_IBAN_ONLY: { message: 'Micro-virement réservé aux comptes IBAN', status: 422 },
   MICRO_DEPOSIT_NOT_ISSUED: { message: 'Aucun micro-virement en attente', status: 409 },
+  MICRO_DEPOSIT_ALREADY_ISSUED: { message: 'Des micro-virements sont déjà en attente de confirmation', status: 409 },
+  // --- Signalements (Modération) ---
+  REPORT_NOT_FOUND: { message: 'Signalement introuvable', status: 404 },
+  REPORT_NOT_OPEN: { message: 'Signalement déjà tranché', status: 409 },
+  REPORT_ALREADY_OPEN: { message: 'Vous avez déjà signalé cet élément', status: 409 },
+  TARGET_NOT_HIDEABLE: { message: 'Seule une ressource peut être retirée du catalogue', status: 422 },
+  STALE_REPORT: { message: 'Le signalement a été modifié entre-temps', status: 409 },
+  // --- Abonnement formateur (décision 68) ---
+  SUBSCRIPTION_SUSPENDED: {
+    message: 'Abonnement suspendu : la publication et le téléversement sont bloqués tant qu\'il n\'est pas réglé',
+    status: 422,
+  },
+  SUBSCRIPTION_CHARGE_NOT_FOUND: { message: 'Période de facturation introuvable', status: 404 },
+  SUBSCRIPTION_CHARGE_NOT_DUE: { message: 'Période déjà réglée ou offerte', status: 409 },
+  // --- Tarification plateforme (Super-admin) ---
+  INVALID_AMOUNT: { message: 'Montant invalide', status: 400 },
+  TARIFF_DATE_IN_PAST: { message: 'Un tarif ne peut pas prendre effet dans le passé', status: 422 },
+  CODE_REQUIRED: { message: 'Un code promo doit porter un code', status: 400 },
+  TRAINER_DISCOUNT_NEEDS_REASON: { message: 'Une remise nominative exige un formateur et un motif', status: 400 },
   MICRO_DEPOSIT_MISMATCH: { message: 'Les montants saisis ne correspondent pas', status: 422 },
   IBAN_REQUIRED: { message: 'IBAN obligatoire', status: 400 },
   MOBILE_ACCOUNT_REQUIRED: { message: 'Opérateur et numéro obligatoires', status: 400 },

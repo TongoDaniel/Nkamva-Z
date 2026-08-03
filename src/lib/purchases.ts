@@ -2,6 +2,7 @@
 // Lot 4 — Achat : initiation Stripe/CinetPay, Purchase PENDING, réconciliation
 // ==========================================================================
 
+import type { PaymentStatus } from '@prisma/client'
 import { db } from './db'
 import { auditStandalone } from './audit'
 import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
@@ -191,6 +192,77 @@ export async function listMyPurchases(learnerId: string, page: number, pageSize:
 }
 
 // --- Chiffres de tête de la page « Mes achats » ---
+
+// ==========================================================================
+// Lecture Finances — registre des transactions
+// ==========================================================================
+// `Purchase` est la source de vérité : les parts y sont snapshotées à la vente
+// (décision 11), donc un changement de taux de commission ne réécrit jamais le
+// passé. Ce registre ne recalcule rien, il lit ce qui a été figé.
+
+export async function listAllPurchases(filters: {
+  providerStatus?: PaymentStatus
+  refunded?: boolean
+  page?: number
+  pageSize?: number
+}) {
+  const page = Math.max(1, filters.page ?? 1)
+  const pageSize = Math.min(filters.pageSize ?? 20, 50)
+
+  const where = {
+    ...(filters.providerStatus ? { providerStatus: filters.providerStatus } : {}),
+    ...(filters.refunded === true ? { refundedAt: { not: null } } : {}),
+    ...(filters.refunded === false ? { refundedAt: null } : {}),
+  }
+
+  const [items, total] = await Promise.all([
+    db.purchase.findMany({
+      where,
+      include: {
+        learner: { select: { id: true, email: true, fullName: true } },
+        course: { select: { id: true, title: true, slug: true } },
+        community: { select: { id: true, name: true } },
+        trainerProfile: { select: { id: true, user: { select: { email: true, fullName: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    db.purchase.count({ where }),
+  ])
+  return { items, total, page, pageSize }
+}
+
+export async function getPurchaseStats() {
+  const SETTLED = { providerStatus: 'SUCCEEDED', refundedAt: null } as const
+
+  const [byStatus, settled, refunded] = await Promise.all([
+    db.purchase.groupBy({ by: ['providerStatus'], _count: { _all: true } }),
+    db.purchase.aggregate({
+      where: SETTLED,
+      _count: { _all: true },
+      _sum: { amountFcfa: true, platformShareFcfa: true, trainerShareFcfa: true },
+    }),
+    db.purchase.aggregate({
+      where: { refundedAt: { not: null } },
+      _count: { _all: true },
+      _sum: { amountFcfa: true },
+    }),
+  ])
+
+  const counts = Object.fromEntries(byStatus.map(r => [r.providerStatus, r._count._all]))
+  return {
+    byStatus: counts,
+    pending: counts.PENDING ?? 0,
+    failed: counts.FAILED ?? 0,
+    settledCount: settled._count._all,
+    grossFcfa: settled._sum.amountFcfa ?? 0,
+    platformShareFcfa: settled._sum.platformShareFcfa ?? 0,
+    trainerShareFcfa: settled._sum.trainerShareFcfa ?? 0,
+    refundedCount: refunded._count._all,
+    refundedFcfa: refunded._sum.amountFcfa ?? 0,
+  }
+}
 
 export interface PurchaseSummary {
   totalPaidFcfa: number

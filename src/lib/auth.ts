@@ -4,24 +4,70 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from './db'
 import { verifyPassword } from './password'
 import { isSessionRevoked } from './session-validity'
+import { RATE_LIMITS, clearRateLimit, ipFromHeaderRecord, peekRateLimit, recordRateLimitHit } from './rate-limit'
+
+const LOGIN_ACTION = 'login'
+
+/**
+ * Deux compteurs, pas un : l'IP arrête le balayage d'un dictionnaire d'adresses
+ * depuis un même poste, l'adresse e-mail arrête le martèlement d'un seul compte
+ * depuis des IP tournantes. Le plafond sur l'IP seule laisse passer le second,
+ * le plafond sur l'e-mail seul laisse passer le premier.
+ */
+function loginCounters(email: string, ip: string): string[] {
+  return [`ip:${ip}`, `email:${email}`]
+}
+
+/**
+ * Extrait du provider plutôt qu'écrit en ligne : `CredentialsProvider()` renvoie
+ * un objet dont `authorize` est le stub `() => null` de NextAuth, la fonction
+ * fournie n'étant lisible que sous `.options`. Un test qui appelle
+ * `providers[0].authorize` teste donc le stub et passe quoi qu'il arrive.
+ */
+export async function authorizeCredentials(
+  credentials: Record<'email' | 'password', string> | undefined,
+  // NextAuth passe son objet de requête interne (`headers`, `body`, `query`,
+  // `method`) ; seuls les en-têtes servent ici.
+  req?: { headers?: unknown; [key: string]: unknown },
+): Promise<Record<string, unknown> | null> {
+  if (!credentials?.email || !credentials?.password) return null
+  const email = credentials.email.toLowerCase()
+  const counters = loginCounters(email, ipFromHeaderRecord(req?.headers as Record<string, unknown> | undefined))
+
+  // Contrôlé avant toute lecture en base : un compte inexistant doit coûter
+  // aussi cher qu'un compte réel, sinon le plafond devient un oracle
+  // d'énumération.
+  for (const counter of counters) {
+    const { allowed } = peekRateLimit(counter, LOGIN_ACTION, RATE_LIMITS.LOGIN.max, RATE_LIMITS.LOGIN.windowMs)
+    if (!allowed) throw new Error('TOO_MANY_ATTEMPTS')
+  }
+
+  // Tout échec, y compris « adresse inconnue » et « compte suspendu »,
+  // consomme le même quota : le plafond ne doit rien apprendre sur le compte.
+  const fail = () => { for (const counter of counters) recordRateLimitHit(counter, LOGIN_ACTION, RATE_LIMITS.LOGIN.windowMs) }
+
+  const user = await db.user.findUnique({
+    where: { email },
+    select: { id: true, email: true, passwordHash: true, role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } },
+  })
+  if (!user || !user.passwordHash || user.deletedAt) { fail(); return null }
+  if (user.suspendedAt) { fail(); throw new Error('ACCOUNT_SUSPENDED') }
+  const valid = await verifyPassword(credentials.password, user.passwordHash)
+  if (!valid) { fail(); return null }
+
+  // Une connexion réussie efface les échecs qui la précèdent : sinon cinq
+  // fautes de frappe rattrapées bloquent la reconnexion suivante.
+  for (const counter of counters) clearRateLimit(counter, LOGIN_ACTION)
+
+  return { id: user.id, email: user.email, role: user.role, adminRole: user.adminRole, trainerId: user.trainerProfile?.id ?? null, sessionsValidAfter: user.sessionsValidAfter.toISOString() }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'credentials',
       credentials: { email: { label: 'Email', type: 'email' }, password: { label: 'Mot de passe', type: 'password' } },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
-        const user = await db.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
-          select: { id: true, email: true, passwordHash: true, role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } },
-        })
-        if (!user || !user.passwordHash || user.deletedAt) return null
-        if (user.suspendedAt) throw new Error('ACCOUNT_SUSPENDED')
-        const valid = await verifyPassword(credentials.password, user.passwordHash)
-        if (!valid) return null
-        return { id: user.id, email: user.email, role: user.role, adminRole: user.adminRole, trainerId: user.trainerProfile?.id ?? null, sessionsValidAfter: user.sessionsValidAfter.toISOString() } as any
-      },
+      authorize: (credentials, req) => authorizeCredentials(credentials, req) as any,
     }),
   ],
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },

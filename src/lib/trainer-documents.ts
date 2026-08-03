@@ -206,10 +206,16 @@ export async function rejectDocumentsInTx(
   for (const rejection of rejections) {
     const doc = await tx.trainerDocument.findUnique({
       where: { id: rejection.documentId },
-      select: { id: true, applicationId: true, isCurrent: true, status: true },
+      select: { id: true, applicationId: true, isCurrent: true, status: true, resubmissionCount: true },
     })
     if (!doc || doc.applicationId !== applicationId || !doc.isCurrent) throw new Error('DOCUMENT_NOT_FOUND')
     if (!CONFIRMED_DOCUMENT_STATUSES.includes(doc.status)) throw new Error('DOCUMENT_NOT_REVIEWABLE')
+
+    // Une pièce qui a épuisé ses renvois ne peut plus être refusée partiellement :
+    // le candidat se heurterait à `MAX_RESUBMISSIONS_REACHED` au moment de la
+    // renvoyer, et le dossier resterait bloqué en RESUBMISSION_PENDING sans issue.
+    // La spec prévoit le rejet définitif (T6) pour ce cas, pas un tour de plus.
+    if (doc.resubmissionCount >= MAX_RESUBMISSIONS) throw new Error('MAX_RESUBMISSIONS_REACHED')
 
     await tx.trainerDocument.update({
       where: { id: doc.id },

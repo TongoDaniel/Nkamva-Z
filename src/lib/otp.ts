@@ -1,7 +1,7 @@
 import { randomInt } from 'crypto'
 import { db } from './db'
 import { hashPassword, verifyPassword } from './password'
-import { sendEmail } from './email'
+import { sendEmail, renderSimpleEmail } from './email'
 
 export const OTP_TTL_MS = 10 * 60 * 1000
 export const OTP_MAX_ATTEMPTS = 5
@@ -75,17 +75,19 @@ export async function consumeOtp(
 }
 
 export async function sendOtpEmail(email: string, code: string): Promise<void> {
+  const { html, text } = renderSimpleEmail({
+    title: 'Votre code de vérification',
+    paragraphs: ['Bonjour,', 'Voici le code à saisir pour confirmer votre adresse e-mail :'],
+    highlight: code,
+    footnote:
+      'Ce code expire dans 10 minutes. Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet e-mail : aucune action n\'a été effectuée sur votre compte.',
+  })
+
   await sendEmail({
     to: email,
     subject: `NkamVa — votre code de vérification : ${code}`,
-    html: `<div style="font-family:system-ui,sans-serif;line-height:1.6">
-  <p>Bonjour,</p>
-  <p>Voici votre code de vérification NkamVa :</p>
-  <p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p>
-  <p>Ce code expire dans 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
-  <p>— L'équipe NkamVa</p>
-</div>`,
-    text: `Votre code de vérification NkamVa : ${code} (valable 10 minutes).`,
+    html,
+    text,
     tags: ['otp'],
   })
 }

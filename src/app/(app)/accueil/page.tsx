@@ -20,9 +20,17 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function AccueilPage() {
+export default async function AccueilPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erreur?: string }>;
+}) {
   const auth = await getAuthContext();
   if (!auth) return null;
+
+  // Le middleware renvoie ici quand un compte non-admin tente d'ouvrir `/admin`.
+  // Sans ce message, la redirection ressemble à un clic perdu.
+  const { erreur } = await searchParams;
 
   const [mine, suggestions, profile] = await Promise.all([
     listMyResources(auth.user.id, "all", 1, 20),
@@ -50,6 +58,15 @@ export default async function AccueilPage() {
         title={firstName ? `Bonjour, ${firstName} !` : "Votre espace"}
         lead="Reprenez là où vous en étiez, ou découvrez de nouvelles ressources."
       />
+
+      {erreur === "acces-refuse" ? (
+        <p
+          role="alert"
+          className="mb-8 rounded-nk border border-danger/30 bg-danger-tint px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger"
+        >
+          Vous n&apos;avez pas les droits nécessaires pour accéder à cette page.
+        </p>
+      ) : null}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2">
         <Link

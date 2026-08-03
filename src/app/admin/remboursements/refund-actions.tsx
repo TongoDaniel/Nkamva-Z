@@ -93,14 +93,16 @@ export function RefundActions({
         open={dialog === "cancel"}
         onOpenChange={(o) => setDialog(o ? "cancel" : null)}
         title="Le remboursement a échoué ?"
-        description="Les fonds gelés sont rendus au formateur, sans débit. L'accès de l'apprenant reste suspendu : la décision de rembourser n'est pas annulée, c'est au support de reprendre le dossier."
+        description="Les fonds gelés sont rendus au formateur, sans débit. L'apprenant retrouve l'accès à la ressource : il a payé et n'a rien été remboursé."
         footer={
           <>
             <Btn
               variant="danger"
               loading={pending}
-              disabled={errorMessage.trim().length < 5}
-              onClick={() => call("cancel", { errorMessage: errorMessage.trim() }, "Échec enregistré.")}
+              // Dix caractères, comme l'exige le schéma de la route : en dessous,
+              // le bouton était actif et l'appel repartait en 400.
+              disabled={errorMessage.trim().length < 10}
+              onClick={() => call("cancel", { reason: errorMessage.trim() }, "Échec enregistré.")}
             >
               Enregistrer l&apos;échec
             </Btn>

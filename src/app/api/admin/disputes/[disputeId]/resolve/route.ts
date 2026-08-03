@@ -5,7 +5,12 @@ import { resolveDispute } from '@/lib/disputes'
 
 const ResolveSchema = z.object({
   resolution: z.enum(['FULL_REFUND', 'PARTIAL_REFUND', 'REJECT']),
-  resolutionNote: z.string().max(2000).optional(),
+  // Obligatoire : une résolution débite un formateur ou clôt la demande d'un
+  // apprenant, et elle lui est notifiée. Sans motif consigné, ni l'un ni l'autre
+  // ne peut savoir pourquoi, et la contestation qui suit s'instruit à l'aveugle.
+  // Le champ était optionnel, et la console envoyait `note` : chaque décision
+  // prise depuis l'interface perdait silencieusement sa justification.
+  resolutionNote: z.string().trim().min(10, 'Motif trop court').max(2000),
   refundAmountFcfa: z.number().int().positive().optional(),
   // Bypass de la règle 14 j / 30 % — Super-admin uniquement, justification obligatoire.
   policyOverride: z.boolean().optional(),

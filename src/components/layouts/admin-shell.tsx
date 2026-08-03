@@ -5,71 +5,59 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  BadgeCheck,
-  BarChart3,
-  FileClock,
-  Gavel,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Receipt,
-  Settings,
-  ShieldAlert,
-  Undo2,
-  Users,
-  Wallet,
-  X,
+  BadgeCheck, BarChart3, CreditCard, FileClock, Gavel, LayoutDashboard,
+  LogOut, Menu, Receipt, RefreshCw, Settings, ShieldAlert, Undo2, Users, Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
 
-export interface AdminNavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
-}
+import { navForSubRole, type AdminNavGroup } from "./admin-nav";
 
-export interface AdminNavGroup {
-  title: string;
-  items: AdminNavItem[];
-}
+export type { AdminSubRole, AdminNavItem, AdminNavGroup } from "./admin-nav";
+export { navForSubRole } from "./admin-nav";
 
 /**
- * Rubriques admin. Chaque entrée pointe vers une page qui sera livrée par la
- * tranche correspondante ; la navigation est donc la source unique de vérité
- * sur le périmètre admin restant à construire.
+ * Rubriques admin, icônes comprises. Elles restent dans ce module client : une
+ * icône est un composant React, et un composant serveur ne peut pas en passer
+ * un en prop à un composant client.
+ *
+ * C'est aussi la source unique de vérité sur le périmètre admin restant à
+ * construire.
  */
 export const ADMIN_NAV: AdminNavGroup[] = [
   {
     title: "Pilotage",
     items: [
       { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
-      { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: [] },
     ],
   },
   {
     title: "Modération",
     items: [
-      { href: "/admin/validation-formateurs", label: "Validation formateurs", icon: BadgeCheck },
-      { href: "/admin/litiges", label: "Litiges", icon: Gavel },
-      { href: "/admin/signalements", label: "Signalements", icon: ShieldAlert },
+      { href: "/admin/validation-formateurs", label: "Validation formateurs", icon: BadgeCheck, roles: ["MODERATION"] },
+      { href: "/admin/litiges", label: "Litiges", icon: Gavel, roles: ["MODERATION"] },
+      { href: "/admin/signalements", label: "Signalements", icon: ShieldAlert, roles: ["MODERATION"] },
     ],
   },
   {
     title: "Finances",
     items: [
-      { href: "/admin/transactions", label: "Transactions", icon: Receipt },
-      { href: "/admin/remboursements", label: "Remboursements", icon: Undo2 },
-      { href: "/admin/retraits", label: "Retraits", icon: Wallet },
+      { href: "/admin/transactions", label: "Transactions", icon: Receipt, roles: ["FINANCES"] },
+      { href: "/admin/remboursements", label: "Remboursements", icon: Undo2, roles: ["FINANCES"] },
+      { href: "/admin/moyens-de-paiement", label: "Moyens de paiement", icon: CreditCard, roles: ["FINANCES"] },
+      { href: "/admin/retraits", label: "Retraits", icon: Wallet, roles: ["FINANCES"] },
+      { href: "/admin/abonnements", label: "Abonnements", icon: RefreshCw, roles: ["FINANCES"] },
     ],
   },
   {
     title: "Administration",
     items: [
-      { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users },
-      { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock },
-      { href: "/admin/parametres", label: "Paramètres", icon: Settings },
+      // Décision 7 — Finances a une lecture seule sur les utilisateurs ; le
+      // journal d'audit et les paramètres restent au Super-admin.
+      { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users, roles: ["FINANCES"] },
+      { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock, roles: [] },
+      { href: "/admin/parametres", label: "Paramètres", icon: Settings, roles: [] },
     ],
   },
 ];
@@ -99,6 +87,10 @@ export function AdminShell({
   const pathname = usePathname() ?? "/admin";
   const [open, setOpen] = React.useState(false);
   const { name, email, adminRole } = user;
+
+  // Décision 7 — le filtrage se fait ici, pas dans le layout : la navigation
+  // porte des icônes, qui ne peuvent pas traverser la frontière serveur.
+  const visibleNav = React.useMemo(() => navForSubRole(nav, adminRole), [nav, adminRole]);
 
   React.useEffect(() => {
     setOpen(false);
@@ -182,7 +174,7 @@ export function AdminShell({
         </div>
 
         <div className="flex flex-1 flex-col gap-4 px-3.5 pb-3.5">
-          {nav.map((group) => (
+          {visibleNav.map((group) => (
             <div key={group.title} className="flex flex-col gap-0.5">
               <h2 className="mb-1.5 px-2.5 font-sans text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#98a49b]">
                 {group.title}

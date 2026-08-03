@@ -16,11 +16,12 @@ import type { Prisma, TrainerApplicationStatus, TrainerDocumentType, TrainerDocu
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
-import { sendEmail } from './email'
+import { sendEmail, renderSimpleEmail } from './email'
 import {
   REQUIRED_DOCUMENT_TYPES, CONFIRMED_DOCUMENT_STATUSES,
   approveCurrentDocuments, rejectDocumentsInTx,
 } from './trainer-documents'
+import { openFirstPeriod } from './subscriptions'
 import type { PrismaTransaction } from './types'
 
 export const REOPEN_MIN_DELAY_HOURS = 24
@@ -260,6 +261,11 @@ export async function approveApplication(applicationId: string, input: ApproveIn
     })
     await tx.wallet.create({ data: { trainerId: profile.id } })
 
+    // La première période d'abonnement naît ici aussi : un formateur sans
+    // période serait invisible du renouvellement, donc jamais facturé.
+    // Au tarif de lancement (0), elle est ouverte comme offerte, pas comme due.
+    await openFirstPeriod(tx, profile.id)
+
     await setUserRole(tx, application.userId, 'TRAINER', 'TRAINER_APPLICATION_APPROVED')
     await recordTransition(tx, {
       applicationId, fromStatus: 'SUBMITTED', toStatus: 'APPROVED', actorId: input.actorId,
@@ -283,9 +289,14 @@ export async function approveApplication(applicationId: string, input: ApproveIn
     await sendEmail({
       to: application.user.email,
       subject: 'NkamVa — Votre candidature formateur est acceptée',
-      html: `<p>Bonne nouvelle, votre candidature a été acceptée.</p>
-<p>Votre espace formateur est ouvert : vous pouvez publier vos premières ressources.</p>
-<p><a href="${absoluteUrl('/formateur')}">Accéder à mon espace</a></p>`,
+      ...renderSimpleEmail({
+        title: 'Votre candidature est acceptée',
+        paragraphs: [
+          'Bonne nouvelle : votre candidature de formateur a été acceptée.',
+          'Votre espace formateur est ouvert, vous pouvez publier vos premières ressources.',
+        ],
+        cta: { label: 'Accéder à mon espace', url: absoluteUrl('/formateur') },
+      }),
       tags: ['trainer-application-approved'],
     })
   })
@@ -334,7 +345,9 @@ export async function rejectDocuments(applicationId: string, input: RejectDocume
     return ids
   })
 
-  const reasons = input.rejections.map(r => `<li>${r.rejectionReason}</li>`).join('')
+  // Les motifs sont saisis par un admin : ils passent par le gabarit, qui les
+  // échappe, plutôt que d'être concaténés dans du balisage.
+  const reasons = input.rejections.map(r => `— ${r.rejectionReason}`).join('\n')
   await deliverSideEffects('TRAINER_DOCUMENTS_REJECTED', { type: 'TrainerApplication', id: applicationId }, async () => {
     await notify(application.userId, {
       type: 'TRAINER_DOCUMENTS_REJECTED',
@@ -345,9 +358,15 @@ export async function rejectDocuments(applicationId: string, input: RejectDocume
     await sendEmail({
       to: application.user.email,
       subject: 'NkamVa — Des pièces de votre candidature doivent être renvoyées',
-      html: `<p>Notre équipe a examiné votre candidature et certaines pièces doivent être renvoyées.</p>
-<ul>${reasons}</ul>
-<p><a href="${absoluteUrl('/candidature/statut')}">Renvoyer mes pièces</a></p>`,
+      ...renderSimpleEmail({
+        title: 'Des pièces sont à renvoyer',
+        paragraphs: [
+          'Notre équipe a examiné votre candidature : certaines pièces doivent être renvoyées.',
+          reasons,
+          'Les pièces déjà validées sont conservées.',
+        ],
+        cta: { label: 'Renvoyer mes pièces', url: absoluteUrl('/candidature/statut') },
+      }),
       tags: ['trainer-documents-rejected'],
     })
   })
@@ -407,9 +426,11 @@ export async function rejectApplicationFinal(applicationId: string, input: Rejec
     await sendEmail({
       to: application.user.email,
       subject: 'NkamVa — Votre candidature formateur n\'a pas été retenue',
-      html: `<p>Après examen, votre candidature n'a pas été retenue.</p>
-<p>Motif : ${input.reason}</p>
-<p><a href="${absoluteUrl('/candidature/statut')}">Consulter mon dossier</a></p>`,
+      ...renderSimpleEmail({
+        title: 'Suite donnée à votre candidature',
+        paragraphs: ['Après examen, votre candidature n\'a pas été retenue.', `Motif : ${input.reason}`],
+        cta: { label: 'Consulter mon dossier', url: absoluteUrl('/candidature/statut') },
+      }),
       tags: ['trainer-application-rejected'],
     })
   })

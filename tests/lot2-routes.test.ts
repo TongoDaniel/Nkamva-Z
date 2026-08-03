@@ -24,6 +24,7 @@ import { GET as listAdminDisputesRoute } from '@/app/api/admin/disputes/route'
 import { GET as adminStatsRoute } from '@/app/api/admin/disputes/stats/route'
 import { POST as resolveRoute } from '@/app/api/admin/disputes/[disputeId]/resolve/route'
 import { GET as listManualRefundTasksRoute } from '@/app/api/admin/manual-refund-tasks/route'
+import { POST as cancelRefundTaskRoute } from '@/app/api/admin/manual-refund-tasks/[taskId]/cancel/route'
 import { GET as listTrainerDisputesRoute } from '@/app/api/trainer/disputes/route'
 import { POST as contestRoute } from '@/app/api/trainer/disputes/[disputeId]/contest/route'
 
@@ -192,6 +193,7 @@ describe('Lot 2 — Routes', () => {
     const stale = await resolveRoute(
       jsonRequest('http://localhost/x', {
         resolution: 'REJECT',
+        resolutionNote: 'La ressource correspond a la description publiee.',
         expectedUpdatedAt: new Date(Date.now() - 3600_000).toISOString(),
       }),
       { params: Promise.resolve({ disputeId: dispute.id }) },
@@ -208,7 +210,9 @@ describe('Lot 2 — Routes', () => {
     // Avec la bonne version, la résolution passe
     const ok = await resolveRoute(
       jsonRequest('http://localhost/x', {
-        resolution: 'REJECT', expectedUpdatedAt: untouched.updatedAt.toISOString(),
+        resolution: 'REJECT',
+        resolutionNote: 'La ressource correspond a la description publiee.',
+        expectedUpdatedAt: untouched.updatedAt.toISOString(),
       }),
       { params: Promise.resolve({ disputeId: dispute.id }) },
     )
@@ -225,6 +229,7 @@ describe('Lot 2 — Routes', () => {
     const forbidden = await resolveRoute(
       jsonRequest('http://localhost/x', {
         resolution: 'FULL_REFUND',
+        resolutionNote: 'Geste commercial valide par la direction.',
         policyOverride: true,
         overrideJustification: 'Geste commercial exceptionnel demandé par la direction.',
         expectedUpdatedAt: current.updatedAt.toISOString(),
@@ -300,7 +305,7 @@ describe('Lot 2 — Routes', () => {
 
     signInAs({ id: moderator.id, role: 'ADMIN', adminRole: 'MODERATION' })
     await resolveRoute(
-      jsonRequest('http://localhost/x', { resolution: 'REJECT', expectedUpdatedAt: current.updatedAt.toISOString() }),
+      jsonRequest('http://localhost/x', { resolution: 'REJECT', resolutionNote: 'La ressource correspond a la description publiee.', expectedUpdatedAt: current.updatedAt.toISOString() }),
       { params: Promise.resolve({ disputeId: dispute.id }) },
     )
 
@@ -311,5 +316,117 @@ describe('Lot 2 — Routes', () => {
     )
     expect(closed.status).toBe(409)
     expect((await closed.json()).error.code).toBe('DISPUTE_CLOSED')
+  })
+
+  // -------------------------------------------------------------------------
+  // Les trois tests suivants traversent la frontière console → route. C'est
+  // celle qu'aucun test ne franchissait, et trois contrats y étaient cassés :
+  // une clé mal nommée sur un champ optionnel passe la validation en silence.
+  // -------------------------------------------------------------------------
+
+  it('POST /resolve — le motif de la décision est bien persisté', async () => {
+    const { learner, purchase, moderator } = await setupScenario()
+    const dispute = await openDispute(learner.id, { purchaseId: purchase.purchaseId, reason: 'OTHER' })
+    const current = await prisma.dispute.findUniqueOrThrow({ where: { id: dispute.id } })
+
+    signInAs({ id: moderator.id, role: 'ADMIN', adminRole: 'MODERATION' })
+
+    // Sans motif, la route refuse : une décision qui déplace de l'argent doit
+    // dire pourquoi.
+    const bare = await resolveRoute(
+      jsonRequest('http://localhost/x', {
+        resolution: 'REJECT',
+        expectedUpdatedAt: current.updatedAt.toISOString(),
+      }),
+      { params: Promise.resolve({ disputeId: dispute.id }) },
+    )
+    expect(bare.status).toBe(400)
+
+    const ok = await resolveRoute(
+      jsonRequest('http://localhost/x', {
+        resolution: 'REJECT',
+        resolutionNote: 'Le programme annonce bien les trois modules livres.',
+        expectedUpdatedAt: current.updatedAt.toISOString(),
+      }),
+      { params: Promise.resolve({ disputeId: dispute.id }) },
+    )
+    expect(ok.status).toBe(200)
+
+    const resolved = await prisma.dispute.findUniqueOrThrow({ where: { id: dispute.id } })
+    expect(resolved.resolutionNote).toBe('Le programme annonce bien les trois modules livres.')
+  })
+
+  it('POST /resolve — un super-administrateur mène la dérogation jusqu\'au bout', async () => {
+    const { learner, purchase, profile } = await setupScenario()
+    const superAdmin = await prisma.user.create({
+      data: { email: 'super@test.com', role: 'ADMIN', adminRole: 'SUPER_ADMIN' },
+    })
+    const dispute = await openDispute(learner.id, { purchaseId: purchase.purchaseId, reason: 'OTHER' })
+    // Hors barème : l'achat et l'ouverture datent de plus de 14 jours.
+    await prisma.purchase.update({
+      where: { id: purchase.purchaseId },
+      data: { createdAt: new Date(Date.now() - 40 * 86_400_000) },
+    })
+    await prisma.dispute.update({
+      where: { id: dispute.id },
+      data: { openedAt: new Date(Date.now() - 20 * 86_400_000) },
+    })
+    const current = await prisma.dispute.findUniqueOrThrow({ where: { id: dispute.id } })
+
+    signInAs({ id: superAdmin.id, role: 'ADMIN', adminRole: 'SUPER_ADMIN' })
+    const ok = await resolveRoute(
+      jsonRequest('http://localhost/x', {
+        resolution: 'FULL_REFUND',
+        resolutionNote: 'Chargeback opérateur : remboursement imposé.',
+        policyOverride: true,
+        overrideJustification: 'Contestation portée par la banque, hors fenêtre NkamVa.',
+        expectedUpdatedAt: current.updatedAt.toISOString(),
+      }),
+      { params: Promise.resolve({ disputeId: dispute.id }) },
+    )
+    expect(ok.status).toBe(200)
+
+    const resolved = await prisma.dispute.findUniqueOrThrow({ where: { id: dispute.id } })
+    expect(resolved.status).toBe('RESOLVED_REFUNDED')
+    expect(resolved.overrideJustification).toContain('portée par la banque')
+
+    const wallet = await prisma.wallet.findFirstOrThrow({ where: { trainerId: profile.id } })
+    expect(wallet.reservedBalance).toBe(0)
+  })
+
+  it('POST /manual-refund-tasks/[id]/cancel — Finances peut enregistrer un échec', async () => {
+    const { learner, purchase, moderator, finance, profile } = await setupScenario()
+    await prisma.purchase.update({
+      where: { id: purchase.purchaseId },
+      data: { provider: 'CINETPAY' },
+    })
+    const dispute = await openDispute(learner.id, { purchaseId: purchase.purchaseId, reason: 'OTHER' })
+    const current = await prisma.dispute.findUniqueOrThrow({ where: { id: dispute.id } })
+
+    signInAs({ id: moderator.id, role: 'ADMIN', adminRole: 'MODERATION' })
+    await resolveRoute(
+      jsonRequest('http://localhost/x', {
+        resolution: 'FULL_REFUND',
+        resolutionNote: 'Contenu non conforme a la fiche produit.',
+        expectedUpdatedAt: current.updatedAt.toISOString(),
+      }),
+      { params: Promise.resolve({ disputeId: dispute.id }) },
+    )
+
+    const task = await prisma.manualRefundTask.findFirstOrThrow({ where: { disputeId: dispute.id } })
+
+    signInAs({ id: finance.id, role: 'ADMIN', adminRole: 'FINANCES' })
+    const cancelled = await cancelRefundTaskRoute(
+      jsonRequest('http://localhost/x', {
+        reason: 'Numéro mobile money invalide, remboursement impossible.',
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+    expect(cancelled.status).toBe(200)
+
+    // FR5 : les fonds gelés repartent au formateur, sans débit.
+    const wallet = await prisma.wallet.findFirstOrThrow({ where: { trainerId: profile.id } })
+    expect(wallet.reservedBalance).toBe(0)
+    expect((await prisma.dispute.findUniqueOrThrow({ where: { id: dispute.id } })).refundStatus).toBe('FAILED')
   })
 })

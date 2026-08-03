@@ -387,6 +387,34 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
   })
 
   // -------------------------------------------------------------------------
+  it('PM3 — on ne re-tire pas des micro-virements déjà émis', async () => {
+    const { user, profile, finance } = await setupTrainer()
+    const method = await createPayoutMethod(profile.id, user.id, IBAN_INPUT)
+
+    await verifyPayoutMethod(method.id, {
+      method: 'MICRO_DEPOSIT', expectedUpdatedAt: await freshMethod(method.id),
+      actorId: finance.id, actorRole: 'FINANCES',
+    })
+    const issued = await prisma.payoutMethod.findUniqueOrThrow({ where: { id: method.id } })
+
+    // Le garde sur `updatedAt` ne suffit pas : après le premier tirage, l'écran
+    // se rafraîchit et repart avec une valeur à jour. Sans ce refus, Finances
+    // remplacerait des montants déjà virés, et le formateur serait compté en
+    // échec en saisissant les bons.
+    await expect(
+      verifyPayoutMethod(method.id, {
+        method: 'MICRO_DEPOSIT', expectedUpdatedAt: await freshMethod(method.id),
+        actorId: finance.id, actorRole: 'FINANCES',
+      }),
+    ).rejects.toThrow('MICRO_DEPOSIT_ALREADY_ISSUED')
+
+    const after = await prisma.payoutMethod.findUniqueOrThrow({ where: { id: method.id } })
+    expect(after.microDepositAmount1).toBe(issued.microDepositAmount1)
+    expect(after.microDepositAmount2).toBe(issued.microDepositAmount2)
+    expect(after.microDepositReference).toBe(issued.microDepositReference)
+  })
+
+  // -------------------------------------------------------------------------
   it('PM3/PM4 — micro-virements : montants faux comptent comme un rejet, montants justes vérifient', async () => {
     const { user, profile, finance } = await setupTrainer()
     const method = await createPayoutMethod(profile.id, user.id, IBAN_INPUT)

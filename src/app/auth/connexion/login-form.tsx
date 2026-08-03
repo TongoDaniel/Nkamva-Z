@@ -15,6 +15,9 @@ function loginErrorMessage(code?: string | null): string | null {
   if (code === "ACCOUNT_SUSPENDED") {
     return "Ce compte est suspendu. Contactez le support pour en connaître la raison.";
   }
+  if (code === "TOO_MANY_ATTEMPTS") {
+    return "Trop de tentatives de connexion. Patientez une minute avant de réessayer.";
+  }
   if (code === "CredentialsSignin") {
     return "Adresse e-mail ou mot de passe incorrect.";
   }

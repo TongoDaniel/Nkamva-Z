@@ -10,7 +10,7 @@
 
 import { db } from '../db'
 import { auditStandalone } from '../audit'
-import { sendEmail } from '../email'
+import { sendEmail, renderSimpleEmail } from '../email'
 import { fmtDate } from '../format'
 import { DELETION_GRACE_DAYS } from '../dto'
 
@@ -38,30 +38,21 @@ function cancelUrl(): string {
 
 function reminderCopy(daysLeft: ReminderMilestone, scheduledAt: Date) {
   const when = daysLeft === 1 ? 'demain' : `dans ${daysLeft} jours`
-  const url = cancelUrl()
   return {
     subject:
       daysLeft === 1
         ? 'Votre compte NkamVa sera supprimé demain'
         : `Votre compte NkamVa sera supprimé dans ${daysLeft} jours`,
-    html: [
-      `<p>Bonjour,</p>`,
-      `<p>Vous avez demandé la suppression de votre compte NkamVa. L'effacement aura lieu <strong>${when}</strong>, le ${fmtDate(scheduledAt)}.</p>`,
-      `<p>Passé cette date, vos ressources achetées ne seront plus accessibles et l'opération sera irréversible.</p>`,
-      `<p>Si vous avez changé d'avis, vous pouvez encore annuler depuis votre espace :<br><a href="${url}">${url}</a></p>`,
-      `<p>Si cette demande vient bien de vous et que vous la maintenez, aucune action n'est nécessaire.</p>`,
-    ].join(''),
-    text: [
-      'Bonjour,',
-      '',
-      `Vous avez demandé la suppression de votre compte NkamVa. L'effacement aura lieu ${when}, le ${fmtDate(scheduledAt)}.`,
-      '',
-      "Passé cette date, vos ressources achetées ne seront plus accessibles et l'opération sera irréversible.",
-      '',
-      `Si vous avez changé d'avis, vous pouvez encore annuler ici : ${url}`,
-      '',
-      "Si vous maintenez votre demande, aucune action n'est nécessaire.",
-    ].join('\n'),
+    ...renderSimpleEmail({
+      title: `Votre compte sera supprimé ${when}`,
+      paragraphs: [
+        'Bonjour,',
+        `Vous avez demandé la suppression de votre compte NkamVa. L'effacement aura lieu ${when}, le ${fmtDate(scheduledAt)}.`,
+        'Passé cette date, vos ressources achetées ne seront plus accessibles et l\'opération sera irréversible.',
+      ],
+      cta: { label: 'Annuler la suppression', url: cancelUrl() },
+      footnote: 'Si cette demande vient bien de vous et que vous la maintenez, aucune action n\'est nécessaire.',
+    }),
   }
 }
 
