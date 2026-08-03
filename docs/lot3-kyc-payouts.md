@@ -230,6 +230,45 @@ le même invariant `negativeSince ⟺ solde retirable < 0`.
 - **Décision 30** — le message de rejet reprend le motif et rappelle les deux
   options légitimes, sans jamais afficher le `verifiedLegalName` complet.
 
+### 4.2bis Audit du 3 août 2026
+
+Toute la spécification §3 est vérifiée sur le disque : le score KYC et ses cinq
+critères avec leurs poids exacts, les seuils de badge et `payoutEligible`, les
+machines PM1-PM10 et P1-P8, les 7 constantes, les 2 jobs (carence à `15 * * * *`,
+SLA à `45 * * * *`), le RBAC — `/api/trainer/kyc-score` est bien `requireTrainer`,
+et la route de consultation ajoutée pour Finances restreint les types à
+`BUSINESS_DOC` et `LEGAL_REP_PROOF`, jamais une pièce d'identité (décisions 7 et
+21). Les charges utiles des consoles `/admin/moyens-de-paiement` et
+`/admin/retraits` correspondent toutes à leur schéma Zod, seuils de saisie
+compris — la classe de bug trouvée au Lot 2 ne s'est pas propagée ici.
+
+**Un défaut trouvé et corrigé : P1 ne tenait pas en concurrence.** Le contrôle
+du solde retirable et celui du retrait « en vol » se lisaient **hors
+transaction**. Deux demandes simultanées lisaient la même valeur avant d'écrire
+et repartaient toutes deux acceptées — vérifié : sur un solde de 50 000 FCFA,
+deux demandes de 50 000 passaient et `pendingPayoutBalance` montait à 100 000.
+En auto-approbation (décision 25) aucune revue Finances ne rattrape derrière, et
+le portefeuille serait passé en négatif au versement.
+
+L'immobilisation porte désormais sa propre condition de solde, en SQL, dans la
+transaction : Postgres réévalue le `WHERE` après avoir verrouillé la ligne, donc
+la seconde écriture ne trouve plus le solde et repart en 422. Couvert par un
+test de concurrence réelle (`Promise.allSettled` sur deux demandes), qui échoue
+bien sans le correctif — vérifié en le retirant.
+
+> Résiduel assumé : deux retraits « en vol » simultanés restent possibles si le
+> solde couvre les deux. Ce n'est plus une perte d'argent, seulement un écart à
+> la règle « un seul retrait à la fois ». Le fermer proprement demande un index
+> unique partiel sur `payouts(trainerId)` filtré sur les statuts en vol, donc une
+> migration — même motif que `community_subscriptions_active_unique_index`.
+
+**Constante SLA dédoublée.** `PAYOUT_REVIEW_SLA_HOURS = 48` existait dans
+`payouts.ts` **et** dans `payout-methods.ts`. `/admin/moyens-de-paiement` lisait
+l'une, `/admin/retraits` et `/admin/parametres` l'autre : changer le délai en
+aurait laissé deux écrans sur trois sur l'ancienne valeur, dont celui qui
+l'affiche comme la règle de la plateforme. Définition unique dans
+`payout-methods.ts`, ré-exportée par `payouts.ts`.
+
 ### 4.3 Écarts maintenus (et pourquoi)
 
 - **Décision 22a** — `lookupMobileMoneyName()` retourne toujours `UNAVAILABLE` :
@@ -243,8 +282,10 @@ le même invariant `negativeSince ⟺ solde retirable < 0`.
   calendrier ouvré n'est modélisé.
 - **Décision 24** — la notification à l'ancien **numéro de téléphone** n'est
   toujours pas envoyée : aucun provider SMS n'est configuré.
-- **Décisions 29 et 30** — la pédagogie avant saisie et le message en trois
-  parties relèvent du front, qui n'existe pas.
+- ~~**Décisions 29 et 30** — relèvent du front, qui n'existe pas.~~ — **le front
+  existe** depuis le 2 août : 2 écrans formateur (portefeuille, moyen de
+  paiement) et 4 écrans admin (moyens de paiement et retraits, liste et détail).
+  Le contenu pédagogique de ces deux décisions reste à écrire dans les écrans.
 
 ### 4.4 Vérifié
 

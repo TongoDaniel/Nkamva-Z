@@ -19,11 +19,14 @@ import { audit } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
 import { syncNegativeSince, withdrawableBalance } from './wallet'
 import { computeKycScore, KYC_THRESHOLD_VERIFIED } from './kyc'
-import { getWithdrawableMethod } from './payout-methods'
+import { getWithdrawableMethod, PAYOUT_REVIEW_SLA_HOURS } from './payout-methods'
 import type { PrismaTransaction } from './types'
 
 export const PAYOUT_MIN_AMOUNT_FCFA = 10_000
-export const PAYOUT_REVIEW_SLA_HOURS = 48
+
+// Source unique dans `payout-methods.ts` : le même délai servait aux deux
+// familles d'écrans depuis deux constantes distinctes.
+export { PAYOUT_REVIEW_SLA_HOURS } from './payout-methods'
 
 /** Retraits « en vol » : ceux qui immobilisent du solde. */
 export const IN_FLIGHT_PAYOUT_STATUSES: PayoutStatus[] = ['PENDING', 'AUTO_APPROVED', 'IN_REVIEW', 'APPROVED']
@@ -106,10 +109,23 @@ export async function requestPayout(trainerProfileId: string, userId: string, am
 
     // P1 — le montant est immobilisé dès la demande, mais `balance` n'est pas
     // touché : le formateur n'est débité qu'au versement effectif (P6).
-    await tx.wallet.update({
-      where: { id: wallet.id },
-      data: { pendingPayoutBalance: { increment: amountFcfa } },
-    })
+    //
+    // L'immobilisation porte sa propre condition de solde, en SQL, plutôt que
+    // de se fier au contrôle lu plus haut. Deux demandes concurrentes lisent la
+    // même valeur avant d'écrire — c'est le cas que le contrôle hors
+    // transaction ne peut pas voir — et repartaient toutes deux approuvées :
+    // en auto-approbation (décision 25) il n'y a aucune revue Finances pour
+    // rattraper, et le portefeuille passait en négatif au versement.
+    // Postgres réévalue le WHERE après avoir verrouillé la ligne : la seconde
+    // écriture ne trouve plus le solde et repart en 422.
+    const immobilized = await tx.$executeRaw`
+      UPDATE "wallets"
+      SET "pendingPayoutBalance" = "pendingPayoutBalance" + ${amountFcfa}
+      WHERE "id" = ${wallet.id}
+        AND "balance" - "reservedBalance" - "pendingPayoutBalance" >= ${amountFcfa}
+    `
+    if (immobilized === 0) throw new Error('INSUFFICIENT_WITHDRAWABLE_BALANCE')
+
     await syncNegativeSince(tx, wallet.id)
 
     if (autoApproved) {
