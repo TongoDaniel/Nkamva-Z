@@ -1048,6 +1048,14 @@ export async function getWithdrawableMethod(trainerProfileId: string) {
 // Alerte SLA de revue manuelle (job horaire, décision 23)
 // ==========================================================================
 
+/**
+ * Définition unique du SLA de revue manuelle. Il vivait aussi dans `payouts.ts`,
+ * avec la même valeur : `/admin/moyens-de-paiement` lisait l'une,
+ * `/admin/retraits` et `/admin/parametres` l'autre. Le jour où le délai change,
+ * deux écrans sur trois affichent l'ancien — et `/admin/parametres` le présente
+ * comme LA règle de la plateforme. `payouts.ts` la ré-exporte pour ses
+ * consommateurs (il importe déjà ce module, l'inverse serait circulaire).
+ */
 export const PAYOUT_REVIEW_SLA_HOURS = 48
 
 export async function alertPayoutMethodSlaBreaches(): Promise<{ breached: number }> {

@@ -594,6 +594,29 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
   })
 
   // -------------------------------------------------------------------------
+  // Le contrôle de solde de P1 se lisait hors transaction : deux demandes
+  // simultanées lisaient la même valeur avant d'écrire, et repartaient toutes
+  // deux acceptées. En auto-approbation (décision 25) aucune revue Finances ne
+  // rattrape derrière, et le portefeuille passait en négatif au versement.
+  it('P1 — deux demandes simultanées ne peuvent pas dépasser le solde retirable', async () => {
+    const { user, profile, wallet, finance } = await setupTrainer({ balance: 50_000 })
+    await verifiedMethod(profile.id, user.id, finance.id)
+
+    const results = await Promise.allSettled([
+      requestPayout(profile.id, user.id, 50_000),
+      requestPayout(profile.id, user.id, 50_000),
+    ])
+    const accepted = results.filter((r) => r.status === 'fulfilled')
+    expect(accepted).toHaveLength(1)
+
+    const refreshed = await prisma.wallet.findUniqueOrThrow({ where: { id: wallet.id } })
+    expect(refreshed.pendingPayoutBalance).toBe(50_000)
+    // Le solde retirable ne descend jamais sous zéro.
+    expect(refreshed.balance - refreshed.reservedBalance - refreshed.pendingPayoutBalance).toBe(0)
+    expect(await prisma.payout.count({ where: { trainerId: profile.id } })).toBe(1)
+  })
+
+  // -------------------------------------------------------------------------
   it('PM8 — escalade Super-admin : débloque, relance la carence, remet le compteur à zéro', async () => {
     const { user, profile, finance, superAdmin } = await setupTrainer()
 
