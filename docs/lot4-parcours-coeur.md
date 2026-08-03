@@ -146,6 +146,33 @@ mal. Vérifié : 8 exécutions sur 8 propres après correctif, contre 4 sur 6 av
 Même procédé que `community_subscriptions_active_unique` — Prisma ne sait pas
 exprimer un index unique partiel dans le schéma, il vit en SQL brut.
 
+### 5.2 La fiche formateur publique n'existait pas
+
+`/formateurs` listait bien **4 formateurs réels** via `listPublicTrainers`, mais
+`/formateurs/[trainerId]` lisait `TRAINERS` dans les données de démonstration et
+appelait `notFound()` sur tout identifiant inconnu. Conséquence : **les quatre
+profils réels renvoyaient 404**, et l'annuaire ne liait même pas vers eux — les
+cartes n'avaient aucun lien. Le seul chemin qui menait à cette page était le lien
+« Animée par » d'une page communauté, elle-même en démonstration.
+
+La page est rebranchée sur `getPublicTrainer()`, qui applique **les mêmes
+conditions de visibilité que l'annuaire** — approuvé, non suspendu, au moins une
+ressource publiée — sans quoi une fiche resterait atteignable par son URL après
+avoir disparu de la liste. `generateStaticParams` a été retiré : il pré-générait
+les pages depuis les identifiants de démonstration.
+
+Deux ajustements de rendu par rapport à la maquette :
+- la note n'apparaît que si `ratingCount > 0` — « 0,0 ★ » sur une fiche neuve
+  dessert un formateur qui n'a pas encore d'avis ;
+- le panneau « Communauté » ne s'affiche que si le formateur en anime une
+  réellement (`Community.status = 'active'`), là où la maquette en montrait une
+  pour tout le monde.
+
+⚠️ **Effet de bord assumé** : `/communautes/[slug]` sert encore de la
+démonstration et liait « Animée par » vers `/formateurs/<id fictif>`, qui tombe
+désormais en 404. Le nom n'est plus cliquable sur cette page, en attendant que
+les communautés soient rebranchées à leur tour.
+
 ---
 
 ## 6. Fonctionnalités de l'inventaire encore non couvertes
@@ -158,8 +185,8 @@ exprimer un index unique partiel dans le schéma, il vit en SQL brut.
 | Catalogue · fiche ressource (front) | ✅ |
 | Tunnel d'achat (front) | ✅ |
 | Mes ressources · mes achats (front) | ✅ |
-| Annuaire formateurs | ✅ |
-| Catalogue/fiche communautés | ✅ |
+| Annuaire formateurs · fiche formateur | ✅ (voir §5.2) |
+| Catalogue/fiche communautés | ⚠️ Écrans ✅, **données de démonstration** — le modèle `Community` existe pourtant en base |
 | Tarifs (3 offres, FAQ) | ✅ |
 | Pages légales et support | ✅ |
 | Inscription/connexion/OTP (front) | ✅ |
