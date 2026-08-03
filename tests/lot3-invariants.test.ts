@@ -7,7 +7,8 @@ import { prisma, cleanDatabase } from './setup'
 import { computeKycScore } from '@/lib/kyc'
 import {
   createPayoutMethod, verifyPayoutMethod, rejectPayoutMethod, confirmMicroDeposit,
-  expirePayoutMethodCarence, resolvePayoutMethodEscalation,
+  expirePayoutMethodCarence, resolvePayoutMethodEscalation, presignPayoutMethodDocument,
+  expectedAccountName, getPayoutMethodDetail,
   PAYOUT_METHOD_CARENCE_HOURS, PAYOUT_METHOD_MAX_REJECTIONS,
 } from '@/lib/payout-methods'
 import {
@@ -38,6 +39,14 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
       data: { email: 'super@test.com', role: 'ADMIN', adminRole: 'SUPER_ADMIN' },
     })
     return { user, profile, wallet, finance, superAdmin }
+  }
+
+  /** Clé de document d'entreprise réellement délivrée par la présignature. */
+  async function presignKey(userId: string, kind: 'BUSINESS_DOC' | 'LEGAL_REP_PROOF') {
+    const { s3Key } = await presignPayoutMethodDocument(userId, {
+      kind, mimeType: 'application/pdf', sizeBytes: 1024, sha256: 'a'.repeat(64),
+    })
+    return s3Key
   }
 
   /** Pièce d'identité approuvée : le critère PI (+40) est satisfait. */
@@ -173,6 +182,183 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
     // Et il ne compte pas au KYC tant qu'il n'est pas VERIFIED
     const kyc = await computeKycScore(profile.id)
     expect(kyc.criteria.ribVerified).toBe(false)
+  })
+
+  // -------------------------------------------------------------------------
+  // Décision 28 — la comparaison porte sur la dénomination sociale, pas sur le
+  // nom de la personne. Le jour où une API opérateur existera, comparer le nom
+  // d'un compte d'entreprise au nom légal du formateur produirait un MISMATCH
+  // systématique.
+  describe('comparaison de nom selon la nature du compte', () => {
+    it('attend la dénomination sociale pour un compte d\'entreprise', () => {
+      expect(
+        expectedAccountName('BUSINESS', {
+          verifiedLegalName: 'Awa Sarr', businessName: 'Sarr Formation SARL',
+        }),
+      ).toBe('Sarr Formation SARL')
+
+      expect(
+        expectedAccountName('INDIVIDUAL', {
+          verifiedLegalName: 'Awa Sarr', businessName: 'Sarr Formation SARL',
+        }),
+      ).toBe('Awa Sarr')
+    })
+
+    it('expose la comparaison à Finances sans jamais vérifier', async () => {
+      const { user, profile } = await setupTrainer()
+      const businessDocS3Key = await presignKey(user.id, 'BUSINESS_DOC')
+      const legalRepProofS3Key = await presignKey(user.id, 'LEGAL_REP_PROOF')
+
+      const method = await createPayoutMethod(profile.id, user.id, {
+        type: 'MOBILE_MONEY', accountNature: 'BUSINESS', businessName: 'Sarr Formation SARL',
+        mobileOperator: 'WAVE', mobilePhone: '+221770000000',
+        businessDocS3Key, legalRepProofS3Key,
+      })
+
+      const detail = await getPayoutMethodDetail(method.id)
+      expect(detail.nameComparison.expectedName).toBe('Sarr Formation SARL')
+      // La forme juridique est retirée : c'est ce qui rend la comparaison
+      // manuelle lisible pour Finances.
+      expect(detail.nameComparison.expectedNormalized).toBe('formation sarr')
+      expect(detail.nameComparison.businessIsSoleTrader).toBe(false)
+
+      // Aucune source externe n'a répondu : pas de comparaison, et surtout pas
+      // d'auto-vérification.
+      expect(detail.nameComparison.operatorMatch).toBeNull()
+      expect(detail.verificationStatus).toBe('PENDING_REVIEW')
+    })
+
+    it('signale l\'entreprise individuelle sans la refuser', async () => {
+      const { user, profile } = await setupTrainer()
+
+      const method = await createPayoutMethod(profile.id, user.id, {
+        type: 'MOBILE_MONEY', accountNature: 'BUSINESS',
+        // La « société » porte exactement le nom de la personne.
+        businessName: 'MARIE  formatrice',
+        mobileOperator: 'WAVE', mobilePhone: '+221770000000',
+        businessDocS3Key: await presignKey(user.id, 'BUSINESS_DOC'),
+        legalRepProofS3Key: await presignKey(user.id, 'LEGAL_REP_PROOF'),
+      })
+
+      const detail = await getPayoutMethodDetail(method.id)
+      expect(detail.nameComparison.businessIsSoleTrader).toBe(true)
+      // C'est une information pour l'instructeur, pas un refus.
+      expect(detail.verificationStatus).toBe('PENDING_REVIEW')
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // Décision 28 — la branche BUSINESS exige deux documents, et une clé S3
+  // fournie par le client ne prouve rien tant qu'elle n'a pas été délivrée par
+  // la présignature à ce formateur, sous le bon type.
+  describe('PM0 — documents d\'entreprise', () => {
+    const BUSINESS_INPUT = {
+      type: 'MOBILE_MONEY' as const, accountNature: 'BUSINESS' as const,
+      businessName: 'Formatrice SARL',
+      mobileOperator: 'WAVE' as const, mobilePhone: '+221770000000',
+    }
+
+    const presign = presignKey
+
+    it('rattache les deux documents et brûle les clés', async () => {
+      const { user, profile } = await setupTrainer()
+      const businessDocS3Key = await presign(user.id, 'BUSINESS_DOC')
+      const legalRepProofS3Key = await presign(user.id, 'LEGAL_REP_PROOF')
+
+      const method = await createPayoutMethod(profile.id, user.id, {
+        ...BUSINESS_INPUT, businessDocS3Key, legalRepProofS3Key,
+      })
+
+      expect(method.businessDocS3Key).toBe(businessDocS3Key)
+      expect(method.legalRepProofS3Key).toBe(legalRepProofS3Key)
+
+      const consumed = await prisma.pendingAttachment.findMany({
+        where: { s3Key: { in: [businessDocS3Key, legalRepProofS3Key] } },
+      })
+      expect(consumed).toHaveLength(2)
+      for (const attachment of consumed) {
+        expect(attachment.status).toBe('CONSUMED')
+        expect(attachment.consumedIn).toBe(method.id)
+      }
+    })
+
+    it('refuse une clé jamais présignée', async () => {
+      const { user, profile } = await setupTrainer()
+      const legalRepProofS3Key = await presign(user.id, 'LEGAL_REP_PROOF')
+
+      await expect(
+        createPayoutMethod(profile.id, user.id, {
+          ...BUSINESS_INPUT,
+          businessDocS3Key: 'payout-method-documents/inventee/BUSINESS_DOC-x.pdf',
+          legalRepProofS3Key,
+        }),
+      ).rejects.toThrow('ATTACHMENT_INVALID')
+
+      // L'échec ne doit rien laisser derrière lui : ni moyen de paiement, ni
+      // clé brûlée — la consommation vit dans la transaction de création.
+      expect(await prisma.payoutMethod.count({ where: { trainerId: profile.id } })).toBe(0)
+      const survivor = await prisma.pendingAttachment.findFirstOrThrow({
+        where: { s3Key: legalRepProofS3Key },
+      })
+      expect(survivor.status).toBe('PENDING')
+      expect(survivor.consumedAt).toBeNull()
+    })
+
+    it('refuse la clé d\'un autre émetteur', async () => {
+      const { user, profile } = await setupTrainer()
+      const autre = await prisma.user.create({ data: { email: 'autre@test.com', role: 'TRAINER' } })
+
+      await expect(
+        createPayoutMethod(profile.id, user.id, {
+          ...BUSINESS_INPUT,
+          businessDocS3Key: await presign(autre.id, 'BUSINESS_DOC'),
+          legalRepProofS3Key: await presign(user.id, 'LEGAL_REP_PROOF'),
+        }),
+      ).rejects.toThrow('ATTACHMENT_INVALID')
+    })
+
+    it('refuse deux fois le même type de document', async () => {
+      const { user, profile } = await setupTrainer()
+      const businessDocS3Key = await presign(user.id, 'BUSINESS_DOC')
+
+      await expect(
+        createPayoutMethod(profile.id, user.id, {
+          ...BUSINESS_INPUT,
+          businessDocS3Key,
+          // Une clé de RCCM présentée comme preuve de représentation légale :
+          // le dossier paraîtrait complet et ne le serait pas.
+          legalRepProofS3Key: await presign(user.id, 'BUSINESS_DOC'),
+        }),
+      ).rejects.toThrow('ATTACHMENT_INVALID')
+    })
+
+    it('refuse une clé expirée', async () => {
+      const { user, profile } = await setupTrainer()
+      const businessDocS3Key = await presign(user.id, 'BUSINESS_DOC')
+      await prisma.pendingAttachment.update({
+        where: { s3Key: businessDocS3Key },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      })
+
+      await expect(
+        createPayoutMethod(profile.id, user.id, {
+          ...BUSINESS_INPUT,
+          businessDocS3Key,
+          legalRepProofS3Key: await presign(user.id, 'LEGAL_REP_PROOF'),
+        }),
+      ).rejects.toThrow('ATTACHMENT_INVALID')
+    })
+
+    it('exige les deux documents avant même de regarder les clés', async () => {
+      const { user, profile } = await setupTrainer()
+
+      await expect(
+        createPayoutMethod(profile.id, user.id, {
+          ...BUSINESS_INPUT,
+          businessDocS3Key: await presign(user.id, 'BUSINESS_DOC'),
+        }),
+      ).rejects.toThrow('LEGAL_REP_PROOF_REQUIRED')
+    })
   })
 
   // -------------------------------------------------------------------------

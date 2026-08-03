@@ -15,8 +15,10 @@ les arbitrages 40 à 43, et refermé quatre des questions ouvertes ci-dessous.
 
 ## Déjà arbitré (2 août 2026)
 
-Treize règles sont tranchées et reportées dans `decisions-nkamva.md`
-(arbitrages 31 à 43). Elles ne sont plus à discuter, seulement à implémenter.
+Trente-deux règles sont tranchées et reportées dans `decisions-nkamva.md`
+(arbitrages 31 à 62). Elles ne sont plus à discuter, seulement à implémenter.
+Les propositions de modélisation qui en découlent — et qui, elles, restent à
+valider — sont dans `docs/recommandations-modelisation.md`.
 
 | # | Règle |
 |---|---|
@@ -32,7 +34,26 @@ Treize règles sont tranchées et reportées dans `decisions-nkamva.md`
 | 40 | **Pas d'exclusion en séance** : le formateur coupe un micro, il ne retire personne. Écarter quelqu'un relève du bannissement de communauté. |
 | 41 | **La main levée est le seul canal** pour redemander son micro : une seule file, pas deux. |
 | 42 | **Le salon du live est conservé** et rattaché au replay. |
-| 43 | **Le téléchargement d'un replay dépend du plan** d'abonnement, pas d'un réglage par session. |
+| 43 | **Le téléchargement d'un replay dépend du plan** d'abonnement, pas d'un réglage par session. ⚠️ Requalifié par le 55 : il n'en reste que l'interdit de la case par session. |
+| 44 | **Le réabonné rattrape tout** : l'ancien membre qui revient récupère ce qui a été ajouté pendant son absence. Le filtre de dates de l'arbitrage 34 ne vaut que pour un **ancien** membre. |
+| 45 | **Deux circuits de ressources** : seules celles que le formateur **lie explicitement** à sa communauté sont gratuites pour les membres. Celles de la marketplace restent payantes pour tout le monde, membres compris. |
+| 46 | **La capacité d'une session** est le nombre d'apprenants de la communauté + le formateur. Pas de plafond de plateforme, pas de jauge par session. |
+| 47 | **Les deux circuits sont exclusifs** : une ressource est incluse dans la communauté **ou** vendue, jamais les deux. |
+| 48 | **La déliaison est possible, l'accès acquis est conservé** : retirer une ressource de la communauté ne la reprend pas à ceux qui l'avaient. |
+| 49 | **Un seul abonnement plateforme** — celui du formateur à NkamVa — à deux cadences, mensuelle et annuelle, aux droits identiques. `TrainerPlan { STARTER, PRO, EXPERT }` disparaît. Aucune matrice de droits à modéliser, nulle part. |
+| 50 | **Les replays ont une durée de conservation limitée.** |
+| 51 | **24 mois après la date du live**, puis purge. |
+| 52 | **Un changement de cadence prend effet à l'échéance.** Aucun prorata, aucune écriture financière au moment du changement. |
+| 53 | **La bascule de circuit est à sens unique** : vendue → incluse, jamais l'inverse. |
+| 54 | **40 Go de stockage par formateur**, extension payante. Au dépassement, le téléversement est bloqué et l'existant reste servi. Les replays comptent dans le quota. |
+| 55 | **Tout membre peut télécharger un replay** — droit uniforme, ni par plan ni par session. |
+| 56 | **L'abonnement plateforme peut être gratuit** (lancement). « Abonné » et « a payé » cessent d'être synonymes. |
+| 57 | **Les réductions existent** : le prix consenti est snapshoté sur l'abonnement, en montant, pas en pourcentage. |
+| 58 | **Une communauté garde un prix unique** (`Community.priceFcfa`). Aucune formule communautaire à modéliser. |
+| 59 | **Le tarif plateforme est administré par le Super-admin** — bascule gratuit ⇄ payant et réductions, en base, audité, jamais rétroactif. |
+| 60 | **Super-admin : grille, bascule et remises. Finances : remises seulement.** |
+| 61 | **La bascule gratuit → payant prend effet à l'échéance de chacun**, pas à une date commune. Aucun prorata. |
+| 62 | **Trois canaux de réduction** : campagne globale, remise par formateur, code promo. Le cumul reste à trancher. |
 
 ### Ce qui est déjà rendu côté apprenant
 
@@ -73,9 +94,25 @@ Deux conséquences de modélisation en découlent directement :
   elle, impossible de dire ce qui précède la sortie du membre. La période
   d'adhésion, elle, est déjà lisible sur `CommunitySubscription`
   (`periodStart`, `periodEnd`, `canceledAt`).
+  L'arbitrage 45 précise la nature de cette relation : **un lien explicite posé par
+  le formateur**, jamais un effet de bord de la publication d'une ressource, et
+  l'arbitrage 47 la rend exclusive de la vente à l'unité. La liaison est **bornée
+  des deux côtés** (`linkedAt`, `unlinkedAt`) à cause de l'arbitrage 48. La règle
+  d'accès qui en résulte est donc :
+
+  ```
+  accès = (abonnement actif ET liaison active)
+       OU (une période d'adhésion chevauche la période de liaison)
+  ```
+
+  La seconde branche impose de conserver l'**historique des adhésions** — un même
+  apprenant peut avoir plusieurs `CommunitySubscription` successives sur la même
+  communauté, et l'index unique partiel n'interdit que le second abonnement
+  *actif*, donc c'est déjà représentable.
 - L'arbitrage 31 fixe le dimensionnement : **tout participant émet**. Ce n'est
-  pas le coût d'une diffusion un-vers-tous, et cela pèse sur le choix
-  d'infrastructure comme sur une éventuelle limite de participants.
+  pas le coût d'une diffusion un-vers-tous, et l'arbitrage 46 ferme la porte au
+  garde-fou le plus simple : la capacité, c'est la communauté entière. Le coût
+  temps réel est donc à instruire sur la taille réelle des communautés.
 
 ---
 
@@ -183,13 +220,12 @@ le locuteur actif est affiché ; l'enregistrement est automatique ; le salon est
 conservé. Les deux moitiés sont rendues (voir « Ce qui est déjà rendu » en tête
 de document).
 
-### Encore à trancher
-
-- **Capacité** : y a-t-il une limite de participants par session, et que voit le
-  membre au-delà ? L'arbitrage 31 rend la question sensible : chaque participant
-  émet. **Seule question de cette section restée ouverte**, et la console
-  formateur ne la refermera pas : elle dépend du coût d'infrastructure, pas d'un
-  écran.
+**Arbitrage 46** : la capacité d'une session est le nombre d'apprenants de la
+communauté + le formateur. Aucun membre ne peut être refusé pour cause de place :
+**il n'y a pas d'écran « session complète » à concevoir**, et pas de champ
+`capacity` à poser sur la future `LiveSession`. Ce qui reste, ce n'est plus une
+question produit mais un dimensionnement : combien d'émetteurs simultanés la plus
+grosse communauté peut produire, et ce que ça coûte.
 
 ---
 
@@ -216,19 +252,27 @@ garde ceux dont **le live** s'est tenu pendant son adhésion — la date de mise
 ligne de l'enregistrement ne compte pas. La règle suppose une date d'intégration
 par contenu pour les ressources ; pour les replays, la date de session suffit.
 
+**Arbitrage 44** : le réabonné rattrape tout ce qui a été ajouté pendant son
+absence. Le filtre de dates de l'arbitrage 34 ne s'applique donc qu'à un membre
+**sorti** ; un abonné actif n'est jamais filtré. Il n'y a pas d'intervalles
+d'adhésion successifs à accumuler.
+
+**Arbitrages 51 et 55** : il n'existe plus de plan susceptible de refuser le
+téléchargement — l'arbitrage 49 a réduit l'abonnement à une cadence, et il
+concerne le formateur, pas l'apprenant. Le drapeau `downloadable` par replay des
+données de démonstration reste donc à jeter, mais pour la raison inverse de celle
+prévue : il est **toujours vrai**, pas « à lire sur le plan ». Un replay expire
+24 mois après la date du live, ce qui
+ajoute un état « expiré » à l'écran, distinct de « absent » — et ces 24 mois sont
+précisément la fenêtre pendant laquelle le membre peut télécharger ce qu'il veut
+garder.
+
 ### Encore à trancher
 
-- **Réabonnement** : un ancien membre qui revient récupère-t-il ce qui a été
-  ajouté pendant son absence, ou seulement ce qui suit son retour ? L'arbitrage
-  39 conserve le fil de conversation pour ce cas précis, mais ne dit rien des
-  replays et des ressources.
-- **Durée de conservation** : un replay reste-t-il indéfiniment ? Le coût de
-  stockage plaide pour une expiration, ce qui change le message affiché quand il
-  n'est plus disponible.
-- **Formules d'abonnement** : l'arbitrage 43 lie le téléchargement au plan de la
-  communauté. Or aucune formule n'est modélisée, et le drapeau `downloadable`
-  par replay des données de démonstration est donc à jeter. Tant que les plans
-  n'existent pas, la règle ne peut pas se lire.
+- **Prévenir avant la purge** : le membre reçoit-il une notification à l'approche
+  des 24 mois ? `notify()` existe déjà et `/notifications` sait l'afficher. Le
+  formateur, lui, a un intérêt direct à l'être : la purge lui rend du quota
+  (arbitrage 54).
 
 ---
 
@@ -263,19 +307,22 @@ faire tenir.
 
 ### Absences volontaires — ne pas « corriger »
 
-Trois choses manquent **par décision**, et un contributeur pressé les prendrait
+Quatre choses manquent **par décision**, et un contributeur pressé les prendrait
 pour des oublis :
 
 - aucune commande d'exclusion dans la console (arbitrage 40) ;
 - aucune file de « demandes de réouverture » séparée de la file de parole
   (arbitrage 41) ;
-- aucune case « replay téléchargeable » (arbitrage 43).
+- aucune case « replay téléchargeable » (arbitrage 43) ;
+- aucune jauge de places ni champ « capacité » à la programmation d'un live
+  (arbitrage 46).
 
 ### Encore à trancher
 
-Deux questions restent ouvertes et ne se déduiront d'aucun écran : la capacité
-maximale d'une session, et le sort des replays et ressources en cas de
-réabonnement après une absence.
+Rien de spécifique à cet écran. Les deux questions qui y traînaient — capacité
+d'une session et sort des contenus au réabonnement — sont tranchées par les
+arbitrages 46 et 44. La console n'a donc **ni jauge de places ni réglage
+d'accès** à afficher.
 
 ---
 

@@ -18,6 +18,8 @@ import type {
   PayoutMethodVerificationStatus, VerificationMethod,
 } from '@prisma/client'
 import { db } from './db'
+import { presignUpload, presignDownload, headObject, isS3Configured } from './s3'
+import { compareNames, normalizedLabel, type NameComparison } from './name-match'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail } from './email'
@@ -27,6 +29,25 @@ export const PAYOUT_METHOD_CARENCE_HOURS = 72
 export const PAYOUT_METHOD_MAX_REJECTIONS = 3
 export const MICRO_DEPOSIT_MIN = 1
 export const MICRO_DEPOSIT_MAX = 99
+
+// --- Documents d'entreprise (décision 28) -------------------------------
+// Un RCCM est un document administratif scanné : la limite est plus haute que
+// celle d'une pièce jointe de litige, mais la liste MIME reste la même — pas
+// de format exécutable, pas d'archive.
+export const BUSINESS_DOC_MAX_SIZE_BYTES = 10_485_760
+export const BUSINESS_DOC_ALLOWED_MIMES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp']
+export const BUSINESS_DOC_TTL_HOURS = 24
+/** Scope `PendingAttachment` — distinct de `DISPUTE`, jamais interchangeable. */
+const BUSINESS_DOC_SCOPE = 'PAYOUT_METHOD'
+
+const BUSINESS_DOC_EXTENSIONS: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+}
+
+export type BusinessDocumentKind = 'BUSINESS_DOC' | 'LEGAL_REP_PROOF'
 
 const VERIFIED_STATUSES: PayoutMethodVerificationStatus[] = ['AUTO_VERIFIED', 'MANUAL_VERIFIED', 'VERIFIED']
 
@@ -41,21 +62,57 @@ function carenceDeadline(): Date {
 export type NameLookupResult = 'MATCH' | 'MISMATCH' | 'UNAVAILABLE'
 
 /**
- * Décision 22a — comparaison automatique du nom du compte au nom légal vérifié,
- * via l'API de l'opérateur mobile money.
+ * Interroge l'opérateur pour connaître le nom réellement enregistré sur le
+ * compte. **Seul point d'entrée d'une information externe** dans la couche (a).
  *
- * ⚠️ ÉCART ASSUMÉ : aucune API opérateur n'est disponible aujourd'hui. Cette
- * fonction retourne donc toujours UNAVAILABLE, ce qui bascule le dossier en
- * revue manuelle Finances. C'est le point d'extension pour un vrai provider —
- * ne surtout pas le remplacer par une comparaison locale du nom déclaré, qui
- * serait une vérification purement déclarative.
+ * ⚠️ ÉCART ASSUMÉ : aucune API opérateur n'est disponible aujourd'hui, la
+ * fonction renvoie donc toujours `null`. C'est ici, et nulle part ailleurs,
+ * qu'un vrai provider se branche.
  */
-export async function lookupMobileMoneyName(
+async function fetchOperatorAccountName(
   _operator: MobileMoneyOperator,
   _phone: string,
-  _verifiedLegalName: string,
+): Promise<string | null> {
+  return null
+}
+
+/**
+ * Décision 22a — comparaison automatique du nom du compte au nom attendu, après
+ * normalisation (casse, accents, ordre des mots).
+ *
+ * `expectedName` dépend de la nature du compte (décision 28) : le nom légal du
+ * formateur pour un compte personnel, la **dénomination sociale** pour un
+ * compte d'entreprise. Comparer une dénomination sociale au nom d'une personne
+ * produirait un MISMATCH systématique le jour où l'API existera.
+ *
+ * L'un des deux noms vient toujours de l'opérateur : c'est ce qui distingue
+ * cette comparaison d'une vérification déclarative. Sans réponse de
+ * l'opérateur, le résultat est UNAVAILABLE et le dossier part en revue
+ * manuelle — jamais MATCH.
+ */
+export async function lookupMobileMoneyName(
+  operator: MobileMoneyOperator,
+  phone: string,
+  expectedName: string,
 ): Promise<{ result: NameLookupResult; rawName: string | null }> {
-  return { result: 'UNAVAILABLE', rawName: null }
+  const rawName = await fetchOperatorAccountName(operator, phone)
+  if (!rawName) return { result: 'UNAVAILABLE', rawName: null }
+
+  return { result: compareNames(rawName, expectedName), rawName }
+}
+
+/**
+ * Décision 28 — ce à quoi le nom du compte doit correspondre. Pour une
+ * entreprise, c'est la dénomination sociale ; la présence du `verifiedLegalName`
+ * comme représentant légal se vérifie sur les documents, pas sur le compte.
+ */
+export function expectedAccountName(
+  accountNature: AccountNature,
+  names: { verifiedLegalName: string; businessName?: string | null },
+): string {
+  return accountNature === 'BUSINESS' && names.businessName
+    ? names.businessName
+    : names.verifiedLegalName
 }
 
 async function recordTransition(
@@ -83,6 +140,99 @@ async function recordTransition(
 
 // ==========================================================================
 // PM1 / PM7 — création (archive l'ancien dans la même transaction)
+// ==========================================================================
+
+// ==========================================================================
+// PM0 — présignature des documents d'entreprise (décision 28)
+// ==========================================================================
+// Même patron que les pièces jointes de litige : l'URL est délivrée, la clé
+// est enregistrée en `PendingAttachment`, et elle n'est rattachée qu'à la
+// création du moyen de paiement. Une clé jamais consommée est purgée par le
+// job `cleanupExpiredPendingAttachments`, qui ignore le scope.
+//
+// Pourquoi ne pas écrire directement sur le `PayoutMethod` : il n'existe pas
+// encore au moment de l'upload, et une clé S3 fournie par le client ne prouve
+// rien — sans registre, n'importe quel formateur pourrait déclarer la clé d'un
+// autre.
+
+export interface PresignBusinessDocumentInput {
+  kind: BusinessDocumentKind
+  mimeType: string
+  sizeBytes: number
+  sha256: string
+}
+
+export async function presignPayoutMethodDocument(userId: string, input: PresignBusinessDocumentInput) {
+  if (!BUSINESS_DOC_ALLOWED_MIMES.includes(input.mimeType)) throw new Error('MIME_NOT_ALLOWED')
+  if (input.sizeBytes <= 0 || input.sizeBytes > BUSINESS_DOC_MAX_SIZE_BYTES) throw new Error('SIZE_EXCEEDS_LIMIT')
+
+  const ext = BUSINESS_DOC_EXTENSIONS[input.mimeType] ?? 'bin'
+  const s3Key = `payout-method-documents/${userId}/${input.kind}-${crypto.randomUUID()}.${ext}`
+  const { uploadUrl, expiresAt } = await presignUpload(s3Key, input.mimeType, input.sizeBytes)
+
+  await db.pendingAttachment.create({
+    data: {
+      s3Key,
+      issuerId: userId,
+      // `kind` vit dans le scope : deux documents de nature différente ne
+      // doivent pas pouvoir être intervertis à la consommation.
+      scope: `${BUSINESS_DOC_SCOPE}:${input.kind}`,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      sha256: input.sha256,
+      expiresAt: new Date(Date.now() + BUSINESS_DOC_TTL_HOURS * 3_600_000),
+    },
+  })
+
+  return { uploadUrl, s3Key, expiresAt }
+}
+
+/**
+ * Rattache les deux documents au moyen de paiement créé. Appelée **dans** la
+ * transaction de création : si celle-ci échoue, les clés restent disponibles
+ * plutôt que d'être brûlées sans porteur.
+ *
+ * Vérifie que chaque clé appartient bien à l'émetteur, qu'elle correspond au
+ * bon type de document, qu'elle n'a jamais été consommée et qu'elle n'est pas
+ * expirée.
+ */
+async function consumeBusinessDocuments(
+  tx: PrismaTransaction,
+  issuerId: string,
+  payoutMethodId: string,
+  keys: { businessDocS3Key: string; legalRepProofS3Key: string },
+) {
+  const expected: Array<{ s3Key: string; kind: BusinessDocumentKind }> = [
+    { s3Key: keys.businessDocS3Key, kind: 'BUSINESS_DOC' },
+    { s3Key: keys.legalRepProofS3Key, kind: 'LEGAL_REP_PROOF' },
+  ]
+
+  const pending = await tx.pendingAttachment.findMany({
+    where: {
+      s3Key: { in: expected.map(e => e.s3Key) },
+      issuerId,
+      status: 'PENDING',
+      consumedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true, s3Key: true, scope: true },
+  })
+
+  // Chaque clé doit exister, et sous le bon scope : fournir deux fois le RCCM
+  // ne doit pas passer pour un dossier complet.
+  const usable = expected.filter(e =>
+    pending.some(p => p.s3Key === e.s3Key && p.scope === `${BUSINESS_DOC_SCOPE}:${e.kind}`),
+  )
+  if (usable.length !== expected.length) throw new Error('ATTACHMENT_INVALID')
+
+  await tx.pendingAttachment.updateMany({
+    where: { id: { in: pending.map(p => p.id) } },
+    data: { status: 'CONSUMED', consumedAt: new Date(), consumedIn: payoutMethodId },
+  })
+}
+
+// ==========================================================================
+// PM1 — création d'un moyen de paiement
 // ==========================================================================
 
 export interface CreatePayoutMethodInput {
@@ -132,10 +282,15 @@ export async function createPayoutMethod(
 
   validateMethodInput(input)
 
-  // Couche (a) : tentative de name lookup pour le mobile money.
+  // Couche (a) : tentative de name lookup pour le mobile money, contre le nom
+  // attendu pour cette nature de compte (décision 28).
   let lookup: { result: NameLookupResult; rawName: string | null } = { result: 'UNAVAILABLE', rawName: null }
   if (input.type === 'MOBILE_MONEY' && input.mobileOperator && input.mobilePhone) {
-    lookup = await lookupMobileMoneyName(input.mobileOperator, input.mobilePhone, verifiedLegalName)
+    lookup = await lookupMobileMoneyName(
+      input.mobileOperator,
+      input.mobilePhone,
+      expectedAccountName(input.accountNature, { verifiedLegalName, businessName: input.businessName }),
+    )
   }
 
   // AUTO_VERIFIED n'est atteignable que sur un MATCH renvoyé par une vraie API.
@@ -189,6 +344,16 @@ export async function createPayoutMethod(
         isActive: true,
       },
     })
+
+    // Décision 28 — les deux documents ne sont rattachés qu'ici, une fois le
+    // moyen créé, et dans la même transaction : un échec en aval les laisse
+    // réutilisables.
+    if (input.accountNature === 'BUSINESS') {
+      await consumeBusinessDocuments(tx, userId, method.id, {
+        businessDocS3Key: input.businessDocS3Key!,
+        legalRepProofS3Key: input.legalRepProofS3Key!,
+      })
+    }
 
     await recordTransition(tx, {
       payoutMethodId: method.id, fromStatus: 'PENDING_REVIEW', toStatus: verificationStatus,
@@ -696,7 +861,98 @@ export async function getPayoutMethodDetail(payoutMethodId: string) {
     },
   })
   if (!method) throw new Error('PAYOUT_METHOD_NOT_FOUND')
-  return method
+  return { ...method, nameComparison: buildNameComparison(method) }
+}
+
+export interface NameComparisonReport {
+  /** Ce à quoi le nom du compte doit correspondre (décision 28). */
+  expectedName: string | null
+  expectedNormalized: string | null
+  /** Nom renvoyé par l'opérateur, seule source externe (décision 22a). */
+  operatorName: string | null
+  operatorNormalized: string | null
+  /** Comparaison automatique, `null` tant qu'aucune source externe n'a répondu. */
+  operatorMatch: NameComparison | null
+  /**
+   * La dénomination sociale se réduit au nom légal du formateur : entreprise
+   * individuelle. Légitime, mais Finances doit le voir — le compte « de la
+   * société » est en pratique celui de la personne.
+   */
+  businessIsSoleTrader: boolean
+}
+
+/**
+ * Aide à la décision pour Finances, **jamais une vérification**. Le calcul est
+ * dérivé à la lecture plutôt que stocké : le nom légal vérifié peut changer, et
+ * un instantané figé donnerait une comparaison périmée sans que rien ne le
+ * signale. Aucun de ces champs ne modifie `verificationStatus` — seul un MATCH
+ * renvoyé par une vraie API le peut (décision 22).
+ */
+function buildNameComparison(method: {
+  accountNature: AccountNature
+  businessName: string | null
+  nameLookupRawName: string | null
+  trainerProfile: { verifiedLegalName: string | null }
+}): NameComparisonReport {
+  const verifiedLegalName = method.trainerProfile.verifiedLegalName
+  const expectedName =
+    method.accountNature === 'BUSINESS'
+      ? method.businessName
+      : verifiedLegalName
+
+  return {
+    expectedName,
+    expectedNormalized: expectedName ? normalizedLabel(expectedName) : null,
+    operatorName: method.nameLookupRawName,
+    operatorNormalized: method.nameLookupRawName ? normalizedLabel(method.nameLookupRawName) : null,
+    operatorMatch: method.nameLookupRawName
+      ? compareNames(method.nameLookupRawName, expectedName)
+      : null,
+    businessIsSoleTrader:
+      method.accountNature === 'BUSINESS' &&
+      compareNames(method.businessName, verifiedLegalName) === 'MATCH',
+  }
+}
+
+/**
+ * Consultation d'un document d'entreprise par Finances / Super-admin —
+ * URL signée et **journalisée**, sur le modèle de `getDocumentViewUrl` du
+ * Lot 1. Sans cette route, les deux documents exigés par la décision 28
+ * seraient téléversés puis invisibles : la branche BUSINESS resterait
+ * invérifiable.
+ *
+ * Décision 21 — ce n'est pas une entorse au cloisonnement : ces documents-ci
+ * sont commerciaux (RCCM, preuve de représentation), pas des pièces
+ * d'identité. Finances n'accède toujours à aucune image de PI.
+ */
+export async function getBusinessDocumentUrl(
+  payoutMethodId: string,
+  kind: BusinessDocumentKind,
+  actor: { id: string; adminRole: string },
+) {
+  const method = await db.payoutMethod.findUnique({
+    where: { id: payoutMethodId },
+    select: { id: true, trainerId: true, accountNature: true, businessDocS3Key: true, legalRepProofS3Key: true },
+  })
+  if (!method) throw new Error('PAYOUT_METHOD_NOT_FOUND')
+
+  const s3Key = kind === 'BUSINESS_DOC' ? method.businessDocS3Key : method.legalRepProofS3Key
+  if (!s3Key) throw new Error('DOCUMENT_NOT_FOUND')
+
+  // Une clé peut être rattachée sans que l'objet ait réellement atterri : la
+  // présignature délivre l'URL, le dépôt se fait ensuite en direct et peut
+  // échouer. Mieux vaut le dire à Finances que lui signer une URL vide.
+  if (isS3Configured() && !(await headObject(s3Key))) throw new Error('UPLOAD_NOT_FOUND')
+
+  const url = await presignDownload(s3Key)
+
+  await auditStandalone({
+    actorId: actor.id, actorRole: actor.adminRole,
+    action: 'PAYOUT_METHOD_DOCUMENT_VIEW', targetType: 'PayoutMethod', targetId: payoutMethodId,
+    meta: { kind, trainerId: method.trainerId },
+  })
+
+  return { url }
 }
 
 export async function listEscalations(page = 1, pageSize = 20) {

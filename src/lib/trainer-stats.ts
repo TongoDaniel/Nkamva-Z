@@ -6,6 +6,7 @@
 // ==========================================================================
 
 import { db } from './db'
+import { withdrawableBalance } from './wallet'
 
 export interface TrainerOverview {
   courseCount: number
@@ -54,6 +55,43 @@ export async function getTrainerOverview(trainerId: string): Promise<TrainerOver
     netRevenueFcfa: sales._sum.trainerShareFcfa ?? 0,
     walletBalanceFcfa: wallet?.balance ?? 0,
     walletReservedFcfa: wallet?.reservedBalance ?? 0,
+  }
+}
+
+export interface TrainerWallet {
+  balanceFcfa: number
+  reservedFcfa: number
+  pendingPayoutFcfa: number
+  /** `balance - reserved - pendingPayout`, la seule somme réellement demandable. */
+  withdrawableFcfa: number
+  negativeSince: Date | null
+}
+
+/**
+ * Le détail du solde, pour l'écran portefeuille. `getTrainerOverview` n'en
+ * expose que deux composantes : afficher un montant retirable sans montrer ce
+ * qui en a été retiré rendrait l'écart incompréhensible.
+ */
+export async function getTrainerWallet(trainerId: string): Promise<TrainerWallet> {
+  const wallet = await db.wallet.findUnique({
+    where: { trainerId },
+    select: { balance: true, reservedBalance: true, pendingPayoutBalance: true, negativeSince: true },
+  })
+
+  const balance = wallet?.balance ?? 0
+  const reserved = wallet?.reservedBalance ?? 0
+  const pending = wallet?.pendingPayoutBalance ?? 0
+
+  return {
+    balanceFcfa: balance,
+    reservedFcfa: reserved,
+    pendingPayoutFcfa: pending,
+    withdrawableFcfa: withdrawableBalance({
+      balance,
+      reservedBalance: reserved,
+      pendingPayoutBalance: pending,
+    }),
+    negativeSince: wallet?.negativeSince ?? null,
   }
 }
 

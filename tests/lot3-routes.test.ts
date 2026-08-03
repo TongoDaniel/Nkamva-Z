@@ -13,6 +13,7 @@ import { requestPayout } from '@/lib/payouts'
 
 import { GET as kycScoreRoute } from '@/app/api/trainer/kyc-score/route'
 import { POST as createMethodRoute } from '@/app/api/trainer/payout-methods/route'
+import { POST as presignDocumentRoute } from '@/app/api/trainer/payout-methods/documents/upload/route'
 import { POST as requestPayoutRoute } from '@/app/api/trainer/payouts/route'
 import { GET as adminMethodsRoute } from '@/app/api/admin/payout-methods/route'
 import { GET as adminMethodDetailRoute } from '@/app/api/admin/payout-methods/[payoutMethodId]/route'
@@ -103,9 +104,27 @@ describe('Lot 3 — Routes', () => {
     expect(incomplete.status).toBe(400)
     expect((await incomplete.json()).error.code).toBe('BUSINESS_DOC_REQUIRED')
 
-    const complete = await createMethodRoute(jsonRequest({
+    // Une clé S3 inventée ne vaut rien : seule une clé délivrée par la
+    // présignature à ce formateur est rattachable (PM0).
+    const forged = await createMethodRoute(jsonRequest({
       ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
       businessDocS3Key: 'docs/rccm.pdf', legalRepProofS3Key: 'docs/rep.pdf',
+    }))
+    expect(forged.status).toBe(400)
+    expect((await forged.json()).error.code).toBe('ATTACHMENT_INVALID')
+
+    const presign = async (kind: 'BUSINESS_DOC' | 'LEGAL_REP_PROOF') => {
+      const res = await presignDocumentRoute(jsonRequest({
+        kind, mimeType: 'application/pdf', sizeBytes: 2048, sha256: 'a'.repeat(64),
+      }))
+      expect(res.status).toBe(201)
+      return (await res.json()).data.s3Key as string
+    }
+
+    const complete = await createMethodRoute(jsonRequest({
+      ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
+      businessDocS3Key: await presign('BUSINESS_DOC'),
+      legalRepProofS3Key: await presign('LEGAL_REP_PROOF'),
     }))
     expect(complete.status).toBe(201)
   })

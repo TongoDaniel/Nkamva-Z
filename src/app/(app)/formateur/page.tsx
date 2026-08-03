@@ -159,9 +159,14 @@ export default async function FormateurPage() {
         )}
       </section>
 
-      <p className="rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
-        Les retraits vers mobile money dépendent du parcours KYC, qui n&apos;est pas encore
-        ouvert. Votre solde continue d&apos;être crédité à chaque vente confirmée.
+      <p className="flex flex-wrap items-center justify-between gap-3 rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
+        <span>
+          Votre solde est crédité à chaque vente confirmée. Les retraits passent par un
+          compte vérifié et votre score de confiance.
+        </span>
+        <Link href="/formateur/portefeuille" className="font-bold text-brand">
+          Ouvrir le portefeuille
+        </Link>
       </p>
     </div>
   );
