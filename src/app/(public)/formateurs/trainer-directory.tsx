@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Search, SearchX } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
@@ -131,7 +132,14 @@ export function TrainerDirectory({ trainers }: { trainers: PublicTrainer[] }) {
                 <div className="mb-4 flex items-center gap-3.5">
                   <Avatar name={name} size="lg" />
                   <div className="min-w-0">
-                    <h2 className="truncate text-[17px] font-extrabold">{name}</h2>
+                    <h2 className="truncate text-[17px] font-extrabold">
+                      <Link
+                        href={`/formateurs/${trainer.id}`}
+                        className="text-ink hover:text-brand"
+                      >
+                        {name}
+                      </Link>
+                    </h2>
                     {trainer.slogan ? (
                       <p className="truncate text-[13px] font-semibold text-ink-2">
                         {trainer.slogan}
