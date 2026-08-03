@@ -39,9 +39,9 @@
 
 | Fichier | État | Tests |
 |---|---|---|
-| `tests/lot4-invariants.test.ts` | ✅ Présent | 8 tests — **ne peuvent pas tourner** car les services Lot 0 (auth/register/health) nécessaires au setup sont manquants |
+| `tests/lot4-invariants.test.ts` | ✅ Présent | **11 tests, tous verts** contre PostgreSQL réel (+ webhook rejoué, payload malformé, double achat concurrent) |
 
-Les 8 tests couvrent :
+Les 8 tests d'origine couvrent :
 1. catalogue : recherche + filtre + pagination
 2. achat Stripe complet : initiation → crédit wallet idempotent
 3. achat CinetPay complet : initiation → crédit wallet
@@ -53,14 +53,16 @@ Les 8 tests couvrent :
 
 ### 1.4 Frontend
 
+> ⚠️ Tableau périmé — voir §5. Toutes ces pages existent depuis le 2 août 2026.
+
 | Page | État |
 |---|---|
-| Landing | ❌ Page template initial (logo Z.ai, pas NkamVa) |
-| Catalogue | ❌ Non implémenté |
-| Fiche ressource | ❌ Non implémenté |
-| Tunnel d'achat | ❌ Non implémenté |
-| Mes ressources | ❌ Non implémenté |
-| Mes achats | ❌ Non implémenté |
+| Landing | ✅ |
+| Catalogue · fiche ressource | ✅ |
+| Tunnel d'achat · confirmation | ✅ |
+| Mes ressources · lecteur | ✅ |
+| Mes achats | ✅ |
+| Espace formateur : publication, upload, archivage | ✅ |
 
 ---
 
@@ -103,47 +105,74 @@ export const COURSE_UPLOAD_LIMITS = {
 
 ---
 
-## 5. Dépendances critiques manquantes pour le fonctionnement
+## 5. Audit du 4 août 2026
 
-Le Lot 4 est entièrement codé mais **ne peut pas tourner** car les éléments suivants du Lot 0 sont manquants :
+Les §1.3, §1.4, §5 et §6 de la version précédente décrivaient un Lot 4 qui « ne
+peut pas tourner », faute d'auth, de health check et de front. **Tout cela
+existe** : le socle est complet (voir `lot0-socle.md`), les 11 tests tournent
+contre PostgreSQL réel, et les écrans du parcours cœur sont en place — landing,
+catalogue, fiche ressource, tunnel d'achat, mes ressources, mes achats, plus
+l'espace formateur de publication.
 
-| Élément manquant | Impact sur Lot 4 |
-|---|---|
-| `/api/auth/register` | Impossible de créer un apprenant pour tester un achat |
-| `/api/auth/[...nextauth]` | Impossible de se connecter |
-| `/api/health` | Pas de health check |
-| `.env` pointe vers SQLite, pas PostgreSQL | `db:push` échoue (schéma PostgreSQL vs provider SQLite) |
-| `src/instrumentation.ts` | Jobs non démarrés |
-| `src/types/next-auth.d.ts` | Types Session/JWT incomplets |
-| `layout.tsx` utilise `Toaster` au lieu de `sonner` | Toasts ne fonctionnent pas correctement |
-| `page.tsx` est le template initial | Pas de page de validation |
+Vérifié sur le disque : les limites d'upload du §4 aux valeurs exactes, le
+crédit wallet idempotent du §2, `CourseView` alimenté par `/progress` et
+`/download` comme décrit au §3. Les charges utiles des écrans correspondent
+toutes à leur schéma Zod — la classe de bug trouvée au Lot 2 ne touche pas ce
+lot.
+
+### 5.1 Un double achat était possible, et il a été reproduit
+
+`initiatePurchase` contrôlait l'achat existant par une lecture, puis insérait —
+sans transaction ni contrainte en base. Deux requêtes simultanées lisaient
+toutes deux « aucun achat » et créaient chacune la leur.
+
+Ce n'est pas resté théorique : une sonde lançant deux achats concurrents du même
+cours **a produit deux achats dans 2 exécutions sur 6**, avec un portefeuille
+formateur crédité de 25 500 FCFA au lieu de 12 750. L'idempotence de
+`creditWalletOnPurchase` ne rattrape rien ici : elle porte sur
+`providerTransactionId`, et chaque achat a le sien.
+
+Conséquence côté apprenant : un double clic sur « payer », ou un renvoi de
+formulaire, pouvait le faire payer deux fois la même ressource.
+
+**Correctif** — index unique partiel `purchases_active_course_unique` sur
+`("learnerId", "courseId")` filtré sur `providerStatus IN ('PENDING',
+'SUCCEEDED')`, migration `20260804000000`. Le filtre reprend exactement celui du
+contrôle applicatif : l'index ne change aucun comportement, il le rend
+infalsifiable. `initiatePurchase` intercepte la violation (`P2002`) et renvoie
+l'achat du gagnant, plutôt qu'une erreur à un apprenant qui n'a rien fait de
+mal. Vérifié : 8 exécutions sur 8 propres après correctif, contre 4 sur 6 avant.
+
+Même procédé que `community_subscriptions_active_unique` — Prisma ne sait pas
+exprimer un index unique partiel dans le schéma, il vit en SQL brut.
 
 ---
 
 ## 6. Fonctionnalités de l'inventaire encore non couvertes
 
+*Recalé le 4 août 2026 : la moitié de ce tableau était périmée.*
+
 | # | Fonctionnalité | Statut |
 |---|---|---|
-| Landing page | ❌ Front template initial |
-| Catalogue (front) | ❌ Backend ✅, front ❌ |
-| Fiche ressource (front) | ❌ Backend ✅, front ❌ |
-| Tunnel d'achat (front) | ❌ Backend ✅, front ❌ |
-| Mes ressources (front) | ❌ Backend ✅, front ❌ |
-| Mes achats (front) | ❌ Backend ✅, front ❌ |
-| Annuaire formateurs | ❌ |
-| Catalogue/fiche communautés | ❌ |
-| Recherche transversale | ❌ |
-| Tarifs (3 offres, FAQ) | ❌ |
-| Pages légales et support | ❌ |
+| Landing page | ✅ |
+| Catalogue · fiche ressource (front) | ✅ |
+| Tunnel d'achat (front) | ✅ |
+| Mes ressources · mes achats (front) | ✅ |
+| Annuaire formateurs | ✅ |
+| Catalogue/fiche communautés | ✅ |
+| Tarifs (3 offres, FAQ) | ✅ |
+| Pages légales et support | ✅ |
+| Inscription/connexion/OTP (front) | ✅ |
+| Tableau de bord apprenant | ✅ (`/accueil`) |
+| Favoris | ✅ |
+| Profil apprenant (RGPD) | ✅ (export et suppression) |
+| Recherche transversale | ❌ — la recherche est par section, pas globale |
 | Onboarding apprenant | Hors périmètre (décision 6) |
-| Inscription/connexion/OTP (front) | ❌ Backend manquant aussi |
 | Invitations communauté magic link | ❌ |
-| Tableau de bord apprenant | ❌ |
 | Facture PDF | ❌ |
-| Favoris | ❌ |
-| Communautés apprenant | ❌ |
-| Lives (LiveKit) | ❌ |
-| Messagerie 1-1 | ❌ |
+| Communautés apprenant | ⚠️ Écrans publics ✅, espace membre ❌ |
+| Lives (LiveKit) | ⚠️ Écrans de démonstration, aucun LiveKit branché |
+| Messagerie 1-1 | ⚠️ Écran de démonstration, aucun modèle en base |
 | Certificats/évaluations | Hors périmètre (décision 4) |
 | Profil apprenant (RGPD) | ❌ |
 | Tableau de bord formateur | ❌ |
