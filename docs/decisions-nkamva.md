@@ -1,5 +1,9 @@
 # Décisions produit — NkamVa
 
+> Ce document ne contient que des décisions **tranchées**. Les propositions de
+> modélisation qui en découlent, non encore validées, vivent dans
+> `docs/recommandations-modelisation.md` — ne pas confondre les deux autorités.
+>
 > Document de référence à re-coller en tête de chaque nouveau lot ou nouvelle session.
 > Reconstitué depuis l'historique des arbitrages. En cas de divergence avec la version
 > maintenue dans le repo, **c'est la version du repo qui fait foi**.
@@ -105,7 +109,8 @@ Quota par formateur selon son plan SaaS.
 > `src/lib/courses.ts` définit `COURSE_UPLOAD_LIMITS` avec mp4 2 Go, pdf 10 Mo, images
 > 5 Mo (✅). La liste blanche MIME ne correspond toujours pas exactement à l'arbitrage :
 > zip, xlsx, docx ne sont pas dans `COURSE_UPLOAD_LIMITS` (⚠️ écart, non traité dans
-> cette session). Le quota par plan SaaS n'est toujours pas implémenté (📋).
+> cette session). Le quota par plan SaaS n'est toujours pas implémenté (📋) — sa valeur
+> est désormais fixée par l'**arbitrage 54** : 40 Go, blocage en écriture au dépassement.
 
 **11. Commission 15 %** — Sur le prix payé, prélevée au moment de la vente (le wallet
 formateur est crédité de 85 %), identique pour les ventes directes et via communauté.
@@ -222,9 +227,11 @@ Si `verifiedLegalName` est absent, la vérification du RIB est impossible :
 > `TrainerApplication`, car il doit survivre à la candidature.
 > Statut : ✅ `trainer-applications.ts` (`approveApplication`, T3) saisit
 > `TrainerProfile.verifiedLegalName` fourni par l'admin Modération. `payout-methods.ts`
-> (`createPayoutMethod`) bloque la création si `verifiedLegalName` est absent — avec le
-> code `VERIFIED_LEGAL_NAME_REQUIRED` plutôt que `IDENTITY_NAME_MISSING` (⚠️ écart de
-> nommage, effet identique : 422, blocage). Finances n'a jamais de route lui donnant
+> (`createPayoutMethod`) bloque la création si `verifiedLegalName` est absent, avec le
+> code `IDENTITY_NAME_MISSING` en 409 — exactement le nom et le statut de l'arbitrage
+> (*l'écart de nommage signalé par une version antérieure de cette note n'existe pas ou
+> plus : vérifié le 3 août 2026 dans `payout-methods.ts:117` et `api.ts:136`*).
+> Finances n'a jamais de route lui donnant
 > accès à l'image de pièce d'identité (routes Lot 1 documents restreintes à
 > `MODERATION`/`SUPER_ADMIN`).
 
@@ -237,9 +244,18 @@ Si `verifiedLegalName` est absent, la vérification du RIB est impossible :
 **Aucune vérification purement déclarative.** Un RIB non vérifié vaut 0 point au score,
 jamais un score partiel.
 > ⚠️ **Écart temporaire assumé, toujours actif** — aucune API opérateur n'est
-> disponible ; la couche (a) est inactive. `lookupMobileMoneyName()` dans
-> `payout-methods.ts` retourne systématiquement `UNAVAILABLE` (point d'extension pour un
-> futur vrai provider). Tous les `PayoutMethod` MOBILE_MONEY passent en revue manuelle.
+> disponible ; la couche (a) reste inactive. Mais **la comparaison elle-même est
+> désormais écrite et testée** (3 août 2026) : `src/lib/name-match.ts` implémente la
+> normalisation demandée par le texte de l'arbitrage — casse, accents (via `NFD` +
+> `\p{M}`, pour qu'un accent ne coupe pas le mot en deux), ponctuation, apostrophes et
+> traits d'union, formes juridiques (`SARL`, `SA`, `Ltd`…), mots vides, et **ordre des
+> mots** par tri des jetons. La comparaison exige des jetons *identiques* : un
+> sous-ensemble est un `MISMATCH`, parce que « Sarr Formation » et « Sarr Formation
+> Digitale » sont deux entités. 9 tests unitaires purs.
+> La séparation est nette : `fetchOperatorAccountName()` est le **seul** point où une
+> information externe entre, et il retourne `null` faute de provider ;
+> `lookupMobileMoneyName()` ne compare que ce qu'il en reçoit. Tous les `PayoutMethod`
+> MOBILE_MONEY passent donc toujours en revue manuelle.
 > `AUTO_VERIFIED` n'est atteignable que sur un `MATCH` renvoyé par une vraie API — aucun
 > chemin ne l'atteint aujourd'hui, **y compris quand le nom déclaré est identique au nom
 > légal vérifié** (corrigé cette session : l'ancienne implémentation comparait
@@ -309,27 +325,63 @@ qui a accès aux deux (identité et moyen de paiement).
 
 Aucune auto-déclaration du type « ce compte m'appartient » : elle n'apporte aucune
 garantie et n'est pas demandée.
-> Statut : ⚠️ `AccountNature { INDIVIDUAL, BUSINESS }`, `PayoutMethod.businessDocS3Key`
-> et `legalRepProofS3Key` existent dans le schéma (inchangé). `createPayoutMethod`
-> capture `accountNature`/`businessName` mais n'a **aucune logique dédiée** distinguant
-> la vérification INDIVIDUAL (nom du titulaire) de BUSINESS (dénomination sociale +
-> représentant légal) — les deux passent par la même revue manuelle Finances
-> générique (`MANUAL_FINANCE`), sans check automatisé ni exigence de documents
-> spécifique au type de compte.
+> Statut : ⚠️ **Recalé le 3 août 2026.** Les deux branches sont désormais réellement
+> distinctes à la saisie et au dépôt :
+> - `validateMethodInput` exige `holderName` en INDIVIDUAL, et `businessName` +
+>   `businessDocS3Key` + `legalRepProofS3Key` en BUSINESS (✅, inchangé) ;
+> - les deux documents ont leur **route de présignature** (`POST /api/trainer/
+>   payout-methods/documents/upload`, PM0) et ne sont rattachés qu'à la création, dans
+>   la transaction, via une `PendingAttachment` de scope `PAYOUT_METHOD:<kind>`. Une clé
+>   inventée, expirée, appartenant à un autre formateur, ou du mauvais type est refusée
+>   en `ATTACHMENT_INVALID` (✅, 6 tests d'invariants + 1 test de route) ;
+> - Finances peut les consulter via `GET /api/admin/payout-methods/{id}/documents/{kind}`,
+>   redirection 302 signée et **journalisée** (`PAYOUT_METHOD_DOCUMENT_VIEW`) — sans quoi
+>   les documents exigés seraient invérifiables. Ce sont des documents commerciaux, pas
+>   des pièces d'identité : la décision 21 reste entière.
+>
+> La comparaison de la dénomination sociale est **écrite** depuis le 3 août 2026
+> (voir décision 22), et surtout **correctement ciblée** : `expectedAccountName()` fait
+> porter la comparaison sur `businessName` en BUSINESS et sur `verifiedLegalName` en
+> INDIVIDUAL. Avant, le nom du compte était comparé au nom de la personne quelle que
+> soit la nature — le jour où une API opérateur répondra, tout compte d'entreprise
+> aurait produit un `MISMATCH` systématique. Le défaut était latent, la couche (a)
+> n'étant pas branchée.
+>
+> `getPayoutMethodDetail()` expose en plus un bloc `nameComparison` **dérivé à la
+> lecture** (jamais stocké : un instantané figé deviendrait faux si le nom légal
+> change) : nom attendu et sa forme normalisée, nom opérateur et le sien, résultat de
+> comparaison, et `businessIsSoleTrader` — la dénomination sociale se réduit au nom de
+> la personne, cas légitime que Finances doit voir. **Aucun de ces champs ne touche
+> `verificationStatus`** : c'est une aide à la décision, pas une vérification.
+>
+> Ce qui reste absent (⚠️) : la **preuve** que le formateur est le représentant légal
+> reste lue par un humain sur les documents, et les deux branches convergent toujours
+> vers la même revue manuelle Finances (`MANUAL_FINANCE`). Le bloc `nameComparison`
+> n'a par ailleurs **aucun écran** — aucune page admin n'existe pour les moyens de
+> paiement.
 
 **29. Pédagogie avant saisie** — L'écran d'ajout d'un moyen de paiement affiche la règle
 **avant** le formulaire. Le choix `INDIVIDUAL` / `BUSINESS` est fait en premier et
 conditionne le formulaire.
-> Statut : 📋 Spécifié pour le front, inchangé. Aucune page frontend n'existe pour
-> l'ajout de moyen de paiement.
+> Statut : ✅ **Implémenté le 3 août 2026** —
+> `/formateur/portefeuille/moyen-de-paiement` affiche les quatre règles (compte
+> personnel obligatoire, vérification jamais déclarative, carence 72 h, blocage à
+> 3 refus) **avant** le formulaire, et le choix INDIVIDUAL/BUSINESS est l'étape 1 :
+> il commande les champs de l'étape 3 (nom du titulaire *ou* dénomination sociale +
+> les deux documents).
 
 **30. Écart de nom détecté** — Message explicite, jamais un rejet opaque : indiquer que
 le nom du compte ne correspond pas à l'identité vérifiée, rappeler les deux options
 légitimes, proposer le contact support. Ne jamais afficher le `verifiedLegalName`
 complet dans ce message.
-> Statut : 📋 Spécifié pour le front, inchangé. Les codes d'erreur API existent
-> (`MICRO_DEPOSIT_MISMATCH`, rejet Finances avec `reason`) mais aucun ne porte
-> spécifiquement ce message pédagogique en trois parties.
+> Statut : ✅ **Implémenté le 3 août 2026** — `name-mismatch-notice.tsx` porte le
+> message en trois parties (ce qui bloque · les deux configurations légitimes · le
+> recours au support), affiché quand le moyen actif est `REJECTED`, `BLOCKED`, ou porte
+> un `nameLookupResult` en `MISMATCH`. Le nom légal vérifié n'y apparaît pas, et ne le
+> peut pas : `TRAINER_METHOD_SELECT` ne l'expose jamais au formateur — l'interdit est
+> structurel, pas seulement respecté. Deux codes d'erreur opaques
+> (`IDENTITY_NAME_MISSING`, `PAYOUT_METHOD_BLOCKED`) sont par ailleurs traduits dans le
+> formulaire.
 
 ---
 
@@ -370,6 +422,8 @@ aux replays et aux ressources de la communauté **intégrés pendant sa période
 d'adhésion**. Il perd l'accès à tout ce qui est ajouté après sa sortie. Pour un replay,
 **c'est la date du live qui fait foi**, pas celle de la mise en ligne de
 l'enregistrement.
+> **Complété par l'arbitrage 44** : cette règle décrit l'état d'un **ancien** membre.
+> Elle cesse de s'appliquer s'il se réabonne.
 > Statut : 📋 Demande deux choses absentes : une relation `Community` → `Course` (elle
 > n'existe pas, l'onglet « Incluses (communauté) » de `/mes-ressources` est bloqué pour
 > cette raison) et une date d'intégration par contenu, pour trancher ce qui précède la
@@ -433,10 +487,295 @@ disparaissent pas à sa fin : ils sont rattachés au replay et restent lisibles.
 **43. Téléchargement d'un replay lié au plan** — La possibilité de télécharger un replay
 dépend de la formule d'abonnement de la communauté. Ce n'est ni un réglage par session,
 ni une règle uniforme de plateforme.
+> ⚠️ **Requalifié par l'arbitrage 55** : les deux formules (mensuelle, annuelle) ayant
+> des droits identiques (arbitrage 49), aucune ne refuse le téléchargement — il devient
+> un droit uniforme de tout membre. Ce qui subsiste ici, c'est l'interdit : **pas de case
+> « téléchargeable » par session**.
 > Statut : 📋 Le champ `downloadable` par replay des données de démonstration est donc
 > faux : la règle se lira sur le plan. **Ne pas ajouter de case « téléchargeable »** dans
 > l'écran formateur. Suppose de modéliser les formules d'abonnement d'une communauté, ce
 > qui n'est pas fait.
+
+---
+
+## Arbitrages 44-46 — Réabonnement, ressources incluses, capacité
+
+*Tranchés le 2 août 2026. Ils referment les trois dernières questions ouvertes de
+`docs/espace-apprenant-a-brancher.md`.*
+
+**44. Réabonnement — rattrapage complet** — L'ancien membre qui revient dans une
+communauté **récupère tout ce qui y a été ajouté pendant son absence** : replays et
+ressources incluses. Il n'y a pas de « trou » dans son accès.
+> Conséquence de modélisation, importante : l'arbitrage 34 (accès figé à la période
+> d'adhésion) ne décrit que l'état d'un **ancien** membre. Un membre **actif** voit
+> l'intégralité de ce qui est lié à la communauté à l'instant T, sans filtre de date.
+> La date d'intégration par contenu (et la date du live pour un replay) ne sert donc
+> qu'à calculer l'accès résiduel après sortie — jamais à restreindre un abonné actif.
+> Un membre réabonné passe simplement du filtre à l'absence de filtre.
+> Statut : 📋 Demande la relation `Community` → `Course` (absente) et la date
+> d'intégration par contenu.
+> ⚠️ La simplification « un abonné actif n'est jamais filtré » **ne tient que pour les
+> ressources encore liées** : l'arbitrage 48 (déliaison) rouvre le besoin d'historique
+> des adhésions. Voir la formule d'accès complète en 48.
+
+**45. Deux circuits de ressources, distincts** — L'adhésion à une communauté ne donne
+accès qu'aux ressources que **le formateur a explicitement liées à sa communauté** :
+celles-là sont gratuites pour les membres. Les ressources que le formateur publie dans
+la marketplace **restent payantes pour tout le monde, membres compris** : un membre qui
+les veut les achète comme n'importe quel apprenant.
+> Conséquence : la relation `Community` → `Course` est une **décision explicite et
+> opt-in du formateur**, pas un effet de bord de la publication d'une ressource. Aucune
+> ressource n'entre dans une communauté par défaut.
+> Conséquence sur l'onglet « Incluses (communauté) » de `/mes-ressources` : il ne
+> liste que les ressources liées, jamais le catalogue du formateur.
+> Statut : 📋 Rien n'existe. La relation `Community` → `Course` reste à créer, avec la
+> date d'intégration exigée par les arbitrages 34 et 44.
+
+**46. Capacité d'une session live** — La capacité maximale d'une session est le **nombre
+d'apprenants de la communauté + le formateur**. Il n'y a pas de plafond de plateforme
+distinct, ni de jauge à régler par session : la communauté est sa propre limite.
+> Conséquence : aucun écran « session complète » à concevoir côté apprenant — un membre
+> ne peut jamais être refusé pour cause de capacité. Le contrôle d'accès à la salle
+> reste celui de l'arbitrage 32 (abonnement actif à la communauté), rien de plus.
+> ⚠️ **Conséquence de coût, à garder en tête** : l'arbitrage 31 fait émettre tout
+> participant. Une communauté à plusieurs centaines de membres actifs produit donc une
+> visioconférence de plusieurs centaines d'émetteurs, ce qu'aucun fournisseur temps réel
+> ne facture comme une diffusion un-vers-tous. La règle est tranchée côté produit ; le
+> dimensionnement (et un éventuel garde-fou technique) reste à instruire.
+> Statut : 📋 Aucun modèle `LiveSession`. Rien à implémenter au-delà de l'absence
+> volontaire de champ « capacité » sur la future session.
+
+---
+
+## Arbitrages 47-62 — Circuits, déliaison, abonnement, rétention, stockage, tarification
+
+*Tranchés les 2 et 3 août 2026, dans la foulée des arbitrages 44-46 dont ils précisent
+les conséquences.*
+
+**47. Les deux circuits sont exclusifs** — Une ressource est **soit** incluse dans la
+communauté (gratuite pour les membres), **soit** vendue dans la marketplace. Jamais les
+deux. Le formateur choisit par ressource.
+> Conséquence de modélisation : le circuit est une propriété de la ressource, pas un
+> effet de bord d'une table de liaison. `Course.priceFcfa` (aujourd'hui `Int` non nul)
+> devient sans objet pour une ressource incluse — à rendre optionnel, ou à doubler d'un
+> champ de circuit qui le neutralise.
+> Conséquence produit : un membre ne peut jamais avoir « payé pour rien » une ressource
+> qu'il aurait ensuite reçue gratuitement par son abonnement — le cas n'existe plus.
+> Statut : 📋 Rien n'existe. `Course` n'a aucun marqueur de circuit.
+
+**48. Déliaison possible, accès acquis conservé** — Le formateur peut retirer une
+ressource de sa communauté. Elle disparaît alors pour les futurs membres, mais **tout
+membre qui y avait accès pendant la liaison le conserve**. Symétrique de l'arbitrage 34,
+vu depuis le formateur.
+> ⚠️ **Corrige la simplification annoncée à l'arbitrage 44.** Avec la déliaison, la règle
+> d'accès n'est plus « abonné actif → aucun filtre ». Elle devient :
+> ```
+> accès(apprenant, ressource, communauté) =
+>     (abonnement actif  ET  liaison active)
+>  OU (une période d'adhésion chevauche la période de liaison)
+> ```
+> La seconde branche **impose bien de conserver l'historique des adhésions** et une
+> période de liaison bornée (`linkedAt`, `unlinkedAt`) — la déliaison n'est donc pas une
+> suppression de ligne. `CommunitySubscription` porte déjà `periodStart`/`periodEnd`/
+> `canceledAt`, et l'index unique partiel n'interdit qu'un second abonnement **actif** :
+> l'historique des passages successifs est représentable en l'état.
+> Statut : 📋 La table de liaison `Community` → `Course` reste à créer, avec `linkedAt`
+> et `unlinkedAt` dès l'origine.
+
+**49. Un seul abonnement plateforme, deux cadences** *(objet corrigé le 3 août 2026 —
+la première rédaction l'avait attribué à tort aux communautés)* — L'abonnement du
+**formateur à NkamVa** est le seul abonnement de plateforme. Il ne subsiste que deux
+cadences, **mensuelle et annuelle**, aux droits identiques : tout est compris, la seule
+restriction est le stockage (arbitrage 54).
+> Conséquence sur le schéma : `enum TrainerPlan { STARTER, PRO, EXPERT }` **disparaît**.
+> Trois paliers de droits n'ont plus d'objet ; il ne reste qu'une cadence de facturation.
+> `TrainerProfile.plan` et son index `@@index([plan])` sont à requalifier, pas seulement
+> à renommer — c'est une migration, sur un champ qui a une valeur par défaut (`STARTER`)
+> sur toutes les lignes existantes.
+> Conséquence : **aucune matrice de droits à modéliser**, nulle part. Ni par plan
+> formateur, ni par formule communautaire.
+> ⚠️ **Ce que cet arbitrage ne dit pas** : la cadence de l'abonnement d'un **apprenant à
+> une communauté** est un autre sujet — c'est le produit du formateur, pas celui de
+> NkamVa. `Community.priceFcfa` (prix unique) reste donc en vigueur par défaut. Voir
+> « Points non arbitrés ».
+> ⚠️ **Neutralise l'arbitrage 43**, requalifié par l'arbitrage 55.
+> Statut : 📋 `TrainerPlan` à trois valeurs toujours dans le schéma.
+
+**50. Les replays ont une durée de conservation limitée** — Un replay n'est pas conservé
+indéfiniment. Le coût de stockage d'un enregistrement vidéo, produit automatiquement à
+chaque live (arbitrage 38), ne le permet pas.
+> Conséquence : un job de purge (le socle `jobs.ts` sait déjà en porter), un état
+> « expiré » distinct de « absent », et un message dédié sur l'écran replay.
+> Statut : 📋 Durée fixée par l'arbitrage 51.
+
+**51. Replays conservés 24 mois** — Un replay reste disponible **24 mois après la date du
+live** — la même date que celle qui fait foi pour l'arbitrage 34 — puis il est purgé.
+> Conséquence de coût, assumée : l'enregistrement étant automatique (arbitrage 38), deux
+> années de vidéo s'accumulent avant la première purge. Le pic de stockage n'est donc
+> atteint qu'au bout de 24 mois d'exploitation, et pas plus tôt.
+> Statut : 📋 Job de purge à écrire (`jobs.ts` sait déjà porter des tâches périodiques,
+> `s3.ts` sait supprimer). L'écran replay devra distinguer « expiré » de « absent ».
+
+**52. Changement de cadence à l'échéance** — Le passage du mensuel à l'annuel (ou
+l'inverse) est enregistré immédiatement mais ne prend effet qu'au **renouvellement**. La
+période en cours n'est ni écourtée, ni recalculée.
+> Conséquence, volontairement économe : **aucun prorata à calculer**, aucun remboursement
+> partiel, aucune écriture wallet à l'instant du changement — donc aucune interaction
+> avec les réservations de litige de l'arbitrage 8. Le changement est une intention
+> stockée sur l'abonnement, appliquée au renouvellement.
+> Statut : 📋 `TrainerProfile` porte `subscriptionCurrentPeriodEnd` et
+> `subscriptionCanceledAt`, mais aucun champ de cadence souhaitée pour le prochain
+> renouvellement.
+
+**53. Bascule de circuit à sens unique** — Une ressource vendue peut devenir incluse dans
+la communauté. **L'inverse est interdit** : ce qui a été annoncé comme inclus ne repasse
+jamais derrière un paywall.
+> Conséquence : un membre ne voit jamais une ressource incluse se transformer en ressource
+> payante. La déliaison de l'arbitrage 48 reste possible — elle retire la ressource du
+> catalogue communautaire sans la remettre en vente, et sans reprendre l'accès acquis.
+> Les acheteurs passés d'une ressource devenue incluse gardent la leur : l'achat est
+> définitif, le prix est déjà snapshoté sur `Purchase`, rien à recalculer ni à rembourser.
+> Statut : 📋 Rien n'existe. La contrainte est applicative, à poser en même temps que le
+> marqueur de circuit de l'arbitrage 47.
+
+**54. Quota de stockage formateur — 40 Go gratuits** — Le quota porte sur le
+**formateur**, pas sur la communauté ni sur l'apprenant : c'est lui qui téléverse. 40 Go
+inclus, extension payante. **Au dépassement, le téléversement est bloqué et tout
+l'existant reste intact** — aucun contenu déjà en ligne ne disparaît pour une raison de
+facturation.
+> Ferme l'arbitrage 10, dont le « quota par formateur selon son plan SaaS » n'avait
+> jamais de valeur chiffrée. La liste blanche MIME et l'absence de proxy de l'arbitrage 10
+> restent inchangées.
+> Conséquence, à ne pas manquer : le quota doit compter **les replays** (arbitrage 38 :
+> tout live en produit un, automatiquement), pas seulement les ressources téléversées à
+> la main. Un formateur peut donc épuiser son quota sans avoir rien téléversé lui-même —
+> et la purge à 24 mois de l'arbitrage 51 lui rend de la place.
+> Conséquence sur le point d'application : l'existant reste servi, donc **le blocage ne
+> porte que sur le chemin d'écriture** (`presignUpload` dans `s3.ts`) — jamais sur la
+> lecture ni sur les URL présignées de téléchargement.
+> Statut : 📋 Rien n'existe. Aucun compteur d'octets par formateur, aucune vérification
+> dans `presignUpload`. `COURSE_UPLOAD_LIMITS` (`courses.ts`) plafonne le **fichier**,
+> pas le **cumul**.
+
+**55. Téléchargement d'un replay — droit uniforme** *(requalifie l'arbitrage 43)* — Tout
+membre d'une communauté peut télécharger les replays auxquels il a accès. Ce n'est pas un
+droit de formule (elles sont tout compris, arbitrage 49), et **ce n'est toujours pas un
+réglage par session** : cet interdit est la seule chose que l'arbitrage 43 conserve.
+> Conséquence : ne pas ajouter de case « replay téléchargeable » dans l'écran formateur —
+> l'interdit tient, sa justification change. Le drapeau `downloadable` par replay des
+> données de démonstration est à retirer parce qu'il est **toujours vrai**, pas parce
+> qu'il faudrait le lire ailleurs.
+> Conséquence pratique, à lire avec l'arbitrage 51 : le membre a 24 mois pour télécharger
+> ce qu'il veut garder. La purge n'est donc pas une perte sèche.
+
+**56. L'abonnement plateforme peut être gratuit** — Le prix de l'abonnement formateur
+peut valoir **zéro**, notamment pour les premiers mois après le lancement.
+> Conséquence principale, et c'est la seule qui compte vraiment : **« abonné » et « a
+> payé » cessent d'être synonymes**. Un abonnement gratuit est un abonnement pleinement
+> `ACTIVE`, sans `Purchase`, sans `subscriptionProvider`, sans `subscriptionProviderId`.
+> Tout code qui déduirait l'accès d'un paiement se casserait sur la cohorte de lancement.
+> Les trois champs sont déjà nullables sur `TrainerProfile` (✅) — c'est la **logique**
+> qui doit être écrite dans ce sens, pas le schéma.
+> Conséquence économique : la commission de 15 % (arbitrage 11) n'est pas suspendue par
+> la gratuité de l'abonnement. Pendant la période de lancement, c'est **la seule** source
+> de revenu de NkamVa sur un formateur.
+> Conséquence sur le stockage : la gratuité porte sur l'abonnement, **pas sur
+> l'extension de stockage** (arbitrage 54). 40 Go restent 40 Go, y compris gratuitement.
+> ⚠️ La gratuité doit être **datée**, pas un statut acquis : un formateur entré pendant
+> la promotion doit basculer en payant à une échéance connue. Sans date de fin, la
+> cohorte de lancement reste gratuite à vie — un choix légitime, mais qui doit être
+> délibéré. Voir « Points non arbitrés ».
+> Statut : 📋 Rien n'existe : ni prix d'abonnement en base, ni période promotionnelle.
+
+**57. Réductions** — Le prix affiché n'est pas toujours le prix payé : la cadence
+annuelle vaut moins que douze mensualités, et des réductions promotionnelles s'y
+ajoutent.
+> Conséquence de modélisation, la même que celle déjà retenue pour les ventes :
+> **snapshoter le prix réellement consenti sur l'abonnement**, comme `Purchase` snapshote
+> déjà `commissionRate`, `trainerShareFcfa` et `platformShareFcfa`. Le tarif public
+> changera ; un abonnement en cours ne doit pas changer avec lui.
+> Conséquence : une réduction est **un montant, pas un pourcentage affiché** au moment du
+> débit — le pourcentage sert à la présentation, le montant fait foi en comptabilité.
+> Deux réductions se cumulent alors sans ambiguïté d'arrondi (les montants sont des `Int`
+> en FCFA, jamais des `Float` — convention Lot 0).
+> Conséquence avec l'arbitrage 52 : une réduction obtenue sur une période ne se reporte
+> pas d'office sur la suivante. Le renouvellement recalcule, sauf tarif explicitement
+> acquis (voir 56 sur la gratuité datée).
+> Statut : 📋 Rien n'existe.
+
+**58. Prix d'une communauté : un prix unique** — L'abonnement d'un apprenant à une
+communauté garde **un seul prix**, celui que porte déjà `Community.priceFcfa`. Les deux
+cadences de l'arbitrage 49 ne concernent que l'abonnement du formateur à NkamVa.
+> Conséquence : **aucun modèle de formule communautaire à créer**, aucune matrice de
+> droits, aucun choix de cadence dans le tunnel d'adhésion. Le schéma actuel suffit.
+> Statut : ✅ Conforme en l'état — `Community.priceFcfa Int` et
+> `CommunitySubscription.periodStart`/`periodEnd` existent, rien à ajouter.
+
+**59. Le tarif de l'abonnement plateforme est administré, pas déployé** — Le
+**Super-admin** bascule l'abonnement formateur de gratuit à payant et inversement depuis
+l'interface d'administration, et applique les réductions quand il est payant. La
+gratuité de lancement (arbitrage 56) n'est donc pas une date en dur dans le code : c'est
+un état du tarif, modifiable sans livraison.
+> Conséquence directe : le prix ne peut plus être une constante lue au démarrage. Il vit
+> en base, il est daté, et **chaque modification est auditée** — `AuditLog` est écrit
+> dans la transaction métier (convention Lot 0), et `Setting` porte déjà `updatedById`.
+> Cohérent avec l'arbitrage 7 : le Super-admin a « tout, y compris la configuration ».
+> ⚠️ **Jamais de rétroactivité.** Une bascule ou une réduction ne retouche aucune période
+> déjà facturée : le montant consenti est snapshoté sur l'abonnement (arbitrage 57), et
+> une modification du tarif ne réécrit pas ce snapshot. Sans cette règle, un clic
+> d'admin peut rendre débiteurs des formateurs déjà à jour.
+> ⚠️ **Une bascule gratuit → payant est une action de masse.** Elle engage tous les
+> formateurs à la fois, et elle n'est pas silencieuse : elle doit demander confirmation
+> et porter une date d'effet, jamais s'appliquer à l'instant du clic. Elle relève des
+> actions sensibles au sens de la convention de concurrence (`expectedUpdatedAt`).
+> Statut : 📋 Rien n'existe. Aucun tarif en base, aucune route admin de tarification.
+> Les briques sont là : `Setting` (clé/valeur/`updatedById`), `requireAdminSubRole`,
+> `audit(tx, …)`.
+
+**60. Tarification — qui peut quoi** — Le **Super-admin** fixe la grille tarifaire,
+bascule gratuit ⇄ payant, et accorde des réductions. **Finances** accorde des réductions,
+et rien d'autre : ni la grille, ni la bascule.
+> Cohérent avec l'arbitrage 7, qui range « les abonnements » dans le périmètre Finances
+> tout en réservant la configuration au Super-admin. La distinction porte donc sur la
+> **nature du geste** : structurel (la grille, la bascule) contre commercial (la remise).
+> Conséquence technique : deux niveaux de permission sur des routes voisines —
+> `requireAdminSubRole('SUPER_ADMIN')` sur la grille et la bascule,
+> `requireAdminSubRole('FINANCES', 'SUPER_ADMIN')` sur les remises. Le helper existe et
+> c'est déjà le découpage retenu par les Lots 1-3.
+> ⚠️ **Angle mort à surveiller** : le journal d'audit n'est lisible que par le
+> Super-admin (arbitrage 7). Un admin Finances accorde donc des remises qu'il ne peut pas
+> relire, et ne peut pas contrôler celles de ses collègues. Voir « Points non arbitrés ».
+> Statut : 📋 Rien n'existe.
+
+**61. La bascule prend effet à l'échéance de chacun** — Le passage de gratuit à payant
+s'applique à chaque formateur **à son propre renouvellement**, pas à une date commune.
+> Cohérent avec l'arbitrage 52 (les changements prennent effet à l'échéance) et avec
+> l'interdit de rétroactivité de l'arbitrage 59 : **personne n'est jamais débité par
+> surprise**, et il n'y a **aucun prorata à calculer**, nulle part.
+> ⚠️ **Conséquence de trésorerie, à assumer** : la transition s'étale sur toute la durée
+> d'un cycle. Un formateur entré en annuel gratuit ne paiera pas avant **douze mois**. La
+> bascule décidée par le Super-admin n'est donc pas un levier de recette immédiat.
+> Conséquence sur le job de renouvellement : c'est lui qui **résout le tarif en vigueur**
+> à l'instant du renouvellement, puis le snapshote (arbitrage 57). Il doit rester
+> idempotent, comme les sept jobs déjà câblés.
+> Statut : 📋 Aucun job de renouvellement d'abonnement formateur n'existe.
+
+**62. Trois canaux de réduction** — Les réductions prennent trois formes, toutes retenues :
+- **campagne globale** — une remise datée valable pour tous ;
+- **remise par formateur** — négociée, rattachée à un formateur et **motivée** ;
+- **code promo** — saisi par le formateur à la souscription.
+> Conséquence : les trois convergent vers le même résultat, le **montant consenti
+> snapshoté sur l'abonnement** (arbitrage 57). Ce n'est donc pas trois mécanismes de
+> facturation, mais trois façons de renseigner un même montant — la distinction vit dans
+> l'origine et la traçabilité, pas dans le calcul.
+> ⚠️ **Le cumul est le vrai sujet** : campagne + remise formateur + code promo peuvent se
+> superposer, et rien ne dit encore si elles s'additionnent ou si la meilleure l'emporte.
+> Tant que ce n'est pas tranché, un abonnement peut tomber à zéro sans que personne
+> l'ait décidé. Voir « Points non arbitrés ».
+> ⚠️ Le code promo est le seul des trois qui **ouvre une surface d'abus** : il demande
+> compteurs d'usage, plage de validité et unicité par formateur. Les limites de débit
+> existent déjà (`rate-limit.ts`, `RATE_LIMITS`), mais ne sont pas branchées.
+> Statut : 📋 Rien n'existe.
 
 ---
 
@@ -562,6 +901,23 @@ negativeSince non null  ⟺  solde retirable < 0
 
 ## Points non arbitrés
 
+- **Cumul des réductions** (arbitrage 62) — campagne, remise formateur et code promo
+  s'additionnent-ils, ou la plus favorable l'emporte-t-elle ? Faut-il un plancher (jamais
+  en dessous de X FCFA) ? C'est le seul point qui peut mener un abonnement à zéro sans
+  décision explicite.
+- **Contrôle des remises accordées par Finances** (arbitrage 60) — le journal d'audit
+  étant réservé au Super-admin (arbitrage 7), Finances ne peut relire ni ses remises ni
+  celles de ses collègues. Faut-il une vue restreinte, limitée aux remises, ou est-ce
+  volontaire ?
+- **Sort du formateur qui ne paie pas à la bascule** (arbitrages 56 et 59) — `PAST_DUE`
+  puis `SUSPENDED` (les valeurs existent déjà sur `TrainerSubscriptionStatus`), mais avec
+  quelles conséquences exactes sur ses contenus déjà en ligne et sur ses apprenants ?
+  Voir la recommandation 2 de `docs/recommandations-modelisation.md`.
+- **Prix de l'extension de stockage** (arbitrage 54) — le pas de facturation (par 10 Go ?
+  par 100 Go ?), le prix, et si l'extension suit la cadence de l'abonnement du formateur.
+- **Prévenir avant la purge d'un replay** (arbitrage 51) — le membre reçoit-il une
+  notification à l'approche des 24 mois ? Le formateur, lui, a intérêt à être prévenu :
+  la purge lui rend du quota (arbitrage 54).
 - Provider SMS (Twilio, Vonage, ou provider local africain) — voir arbitrage 24. Toujours
   non résolu.
 - Provider bancaire pour le micro-virement IBAN — voir arbitrage 22c. Toujours non
@@ -589,9 +945,9 @@ Voir `src/app/api/webhooks/cinetpay/route.ts` pour le détail et les sources.
 | **Lot 0** (Socle) | 15 fichiers (api, audit, auth, db, email, notification, password, rate-limit, s3, stripe, wallet, types, utils, jobs, pending-attachments) | 0/5 (auth register/otp/verify-otp/reset-password, health) + 2 webhooks (stripe, cinetpay) ✅ | Template initial uniquement | — | 7/7 câblés (node-cron + instrumentation.ts) |
 | **Lot 1** (Validation) | 2/2 (`trainer-applications.ts`, `trainer-documents.ts`) ✅ | 13/13 ✅ | 0/3 | 7/7 ✅ | inclus ci-dessus (purge 90j) |
 | **Lot 2** (Litiges) | 2/2 (`disputes.ts`, `manual-refund-tasks.ts`) ✅ | 15/15 ✅ | 0 | 7/7 ✅ | inclus ci-dessus (auto-timeout, cohérence wallet, alerte négatif) |
-| **Lot 3** (KYC/Payouts) | 4/4 (`kyc.ts`, `payout-methods.ts`, `payouts.ts`, `wallet-reconciliation.ts`) ✅ | 19/19 ✅ | 0 | 12/12 ✅ | inclus ci-dessus (carence, SLA) |
+| **Lot 3** (KYC/Payouts) | 4/4 (`kyc.ts`, `payout-methods.ts`, `payouts.ts`, `wallet-reconciliation.ts`) ✅ | 21/21 ✅ (+2 le 3 août : présignature des documents d'entreprise, consultation Finances) | 2 ✅ (`/formateur/portefeuille`, `.../moyen-de-paiement`) | 21 ✅ | inclus ci-dessus (carence, SLA) |
 | **Lot 4** (Parcours cœur) | 4/4 ✅ (inchangé) | 15/15 ✅ (inchangé) | 0/6 | 10/10 ✅ (+2 cette session : webhook rejoué, payload malformé) | — |
-| **Total** | 27/27 fichiers lib présents | 64 routes Lots 1-4 + 2 webhooks | 0/9 pages | **41/41 tests passent** (`npx vitest run`, Postgres réel) | 7/7 jobs planifiés câblés |
+| **Total** | 29 fichiers lib (+`upload.ts`, +`name-match.ts`) | 66 routes Lots 1-4 + 2 webhooks | 2 pages formateur (Lot 3) | **185/185 tests passent** (`npx vitest run`, Postgres réel, mesuré le 3 août 2026 — la ligne « 41 » de la version précédente datait du 31 juillet) | 7/7 jobs planifiés câblés |
 
 Écarts encore ouverts (non couverts par les 3 corrections + régénération de cette
 session) : voir ⚠️/❌ ci-dessus — notamment la notification de résolution de litige au
