@@ -1,117 +1,67 @@
 # Lot 0 — SOCLE : Spécification d'implémentation
 
-> **État réel au disque** : vérifié le 31 juillet 2026.
+> **État réel au disque** : vérifié le 3 août 2026 (`tsc --noEmit` vert, `vitest run`
+> 216/216 sur Postgres réel).
 > Ce document reflète exactement ce qui existe sur le disque, pas ce qui était prévu.
+> La version précédente datait du 31 juillet et décrivait un état — SQLite,
+> `instrumentation.ts` absent, 46 routes manquantes — qui n'a plus cours.
 
 ---
 
-## 1. Ce qui existe RÉELLEMENT sur le disque
-
-### 1.1 Configuration
+## 1. Configuration
 
 | Fichier | État | Contenu réel |
 |---|---|---|
-| `.env` | ⚠️ **SQLite, pas PostgreSQL** | `DATABASE_URL=file:/home/z/my-project/db/custom.db` |
-| `package.json` | ✅ Complet | Toutes les dépendances installées (voir §3) |
-| `prisma/schema.prisma` | ✅ PostgreSQL, 830 lignes | Schéma complet Lots 0-4, provider `postgresql` |
-| `vitest.config.ts` | ✅ Présent | Alias `@/` via `import.meta.url` |
-| `eslint.config.mjs` | ⚠️ Partiel | `ignores` ne contient pas `audit/**` — les fichiers de la maquette peuvent causer des erreurs de lint |
-| `src/instrumentation.ts` | ❌ **MANQUANT** | Les jobs planifiés ne sont pas démarrés |
-| `src/types/next-auth.d.ts` | ✅ Présent | Augmentation `Session`/`User`/`JWT` avec `id`, `role`, `adminRole`, `trainerId`, `sessionsValidAfter` |
-| `src/middleware.ts` | ✅ Présent | Protection des pages par préfixe + garde `ADMIN`, redirection vers `/auth/connexion?callbackUrl=…` |
+| `.env` | ✅ PostgreSQL | `DATABASE_URL="postgresql://…"` (Supabase de dev). `DIRECT_URL` est requis par `prisma migrate` |
+| `package.json` | ✅ | Toutes les dépendances installées, `stripe` compris (voir §7) |
+| `prisma/schema.prisma` | ✅ 1 062 lignes | Provider `postgresql`, 4 migrations versionnées |
+| `vitest.config.ts` | ✅ | Alias `@/`, `fileParallelism: false` (base partagée nettoyée par TRUNCATE) |
+| `eslint.config.mjs` | ✅ | `ignores` à jour ; le dossier `audit/` de la maquette n'existe plus |
+| `src/instrumentation.ts` | ✅ | Démarre les jobs planifiés, sauf runtime Edge / `NODE_ENV=test` / `DISABLE_SCHEDULED_JOBS=1` |
+| `src/types/next-auth.d.ts` | ✅ | Augmentation `Session`/`User`/`JWT` avec `id`, `role`, `adminRole`, `trainerId`, `sessionsValidAfter` |
+| `src/middleware.ts` | ✅ | Protection des pages par préfixe + garde `ADMIN`, redirection vers `/auth/connexion?callbackUrl=…` |
 
-### 1.2 Constat critique : .env vs schema.prisma
+### 1.1 Base de données
 
-Le `.env` pointe vers **SQLite** (`file:/home/z/my-project/db/custom.db`) mais le `schema.prisma` déclare **PostgreSQL** (`provider = "postgresql"`). PostgreSQL n'est **pas installé** et ne tourne pas sur la machine. La base SQLite `db/custom.db` contient l'ancien schéma template (User + Post), pas le schéma NkamVa.
+PostgreSQL, migrations Prisma versionnées, **jamais `db:push`** :
 
-**Conséquence** : `bun run db:push` échouera car Prisma ne peut pas pousser un schéma PostgreSQL sur SQLite. Pour que le projet fonctionne, il faut soit :
-- (a) Installer PostgreSQL et corriger `.env`, soit
-- (b) Remettre le `schema.prisma` sur SQLite (avec les contournements : `String?` au lieu de `String[]`, `Float` au lieu de `Decimal`, pas d'index unique partiel).
-
-### 1.3 Base de données
-
-La base `db/custom.db` (24 Ko) contient uniquement les tables `User` et `Post` du template initial. Le schéma NkamVa complet n'a jamais été poussé sur cette base.
+```
+20260731140243_init
+20260731140302_community_subscriptions_active_unique_index
+20260803123616_reports_and_platform_pricing
+20260803133315_subscription_lifecycle
+```
 
 ---
 
 ## 2. Services socles (`src/lib/`)
 
-### 2.1 Services existants et fiables
-
-| Fichier | Taille | État | Notes |
-|---|---|---|---|
-| `db.ts` | 387 B | ✅ | Singleton PrismaClient avec `dotenv` explicite |
-| `types.ts` | 137 B | ✅ | Type `PrismaTransaction` |
-| `audit.ts` | 1 021 B | ✅ | `audit(tx, params)` transactionnel + `auditStandalone(params)` |
-| `api.ts` | 3 964 B | ✅ | Enveloppe `{ data, meta }`, erreurs, RBAC, `parseBody`, `isPublicRoute(method, path)` |
-| `auth.ts` | 3 019 B | ✅ | NextAuth v4 avec Credentials, callbacks jwt/session, `sessionsValidAfter` |
-| `password.ts` | 435 B | ✅ | argon2id via `@node-rs/argon2` |
-| `rate-limit.ts` | 1 857 B | ✅ | In-memory avec purge périodique, 9 limites prédéfinies |
-| `s3.ts` | 3 894 B | ✅ | R2 présigné, `validateMagicNumber` (5 formats), `headObject`, `getRange`, `deleteObject` |
-| `wallet.ts` | 2 307 B | ✅ | `creditWalletOnPurchase` idempotent (updateMany + upsert + audit) |
-
-### 2.2 Services existants mais simplifiés
-
-| Fichier | Taille | État | Ce qui manque vs spec originale |
-|---|---|---|---|
-| `email.ts` | 967 B | ⚠️ Simplifié | `sendEmail()` fonctionne, mais `renderSimpleEmail()` (helper template HTML) a été supprimé lors de la recréation |
-| `notification.ts` | 808 B | ⚠️ Simplifié | `notify()` et `notifyAdminSubRole()` fonctionnent, mais `markNotificationsRead()` a été supprimé |
-
-### 2.3 Services MANQUANTS (perdus, jamais recréés)
-
-| Fichier | Lot | Contenu perdu |
+| Fichier | État | Notes |
 |---|---|---|
-| `trainer-applications.ts` | Lot 1 | T1-T8, D0-D7, re-soumission atomique, listing, stats (~650 lignes) |
-| `disputes.ts` | Lot 2 | T1-T10, FR1-FR5, openDispute, resolveDispute, autoClose (~650 lignes) |
-| `kyc-payouts.ts` | Lot 3 | computeKycScore, PayoutMethod CRUD, Payout P1-P8 (~550 lignes) |
-| `jobs-lot1.ts` | Lot 1 | Purge 90j, PendingAttachment |
-| `jobs-lot2.ts` | Lot 2 | Auto-timeout, cohérence wallet, alerte 60j |
-| `jobs-lot3.ts` | Lot 3 | Carence 72h, SLA 48h |
+| `db.ts` | ✅ | Singleton PrismaClient avec `dotenv` explicite |
+| `types.ts` | ✅ | Type `PrismaTransaction` |
+| `audit.ts` | ✅ | `audit(tx, params)` transactionnel + `auditStandalone(params)` |
+| `api.ts` | ✅ | Enveloppe `{ data, meta }`, `DOMAIN_ERRORS` mutualisé, RBAC, `parseBody`, `isPublicRoute(method, path)` |
+| `auth.ts` | ✅ | NextAuth v4 Credentials, callbacks jwt/session, `sessionsValidAfter`, **plafond de connexion** (§9.1) |
+| `password.ts` | ✅ | argon2id via `@node-rs/argon2` |
+| `otp.ts` | ✅ | Émission / consommation, TTL 10 min, 5 tentatives |
+| `rate-limit.ts` | ✅ | Compteur en mémoire, purge périodique, `peek`/`record`/`clear` (§9.1) |
+| `session-validity.ts` | ✅ | `isSessionRevoked()`, partagé par le middleware et le callback `session` |
+| `s3.ts` | ✅ | R2 présigné, `validateMagicNumber` (5 formats), `headObject`, `getRange`, `deleteObject` |
+| `wallet.ts` | ✅ | `creditWalletOnPurchase` idempotent (voir §10) |
+| `email.ts` | ✅ | `sendEmail()` + `renderSimpleEmail()` — gabarit à la marque, HTML **et** texte rendus d'une seule source |
+| `notification.ts` | ✅ | `notify()`, `notifyAdminSubRole()`, `listMyNotifications()`, `countUnreadNotifications()`, `markNotificationsRead()`, `deliverSideEffects()` (effets de bord après commit), `absoluteUrl()` |
+| `jobs.ts` + `jobs/` | ✅ | 12 jobs `node-cron`, démarrés par `instrumentation.ts` |
 
-### 2.4 Services Lot 4 (existants, jamais perdus)
-
-| Fichier | Taille | État |
-|---|---|---|
-| `catalog.ts` | 3 282 B | ✅ Recherche, filtres, tri, pagination |
-| `courses.ts` | 6 318 B | ✅ CRUD formateur, upload R2, publication |
-| `purchases.ts` | 5 373 B | ✅ Initiation Stripe/CinetPay, crédit wallet |
-| `access.ts` | 6 830 B | ✅ Accès contenu, CourseView, accessSuspended |
+Les services des Lots 1 à 4 (`trainer-applications`, `disputes`, `kyc`, `payouts`,
+`catalog`, `courses`, `purchases`, `access`, …) existent tous — voir
+`docs/decisions-nkamva.md` §« Résumé de l'état d'implémentation ».
 
 ---
 
-## 3. Routes API existantes
+## 3. Routes API
 
-### 3.1 Routes présentes sur le disque (15 routes)
-
-| Route | Méthode | Lot | État |
-|---|---|---|---|
-| `/api/route.ts` | GET | Template | ⚠️ "Hello world" du template initial |
-| `/api/catalog/courses` | GET | Lot 4 | ✅ |
-| `/api/courses/[slug]` | GET | Lot 4 | ✅ |
-| `/api/me/purchases` | GET | Lot 4 | ✅ |
-| `/api/me/resources` | GET | Lot 4 | ✅ |
-| `/api/me/resources/[courseId]/content` | GET | Lot 4 | ✅ |
-| `/api/me/resources/[courseId]/download` | POST | Lot 4 | ✅ |
-| `/api/me/resources/[courseId]/progress` | POST | Lot 4 | ✅ |
-| `/api/purchases/initiate` | POST | Lot 4 | ✅ |
-| `/api/purchases/[purchaseId]/reconcile` | GET | Lot 4 | ✅ |
-| `/api/trainer/courses` | GET, POST | Lot 4 | ✅ |
-| `/api/trainer/courses/[courseId]` | GET, PATCH | Lot 4 | ✅ |
-| `/api/trainer/courses/[courseId]/upload` | POST | Lot 4 | ✅ |
-| `/api/trainer/courses/[courseId]/publish` | POST | Lot 4 | ✅ |
-| `/api/trainer/courses/[courseId]/archive` | POST | Lot 4 | ✅ |
-
-### 3.2 Routes MANQUANTES (perdues, jamais recréées)
-
-| Lot | Routes manquantes | Nombre |
-|---|---|---|
-| Lot 0 | ~~toutes recréées~~ — voir §3.3 | 0 |
-| Lot 1 | `/api/trainer-applications/*` (5 routes), `/api/admin/trainer-applications/*` (8 routes) | 13 |
-| Lot 2 | `/api/me/disputes/*` (3 routes), `/api/admin/disputes/*` (6 routes), `/api/admin/manual-refund-tasks/*` (3 routes), `/api/trainer/disputes/*` (2 routes) | 14 |
-| Lot 3 | `/api/trainer/kyc-score`, `/api/trainer/payout-methods/*` (3 routes), `/api/trainer/payouts/*` (2 routes), `/api/admin/payout-methods/*` (6 routes), `/api/admin/payouts/*` (5 routes), `/api/admin/wallets/*` (2 routes) | 19 |
-| **Total manquant** | | **46 routes** |
-
-### 3.3 Routes Lot 0 recréées
+**87 routes** sur le disque. Celles du périmètre Lot 0 :
 
 | Route | Méthode | Notes |
 |---|---|---|
@@ -121,184 +71,192 @@ La base `db/custom.db` (24 Ko) contient uniquement les tables `User` et `Post` d
 | `/api/auth/verify-otp` | POST | Vérifie l'adresse, pose `emailVerifiedAt`, audit `EMAIL_VERIFIED` |
 | `/api/auth/reset-password` | POST | Consomme l'OTP, remplace le hash, bumpe `sessionsValidAfter`, audit `PASSWORD_RESET` |
 | `/api/health` | GET | `SELECT 1` sur Postgres, 503 `DATABASE_UNAVAILABLE` sinon |
+| `/api/contact` | POST | Formulaire public, plafonné à 5/h par IP, aucun stockage du message |
 
 `EmailOtp` ne porte pas de colonne « purpose » : un code vaut preuve de contrôle de
 l'adresse, quel que soit l'usage. Émettre un nouveau code invalide donc le précédent
 pour cette adresse. TTL 10 minutes, 5 tentatives maximum (`src/lib/otp.ts`).
 
+> `/api/route.ts` — le « Hello, world! » du template initial — a été **supprimé** le
+> 3 août. Il ne pouvait pas être déclaré public sans que le préfixe `/api` ne rende
+> publiques toutes les routes GET ; `/api/health` couvre déjà le smoke test.
+
 ---
 
 ## 4. Pages frontend
 
-Le design vient de la maquette `Nkamva.zip` (75 écrans HTML statiques), reconstruit en
-Tailwind + shadcn. Les tokens de la maquette (papier chaud `#f6f3ec`, accent bleu marine
-`#1c5ed0`, Bricolage Grotesque + Instrument Sans) vivent dans `src/app/globals.css` et
-remappent les tokens shadcn : les primitives `ui/` adoptent le style NkamVa sans surcouche.
+Le design vient de la maquette `Nkamva.zip`, reconstruit en Tailwind + shadcn. Les
+tokens (papier chaud `#f6f3ec`, accent bleu `#1c5ed0`, navy `#022342`, Bricolage
+Grotesque + Instrument Sans) vivent dans `src/app/globals.css` et remappent les tokens
+shadcn : les primitives `ui/` adoptent le style NkamVa sans surcouche. Le vert forêt est
+réservé à l'admin, via `.nk-admin`.
+
+**66 pages** sur le disque. Celles du périmètre Lot 0 :
 
 ### 4.1 Socle
 
 | Fichier | État | Contenu réel |
 |---|---|---|
 | `src/app/globals.css` | ✅ | Tokens NkamVa + remappage shadcn, halo de fond, animations `nk-reveal` / `nk-marquee` |
-| `src/app/layout.tsx` | ✅ | `lang="fr"`, polices Google, `Providers` (SessionProvider + TanStack Query), `Toaster` de **`sonner`** |
-| `src/app/providers.tsx` | ✅ | SessionProvider NextAuth + QueryClientProvider (un client par montage) |
-| `src/components/nk/*` | ✅ | Primitives de la maquette : `Btn`, `Chip`, `Price`, `Cover`, `ResourceCard`, `MiniCard`, `CommunityCard`, `Faq`, `PayBand`, `EmptyState`, `PageHead`, `DemoNotice` |
-| `src/components/layout/*` | ✅ | `Brand`, `SiteHeader` (session-aware + menu mobile), `SiteFooter` 4 colonnes |
-| `src/components/auth/*` | ✅ | `AuthShell` (formulaire + panneau dégradé), `AuthField`, `OtpInput` |
-| `src/features/demo/*` | ✅ | Jeu de données de la maquette (16 ressources, 7 formateurs, 7 communautés) — **seul endroit contenant du faux contenu** |
+| `src/app/layout.tsx` | ✅ | `lang="fr"`, polices Google, `Providers`, `Toaster` de **`sonner`** |
+| `src/app/providers.tsx` | ✅ | SessionProvider NextAuth + QueryClientProvider |
+| `src/components/nk/*` | ✅ | Primitives de la maquette (`Btn`, `Chip`, `Cover`, `ResourceCard`, `EmptyState`, `PageHead`, `Wizard`, `DataTable`…) |
+| `src/components/layouts/*` | ✅ | `public-shell`, `app-shell`, `admin-shell`, `auth-shell` |
+| `src/features/demo/*` | ✅ | Jeu de données de la maquette — **seul endroit contenant du faux contenu** |
+
+> ⚠️ Une seule génération de composants vit dans `src/components`. Les tokens
+> `text-ink2`, `line2`, `brand-t`, la classe `.wrap` et les fichiers `nk/btn.tsx`,
+> `nk/price.tsx`, `layout/site-header` appartenaient à une génération morte dont les
+> classes **ne résolvaient plus**, sans casser ni le build ni le typecheck. Ils ont été
+> supprimés le 2 août : les revoir apparaître est une régression.
 
 ### 4.2 Pages publiques — groupe `(public)`
 
-| Route | État | Notes |
-|---|---|---|
-| `/` | ✅ | Landing : hero + bande défilante, frise paiements, « comment ça marche », captures produit, aperçu catalogue, bloc formateur, FAQ, CTA |
-| `/ressources` | ✅ | Catalogue : recherche, filtres catégorie/format, tri, pastilles actives, pagination « afficher plus » |
-| `/ressources/[slug]` | ✅ | Fiche : programme en accordéon, formateur, avis, panneau d'achat collant |
-| `/formateurs` · `/formateurs/[trainerId]` | ✅ | Annuaire à onglets + profil et sa communauté |
-| `/communautes` · `/communautes/[slug]` | ✅ | Listing et détail (salons, membres, prix mensuel) |
-| `/tarifs` | ✅ | Trois offres, frise paiements, FAQ |
-| `/devenir-formateur` | ✅ | Parcours en 4 étapes, FAQ, CTA |
-| `/aide` · `/contact` | ✅ | FAQ par thème ; formulaire de contact (route API à écrire) |
-| `/legal/conditions` · `/legal/confidentialite` · `/legal/mentions` | ✅ | Texte en Markdown dans `src/content/legal/`, rendu par `LegalPage` |
+`/`, `/ressources` · `/ressources/[slug]`, `/formateurs` · `/formateurs/[trainerId]`,
+`/communautes` · `/communautes/[slug]`, `/tarifs`, `/favoris`, `/aide`, `/contact`,
+`/legal/conditions` · `/legal/confidentialite` · `/legal/mentions`. Hors groupe :
+`/devenir-formateur`.
 
 ### 4.3 Pages d'authentification
 
 | Route | État | Notes |
 |---|---|---|
-| `/auth/connexion` | ✅ | Credentials, `callbackUrl`, message dédié pour `ACCOUNT_SUSPENDED` |
+| `/auth/connexion` | ✅ | Credentials, `callbackUrl` (défaut `/accueil`), messages dédiés `ACCOUNT_SUSPENDED` et `TOO_MANY_ATTEMPTS` |
 | `/auth/inscription` | ✅ | Compte + acceptation CGU, puis redirection vers la vérification |
 | `/auth/verifier-code` | ✅ | Saisie du code à 6 chiffres, renvoi de code |
 | `/auth/mot-de-passe-oublie` · `/auth/nouveau-mot-de-passe` | ✅ | Demande de code, puis code + nouveau mot de passe |
 | `/auth/erreur` | ✅ | Cible de `authOptions.pages.error` |
-| `/mon-compte` · `not-found.tsx` · `error.tsx` | ✅ | Compte, 404, erreur applicative |
+| `not-found.tsx` · `error.tsx` | ✅ | 404 et erreur applicative |
 
-### 4.4 Écrans de la maquette restant à construire
+Tous les formulaires sont en `noValidate` : `type="email"` ne valide rien de fiable, les
+règles vivent dans `src/lib/validation.ts`.
 
-Espace apprenant (tableau de bord, mes achats, mes ressources, favoris, messagerie,
-notifications, lives, profil), espace formateur (15 écrans) et espace admin (23 écrans).
-Plusieurs fichiers de la maquette sont le même écran dans deux shells
-(`Catalogue` / `Catalogue apprenant`…) : la topbar étant déjà session-aware, ces
-variantes se rejoignent sur une seule route.
+### 4.4 `/mon-compte`
 
-| Page | État | Contenu réel |
-|---|---|---|
-| `src/app/candidature/statut/page.tsx` | ❌ **MANQUANT** | Page statut — Lot 1 |
-| `src/app/admin/validation-formateurs/page.tsx` | ❌ **MANQUANT** | Page admin — Lot 1 |
+Redirection permanente vers `/profil` depuis le 3 août. C'était l'écran de compte du
+socle, écrit avant l'existence de l'espace connecté ; `/profil` le remplace entièrement
+(informations, mot de passe, export et suppression des données) dans le shell
+applicatif. L'URL est gardée parce qu'elle a été diffusée.
 
-### 4.5 Composants shadcn/ui
-
-48 composants présents dans `src/components/ui/` (template initial). Leurs tokens sont
-remappés sur la palette NkamVa par `globals.css`, ils n'ont donc pas été modifiés un par
-un. Les composants propres à la maquette (bouton pilule, pastilles, cartes) vivent dans
-`src/components/nk/` plutôt que d'être surchargés dans `ui/`.
-
-### 4.6 Hooks
-
-`use-mobile.ts` et `use-toast.ts` — template initial, jamais modifiés.
+Corollaire dans `middleware.ts` : une session déjà ouverte sur une page d'auth part vers
+`/accueil` (et non plus `/mon-compte`), et le refus d'accès `/admin` renvoie sur
+`/accueil?erreur=acces-refuse`, où la bannière est rendue.
 
 ---
 
 ## 5. Tests
 
-| Fichier | État | Contenu |
-|---|---|---|
-| `tests/setup.ts` | ✅ Présent | PrismaClient + `cleanDatabase()` via TRUNCATE CASCADE |
-| `tests/lot4-invariants.test.ts` | ✅ Présent | 9 tests (catalogue, achat Stripe/CinetPay, webhook double, accessSuspended, CourseView) |
-| `tests/lot0-auth.test.ts` | ✅ Présent | 11 tests : cycle de vie OTP (usage unique, invalidation du précédent, plafond de tentatives, expiration), `register` (compte + audit + OTP, doublon), `reset-password` (hash, `sessionsValidAfter`, audit, code invalide), invalidation ciblée des sessions |
-| `tests/lot1-invariants.test.ts` | ❌ **MANQUANT** | 7 tests perdus |
-| `tests/lot2-invariants.test.ts` | ❌ **MANQUANT** | 7 tests perdus |
-| `tests/lot3-invariants.test.ts` | ❌ **MANQUANT** | 10 tests perdus |
+`npx vitest run` — **216 tests, 19 fichiers, tous verts** sur Postgres réel (3 août 2026).
+
+| Fichier | Contenu |
+|---|---|
+| `tests/setup.ts` | PrismaClient + `cleanDatabase()` via TRUNCATE CASCADE, neutralisation des secrets réels du `.env` de dev |
+| `tests/lot0-auth.test.ts` | 16 tests : cycle de vie OTP, `register`, `reset-password`, invalidation ciblée des sessions, **plafond de connexion** (5 tests) |
+| `tests/env-hermetic.test.ts` | Garde-fou : la suite ne doit toucher aucun service réel |
+| `tests/auth-session.test.ts`, `lot1-*`, `lot2-*`, `lot3-*`, `lot4-*`, `jobs`, … | Voir `docs/decisions-nkamva.md` |
 
 ---
 
 ## 6. Schéma Prisma
 
-Le fichier `prisma/schema.prisma` (830 lignes) contient **tous les modèles des Lots 0-4** :
-- 22 enums
-- 28 modèles (User, TrainerProfile, Course, Purchase, Community, CommunitySubscription, Wallet, WalletReconciliation, PayoutMethod, Payout, PayoutMethodReviewEvent, PayoutReviewEvent, AuditLog, Notification, Setting, EmailOtp, PendingAttachment, TrainerApplication, TrainerDocument, TrainerApplicationReviewEvent, TrainerDocumentReviewEvent, Dispute, DisputeMessage, FundReservation, DisputeReviewEvent, ConsumptionSnapshot, CourseView, ManualRefundTask, SupportTicket)
-- Provider : `postgresql` (mais `.env` pointe vers SQLite — incohérence)
+`prisma/schema.prisma` (1 062 lignes) contient tous les modèles des Lots 0-4, plus les
+signalements, la tarification plateforme et le cycle de vie des abonnements.
 
 ---
 
-## 7. Dépendances installées (`package.json`)
+## 7. Dépendances
 
-### Dépendances NkamVa (ajoutées pendant la session)
+Installées : `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `@node-rs/argon2`,
+`dotenv`, `next-auth` 4.24, `node-cron` 4.6, `resend` 6.18, `sonner`, `stripe` 22.4,
+`vitest`, `zod`, plus le socle du template (Next 16, React 19, Prisma 6, TanStack Query
+5, react-hook-form, framer-motion, recharts, lucide-react, 48 composants shadcn/ui).
 
-```
-@aws-sdk/client-s3        ✅ Installé
-@aws-sdk/s3-request-presigner ✅ Installé
-@node-rs/argon2           ✅ Installé
-dotenv                    ✅ Installé
-next-auth                 ✅ Installé (v4.24.11)
-node-cron                 ✅ Installé
-resend                    ✅ Installé
-sonner                    ✅ Installé
-vitest                    ✅ Installé (devDep)
-zod                       ✅ Installé
-```
-
-### Dépendances non installées
-
-```
-stripe                    ❌ Non installé (mentionné dans les specs mais jamais ajouté)
-file-type                 ❌ Non installé (validation magic number — actuellement implémenté manuellement dans s3.ts)
-```
-
-### Dépendances template (pré-existantes)
-
-Next.js 16, React 19, Prisma 6, @tanstack/react-query 5, zustand 5, react-hook-form 7, framer-motion 12, recharts 2.15, sharp 0.34, lucide-react, 48 composants shadcn/ui, next-intl 4 (installé mais non utilisé — décision : pas d'i18n), next-themes, date-fns, uuid, etc.
+Non installées, volontairement : `file-type` (la validation des magic numbers est écrite
+à la main dans `s3.ts`), `react-email` (les emails passent par `renderSimpleEmail`),
+`next-intl` est présent mais inutilisé — décision : pas d'i18n, français en dur.
 
 ---
 
-## 8. Conventions transverses (telles qu'implémentées)
+## 8. Conventions transverses
 
-| Convention | Spec | Réel | Écart |
-|---|---|---|---|
-| Type d'ID | UUID v4 | UUID v4 (`@default(uuid())`) | ✅ Conforme |
-| Préfixe routes | `/api` | `/api` | ✅ Conforme |
-| Enveloppe réponse | `{ data, meta }` | `{ data, ...(meta ? { meta } : {}) }` | ✅ Conforme |
-| Erreurs | `{ error: { code, message } }` | Conforme | ✅ Conforme |
-| 422 pour règles métier | Oui | Oui | ✅ Conforme |
-| Pagination | page + pageSize (max 50) | Conforme | ✅ Conforme |
-| Toast | `sonner` | `Toaster` de `@/components/ui/sonner` dans `layout.tsx` | ✅ Conforme |
-| Polling (pas WebSocket) | TanStack Query 8s/15s | `QueryClientProvider` monté, aucune vue à rafraîchir pour l'instant | ⚠️ Socle prêt, polling non utilisé |
-| i18n | Aucun (FR en dur) | `next-intl` installé mais non utilisé | ✅ Conforme (non utilisé) |
-| Hachage | argon2id | argon2id via `@node-rs/argon2` | ✅ Conforme |
-| Auth | NextAuth v4 | NextAuth v4 | ✅ Conforme |
-| Stockage | Cloudflare R2 | R2 (mais pas de credentials configurés) | ✅ Conforme (mode dev factice) |
-| Email | Resend | Resend (mais pas de clé API) | ✅ Conforme (mode dev console) |
-| Jobs | node-cron in-process | node-cron installé mais `instrumentation.ts` manquant | ❌ **Jobs non démarrés** |
+| Convention | Réel |
+|---|---|
+| Type d'ID | UUID v4 (`@default(uuid())`) |
+| Préfixe routes | `/api` |
+| Enveloppe réponse | `{ data, ...(meta ? { meta } : {}) }` |
+| Erreurs | `{ error: { code, message, details? } }`, 422 pour les règles métier |
+| Montants | `Int` en FCFA, jamais `Float` |
+| Pagination | `page` + `pageSize` (max 50) |
+| Toast | `sonner` |
+| Hachage | argon2id |
+| Auth | NextAuth v4, stratégie JWT, 30 jours |
+| Stockage | Cloudflare R2 |
+| Email | Resend ; sans `RESEND_API_KEY`, `sendEmail` journalise en console (mode dev) |
+| Jobs | `node-cron` in-process, démarrés par `instrumentation.ts` |
+| Audit | `AuditLog` écrit **dans la transaction métier** |
+| Effets de bord | Notifications et emails partent **après** le commit, via `deliverSideEffects` |
 
 ---
 
 ## 9. Matrice de permissions RBAC
 
-La matrice est implémentée dans `src/lib/api.ts` via les fonctions :
-- `requireAuth()` — session obligatoire, vérifie `suspendedAt` et `sessionsValidAfter`
-- `requireRole(...roles)` — vérifie le rôle
-- `requireAdminSubRole(...subRoles)` — vérifie le sous-rôle admin
-- `requireTrainer()` — vérifie `trainerId` non null
-- `isPublicRoute(method, path)` — routes publiques par (méthode, préfixe)
+Implémentée dans `src/lib/api.ts` : `requireAuth()`, `requireRole(...)`,
+`requireAdminSubRole(...)`, `requireTrainer()`, `isPublicRoute(method, path)`.
 
-Côté pages, `src/middleware.ts` applique la même logique en amont du rendu : redirection
-vers `/auth/connexion?callbackUrl=…` sur les préfixes protégés, redirection des pages
-d'auth vers `/mon-compte` quand une session est déjà ouverte, et garde `ADMIN` sur
-`/admin/*`. Il rejoue l'invalidation ciblée via `isSessionRevoked()`
-(`src/lib/session-validity.ts`), partagé avec le callback `session` de NextAuth. Cette
-comparaison se fait à la seconde : `iat` est en secondes entières, une comparaison en
-millisecondes rejetait à tort une reconnexion faite dans la même seconde qu'une
-révocation.
+Côté pages, `src/middleware.ts` applique la même logique en amont du rendu. Les préfixes
+protégés couvrent `/mon-compte`, `/accueil`, `/achat`, `/profil`, `/candidature`,
+`/mes-achats`, `/mes-ressources`, `/mes-litiges`, `/mes-lives`, `/messagerie`,
+`/notifications`, `/formateur`, `/admin`. Le layout du groupe `(app)` redouble la garde :
+si le middleware est un jour désactivé, aucune page de l'espace connecté ne reste
+accessible.
 
-**Routes publiques définies** : `/api/auth/*`, `/api/catalog/*`, `/api/courses/*`, `/api/trainers`, `/api/communities`, `/api/tarifs`, `/api/legal/*`, `/api/contact`, `/api/aide`, `/api/webhooks/*`, `/api/health`.
+L'invalidation ciblée passe par `isSessionRevoked()` (`src/lib/session-validity.ts`),
+partagé avec le callback `session`. La comparaison se fait à la seconde : `iat` est en
+secondes entières, une comparaison en millisecondes rejetait à tort une reconnexion faite
+dans la même seconde qu'une révocation.
+
+**Routes publiques** (`PUBLIC_ROUTES`, appariées par méthode **et** préfixe) : POST sur
+`/api/auth/register`, `/api/auth/otp`, `/api/auth/verify-otp`, `/api/auth/reset-password`,
+`/api/contact` et `/api/webhooks/` ; GET sur `/api/catalog/`, `/api/courses/`,
+`/api/trainers`, `/api/communities`, `/api/tarifs`, `/api/legal/`, `/api/contact`,
+`/api/aide`, `/api/health`. Le couple (méthode, préfixe) est ce qui empêche un préfixe
+large d'ouvrir des routes voisines.
+
+### 9.1 Plafond de tentatives de connexion
+
+`authorizeCredentials()` (`src/lib/auth.ts`) applique `RATE_LIMITS.LOGIN` — 5 échecs par
+minute — sur **deux compteurs simultanés** :
+
+- `ip:<adresse>` arrête le balayage d'un dictionnaire d'adresses depuis un même poste ;
+- `email:<adresse>` arrête le martèlement d'un compte unique depuis des IP tournantes.
+
+Un seul des deux laisserait passer l'autre attaque. Trois règles en découlent :
+
+1. **Seuls les échecs comptent** (`peekRateLimit` puis `recordRateLimitHit`), sinon six
+   connexions légitimes en une minute verrouillent le compte ;
+2. **une réussite remet les compteurs à zéro** (`clearRateLimit`) ;
+3. **une adresse inconnue et un compte suspendu consomment le même quota** qu'un compte
+   réel : autrement le plafond devient un oracle d'énumération.
+
+Au-delà du plafond, `authorize` lève `TOO_MANY_ATTEMPTS`, rendu par `/auth/connexion` et
+`/auth/erreur`.
+
+> Piège : `CredentialsProvider()` renvoie un objet dont `authorize` est le stub
+> `() => null` de NextAuth ; la fonction fournie n'est lisible que sous `.options`. Un
+> test qui appelle `providers[0].authorize` teste le stub et passe quoi qu'il arrive.
+> D'où l'extraction de `authorizeCredentials`, appelée directement par les tests, plus un
+> test qui vérifie qu'elle est bien celle câblée sur le provider.
 
 ---
 
 ## 10. Crédit wallet idempotent
 
-Implémenté dans `src/lib/wallet.ts` — `creditWalletOnPurchase(tx, providerTransactionId, provider)` :
-1. `updateMany WHERE providerStatus = PENDING` → si `count = 0`, déjà traité
-2. `upsert` du wallet en filet
-3. Audit `PURCHASE_SUCCEEDED` (+ `WALLET_AUTO_CREATED` si wallet créé)
-4. Audit `WEBHOOK_DUPLICATE_IGNORED` si doublon
+`src/lib/wallet.ts` — `creditWalletOnPurchase(tx, providerTransactionId, provider)` :
 
-**Déclenchement réel** : dans `src/lib/purchases.ts` → `initiatePurchase()` appelle `creditWalletOnPurchase` en dev (sans clés API). En production, les webhooks (perdus) le déclencheraient.
+1. `updateMany WHERE providerStatus = PENDING` → si `count = 0`, déjà traité ;
+2. `upsert` du wallet en filet ;
+3. audit `PURCHASE_SUCCEEDED` (+ `WALLET_AUTO_CREATED` si le wallet a été créé) ;
+4. audit `WEBHOOK_DUPLICATE_IGNORED` si doublon.
+
+Déclenché par les webhooks `stripe` et `cinetpay` ; en dev sans clés API,
+`initiatePurchase()` l'appelle directement.

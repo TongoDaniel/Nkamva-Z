@@ -16,6 +16,9 @@ import { expirePayoutMethodCarence, alertPayoutMethodSlaBreaches } from './payou
 import { alertPayoutSlaBreaches } from './payouts'
 import { purgeDeletedAccounts } from './jobs/purge-deleted-accounts'
 import { remindPendingDeletions } from './jobs/remind-pending-deletions'
+import {
+  renewDueSubscriptions, suspendOverdueSubscriptions, alertUpcomingSuspensions,
+} from './subscriptions'
 
 export interface ScheduledJob {
   name: string
@@ -88,6 +91,27 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'PENDING_DELETION_REMINDER',
     schedule: '30 2 * * *',
     run: async () => ({ ...(await remindPendingDeletions()) }),
+  },
+  {
+    // Décisions 52/61 — renouvellement à l'échéance de chacun. Idempotent :
+    // l'unicité (trainerId, periodStart) interdit de facturer deux fois.
+    name: 'SUBSCRIPTION_RENEWAL',
+    schedule: '0 1 * * *',
+    run: async () => ({ ...(await renewDueSubscriptions()) }),
+  },
+  {
+    // Décision 68 — au terme du délai de grâce, les ressources sortent du
+    // catalogue. La lecture des apprenants n'est jamais coupée.
+    name: 'SUBSCRIPTION_SUSPENSION',
+    schedule: '30 1 * * *',
+    run: async () => ({ ...(await suspendOverdueSubscriptions()) }),
+  },
+  {
+    // Alerte Finances 3 jours avant la suspension : un impayé se rattrape
+    // mieux avant qu'après.
+    name: 'SUBSCRIPTION_SUSPENSION_ALERT',
+    schedule: '45 1 * * *',
+    run: async () => ({ ...(await alertUpcomingSuspensions()) }),
   },
 ]
 

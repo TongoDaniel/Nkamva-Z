@@ -151,7 +151,7 @@ export async function buildGdprExport(userId: string) {
         trainerProfile: {
           select: {
             id: true, slogan: true, description: true, websiteUrl: true, domains: true,
-            experienceYears: true, plan: true, subscriptionStatus: true, commissionRate: true,
+            experienceYears: true, subscriptionCadence: true, subscriptionStatus: true, commissionRate: true,
             ratingAverage: true, ratingCount: true, studentsCount: true, createdAt: true,
           },
         },

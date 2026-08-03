@@ -21,12 +21,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // Le compteur de dossiers à traiter n'a de sens que pour la modération ;
   // les finances n'ont aucun accès à ces dossiers.
+  // Le filtrage par sous-rôle (décision 7) est appliqué par `AdminShell` :
+  // seul un composant client peut manipuler des icônes.
   let nav: AdminNavGroup[] = ADMIN_NAV;
   if (auth.user.adminRole && MODERATION_ROLES.includes(auth.user.adminRole)) {
     const stats = await getApplicationStats();
     const pending = stats.submitted;
     if (pending > 0) {
-      nav = ADMIN_NAV.map((group) => ({
+      nav = nav.map((group) => ({
         ...group,
         items: group.items.map((item) =>
           item.href === "/admin/validation-formateurs" ? { ...item, badge: pending } : item,

@@ -4,8 +4,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
-import { openDispute, getMyDispute, TRAINER_SHARE_RATE } from '@/lib/disputes'
-import { getDisputeForReview, resolveDispute } from '@/lib/dispute-review'
+import { openDispute, getMyDispute, resolveDispute, TRAINER_SHARE_RATE } from '@/lib/disputes'
+import { getDisputeForReview } from '@/lib/dispute-review'
 import {
   listTrainerDisputes,
   getTrainerDispute,
@@ -190,10 +190,12 @@ describe('Lot 2 — Litiges côté formateur', () => {
   it('la contestation reste possible après la décision', async () => {
     const { trainerUser, trainer, admin, disputeId } = await setup()
     const fresh = (await prisma.dispute.findUnique({ where: { id: disputeId } }))!
-    await resolveDispute(disputeId, admin.id, false, {
+    await resolveDispute(disputeId, {
       expectedUpdatedAt: fresh.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
-      note: 'Contenu non conforme à la description publiée.',
+      resolutionNote: 'Contenu non conforme à la description publiée.',
+      actorId: admin.id,
+      actorAdminRole: 'MODERATION',
     })
 
     // Un formateur débité doit pouvoir contester la décision, pas seulement

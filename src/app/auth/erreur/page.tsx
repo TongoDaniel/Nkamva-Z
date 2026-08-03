@@ -13,6 +13,7 @@ const MESSAGES: Record<string, string> = {
   AccessDenied: "Votre compte n'a pas accès à cette page.",
   Verification: "Ce lien de connexion a expiré ou a déjà été utilisé.",
   ACCOUNT_SUSPENDED: "Ce compte est suspendu. Contactez le support pour en connaître la raison.",
+  TOO_MANY_ATTEMPTS: "Trop de tentatives de connexion. Patientez une minute avant de réessayer.",
 };
 
 async function ErrorBody({ searchParams }: { searchParams: Promise<{ error?: string }> }) {

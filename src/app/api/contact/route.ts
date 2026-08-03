@@ -4,7 +4,7 @@
 // l'audit garde la trace de l'envoi sans le contenu. Créer une table pour des
 // messages que personne ne relirait dans l'application n'apporterait rien.
 import { success, error, parseBody } from '@/lib/api'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, renderSimpleEmail } from '@/lib/email'
 import { auditStandalone } from '@/lib/audit'
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 import { z } from 'zod'
@@ -25,15 +25,6 @@ const ContactSchema = z.object({
   message: z.string().trim().min(20, 'Détaillez votre demande').max(5000),
 })
 
-/** Échappe le contenu utilisateur avant de l'insérer dans le corps HTML. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
 export async function POST(request: Request) {
   const identifier = getRateLimitIdentifier(null, request)
   const limit = checkRateLimit(identifier, 'contact', 5, 3_600_000)
@@ -47,11 +38,20 @@ export async function POST(request: Request) {
 
   const to = process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || 'support@nkamva.com'
 
+  // Le gabarit échappe le contenu : le nom et le message viennent d'un
+  // formulaire public, ils ne doivent jamais atteindre la boîte du support sous
+  // forme de balisage.
+  const { html, text } = renderSimpleEmail({
+    title: `Nouveau message — ${SUBJECTS[subject]}`,
+    paragraphs: [`De : ${name} <${email}>`, message],
+    footnote: 'Répondez directement à cette adresse pour joindre l\'expéditeur.',
+  })
+
   await sendEmail({
     to,
     subject: `[Contact] ${SUBJECTS[subject]} — ${name}`,
-    html: `<p><b>De :</b> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;</p><p><b>Sujet :</b> ${SUBJECTS[subject]}</p><hr><p style="white-space:pre-line">${escapeHtml(message)}</p>`,
-    text: `De : ${name} <${email}>\nSujet : ${SUBJECTS[subject]}\n\n${message}`,
+    html,
+    text,
     tags: ['contact'],
   })
 

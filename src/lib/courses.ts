@@ -5,6 +5,7 @@
 import { db } from './db'
 import { auditStandalone } from './audit'
 import { presignUpload } from './s3'
+import { canTrainerWrite } from './subscriptions'
 import type { PrismaTransaction } from './types'
 
 export const COURSE_UPLOAD_LIMITS = {
@@ -31,6 +32,9 @@ export async function createCourse(
   },
 ) {
   if (data.priceFcfa < 500) throw new Error('PRICE_TOO_LOW')
+  // Décision 68 — un abonnement suspendu bloque l'écriture. Jamais la lecture :
+  // rien de ce qui est déjà acheté n'est touché.
+  if (!(await canTrainerWrite(trainerId))) throw new Error('SUBSCRIPTION_SUSPENDED')
 
   const slug = await generateSlug(data.title)
 
@@ -116,6 +120,9 @@ export async function publishCourse(courseId: string, trainerId: string, userId:
   if (!course) throw new Error('COURSE_NOT_FOUND')
   if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
   if (course.status === 'published') throw new Error('ALREADY_PUBLISHED')
+  // Décision 68 — les ressources d'un formateur suspendu sortent du catalogue ;
+  // il ne peut pas les y remettre en republiant.
+  if (!(await canTrainerWrite(trainerId))) throw new Error('SUBSCRIPTION_SUSPENDED')
 
   const updated = await db.course.update({
     where: { id: courseId },
@@ -158,6 +165,8 @@ export async function presignCourseUpload(
   const course = await db.course.findUnique({ where: { id: courseId } })
   if (!course) throw new Error('COURSE_NOT_FOUND')
   if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
+  // Décision 68 — le téléversement est un chemin d'écriture, il est bloqué.
+  if (!(await canTrainerWrite(trainerId))) throw new Error('SUBSCRIPTION_SUSPENDED')
 
   const limits = COURSE_UPLOAD_LIMITS[params.kind]
   // `mimes` est un tuple de littéraux : sans élargissement, `includes` refuse

@@ -22,7 +22,7 @@ import { presignUpload, presignDownload, headObject, isS3Configured } from './s3
 import { compareNames, normalizedLabel, type NameComparison } from './name-match'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
-import { sendEmail } from './email'
+import { sendEmail, renderSimpleEmail } from './email'
 import type { PrismaTransaction } from './types'
 
 export const PAYOUT_METHOD_CARENCE_HOURS = 72
@@ -380,15 +380,24 @@ export async function createPayoutMethod(
         type: 'PAYOUT_METHOD_CHANGED',
         title: 'Votre moyen de paiement a été modifié',
         body: 'Si vous n\'êtes pas à l\'origine de ce changement, signalez-le immédiatement.',
-        link: '/formateur/paiements',
+        link: '/formateur/portefeuille/moyen-de-paiement',
       })
       await sendEmail({
         to: previous.trainerEmailSnapshot,
         subject: 'NkamVa — Votre moyen de paiement a été modifié',
-        html: `<p>Le moyen de paiement de votre compte formateur vient d'être remplacé.</p>
-<p>Un délai de sécurité de ${PAYOUT_METHOD_CARENCE_HOURS} h s'applique avant tout retrait.</p>
-<p><strong>Si vous n'êtes pas à l'origine de ce changement</strong>, signalez-le immédiatement :</p>
-<p><a href="${absoluteUrl('/support/signaler?motif=payout-method')}">Signaler un changement suspect</a></p>`,
+        // Le lien mène au formulaire de contact : c'est le seul canal de
+        // signalement qui existe. Les deux URL précédentes — `/formateur/paiements`
+        // et `/support/signaler` — n'ont jamais correspondu à une page, dans un
+        // e-mail dont tout l'intérêt est justement de pouvoir réagir vite.
+        ...renderSimpleEmail({
+          title: 'Votre moyen de paiement a été modifié',
+          paragraphs: [
+            'Le moyen de paiement de votre compte formateur vient d\'être remplacé.',
+            `Un délai de sécurité de ${PAYOUT_METHOD_CARENCE_HOURS} h s'applique avant tout retrait.`,
+            'Si vous n\'êtes pas à l\'origine de ce changement, signalez-le immédiatement.',
+          ],
+          cta: { label: 'Signaler un changement suspect', url: absoluteUrl('/contact') },
+        }),
         tags: ['payout-method-changed'],
       })
     })
@@ -448,6 +457,13 @@ export async function verifyPayoutMethod(payoutMethodId: string, input: VerifyPa
   // vérification n'aboutit pas encore, le dossier reste PENDING_REVIEW.
   if (input.method === 'MICRO_DEPOSIT') {
     if (method.type !== 'BANK_IBAN') throw new Error('MICRO_DEPOSIT_IBAN_ONLY')
+    // Un second tirage remplacerait des montants que Finances a déjà virés :
+    // le formateur saisirait les bons et serait compté en échec, à trois
+    // reprises jusqu'au blocage. Le garde sur `updatedAt` ne suffit pas — après
+    // le premier tirage l'écran se rafraîchit et repart avec une valeur à jour.
+    if (method.verificationMethod === 'MICRO_DEPOSIT' && method.microDepositAmount1 !== null) {
+      throw new Error('MICRO_DEPOSIT_ALREADY_ISSUED')
+    }
     return issueMicroDeposits(method.id, input)
   }
 
@@ -855,7 +871,17 @@ export async function getPayoutMethodDetail(payoutMethodId: string) {
     include: {
       // Finances compare au nom légal vivant, sans jamais voir l'image de la PI.
       trainerProfile: {
-        select: { id: true, verifiedLegalName: true, user: { select: { id: true, email: true, fullName: true } } },
+        select: {
+          id: true, verifiedLegalName: true,
+          user: {
+            select: {
+              id: true, email: true, fullName: true,
+              // Le compteur vit sur le formateur (décision 23) : l'instructeur
+              // doit savoir qu'il s'apprête à poser le refus qui bloque.
+              payoutMethodRejectionCount: true,
+            },
+          },
+        },
       },
       reviewEvents: { orderBy: { createdAt: 'asc' } },
     },
@@ -953,6 +979,32 @@ export async function getBusinessDocumentUrl(
   })
 
   return { url }
+}
+
+/**
+ * Compteurs de la file d'instruction. `slaBreaches` compte les dossiers en
+ * attente depuis plus de 48 h — le SLA de la décision 23, que le job
+ * `alertPayoutMethodSlaBreaches` surveille déjà côté alerte.
+ */
+export async function getPayoutMethodStats() {
+  const [byStatus, slaBreaches] = await Promise.all([
+    db.payoutMethod.groupBy({ by: ['verificationStatus'], _count: { _all: true } }),
+    db.payoutMethod.count({
+      where: {
+        verificationStatus: 'PENDING_REVIEW',
+        createdAt: { lt: new Date(Date.now() - PAYOUT_REVIEW_SLA_HOURS * 3_600_000) },
+      },
+    }),
+  ])
+
+  const counts = Object.fromEntries(byStatus.map(r => [r.verificationStatus, r._count._all]))
+  return {
+    byStatus: counts,
+    pendingReview: counts.PENDING_REVIEW ?? 0,
+    blocked: counts.BLOCKED ?? 0,
+    verified: (counts.VERIFIED ?? 0) + (counts.AUTO_VERIFIED ?? 0) + (counts.MANUAL_VERIFIED ?? 0),
+    slaBreaches,
+  }
 }
 
 export async function listEscalations(page = 1, pageSize = 20) {

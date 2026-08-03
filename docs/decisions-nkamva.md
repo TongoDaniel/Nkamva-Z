@@ -62,6 +62,10 @@ Ne pas modéliser Quiz/Certificate/Lesson.
 
 **5. Boutons `.soon`** — Hors périmètre, sauf export RGPD, suppression de compte
 et changement de mot de passe.
+> Note du 3 août 2026 — **toutes les entrées de la navigation admin ont désormais leur
+> page.** Les trois dernières (`/admin/signalements`, `/admin/analytics`,
+> `/admin/parametres`) ont été livrées après arbitrage de ce qui les bloquait
+> (arbitrages 63 à 66).
 > Statut : 📋 Spécifié, inchangé. Les champs `gdprExportRequestedAt`, `gdprExportS3Key`,
 > `deletionRequestedAt`, `deletedAt` existent sur `User` dans le schéma (✅).
 > Aucune route API ne les exploite encore (hors périmètre des Lots 1-3 régénérés).
@@ -80,6 +84,14 @@ Recherche transversale : pas d'écran dédié, intégrée au catalogue avec filt
 
 Le journal d'audit est lisible par le Super-admin uniquement, mais toutes les actions
 des 3 rôles y sont écrites.
+> **Écran depuis le 3 août 2026** — `/admin/journal-audit`, réservé au Super-admin,
+> filtrable par domaine et par objet (cliquer un identifiant remonte tout ce qui a
+> touché le même objet). Il n'expose **aucune action de modification** : un journal
+> qu'on peut retoucher ne prouve rien. La navigation admin est elle aussi filtrée par
+> sous-rôle depuis cette date — auparavant Modération voyait « Transactions », cliquait,
+> et se faisait rediriger sans explication.
+> Écrans livrés le même jour : `/admin/transactions` et `/admin/utilisateurs`
+> (Finances + Super-admin, Modération exclue), tous deux en **consultation seule**.
 > Statut : ✅ `src/lib/api.ts` implémente `requireAdminSubRole(...subRoles)`, désormais
 > utilisé par toutes les routes admin des Lots 1-3 : `MODERATION`+`SUPER_ADMIN` sur
 > validation formateurs et litiges, `FINANCES`+`SUPER_ADMIN` sur payout-methods/payouts/
@@ -144,6 +156,11 @@ négatif > 60 jours.
 > pendingPayoutBalance`). Le job d'alerte 60 jours (`alertNegativeWallets`,
 > `src/lib/wallet-reconciliation.ts`) est câblé via `node-cron` (`WALLET_NEGATIVE_ALERT`,
 > quotidien 03:30 UTC, voir `src/lib/jobs.ts`).
+> **Écran depuis le 3 août 2026** — `/admin/retraits/{id}` décompose le solde du
+> formateur **à l'instant de l'instruction** (crédité, réservé par litiges, immobilisé
+> par retraits, retirable) et signale un retirable négatif avec la règle qui l'explique.
+> Le solde affiché est lu maintenant, pas au moment de la demande : c'est celui-là qui
+> décide, et `approvePayout` le re-vérifie de toute façon.
 
 **14. `CourseView` — deux signaux distincts** *(corrige l'arbitrage 2)*
 - Formats streamés (vidéo) : `watchedSeconds`, règle des 30 % applicable.
@@ -215,8 +232,10 @@ ressource, jamais le `reasonDetail` libre.
 
 **20. Qui vérifie** — Finances et Super-admin. Modération n'a aucun accès aux moyens
 de paiement (symétrique de l'arbitrage 7).
-> Statut : ✅ `requireAdminSubRole('FINANCES', 'SUPER_ADMIN')` protège désormais toutes
-> les routes `/api/admin/payout-methods/*` et `/api/admin/payouts/*`.
+> Statut : ✅ `requireAdminSubRole('FINANCES', 'SUPER_ADMIN')` protège toutes les routes
+> `/api/admin/payout-methods/*` et `/api/admin/payouts/*`. Depuis le 3 août 2026, les
+> **pages** `/admin/moyens-de-paiement` appliquent la même règle et redirigent la
+> Modération vers `/admin` — la garde n'est pas seulement dans l'API.
 
 **21. Nom légal vérifié** — À l'approbation du document `ID_CARD`, l'admin Modération
 saisit et confirme le champ `verifiedLegalName`. Finances lit ce champ pour la
@@ -266,6 +285,13 @@ jamais un score partiel.
 > `confirmMicroDeposit`). Couche (c) IBAN : micro-dépôts (2 montants distincts 1-99,
 > stockés en clair) ✅. « Aucune vérification purement déclarative » : ✅ désormais
 > réellement garanti pour Mobile Money (c'était l'écart corrigé cette session).
+> **Corrigé le 3 août 2026, trouvé en construisant l'écran d'instruction** — un second
+> appel `MICRO_DEPOSIT` re-tirait les montants. Le garde sur `updatedAt` ne protégeait
+> pas : l'écran se rafraîchit après le premier tirage et repart avec une valeur à jour.
+> Finances aurait remplacé des montants déjà virés, et le formateur, saisissant les
+> bons, aurait été compté en échec — trois fois jusqu'au blocage. `verifyPayoutMethod`
+> refuse désormais avec `MICRO_DEPOSIT_ALREADY_ISSUED` (409), et l'écran cesse de
+> proposer l'action. Testé.
 
 **23. Délais**
 - SLA de revue manuelle : 48 h ouvrées.
@@ -300,6 +326,11 @@ carence de 72 h redémarre, et une notification est envoyée à l'ancienne adres
 KYC. L'auto-approbation à ≥ 80 ne s'applique qu'à partir du deuxième retrait.
 > Statut : ✅ `payouts.ts` (`requestPayout`) force `IN_REVIEW` si `kyc.firstPayout`
 > (aucun `Payout` au statut `PAID` existant), indépendamment du score. Testé.
+> **Écran depuis le 3 août 2026** — `/admin/retraits/{id}` affiche un bandeau « Premier
+> retrait » qui rappelle la règle à l'instructeur, et le **snapshot KYC figé à la
+> demande** (score, badge, les 5 critères, `carenceHolds`) plutôt que le score du jour :
+> c'est lui qui a décidé de la voie suivie, la décision doit rester auditable même si le
+> formateur évolue ensuite.
 
 **26. Un seul `PayoutMethod` actif** par formateur. L'ajout d'un nouveau désactive
 l'ancien, qui reste archivé pour l'audit.
@@ -311,7 +342,10 @@ qui a accès aux deux (identité et moyen de paiement).
 > Statut : ✅ Routes `/api/admin/payout-methods/escalations` (liste des `BLOCKED`) et
 > `/api/admin/payout-methods/{id}/escalation-resolve` (`FORCE_VERIFY`/`BLOCK`/`RESTORE`,
 > `SUPER_ADMIN` uniquement) implémentées dans `payout-methods.ts`
-> (`resolvePayoutMethodEscalation`). L'enum `VerificationMethod.ESCALATION` existe dans
+> (`resolvePayoutMethodEscalation`). **Écran depuis le 3 août 2026** :
+> `/admin/moyens-de-paiement` a un onglet « Escalades », et le détail expose les trois
+> décisions **au seul Super-admin** — un admin Finances y lit le dossier et voit écrit
+> que l'arbitrage ne lui revient pas, plutôt que de trouver des boutons qui échouent. L'enum `VerificationMethod.ESCALATION` existe dans
 > le schéma mais n'est pas explicitement assigné par le code (le champ
 > `verificationMethod` n'est pas mis à jour lors d'une escalade — ⚠️ écart mineur).
 
@@ -354,11 +388,15 @@ garantie et n'est pas demandée.
 > la personne, cas légitime que Finances doit voir. **Aucun de ces champs ne touche
 > `verificationStatus`** : c'est une aide à la décision, pas une vérification.
 >
+> Le bloc `nameComparison` **a son écran depuis le 3 août 2026** :
+> `/admin/moyens-de-paiement/{id}` met les deux noms face à face avec leur forme
+> normalisée, et signale l'entreprise individuelle. Les deux documents s'ouvrent depuis
+> cette page, chaque ouverture étant journalisée.
+>
 > Ce qui reste absent (⚠️) : la **preuve** que le formateur est le représentant légal
-> reste lue par un humain sur les documents, et les deux branches convergent toujours
-> vers la même revue manuelle Finances (`MANUAL_FINANCE`). Le bloc `nameComparison`
-> n'a par ailleurs **aucun écran** — aucune page admin n'existe pour les moyens de
-> paiement.
+> reste lue par un humain sur les documents — l'écran le dit explicitement — et les
+> deux branches convergent toujours vers la même revue manuelle Finances
+> (`MANUAL_FINANCE`).
 
 **29. Pédagogie avant saisie** — L'écran d'ajout d'un moyen de paiement affiche la règle
 **avant** le formulaire. Le choix `INDIVIDUAL` / `BUSINESS` est fait en premier et
@@ -779,6 +817,149 @@ s'applique à chaque formateur **à son propre renouvellement**, pas à une date
 
 ---
 
+## Arbitrages 63-70 — Signalements, tarification, sanctions
+
+*63 à 66 tranchés le 3 août 2026 en construisant les trois derniers écrans admin ;
+67 à 70 le même jour, en levant ce qui bloquait la suite.*
+
+**63. Signalements — quatre surfaces, une seule sanction** — On peut signaler une
+**ressource**, un **compte**, une **communauté**, un **message** de la messagerie, et un
+**message de litige**. Quand la Modération retient un signalement, la seule sanction
+disponible est le **retrait de la ressource du catalogue**.
+> Conséquence de modélisation : un modèle `Report` **générique** (`targetType`,
+> `targetId`), pas un signalement par surface — la Modération doit pouvoir répondre à
+> « montre-moi tout ce qui est signalé ». `targetId` n'est volontairement pas une clé
+> étrangère : les cibles vivent dans des tables différentes, et `MESSAGE` n'en a même pas
+> encore (la messagerie n'est pas modélisée, arbitrage 33). Une cible introuvable est un
+> **état affiché**, pas une erreur : le signalement documente ce qui s'est passé même si
+> l'objet a disparu.
+> Conséquence sur la sanction : retirer ≠ supprimer. `Course.status` passe à `archived`,
+> la ressource sort du catalogue, et **les acheteurs gardent leur accès** — l'achat est
+> définitif (arbitrage 2), un retrait ne rembourse personne. Rembourser reste le rôle
+> d'un litige.
+> ⚠️ Un signalement visant un **compte** s'instruit et se trace, mais la suspension n'a
+> ni route ni règle arbitrée : l'écran le dit, plutôt que d'afficher un bouton qui
+> échouerait. Voir « Points non arbitrés ».
+> Statut : ✅ `Report` + `src/lib/reports.ts` + `/admin/signalements` (liste et détail),
+> `POST /api/reports` (tout compte connecté, limité à 10/h) et
+> `POST /api/admin/reports/{id}/resolve` (Modération et Super-admin). 6 tests.
+
+**64. Un tarif de plateforme est daté** — `PlatformTariff` porte une cadence, un montant
+et une fenêtre de validité. Poser un nouveau tarif **borne le précédent**, il ne le
+réécrit jamais.
+> Conséquence : on peut dire quel prix était en vigueur à n'importe quelle date, ce que
+> l'arbitrage 59 exige. Un tarif à 0 est la gratuité de lancement (arbitrage 56) — pas un
+> cas particulier dans le code, une ligne de tarif comme une autre.
+> Une date d'effet dans le passé est refusée (`TARIFF_DATE_IN_PAST`).
+> Statut : ✅ `src/lib/pricing.ts`, `POST /api/admin/pricing/tariffs` (Super-admin seul,
+> décision 60), écran `/admin/parametres`. Testé.
+
+**65. Le cumul des réductions — la plus favorable l'emporte** *(referme l'arbitrage 62)*
+— Campagne, remise nominative et code promo **ne s'additionnent jamais**. On applique la
+meilleure des trois.
+> Raison : l'addition est le comportement qu'on ne peut pas rattraper. Trois remises de
+> 40 % mènent l'abonnement à zéro sans que personne l'ait décidé — ni celui qui a lancé
+> la campagne, ni celui qui a négocié, ni celui qui a créé le code.
+> Conséquences : une réduction est un **montant** (arbitrage 57), donc deux réductions se
+> comparent sans ambiguïté d'arrondi ; la réduction retenue est plafonnée au prix, une
+> remise ne crée pas de créance ; un code promo épuisé (`maxUses`) ne s'applique plus,
+> même dans sa fenêtre de validité ; une remise nominative **exige un motif**, elle
+> contourne la grille.
+> Statut : ✅ `quotePrice()` dans `pricing.ts`, 4 tests dont le cas « 2 000 + 3 500 ne
+> font pas 5 500 ».
+
+**66. `TrainerPlan` disparaît** *(conséquence de l'arbitrage 49)* — Les trois paliers
+`STARTER`/`PRO`/`EXPERT` sont retirés du schéma au profit de
+`TrainerProfile.subscriptionCadence` (`MONTHLY`/`YEARLY`).
+> Ferme l'écart signalé en commentaire dans le wizard d'inscription formateur, qui notait
+> que « les formules Mensuelle/Annuelle ne correspondent pas à `TrainerPlan` ».
+> Le profil porte aussi `subscriptionPriceFcfa` et `subscriptionDiscountFcfa` — le
+> montant consenti snapshoté (arbitrage 57) — et `pendingCadence`, la cadence souhaitée
+> au prochain renouvellement (arbitrage 52).
+> Statut : ✅ migration `20260803123616_reports_and_platform_pricing`. Les trois valeurs
+> n'étaient lues nulle part : aucune logique n'en dépendait.
+
+**67. Suspension d'un compte — deux niveaux** — La **Modération** met un compte en
+**lecture seule** : il se connecte encore et garde ce qu'il a acheté, mais ne peut plus
+publier, acheter ni écrire. Le **Super-admin** seul peut **couper la connexion**.
+> Cohérent avec la gradation de la décision 7, et avec le membre banni d'une communauté
+> (décision 40), qui suit déjà le patron « on écarte la parole, on ne retire pas l'accès ».
+> Conséquence : **deux états distincts**, pas un booléen. `User.suspendedAt` existe déjà
+> mais ne dit pas lequel des deux — il faut un niveau explicite, sinon une suspension
+> douce et une exclusion totale deviennent indiscernables à la relecture.
+> Conséquence sur la coupure de connexion : elle passe par un bump de
+> `sessionsValidAfter` (le mécanisme d'invalidation ciblée du Lot 0 existe déjà). Elle
+> retire aussi l'accès à des ressources **payées**, ce qui peut légitimement produire un
+> litige : c'est pourquoi elle est réservée au Super-admin.
+> Ferme le point non arbitré qui bloquait `/admin/utilisateurs` (aucune action) et la
+> sanction des signalements visant un compte (décision 63).
+> Statut : 📋 Rien n'existe : ni niveau sur `User`, ni route, ni écran.
+
+**68. Impayé d'abonnement — les ressources sortent du catalogue** — Un formateur qui ne
+paie pas passe en `PAST_DUE` puis `SUSPENDED`, l'écriture est bloquée, **et ses ressources
+sont retirées du catalogue** : plus aucune vente nouvelle. Les acheteurs gardent leur
+accès.
+> ⚠️ **Conséquence assumée, signalée avant la décision** : retirer les ressources du
+> catalogue supprime aussi la commission de 15 %, c'est-à-dire la seule recette qui
+> restait sur ce formateur. La sanction est plus incitative, mais elle coupe la branche
+> sur laquelle NkamVa était assise. Arbitré en connaissance de cause.
+> Ce qui ne change pas : **la lecture n'est jamais coupée**. Les apprenants continuent
+> d'accéder à ce qu'ils ont payé — un défaut de paiement du formateur ne doit pas se
+> transformer en litiges de masse, et chaque litige ouvert réserve des fonds (décision 8).
+> Statut : 📋 Aucun job de renouvellement, donc aucun impayé n'est encore détecté.
+
+**69. Extension de stockage — par paliers de 50 Go** — Au-delà des 40 Go inclus
+(décision 54), le stockage s'achète par tranches de 50 Go, facturées avec l'abonnement.
+> Le pas est tranché, **le prix du palier ne l'est pas** — voir « Points non arbitrés ».
+> Conséquence : le compteur d'octets par formateur devient nécessaire (recommandation 1
+> de `docs/recommandations-modelisation.md`) ; il n'existe pas.
+> Statut : 📋 Rien n'existe : ni compteur, ni palier, ni facturation.
+
+**70. Cycle de vie de l'abonnement** — Le renouvellement facture à l'échéance de chacun,
+applique la cadence en attente, détecte l'impayé et exécute la décision 68.
+> Statut : ✅ **Implémenté le 3 août 2026** — `src/lib/subscriptions.ts` et trois jobs
+> (`SUBSCRIPTION_RENEWAL` 01:00, `SUBSCRIPTION_SUSPENSION` 01:30,
+> `SUBSCRIPTION_SUSPENSION_ALERT` 01:45). 11 tests.
+>
+> **`SubscriptionCharge` — une ligne par période facturée**, avec le montant figé
+> (décision 57). L'unicité `(trainerId, periodStart)` **est** l'idempotence du job :
+> rejouer un tour ne peut pas facturer deux fois, la contrainte le refuse en base plutôt
+> que de compter sur la prudence du code.
+>
+> **Une période à zéro est `WAIVED`, pas `DUE`** : la cohorte de lancement (décision 56)
+> ne tombe jamais en impayé, et aucun job ne s'acharne sur elle.
+>
+> **Le prix d'une période est celui du tarif en vigueur à son ouverture**, pas à
+> l'exécution du job. Un job lancé en retard facture donc au bon tarif — c'est ce que
+> l'interdit de rétroactivité (décision 59) impose, et ce que la décision 61 veut dire par
+> « à l'échéance de chacun ».
+>
+> **Rattrapage des profils sans période** : les formateurs créés avant la facturation
+> seraient restés invisibles du renouvellement — jamais facturés, et rien pour le
+> signaler. Le job leur ouvre une première période et le **compte à part**
+> (`initialized`) : c'est une anomalie qui se résorbe, pas un fonctionnement normal.
+>
+> **Le blocage en écriture mord vraiment** : `createCourse`, `publishCourse` et
+> `presignCourseUpload` refusent en `SUBSCRIPTION_SUSPENDED` (422). Sans cela la
+> décision 68 n'aurait été qu'un statut en base.
+>
+> **Le constat de règlement a son écran** depuis le 3 août 2026 :
+> `/admin/abonnements` (Finances et Super-admin) liste les périodes, les plus anciennes
+> d'abord, affiche la date de suspension à venir, et porte l'action « Constater » —
+> `POST /api/admin/subscriptions/charges/{id}/settle`. C'est aujourd'hui **le seul geste
+> qui lève un impayé**, exactement comme « constater le versement » l'est pour un retrait.
+> Côté formateur, `/formateur/portefeuille` porte un bandeau dès qu'une période est due,
+> avec la date à laquelle ses ressources sortiront du catalogue. Un impayé se découvrait
+> jusque-là par une seule notification, qui pouvait passer inaperçue alors que la
+> sanction, elle, retire les ressources du catalogue.
+> ⚠️ **Rien n'encaisse automatiquement.** Aucun provider d'abonnement n'est branché : le
+> règlement est constaté à la main. `subscriptionProvider` et `subscriptionProviderId`
+> restent nuls.
+> ⚠️ **Délai de grâce de 14 jours** (`SUBSCRIPTION_GRACE_DAYS`) : valeur retenue par
+> défaut, **non arbitrée**. Voir « Points non arbitrés ».
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |
@@ -797,7 +978,7 @@ s'applique à chaque formateur **à son propre renouvellement**, pas à une date
 | Stockage objet | Cloudflare R2 (API S3-compatible). Pas de server access logs → journalisation uniquement applicative | ✅ `s3.ts` implémente R2 avec `@aws-sdk/client-s3`, plus `isS3Configured()` ajouté cette session pour le repli dev sans R2 dans `trainer-documents.ts`. Journalisation applicative via `TRAINER_DOCUMENT_VIEW` (audit). |
 | Hachage mot de passe | argon2id (`@node-rs/argon2`) | ✅ Inchangé — `password.ts` utilise `@node-rs/argon2` |
 | Auth | NextAuth v4. Invalidation ciblée via `User.sessionsValidAfter` | ✅ Inchangé côté `auth.ts`. `sessionsValidAfter` est désormais aussi bumpé par les transitions de rôle des Lots 1-3 (T2/T3/T6/T8 candidature). Le point de montage `/api/auth/[...nextauth]/route.ts` **n'existe toujours pas** — `isPublicRoute` gère déjà `/api/auth/*` par (méthode, préfixe) explicite, sans bypass, mais rien ne répond encore sur ce chemin. |
-| Jobs | node-cron in-process, jobs idempotents | ✅ **Recalé cette session** — `node-cron` était installé mais rien n'était câblé. `src/instrumentation.ts` + `src/lib/jobs.ts` démarrent désormais les 7 jobs (carence 72h, SLA 48h, auto-timeout litiges, cohérence wallet, alerte wallet négatif, purge documents 90j, nettoyage PendingAttachment), consolidés dans un seul fichier plutôt que `jobs-lot1/2/3.ts` séparés. Chaque job est idempotent au niveau des données (filtres sur statut/date) et journalise `SCHEDULED_JOB_COMPLETED`/`FAILED`. Testé (`tests/jobs.test.ts`). |
+| Jobs | node-cron in-process, jobs idempotents | ✅ **Recalé cette session** — `node-cron` était installé mais rien n'était câblé. `src/instrumentation.ts` + `src/lib/jobs.ts` démarrent désormais les jobs (12 au 3 août 2026, dont les 3 de l'abonnement) (carence 72h, SLA 48h, auto-timeout litiges, cohérence wallet, alerte wallet négatif, purge documents 90j, nettoyage PendingAttachment), consolidés dans un seul fichier plutôt que `jobs-lot1/2/3.ts` séparés. Chaque job est idempotent au niveau des données (filtres sur statut/date) et journalise `SCHEDULED_JOB_COMPLETED`/`FAILED`. Testé (`tests/jobs.test.ts`). |
 | Rate limiting | In-memory avec purge périodique | ✅ Inchangé — `rate-limit.ts`. Les nouvelles routes Lots 1-3 n'appliquent pas encore les limites `PAYOUT_METHOD_CREATE`/`PAYOUT_CREATE`/`MICRO_DEPOSIT_CONFIRM`/`DISPUTE_OPEN`/`DISPUTE_MESSAGE`/`UPLOAD_PRESIGN` déjà définies dans `RATE_LIMITS` (⚠️ constantes prêtes, non branchées sur les routes). |
 | i18n | Aucun. Monolingue français | ⚠️ Inchangé — `next-intl` installé (template) mais non utilisé. |
 | Toast | `sonner` | ❌ Inchangé — `layout.tsx` utilise `Toaster` de `@/components/ui/toaster`, pas `sonner`. |
@@ -901,6 +1082,26 @@ negativeSince non null  ⟺  solde retirable < 0
 
 ## Points non arbitrés
 
+- **Délai de grâce avant suspension** (arbitrage 70) — 14 jours retenus par défaut dans
+  `SUBSCRIPTION_GRACE_DAYS`, jamais arbitrés. La valeur est nommée et isolée pour être
+  discutée, pas découverte au fond d'une condition.
+- **Provider d'abonnement** — le règlement est constaté à la main par Finances
+  (`/admin/abonnements`). Aucun prélèvement automatique n'existe : reste à décider quel
+  provider encaisse l'abonnement formateur, et si le constat manuel subsiste ensuite
+  comme filet.
+- **Retour au catalogue après régularisation** — constater un règlement remet le
+  formateur en règle mais **ne republie rien** : ses ressources sont sorties du catalogue
+  sur décision, elles y reviennent sur décision. Faut-il un geste dédié, ou le formateur
+  les republie-t-il lui-même une par une ?
+- **Prix du palier de 50 Go** (arbitrage 69) — le pas est tranché, le montant non. Reste
+  aussi à dire si l'extension suit la cadence de l'abonnement du formateur (mensuelle ou
+  annuelle) ou se facture à part.
+- **Changement de rôle d'un compte** — la suspension est arbitrée (décision 67), pas le
+  passage d'un rôle à un autre depuis l'administration. `/admin/utilisateurs` reste donc
+  en lecture seule sur ce point.
+- **Durée de la période de lancement** (arbitrage 56) — la gratuité est un tarif daté,
+  mais aucune date de fin n'est fixée. Tant qu'elle ne l'est pas, la cohorte de lancement
+  reste gratuite indéfiniment.
 - **Cumul des réductions** (arbitrage 62) — campagne, remise formateur et code promo
   s'additionnent-ils, ou la plus favorable l'emporte-t-elle ? Faut-il un plancher (jamais
   en dessous de X FCFA) ? C'est le seul point qui peut mener un abonnement à zéro sans
@@ -945,9 +1146,9 @@ Voir `src/app/api/webhooks/cinetpay/route.ts` pour le détail et les sources.
 | **Lot 0** (Socle) | 15 fichiers (api, audit, auth, db, email, notification, password, rate-limit, s3, stripe, wallet, types, utils, jobs, pending-attachments) | 0/5 (auth register/otp/verify-otp/reset-password, health) + 2 webhooks (stripe, cinetpay) ✅ | Template initial uniquement | — | 7/7 câblés (node-cron + instrumentation.ts) |
 | **Lot 1** (Validation) | 2/2 (`trainer-applications.ts`, `trainer-documents.ts`) ✅ | 13/13 ✅ | 0/3 | 7/7 ✅ | inclus ci-dessus (purge 90j) |
 | **Lot 2** (Litiges) | 2/2 (`disputes.ts`, `manual-refund-tasks.ts`) ✅ | 15/15 ✅ | 0 | 7/7 ✅ | inclus ci-dessus (auto-timeout, cohérence wallet, alerte négatif) |
-| **Lot 3** (KYC/Payouts) | 4/4 (`kyc.ts`, `payout-methods.ts`, `payouts.ts`, `wallet-reconciliation.ts`) ✅ | 21/21 ✅ (+2 le 3 août : présignature des documents d'entreprise, consultation Finances) | 2 ✅ (`/formateur/portefeuille`, `.../moyen-de-paiement`) | 21 ✅ | inclus ci-dessus (carence, SLA) |
+| **Lot 3** (KYC/Payouts) | 5 (`kyc.ts`, `payout-methods.ts`, `payouts.ts`, `wallet-reconciliation.ts`, `name-match.ts`) ✅ | 23/23 ✅ (+4 le 3 août : présignature des documents d'entreprise, consultation Finances, `mark-failed`, `reopen`) | 6 ✅ (2 formateur, 4 admin : moyens de paiement et retraits, liste + détail) | 23 ✅ + 9 sur la comparaison de noms | inclus ci-dessus (carence, SLA) |
 | **Lot 4** (Parcours cœur) | 4/4 ✅ (inchangé) | 15/15 ✅ (inchangé) | 0/6 | 10/10 ✅ (+2 cette session : webhook rejoué, payload malformé) | — |
-| **Total** | 29 fichiers lib (+`upload.ts`, +`name-match.ts`) | 66 routes Lots 1-4 + 2 webhooks | 2 pages formateur (Lot 3) | **185/185 tests passent** (`npx vitest run`, Postgres réel, mesuré le 3 août 2026 — la ligne « 41 » de la version précédente datait du 31 juillet) | 7/7 jobs planifiés câblés |
+| **Total** | 35 fichiers lib (+`upload.ts`, `name-match.ts`, `audit-review.ts`, `users-review.ts`, `reports.ts`, `pricing.ts`, `analytics.ts`, `subscriptions.ts`) | 73 routes Lots 1-4 + 2 webhooks | 2 pages formateur + 12 pages admin — **toute la navigation admin a sa page** | **211/211 tests passent** (`npx vitest run`, Postgres réel, mesuré le 3 août 2026 — la ligne « 41 » de la version précédente datait du 31 juillet) | 12 jobs planifiés câblés |
 
 Écarts encore ouverts (non couverts par les 3 corrections + régénération de cette
 session) : voir ⚠️/❌ ci-dessus — notamment la notification de résolution de litige au

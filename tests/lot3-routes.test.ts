@@ -21,6 +21,8 @@ import { GET as escalationsRoute } from '@/app/api/admin/payout-methods/escalati
 import { POST as escalationResolveRoute } from '@/app/api/admin/payout-methods/[payoutMethodId]/escalation-resolve/route'
 import { GET as adminPayoutsRoute } from '@/app/api/admin/payouts/route'
 import { POST as approvePayoutRoute } from '@/app/api/admin/payouts/[payoutId]/approve/route'
+import { POST as markFailedRoute } from '@/app/api/admin/payouts/[payoutId]/mark-failed/route'
+import { POST as reopenPayoutRoute } from '@/app/api/admin/payouts/[payoutId]/reopen/route'
 import { POST as reconcileReservedRoute } from '@/app/api/admin/wallets/[walletId]/reconcile-reserved-balance/route'
 
 type SessionUser = {
@@ -253,6 +255,57 @@ describe('Lot 3 — Routes', () => {
     )
     expect(ok.status).toBe(200)
     expect((await ok.json()).data.status).toBe('APPROVED')
+  })
+
+  // -------------------------------------------------------------------------
+  // P7/P8 — un virement qui échoue doit pouvoir être constaté, et la reprise
+  // reste au Super-admin (décision 7) : elle remet en vol un montant libéré.
+  it('P7/P8 — échec constatable par Finances, reprise réservée au Super-admin', async () => {
+    const { trainerUser, profile, finance, superAdmin } = await setupActors()
+    const method = await createPayoutMethod(profile.id, trainerUser.id, IBAN_BODY as never)
+    await verifyPayoutMethod(method.id, {
+      method: 'MANUAL_FINANCE',
+      expectedUpdatedAt: (await prisma.payoutMethod.findUniqueOrThrow({ where: { id: method.id } })).updatedAt.toISOString(),
+      actorId: finance.id, actorRole: 'FINANCES',
+    })
+    await prisma.payoutMethod.update({ where: { id: method.id }, data: { carenceUntil: new Date(Date.now() - 1000) } })
+    await expirePayoutMethodCarence()
+
+    const payout = await requestPayout(profile.id, trainerUser.id, 20_000)
+    signInAs({ id: finance.id, role: 'ADMIN', adminRole: 'FINANCES' })
+    await approvePayoutRoute(
+      jsonRequest({
+        expectedUpdatedAt: (await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } })).updatedAt.toISOString(),
+      }),
+      { params: Promise.resolve({ payoutId: payout.id }) },
+    )
+
+    const failed = await markFailedRoute(
+      jsonRequest({ reason: 'Compte rejeté par la banque du bénéficiaire.' }),
+      { params: Promise.resolve({ payoutId: payout.id }) },
+    )
+    expect(failed.status).toBe(200)
+    expect((await failed.json()).data.status).toBe('FAILED')
+
+    // L'engagement est retombé, le solde n'a jamais été débité.
+    const wallet = await prisma.wallet.findUniqueOrThrow({ where: { trainerId: profile.id } })
+    expect(wallet.pendingPayoutBalance).toBe(0)
+
+    // Finances ne reprend pas : le reopen remet un montant en vol.
+    const refused = await reopenPayoutRoute(jsonRequest({}), {
+      params: Promise.resolve({ payoutId: payout.id }),
+    })
+    expect(refused.status).toBe(403)
+
+    signInAs({ id: superAdmin.id, role: 'ADMIN', adminRole: 'SUPER_ADMIN' })
+    const reopened = await reopenPayoutRoute(jsonRequest({}), {
+      params: Promise.resolve({ payoutId: payout.id }),
+    })
+    expect(reopened.status).toBe(200)
+    expect((await reopened.json()).data.status).toBe('IN_REVIEW')
+
+    const after = await prisma.wallet.findUniqueOrThrow({ where: { trainerId: profile.id } })
+    expect(after.pendingPayoutBalance).toBe(20_000)
   })
 
   // -------------------------------------------------------------------------

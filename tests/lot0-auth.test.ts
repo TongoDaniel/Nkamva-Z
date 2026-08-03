@@ -7,6 +7,8 @@ import { prisma, cleanDatabase } from './setup'
 import { issueOtp, consumeOtp, OTP_MAX_ATTEMPTS } from '@/lib/otp'
 import { isSessionRevoked } from '@/lib/session-validity'
 import { hashPassword } from '@/lib/password'
+import { authOptions, authorizeCredentials } from '@/lib/auth'
+import { RATE_LIMITS } from '@/lib/rate-limit'
 import { POST as registerHandler } from '@/app/api/auth/register/route'
 import { POST as resetPasswordHandler } from '@/app/api/auth/reset-password/route'
 
@@ -160,6 +162,93 @@ describe('Lot 0 — Socle authentification', () => {
       expect((await response.json()).error.code).toBe('OTP_INVALID')
       const unchanged = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
       expect(unchanged.passwordHash).toBe(user.passwordHash)
+    })
+  })
+
+  describe('Plafond de tentatives de connexion', () => {
+    const PASSWORD = 'MotDePasse2026!'
+
+    /** `authorize` du provider Credentials, tel que NextAuth l'appelle. */
+    async function attempt(email: string, password: string, ip: string) {
+      return authorizeCredentials(
+        { email, password },
+        { headers: { 'x-forwarded-for': ip }, body: {}, query: {}, method: 'POST' },
+      )
+    }
+
+    async function createUser(email: string) {
+      return prisma.user.create({ data: { email, passwordHash: await hashPassword(PASSWORD) } })
+    }
+
+    it('bloque après RATE_LIMITS.LOGIN.max échecs, même avec le bon mot de passe', async () => {
+      const ip = nextIp()
+      await createUser('brute@test.com')
+
+      for (let i = 0; i < RATE_LIMITS.LOGIN.max; i++) {
+        expect(await attempt('brute@test.com', 'MauvaisMotDePasse1', ip)).toBeNull()
+      }
+
+      await expect(attempt('brute@test.com', PASSWORD, ip)).rejects.toThrow('TOO_MANY_ATTEMPTS')
+    })
+
+    it('remet le compteur à zéro après une connexion réussie', async () => {
+      const ip = nextIp()
+      const user = await createUser('rattrape@test.com')
+
+      // Quatre fautes de frappe rattrapées ne doivent pas peser sur la suite.
+      for (let i = 0; i < RATE_LIMITS.LOGIN.max - 1; i++) {
+        expect(await attempt('rattrape@test.com', 'MauvaisMotDePasse1', ip)).toBeNull()
+      }
+      const ok = await attempt('rattrape@test.com', PASSWORD, ip)
+      expect(ok?.id).toBe(user.id)
+
+      for (let i = 0; i < RATE_LIMITS.LOGIN.max; i++) {
+        expect(await attempt('rattrape@test.com', 'MauvaisMotDePasse1', ip)).toBeNull()
+      }
+      await expect(attempt('rattrape@test.com', PASSWORD, ip)).rejects.toThrow('TOO_MANY_ATTEMPTS')
+    })
+
+    it('plafonne aussi par adresse e-mail, donc depuis une autre IP', async () => {
+      const firstIp = nextIp()
+      await createUser('cible@test.com')
+
+      for (let i = 0; i < RATE_LIMITS.LOGIN.max; i++) {
+        expect(await attempt('cible@test.com', 'MauvaisMotDePasse1', firstIp)).toBeNull()
+      }
+
+      // Un botnet change d'IP à chaque coup : sans compteur par e-mail, le
+      // martèlement d'un compte unique passerait sous le plafond.
+      await expect(attempt('cible@test.com', PASSWORD, nextIp())).rejects.toThrow('TOO_MANY_ATTEMPTS')
+    })
+
+    it('fait payer le quota à une adresse inconnue comme à une adresse réelle', async () => {
+      const ip = nextIp()
+      await createUser('reelle@test.com')
+
+      // Sinon le plafond devient un oracle : « ça bloque » signifierait « ce
+      // compte existe », et le balayage d'adresses resterait gratuit.
+      for (let i = 0; i < RATE_LIMITS.LOGIN.max; i++) {
+        expect(await attempt(`inconnue-${i}@test.com`, 'MauvaisMotDePasse1', ip)).toBeNull()
+      }
+
+      await expect(attempt('reelle@test.com', PASSWORD, ip)).rejects.toThrow('TOO_MANY_ATTEMPTS')
+    })
+
+    it('est bien la fonction câblée sur le provider NextAuth', async () => {
+      // `providers[0].authorize` est le stub `() => null` de NextAuth ; la
+      // fonction réellement appelée est celle passée en options. Sans ce
+      // contrôle, débrancher `authorizeCredentials` ne casserait aucun test.
+      const wired = (authOptions.providers[0] as any).options.authorize
+      expect(wired).toBeTypeOf('function')
+
+      const ip = nextIp()
+      const req = { headers: { 'x-forwarded-for': ip } }
+      for (let i = 0; i < RATE_LIMITS.LOGIN.max; i++) {
+        expect(await wired({ email: 'cable@test.com', password: 'MauvaisMotDePasse1' }, req)).toBeNull()
+      }
+      await expect(wired({ email: 'cable@test.com', password: 'MauvaisMotDePasse1' }, req)).rejects.toThrow(
+        'TOO_MANY_ATTEMPTS',
+      )
     })
   })
 

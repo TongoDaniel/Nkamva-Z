@@ -12,6 +12,7 @@ import { computeKycScore } from "@/lib/kyc";
 import { getTrainerWallet } from "@/lib/trainer-stats";
 import { listMyPayoutMethods, getWithdrawableMethod } from "@/lib/payout-methods";
 import { listMyPayouts, PAYOUT_MIN_AMOUNT_FCFA, IN_FLIGHT_PAYOUT_STATUSES } from "@/lib/payouts";
+import { getMySubscription } from "@/lib/subscriptions";
 import { fmtFcfa, fmtDate } from "@/lib/format";
 import { KycPanel } from "./kyc-panel";
 import { PayoutRequestForm } from "./payout-request-form";
@@ -35,12 +36,13 @@ export default async function PortefeuillePage() {
   if (!auth?.user.trainerId) return null;
   const trainerId = auth.user.trainerId;
 
-  const [wallet, kyc, methods, payouts, withdrawable] = await Promise.all([
+  const [wallet, kyc, methods, payouts, withdrawable, subscription] = await Promise.all([
     getTrainerWallet(trainerId),
     computeKycScore(trainerId),
     listMyPayoutMethods(trainerId),
     listMyPayouts(trainerId, 1, 20),
     getWithdrawableMethod(trainerId),
+    getMySubscription(trainerId),
   ]);
 
   const active = methods.find((m) => m.isActive) ?? null;
@@ -126,6 +128,42 @@ export default async function PortefeuillePage() {
           label="montant retirable"
         />
       </div>
+
+      {/*
+        Un impayé se découvrait jusqu'ici par une seule notification, qui pouvait
+        passer inaperçue — et la sanction, elle, retire les ressources du
+        catalogue (décision 68). Elle doit être visible là où le formateur
+        regarde son argent.
+      */}
+      {subscription && subscription.dueTotalFcfa > 0 ? (
+        <InfoBox
+          className={
+            subscription.subscriptionStatus === "SUSPENDED"
+              ? "border border-danger/30 bg-danger/5 text-ink"
+              : "border border-gold/40 bg-gold-tint text-ink"
+          }
+        >
+          {subscription.subscriptionStatus === "SUSPENDED" ? (
+            <>
+              <b>Vos ressources sont retirées du catalogue.</b> Votre abonnement reste impayé
+              ({fmtFcfa(subscription.dueTotalFcfa)}). Vos apprenants continuent d&apos;accéder à
+              ce qu&apos;ils ont acheté ; vous ne pouvez plus publier ni téléverser tant que
+              la situation n&apos;est pas régularisée.
+            </>
+          ) : (
+            <>
+              <b>Votre abonnement est à régler : {fmtFcfa(subscription.dueTotalFcfa)}.</b>{" "}
+              {subscription.suspensionAt ? (
+                <>
+                  Sans règlement d&apos;ici au {fmtDate(subscription.suspensionAt)}, vos
+                  ressources sortiront du catalogue. Rien de ce qui a déjà été acheté n&apos;est
+                  touché.
+                </>
+              ) : null}
+            </>
+          )}
+        </InfoBox>
+      ) : null}
 
       {wallet.withdrawableFcfa < 0 ? (
         <InfoBox className="border border-danger/30 bg-danger/5 text-ink">

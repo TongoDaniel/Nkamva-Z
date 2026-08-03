@@ -12,6 +12,9 @@ const PROTECTED_PREFIXES = [
   '/mes-achats',
   '/mes-ressources',
   '/mes-litiges',
+  '/mes-lives',
+  '/messagerie',
+  '/notifications',
   '/formateur',
   '/admin',
 ]
@@ -43,8 +46,11 @@ export async function middleware(request: NextRequest) {
   const authenticated =
     !!token && !isSessionRevoked(issuedAt, token.sessionsValidAfter as string | undefined)
 
+  // Vers l'accueil de l'espace connecté, pas vers les réglages : quelqu'un qui
+  // rouvre la page de connexion en étant déjà connecté veut reprendre son
+  // parcours. C'est aussi la valeur par défaut de `callbackUrl` du formulaire.
   if (authenticated && AUTH_PAGES.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
-    return NextResponse.redirect(new URL('/mon-compte', request.url))
+    return NextResponse.redirect(new URL('/accueil', request.url))
   }
 
   const isProtected = PROTECTED_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`))
@@ -57,7 +63,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (ADMIN_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`)) && token.role !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/mon-compte?erreur=acces-refuse', request.url))
+    return NextResponse.redirect(new URL('/accueil?erreur=acces-refuse', request.url))
   }
 
   return NextResponse.next()
@@ -73,6 +79,9 @@ export const config = {
     '/mes-achats/:path*',
     '/mes-ressources/:path*',
     '/mes-litiges/:path*',
+    '/mes-lives/:path*',
+    '/messagerie/:path*',
+    '/notifications/:path*',
     '/formateur/:path*',
     '/admin/:path*',
     '/auth/:path*',

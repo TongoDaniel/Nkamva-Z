@@ -181,6 +181,38 @@ describe('Lot 1 — Validation des formateurs', () => {
 
     // Tant que la pièce refusée n'est pas renvoyée, impossible de re-soumettre
     await expect(submitApplication(user.id)).rejects.toThrow('DOCUMENTS_INCOMPLETE')
+
+    // Une fois la seule pièce refusée renvoyée, le dossier repart : les pièces
+    // restées PENDING ne bloquent pas la re-soumission (T5).
+    const { documentId } = await requestDocumentUpload(user.id, {
+      type: 'ID_CARD', mimeType: 'application/pdf', sizeBytes: 1024, sha256: SHA,
+    })
+    await confirmDocumentUpload(user.id, documentId)
+    const resubmitted = await submitApplication(user.id)
+    expect(resubmitted.status).toBe('SUBMITTED')
+  })
+
+  // -------------------------------------------------------------------------
+  it('T3 / T4 — une décision ne porte que sur un dossier soumis', async () => {
+    const { user, admin, application } = await setupCandidate()
+
+    // Le dossier est encore DRAFT : rien n'est instruisible.
+    await expect(approveApplication(application.id, {
+      verifiedLegalName: 'Kwame Mensah',
+      expectedUpdatedAt: await freshUpdatedAt(application.id),
+      actorId: admin.id,
+    })).rejects.toThrow('APPLICATION_NOT_SUBMITTED')
+
+    await uploadAllDocuments(user.id)
+    await submitApplication(user.id)
+
+    // Un rejet partiel sans aucune pièce désignée n'a pas de sens : il
+    // renverrait le dossier au candidat sans rien lui demander.
+    await expect(rejectDocuments(application.id, {
+      rejections: [],
+      expectedUpdatedAt: await freshUpdatedAt(application.id),
+      actorId: admin.id,
+    })).rejects.toThrow('NO_DOCUMENT_REJECTED')
   })
 
   // -------------------------------------------------------------------------
@@ -234,8 +266,48 @@ describe('Lot 1 — Validation des formateurs', () => {
       await submitApplication(user.id)
     }
 
-    // 4e tentative : la pièce courante est déjà à resubmissionCount = MAX
-    await rejectCurrentDocument(application.id, 'ID_CARD', admin.id)
+    // 4e tour : le blocage tombe sur l'admin, pas sur le candidat. Refuser une
+    // quatrième fois enfermerait le dossier en RESUBMISSION_PENDING sans issue —
+    // le candidat se heurterait à MAX_RESUBMISSIONS_REACHED en le renvoyant.
+    await expect(rejectCurrentDocument(application.id, 'ID_CARD', admin.id))
+      .rejects.toThrow('MAX_RESUBMISSIONS_REACHED')
+
+    // La pièce reste donc instruisible, et la seule sortie est le rejet
+    // définitif (T6) — que rien ne bloque.
+    const stillPending = await prisma.trainerDocument.findFirstOrThrow({
+      where: { applicationId: application.id, type: 'ID_CARD', isCurrent: true },
+    })
+    expect(stillPending.status).toBe('RESUBMITTED')
+    expect(stillPending.resubmissionCount).toBe(MAX_RESUBMISSIONS)
+
+    await rejectApplicationFinal(application.id, {
+      reason: 'Pièce d\'identité illisible après trois renvois successifs.',
+      expectedUpdatedAt: await freshUpdatedAt(application.id),
+      actorId: admin.id,
+    })
+    const closed = await prisma.trainerApplication.findUniqueOrThrow({ where: { id: application.id } })
+    expect(closed.status).toBe('REJECTED')
+  })
+
+  // -------------------------------------------------------------------------
+  // Filet de sécurité conservé côté candidat : la garde de `requestDocumentUpload`
+  // n'est plus atteignable par le parcours normal depuis que le rejet est bloqué
+  // en amont, mais elle protège toute nouvelle voie d'écriture.
+  it('D4 — une pièce à MAX_RESUBMISSIONS ne peut plus être renvoyée', async () => {
+    const { user, application } = await setupCandidate()
+    await uploadAllDocuments(user.id)
+
+    // L'état est posé directement : le parcours normal ne peut plus y mener,
+    // c'est précisément ce que cette garde de dernier recours doit couvrir.
+    await prisma.trainerApplication.update({
+      where: { id: application.id },
+      data: { status: 'RESUBMISSION_PENDING' },
+    })
+    await prisma.trainerDocument.updateMany({
+      where: { applicationId: application.id, type: 'ID_CARD', isCurrent: true },
+      data: { status: 'REJECTED', resubmissionCount: MAX_RESUBMISSIONS },
+    })
+
     await expect(requestDocumentUpload(user.id, {
       type: 'ID_CARD', mimeType: 'application/pdf', sizeBytes: 1024, sha256: SHA,
     })).rejects.toThrow('MAX_RESUBMISSIONS_REACHED')

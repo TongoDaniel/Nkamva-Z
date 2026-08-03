@@ -52,6 +52,7 @@ export async function cleanDatabase() {
       "course_views", "consumption_snapshots",
       "dispute_messages", "dispute_review_events", "fund_reservations",
       "disputes", "support_tickets", "manual_refund_tasks",
+      "reports", "platform_tariffs", "platform_discounts", "subscription_charges",
       "users"
     CASCADE
   `)

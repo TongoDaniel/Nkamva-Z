@@ -238,7 +238,87 @@ métier) et `parsePagination()`. Les limites `DISPUTE_OPEN`, `DISPUTE_MESSAGE` e
   contenu vérifié : motif enum + titre uniquement, **aucun `reasonDetail`**
   (décision 19 validée sur l'email réellement envoyé), liens absolus.
 
+### 4.4ter Audit du 3 août 2026 — la console d'arbitrage ne tenait pas ses contrats
+
+Toute la spécification §3 est vérifiée sur le disque : les 8 constantes aux
+valeurs exactes, les 3 jobs (auto-timeout horaire, réconciliation et alerte à
+03:30 UTC), les décisions 17, 18 et 19, les 15 routes plus la résolution de
+ticket de contestation. Les 7 pages du Lot 2 existent — `/mes-litiges` et son
+détail, `/formateur/litiges` et son détail, `/admin/litiges` et son détail,
+`/admin/remboursements` — alors que §4.5 les annonçait absentes.
+
+**Trois contrats cassés entre la console et ses routes**, tous corrigés. Même
+cause : un champ `.optional()` dont la clé est mal nommée passe la validation
+Zod en silence, et **aucun test ne traversait la frontière interface → route**.
+
+1. **Le motif de chaque résolution était jeté.** La console envoyait `note`, la
+   route attendait `resolutionNote`. Le modérateur rédigeait sa justification —
+   l'interface en exigeait dix caractères — et le litige était enregistré avec
+   `resolutionNote: null`, sans que personne ne puisse s'en apercevoir.
+2. **La dérogation hors barème était impossible depuis la console.** Le drapeau
+   `policyOverride` n'était jamais transmis : seul `overrideJustification`
+   partait. Sans le drapeau, le service repassait par le contrôle 14 j / 30 % et
+   répondait `REFUND_RULE_NOT_MET`. Un Super-admin remplissant le formulaire
+   prévu pour lui se faisait refuser — c'est-à-dire précisément le cas d'un
+   chargeback opérateur.
+3. **Finances ne pouvait pas enregistrer un échec de remboursement.**
+   `/admin/remboursements` envoyait `errorMessage`, la route exige `reason`
+   (obligatoire, 10 caractères) ; le bouton s'activait dès 5 caractères. FR5
+   était donc inatteignable et **les fonds du formateur restaient gelés**. La
+   fenêtre annonçait en plus l'inverse du comportement réel (« l'accès de
+   l'apprenant reste suspendu » alors qu'il est rétabli, cf. §4.2).
+
+**Arbitrage tranché** : `resolutionNote` devient **obligatoire** (10 à 2 000
+caractères) sur `/resolve`, au même titre que sur la résolution de ticket. Une
+décision qui débite un formateur ou clôt la demande d'un apprenant, et qui leur
+est notifiée, doit dire pourquoi — sans quoi la contestation qui suit s'instruit
+à l'aveugle. Le champ étant désormais requis, une clé mal nommée produit un 400
+visible au lieu d'une perte silencieuse.
+
+Trois tests de route ajoutés à `lot2-routes.test.ts` : persistance du motif,
+parcours complet de la dérogation par un Super-admin, et annulation d'une tâche
+de remboursement manuel par Finances.
+
+### 4.4bis Deux défauts trouvés le 3 août 2026
+
+Trouvés en repointant `tests/dispute-review.test.ts` sur le service vivant —
+voir §4.5, premier point. Les deux sont corrigés dans `disputes.ts`.
+
+- **La fenêtre de 14 jours se mesurait jusqu'à l'instant de la décision, pas
+  jusqu'à l'ouverture du litige.** `resolveDispute` comparait
+  `purchase.createdAt` à `now - 14 j` : un apprenant ayant contesté au 12e jour
+  se voyait refuser son remboursement dès que l'instruction dépassait le 14e —
+  le délai de traitement de la modération devenait sa faute, alors que son droit
+  était acquis à l'ouverture (et déjà contrôlé par `openDispute`). La comparaison
+  porte désormais sur `dispute.openedAt` contre `purchase.createdAt + 14 j`.
+- **Un `PARTIAL_REFUND` égal au montant contesté était accepté**, et comme le
+  contrôle 14 j / 30 % ne s'applique qu'à `FULL_REFUND`, il ouvrait un
+  remboursement intégral hors barème sans dérogation, sans Super-admin et sans
+  justification. Le montant partiel doit maintenant être **strictement
+  inférieur** au montant contesté.
+
 ### 4.5 Écarts restants
+
+- **Seconde implémentation supprimée.** `dispute-review.ts` réimplémentait
+  `postSupportMessage`, `askLearner`, `resolveDispute`, `releaseReservations`,
+  `completeRefund` et les tâches manuelles, sans qu'aucune route ne les appelle :
+  la console admin écrit via `/api/admin/disputes/*`, donc via `disputes.ts` et
+  `manual-refund-tasks.ts`. Le fichier est réduit à ses **modèles de lecture**
+  (`listDisputes`, `getDisputeStats`, `getDisputeForReview`,
+  `listManualRefundTasks`), seuls utilisés par les pages. Ses 21 tests ont été
+  repointés sur le chemin vivant plutôt que supprimés — c'est ce repointage qui
+  a révélé les deux défauts du §4.4bis. Les codes d'erreur des deux
+  implémentations divergeaient aussi (`PARTIAL_AMOUNT_INVALID` vs
+  `INVALID_REFUND_AMOUNT`, `POLICY_OVERRIDE_FORBIDDEN` vs `OVERRIDE_FORBIDDEN`,
+  `DISPUTE_CLOSED` vs `DISPUTE_ALREADY_RESOLVED`).
+- ~~Point non tranché : le motif de résolution est optionnel~~ — **tranché le
+  3 août**, voir §4.4ter : `resolutionNote` est obligatoire.
+- Aucune page frontend Lot 2 — **faux depuis le 2 août**, les 7 écrans existent
+  (voir §4.4ter).
+- ~~`/api/auth/[...nextauth]/route.ts` n'existe pas~~ — **faux** : la route
+  existe, ainsi que `src/types/next-auth.d.ts`. Les tests de route continuent
+  d'utiliser une session simulée, par choix : c'est `requireAdminSubRole` qu'ils
+  exercent, pas le mécanisme de cookie.
 
 - **Décision 15** — le chemin « tentative → repli » existe désormais pour les
   deux providers : `stripe.refunds.create` (clé d'idempotence
@@ -250,8 +330,5 @@ métier) et `parsePagination()`. Les limites `DISPUTE_OPEN`, `DISPUTE_MESSAGE` e
 - En dev sans `STRIPE_SECRET_KEY`, le refund Stripe est réputé accepté — même
   convention que la simulation de paiement de `purchases.ts`.
 - Aucune page frontend Lot 2 (non demandée, et non listée dans cette spec).
-- **Hors Lot 2, bloquant pour l'usage réel des routes** :
-  `/api/auth/[...nextauth]/route.ts` (Lot 0) n'existe toujours pas — aucune
-  session ne peut être établie par un vrai client. Les routes sont testées avec
-  une session simulée. `src/types/next-auth.d.ts` manque également, d'où 2 des
-  7 erreurs `tsc` préexistantes.
+- ~~Hors Lot 2, bloquant : `/api/auth/[...nextauth]` n'existe pas~~ — **levé**,
+  voir le point correspondant plus haut. `tsc --noEmit` est vert.

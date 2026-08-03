@@ -155,12 +155,16 @@ export const REOPEN_MIN_DELAY_HOURS = 24;
 | `src/lib/trainer-applications.ts` | T1-T8, listing, stats, détail |
 | `src/lib/trainer-documents.ts` | D0-D7, presign, confirm (magic number), URL signée, purge 90 j |
 | `src/lib/pending-attachments.ts` | Nettoyage des pièces jointes non consommées |
-| `tests/lot1-invariants.test.ts` | 13 tests métier (les 7 attendus + purge, reprise d'upload, stats) |
+| `tests/lot1-invariants.test.ts` | 15 tests métier (les 7 attendus + purge, reprise d'upload, stats, garde MAX au rejet) |
 | `tests/lot1-routes.test.ts` | 6 tests HTTP (RBAC, décision 7, concurrence) |
 | `tests/auth-session.test.ts` | 5 tests de révocation de session (voir §4.3) |
 
 Les 13 routes de §1.3 existent toutes. Les 2 jobs sont câblés dans
-`src/lib/jobs.ts` (03:00 et 04:00 UTC), qui en compte désormais 5.
+`src/lib/jobs.ts` (03:00 et 04:00 UTC), qui en compte désormais 12.
+
+Les 4 pages annoncées manquantes en §1.4 existent depuis le 2 août :
+`/candidature`, `/candidature/statut`, `/admin/validation-formateurs` et son
+détail `[applicationId]` avec les actions d'instruction.
 
 ### 4.2 Choix faits là où la spec était muette
 
@@ -215,10 +219,44 @@ la validation en conditions réelles de cette résilience.
 
 Les 7 objets déposés sur R2 pendant ce test ont été supprimés du bucket.
 
+### 4.4bis Audit du 3 août 2026
+
+Toute la spécification §3 est vérifiée sur le disque : les 4 constantes aux
+valeurs exactes, les limites MIME et de taille par type, le format de clé R2, le
+RBAC (`MODERATION` ou `SUPER_ADMIN` partout, `SUPER_ADMIN` seul sur `reopen`,
+Finances exclue), `expectedUpdatedAt` sur `approve`, `reject-documents` **et**
+`reject-final` (la spec n'en exigeait que deux), la journalisation
+`TRAINER_DOCUMENT_VIEW` à la redirection, et les 2 jobs à 03:00 et 04:00 UTC.
+Les 13 routes et les 4 pages sont là — §1.4 en annonçait 3.
+
+**Un défaut trouvé et corrigé.** `rejectDocuments` acceptait de refuser une
+pièce déjà à `resubmissionCount = MAX_RESUBMISSIONS`. Le candidat se heurtait
+alors à `MAX_RESUBMISSIONS_REACHED` en la renvoyant, et le dossier restait en
+`RESUBMISSION_PENDING` sans aucune issue — ni re-soumission possible, ni
+transition automatique. La garde est passée du côté du candidat à celui de
+l'admin (`rejectDocumentsInTx`) : à `MAX`, la seule sortie est le rejet
+définitif T6, ce que la spec prévoyait déjà (« Pièce à `resubmissionCount` =
+MAX **ou** motif grave »). Couvert par deux tests dans `lot1-invariants`.
+
 ### 4.5 Écarts restants
 
-- Aucune page frontend (`devenir-formateur`, `candidature/statut`,
-  `admin/validation-formateurs`) — §1.4, non demandées.
+- **Deux implémentations parallèles de l'instruction.**
+  `src/lib/trainer-application-review.ts` réimplémente `approveApplication`,
+  `rejectDocuments`, `rejectApplicationFinal`, `reopenApplication` et
+  `getDocumentViewUrl`. Aucune route ni page ne les appelle : la console admin
+  écrit via `api.post('/api/admin/trainer-applications/…')`, donc via
+  `trainer-applications.ts`. Seuls les **modèles de lecture** de ce fichier
+  (`listApplications`, `getApplicationStats`, `getApplicationDetail`) sont
+  utilisés, par les pages `/admin/validation-formateurs`.
+  Les fonctions d'écriture sont donc mortes — mais couvertes par 17 tests
+  (`tests/trainer-application-review.test.ts`) qui donnent une confiance
+  trompeuse, puisqu'ils valident un chemin que la production ne prend jamais.
+  Elles divergent en outre du chemin vivant sur deux points de fond : elles
+  n'appellent pas `openFirstPeriod` (un formateur approuvé par là ne serait
+  jamais facturé, décision 68), et elles envoient notification et e-mail hors
+  de `deliverSideEffects` (un échec Resend ferait remonter un 500 sur une
+  approbation déjà commitée — exactement ce que le test réel du §4.4 a validé).
+  `src/lib/dispute-review.ts` présente la même structure au Lot 2.
 - Décision 10 : la liste blanche MIME des cours (`courses.ts`) ne couvre
   toujours pas zip/xlsx/docx, et le quota par plan SaaS n'existe pas. Hors
   périmètre du Lot 1 (ce sont les uploads de ressources, pas de candidature).

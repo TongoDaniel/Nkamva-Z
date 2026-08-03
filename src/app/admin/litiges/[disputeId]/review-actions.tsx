@@ -197,9 +197,14 @@ export function DisputeActions({
                   {
                     expectedUpdatedAt: updatedAt,
                     resolution: partial ? "PARTIAL_REFUND" : "FULL_REFUND",
-                    note: note.trim(),
+                    resolutionNote: note.trim(),
                     ...(partial ? { refundAmountFcfa: partialAmount } : {}),
-                    ...(overrideNeeded ? { overrideJustification: override.trim() } : {}),
+                    // `policyOverride` est ce qui active la dérogation côté
+                    // service : sans lui, la justification seule ne suffit pas
+                    // et le dossier hors barème repart en REFUND_RULE_NOT_MET.
+                    ...(overrideNeeded
+                      ? { policyOverride: true, overrideJustification: override.trim() }
+                      : {}),
                   },
                   "Remboursement décidé.",
                   () => { setNote(""); setOverride(""); setAmount(""); setPartial(false); },
@@ -291,7 +296,7 @@ export function DisputeActions({
               onClick={() =>
                 call(
                   "resolve",
-                  { expectedUpdatedAt: updatedAt, resolution: "REJECT", note: note.trim() },
+                  { expectedUpdatedAt: updatedAt, resolution: "REJECT", resolutionNote: note.trim() },
                   "Contestation écartée.",
                   () => setNote(""),
                 )

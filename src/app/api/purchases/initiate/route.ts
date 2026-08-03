@@ -1,5 +1,6 @@
 // Lot 4 — Achat : initier un paiement
 import { success, error, requireAuth, parseBody } from '@/lib/api'
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiatePurchase } from '@/lib/purchases'
 import { z } from 'zod'
 
@@ -11,6 +12,15 @@ const InitiateSchema = z.object({
 export async function POST(request: Request) {
   const ctx = await requireAuth()
   if (ctx instanceof Response) return ctx
+
+  // Le plafond est large — abandonner un paiement puis le reprendre est normal —
+  // mais il existe : sans lui, une boucle côté client fabrique des dizaines
+  // d'intentions de paiement facturées chez le fournisseur.
+  const limit = checkRateLimit(
+    getRateLimitIdentifier(ctx.user, request), 'PURCHASE_INITIATE',
+    RATE_LIMITS.PURCHASE_INITIATE.max, RATE_LIMITS.PURCHASE_INITIATE.windowMs,
+  )
+  if (!limit.allowed) return error('RATE_LIMITED', 'Trop de tentatives de paiement, réessayez dans quelques minutes', 429)
 
   const parsed = await parseBody(request, InitiateSchema)
   if (parsed instanceof Response) return parsed
