@@ -33,7 +33,15 @@ for (const key of [
   // et rejette en 400 les notifications forgées par les tests.
   'CINETPAY_API_KEY', 'CINETPAY_SITE_ID', 'CINETPAY_SECRET_KEY',
   'RESEND_API_KEY',
-  'R2_ENDPOINT', 'R2_ACCESS_KEY', 'R2_SECRET_KEY',
+  // Le stockage objet porte les noms standard du SDK AWS. Cette liste a
+  // longtemps neutralisé `R2_*`, qui n'existaient nulle part : elle ne
+  // protégeait rien, et la suite aurait écrit dans le vrai seau si le code
+  // avait lu les bons noms — ce qu'il ne faisait pas non plus.
+  'AWS_ENDPOINT_URL', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY',
+  'AWS_REGION', 'AWS_BUCKET_NAME', 'AWS_PUBLIC_URL',
+  // MUX_* : aucun code ne les lit aujourd'hui, mais les neutraliser coûte une
+  // ligne et évite qu'un futur appel parte en test.
+  'MUX_TOKEN_ID', 'MUX_TOKEN_SECRET', 'MUX_WEBHOOK_SECRET',
   // LIVEKIT_* : renseignées dans le .env de dev. Sans neutralisation,
   // `startLiveSession` appelle réellement `createRoom` et `startEgress` sur le
   // serveur temps réel — la suite ouvrirait des salles et lancerait des
