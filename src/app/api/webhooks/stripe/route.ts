@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { creditWalletOnPurchase } from '@/lib/wallet'
 import { auditStandalone } from '@/lib/audit'
 import { getStripe } from '@/lib/stripe'
+import { issueInvoiceQuietly } from '@/lib/invoices'
 import { openDisputeFromChargeback, closeChargeback } from '@/lib/disputes'
 
 type StripeLikeEvent = {
@@ -51,9 +52,15 @@ export async function POST(request: Request) {
 
   switch (event.type) {
     case 'payment_intent.succeeded': {
-      await db.$transaction(async (tx) => {
-        await creditWalletOnPurchase(tx, object.id, 'STRIPE')
+      const credit = await db.$transaction(async (tx) => {
+        return creditWalletOnPurchase(tx, object.id, 'STRIPE')
       })
+      // La facture s'émet **après** le commit, et son échec ne renvoie pas
+      // d'erreur au provider : un webhook en échec est rejoué, et l'accès de
+      // l'apprenant ne doit pas dépendre d'une pièce comptable.
+      if (credit.credited && credit.purchaseId) {
+        await issueInvoiceQuietly(credit.purchaseId)
+      }
       break
     }
 
