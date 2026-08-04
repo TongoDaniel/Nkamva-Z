@@ -6,6 +6,7 @@
 // ==========================================================================
 
 import { db } from './db'
+import { hasCommunityAccess } from './communities'
 import { presignDownload } from './s3'
 import { auditStandalone } from './audit'
 
@@ -25,7 +26,11 @@ export async function checkCourseAccess(
     select: { id: true, accessSuspended: true, accessSuspendedAt: true },
   })
 
-  if (!purchase) return { granted: false, reason: 'NOT_PURCHASED' }
+  // Arbitrage 45 — une ressource incluse s'obtient par l'adhésion, sans achat.
+  if (!purchase) {
+    const included = await hasCommunityAccess(learnerId, courseId)
+    return included ? { granted: true } : { granted: false, reason: 'NOT_PURCHASED' }
+  }
   if (purchase.accessSuspended) return { granted: false, reason: 'ACCESS_SUSPENDED', purchase }
 
   // Arbitrage 63 — l'exclusion retire l'accès aux ressources déjà payées. La
