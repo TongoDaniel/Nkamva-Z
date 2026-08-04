@@ -25,8 +25,9 @@
 
 import {
   AccessToken, EgressClient, RoomServiceClient,
-  EncodedFileOutput, EncodedFileType, S3Upload,
+  EncodedFileOutput, EncodedFileType, S3Upload, StreamOutput, StreamProtocol,
 } from 'livekit-server-sdk'
+import { storageConfig } from './s3'
 
 export interface LiveKitJoinGrant {
   roomName: string
@@ -194,8 +195,10 @@ export async function startRecording(
   const client = egress()
   if (!client) return null
 
-  const { R2_ENDPOINT, R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET } = process.env
-  if (!R2_ENDPOINT || !R2_ACCESS_KEY || !R2_SECRET_KEY) {
+  // La même configuration que le reste du stockage, lue au même endroit :
+  // l'egress dépose dans le seau où l'application ira chercher le replay.
+  const storage = storageConfig()
+  if (!storage) {
     console.warn('[LIVEKIT:EGRESS] stockage non configuré, aucun enregistrement')
     return null
   }
@@ -207,13 +210,11 @@ export async function startRecording(
       output: {
         case: 's3',
         value: new S3Upload({
-          accessKey: R2_ACCESS_KEY,
-          secret: R2_SECRET_KEY,
-          bucket: R2_BUCKET || 'nkamva-dev',
-          endpoint: R2_ENDPOINT,
-          // R2 n'a pas de régions au sens S3 ; `auto` est ce qu'attend le SDK
-          // AWS ailleurs dans le projet (voir `s3.ts`).
-          region: 'auto',
+          accessKey: storage.accessKeyId,
+          secret: storage.secretAccessKey,
+          bucket: storage.bucket,
+          endpoint: storage.endpoint,
+          region: storage.region,
           forcePathStyle: true,
         }),
       },
@@ -223,6 +224,33 @@ export async function startRecording(
     return info.egressId
   } catch (err) {
     console.error('[LIVEKIT:EGRESS_START]', { roomName, error: String(err) })
+    return null
+  }
+}
+
+/**
+ * Pousse la composition de la salle vers une ingestion RTMP — celle de Mux.
+ *
+ * Préféré au dépôt de fichier quand Mux est configuré : l'enregistrement, son
+ * encodage et sa diffusion adaptative deviennent son affaire, et le replay ne
+ * pèse pas sur le quota du formateur.
+ */
+export async function startStreamRecording(
+  roomName: string,
+  rtmpUrl: string,
+): Promise<string | null> {
+  const client = egress()
+  if (!client) return null
+
+  try {
+    const output = new StreamOutput({
+      protocol: StreamProtocol.RTMP,
+      urls: [rtmpUrl],
+    })
+    const info = await client.startRoomCompositeEgress(roomName, output)
+    return info.egressId
+  } catch (err) {
+    console.error('[LIVEKIT:EGRESS_STREAM]', { roomName, error: String(err) })
     return null
   }
 }
