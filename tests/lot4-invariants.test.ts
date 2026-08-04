@@ -23,6 +23,22 @@ function stripeSucceededRequest(providerTransactionId: string) {
 }
 
 describe('Lot 4 — Parcours cœur', () => {
+
+/**
+ * Une ressource ne peut plus être publiée sans contenu : `publishCourse` refuse
+ * en `CONTENT_REQUIRED`. Les fixtures posent donc la clé directement, sans
+ * repasser par la présignature.
+ */
+async function withContent(courseId: string) {
+  await prisma.course.update({
+    where: { id: courseId },
+    data: {
+      contentS3Key: `course-assets/${courseId}/video-fixture.mp4`,
+      contentSizeBytes: 1024,
+      contentMimeType: 'video/mp4',
+    },
+  })
+}
   beforeEach(async () => { await cleanDatabase() })
   afterEach(async () => { await cleanDatabase() })
 
@@ -43,6 +59,7 @@ describe('Lot 4 — Parcours cœur', () => {
       level: 'Avancé',
       durationSeconds: opts.duration || 14400, // 4h
     })
+    await withContent(course.id)
     await publishCourse(course.id, profile.id, trainer.id)
 
     return { trainer, profile, course }
@@ -58,6 +75,7 @@ describe('Lot 4 — Parcours cœur', () => {
         title: `Cours ${i}`, blurb: `Blurb ${i}`, description: `Desc ${i}`,
         category: i < 3 ? 'dev' : 'dsg', format: 'video', priceFcfa: 5000 + i * 1000,
       })
+      await withContent(c.id)
       await publishCourse(c.id, profile.id, trainer.id)
     }
 
@@ -241,6 +259,7 @@ describe('Lot 4 — Parcours cœur', () => {
       title: 'Guide PDF', blurb: 'Guide PDF', description: 'Guide complet',
       category: 'dev', format: 'pdf', priceFcfa: 3000,
     })
+    await withContent(course.id)
     await publishCourse(course.id, profile.id, 'trainer-id')
 
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })

@@ -15,6 +15,7 @@ const PROTECTED_PREFIXES = [
   '/mes-lives',
   '/messagerie',
   '/notifications',
+  '/favoris',
   '/formateur',
   '/admin',
 ]
@@ -82,6 +83,7 @@ export const config = {
     '/mes-lives/:path*',
     '/messagerie/:path*',
     '/notifications/:path*',
+    '/favoris/:path*',
     '/formateur/:path*',
     '/admin/:path*',
     '/auth/:path*',

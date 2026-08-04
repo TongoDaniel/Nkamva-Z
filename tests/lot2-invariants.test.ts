@@ -41,6 +41,22 @@ function chargebackClosedRequest(providerDisputeId: string, status: 'won' | 'los
 }
 
 describe('Lot 2 — Litiges & chargebacks', () => {
+
+/**
+ * Une ressource ne peut plus être publiée sans contenu : `publishCourse` refuse
+ * en `CONTENT_REQUIRED`. Les fixtures posent donc la clé directement, sans
+ * repasser par la présignature.
+ */
+async function withContent(courseId: string) {
+  await prisma.course.update({
+    where: { id: courseId },
+    data: {
+      contentS3Key: `course-assets/${courseId}/video-fixture.mp4`,
+      contentSizeBytes: 1024,
+      contentMimeType: 'video/mp4',
+    },
+  })
+}
   beforeEach(async () => { await cleanDatabase() })
   afterEach(async () => { await cleanDatabase() })
 
@@ -61,6 +77,7 @@ describe('Lot 2 — Litiges & chargebacks', () => {
       priceFcfa: opts.price || 15000,
       durationSeconds: opts.duration || 3600,
     })
+    await withContent(course.id)
     await publishCourse(course.id, profile.id, trainerUser.id)
 
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
