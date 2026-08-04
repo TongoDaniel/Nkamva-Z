@@ -5,6 +5,7 @@ import { Inbox, Lock } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
+import { SanctionActions } from "./sanction-actions";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Avatar } from "@/components/nk/avatar";
 import { getAuthContext } from "@/lib/api";
@@ -46,6 +47,9 @@ export default async function UtilisateursPage({
   if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
     redirect("/admin");
   }
+  // Finances lit, le Super-admin agit : les actions de sanction ne sont rendues
+  // que pour lui.
+  const isSuperAdmin = auth.user.adminRole === "SUPER_ADMIN";
 
   const sp = await searchParams;
   const tab = TABS.some((t) => t.value === sp.role) ? sp.role! : "all";
@@ -147,8 +151,10 @@ export default async function UtilisateursPage({
                     {user.adminRole ? ` · ${user.adminRole}` : ""}
                   </span>
 
-                  {user.suspendedAt ? (
-                    <StPill tone="bad">Suspendu</StPill>
+                  {user.sanctionLevel === "BANNED" ? (
+                    <StPill tone="bad">Exclu</StPill>
+                  ) : user.sanctionLevel === "RESTRICTED" ? (
+                    <StPill tone="warn">Restreint</StPill>
                   ) : user.deletionRequestedAt ? (
                     <StPill tone="warn">Suppression demandée</StPill>
                   ) : user.emailVerifiedAt ? (
@@ -160,6 +166,15 @@ export default async function UtilisateursPage({
                   <span className="text-[12.5px] text-ink-2">
                     Inscrit le {fmtDate(user.createdAt)}
                   </span>
+
+                  {isSuperAdmin ? (
+                    <SanctionActions
+                      userId={user.id}
+                      userName={name}
+                      level={user.sanctionLevel}
+                      isSuperAdmin={isSuperAdmin}
+                    />
+                  ) : null}
                 </li>
               );
             })}
@@ -187,11 +202,10 @@ export default async function UtilisateursPage({
         ) : null}
       </AdminCard>
 
-      <p className="mt-5 flex items-start gap-2 text-[12.5px] leading-relaxed text-ink-3">
-        <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-        Suspendre un compte ou changer un rôle n&apos;est possible depuis aucun écran : ces
-        actions n&apos;ont pas encore de route ni de règle arbitrée. Elles ne sont pas cachées
-        ici, elles n&apos;existent pas.
+      <p className="mt-5 text-[12.5px] leading-relaxed text-ink-3">
+        Une restriction écarte la parole sans retirer l&apos;accès. Une exclusion coupe la
+        connexion et retire les ressources déjà payées : elle est réservée au Super-admin, et
+        sa levée aussi. Changer un rôle reste impossible depuis cet écran.
       </p>
     </>
   );

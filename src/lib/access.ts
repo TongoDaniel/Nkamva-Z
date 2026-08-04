@@ -28,6 +28,14 @@ export async function checkCourseAccess(
   if (!purchase) return { granted: false, reason: 'NOT_PURCHASED' }
   if (purchase.accessSuspended) return { granted: false, reason: 'ACCESS_SUSPENDED', purchase }
 
+  // Arbitrage 63 — l'exclusion retire l'accès aux ressources déjà payées. La
+  // restriction ne le fait pas : elle écarte la parole, pas la lecture.
+  const learner = await db.user.findUnique({
+    where: { id: learnerId },
+    select: { sanctionLevel: true },
+  })
+  if (learner?.sanctionLevel === 'BANNED') return { granted: false, reason: 'ACCOUNT_BANNED', purchase }
+
   return { granted: true, purchase }
 }
 

@@ -82,6 +82,11 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   CONTENT_UNAVAILABLE: { message: 'Le contenu de cette ressource est indisponible', status: 409 },
   STORAGE_QUOTA_EXCEEDED: { message: 'Quota de stockage atteint', status: 422 },
   ALREADY_PUBLISHED: { message: 'Ressource déjà publiée', status: 409 },
+  // --- Sanctions de compte (arbitrage 63) ---
+  SANCTION_FORBIDDEN: { message: 'Cette sanction est réservée au Super-admin', status: 403 },
+  SANCTION_SELF_FORBIDDEN: { message: 'On ne se sanctionne pas soi-même', status: 422 },
+  SANCTION_UNCHANGED: { message: 'Le compte est déjà dans cet état', status: 409 },
+  ACCOUNT_RESTRICTED: { message: 'Votre compte est restreint : écriture suspendue', status: 403 },
   // Lot 2 — litiges
   PURCHASE_NOT_FOUND: { message: 'Achat introuvable', status: 404 },
   PURCHASE_NOT_SUCCEEDED: { message: 'Achat non confirmé', status: 422 },

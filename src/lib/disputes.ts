@@ -22,6 +22,7 @@ import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
+import { assertCanWrite } from './user-sanctions'
 import { presignUpload } from './s3'
 import { syncNegativeSince } from './wallet'
 import { getStripe } from './stripe'
@@ -311,6 +312,9 @@ export interface OpenDisputeInput {
 }
 
 export async function openDispute(learnerId: string, input: OpenDisputeInput) {
+  // Arbitrage 63 — un compte restreint n'écrit plus : ni litige, ni message.
+  await assertCanWrite(learnerId)
+
   const purchase = await db.purchase.findUnique({
     where: { id: input.purchaseId },
     include: {
