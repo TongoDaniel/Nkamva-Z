@@ -223,6 +223,12 @@ model User {
   sanctionedById             String?
   suspendedById              String?
   sessionsValidAfter         DateTime                @default(now())
+  /// Secret TOTP, chiffré au repos. Nul tant que la double authentification
+  /// n'est pas activée — un secret sans `twoFactorEnabledAt` est un secret en
+  /// cours d'enrôlement, qui ne protège rien encore.
+  twoFactorSecret            String?
+  twoFactorEnabledAt         DateTime?
+  recoveryCodes              RecoveryCode[]
   gdprExportRequestedAt      DateTime?
   gdprExportS3Key            String?
   deletionRequestedAt        DateTime?
@@ -872,6 +878,24 @@ model PayoutReviewEvent {
 
   @@index([payoutId, createdAt])
   @@map("payout_review_events")
+}
+
+/// Code de secours à usage unique, pour qui perd son téléphone.
+///
+/// Haché en SHA-256 et non en Argon2, à dessein : un code de secours est tiré
+/// au hasard sur 80 bits, il n'a pas la faible entropie d'un mot de passe qu'un
+/// hachage lent doit compenser. Argon2 sur dix codes à chaque tentative
+/// coûterait une seconde de calcul pour aucun gain.
+model RecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, usedAt])
+  @@map("recovery_codes")
 }
 
 // --- Facture ---

@@ -87,6 +87,15 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   },
   ALREADY_PUBLISHED: { message: 'Ressource déjà publiée', status: 409 },
   INVOICE_NOT_FOUND: { message: 'Facture introuvable', status: 404 },
+  // --- Double authentification ---
+  TWO_FACTOR_ALREADY_ENABLED: { message: 'La double authentification est déjà active', status: 409 },
+  TWO_FACTOR_NOT_ENABLED: { message: 'La double authentification n\'est pas active', status: 409 },
+  TWO_FACTOR_NOT_STARTED: { message: 'Commencez par générer un secret', status: 409 },
+  TWO_FACTOR_INVALID_CODE: {
+    message: 'Code invalide. Vérifiez l\'heure de votre téléphone : un décalage suffit à le faire refuser.',
+    status: 422,
+  },
+  NEXTAUTH_SECRET_MISSING: { message: 'Configuration incomplète du serveur', status: 500 },
   // --- Communautés (arbitrages 45, 47, 48) ---
   COURSE_NOT_FOR_SALE: { message: 'Cette ressource est incluse dans une communauté', status: 422 },
   COURSE_ALREADY_SOLD: { message: 'Une ressource déjà vendue ne peut pas être incluse', status: 422 },

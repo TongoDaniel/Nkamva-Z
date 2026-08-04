@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { PageHead } from "@/components/nk/page-head";
 import { getAuthContext } from "@/lib/api";
 import { getProfile } from "@/lib/profile";
+import { getTwoFactorStatus } from "@/lib/two-factor";
 import { ProfileTabs } from "./profile-tabs";
+import { TwoFactorPanel } from "./two-factor-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +21,11 @@ export default async function ProfilPage({
   const auth = await getAuthContext();
   if (!auth) return null;
 
-  const [profile, { onglet }] = await Promise.all([getProfile(auth.user.id), searchParams]);
+  const [profile, twoFactor, { onglet }] = await Promise.all([
+    getProfile(auth.user.id),
+    getTwoFactorStatus(auth.user.id),
+    searchParams,
+  ]);
   if (!profile) return null;
 
   return (
@@ -29,6 +35,12 @@ export default async function ProfilPage({
         lead="Vos informations, votre mot de passe et vos droits sur vos données."
       />
       <ProfileTabs profile={profile} initialTab={onglet} />
+
+      {/* Hors des onglets, à dessein : la sécurité du compte ne doit pas se
+          trouver derrière un onglet qu'on n'ouvre jamais. */}
+      <div className="mt-8">
+        <TwoFactorPanel initial={twoFactor} />
+      </div>
     </div>
   );
 }

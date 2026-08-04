@@ -1,0 +1,274 @@
+"use client";
+
+import * as React from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Check, Copy, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Btn } from "@/components/nk/button";
+import { StPill } from "@/components/nk/status-pill";
+import { api, ApiError } from "@/lib/client";
+
+interface Status {
+  enabled: boolean;
+  pending: boolean;
+  remainingRecoveryCodes: number;
+  required: boolean;
+}
+
+const field =
+  "w-full rounded-nk border border-line bg-paper px-3.5 py-2.5 text-[15px] tracking-[0.2em] tabular-nums outline-none focus-visible:border-brand";
+
+/** Les codes de secours ne sont montrés qu'une fois : cet écran est le seul. */
+function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
+  const [copied, setCopied] = React.useState(false);
+  const text = codes.join("\n");
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-nk border border-gold-ink/30 bg-gold-tint px-4 py-3 text-[13.5px] leading-relaxed text-ink-2">
+        <b className="text-ink">Conservez ces dix codes maintenant.</b> Ils ne seront plus jamais
+        affichés. Chacun ne sert qu&apos;une fois, et c&apos;est votre seule porte de secours si vous
+        perdez votre téléphone.
+      </div>
+
+      <ul className="grid grid-cols-2 gap-2 rounded-nk border border-line bg-paper p-4 font-mono text-[14px] tabular-nums">
+        {codes.map((code) => (
+          <li key={code}>{code}</li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap gap-2">
+        <Btn
+          variant="o"
+          onClick={async () => {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            toast.success("Codes copiés.");
+          }}
+        >
+          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+          Copier les codes
+        </Btn>
+        <Btn onClick={onDone}>Je les ai mis en lieu sûr</Btn>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Activation de la double authentification.
+ *
+ * Le SMS n'est pas proposé, et c'est un choix : la plateforme porte des
+ * portefeuilles et des retraits, or l'échange de carte SIM vise précisément les
+ * comptes adossés au mobile money. Le SMS sert à alerter, pas à authentifier.
+ */
+export function TwoFactorPanel({ initial }: { initial: Status }) {
+  const router = useRouter();
+  const [status, setStatus] = React.useState(initial);
+  const [setup, setSetup] = React.useState<{ qr: string; secret: string } | null>(null);
+  const [codes, setCodes] = React.useState<string[] | null>(null);
+  const [code, setCode] = React.useState("");
+  const [pending, setPending] = React.useState(false);
+
+  async function run<T>(fn: () => Promise<T>, onOk: (value: T) => void) {
+    setPending(true);
+    try {
+      onOk(await fn());
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "L'opération n'a pas abouti.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (codes) {
+    return (
+      <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
+        <h2 className="mb-4 text-[17px] font-extrabold">Vos codes de secours</h2>
+        <RecoveryCodes
+          codes={codes}
+          onDone={() => {
+            setCodes(null);
+            setSetup(null);
+            setCode("");
+            setStatus((s) => ({ ...s, enabled: true, pending: false, remainingRecoveryCodes: 10 }));
+            router.refresh();
+          }}
+        />
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
+      <div className="mb-1.5 flex flex-wrap items-center gap-3">
+        <h2 className="flex items-center gap-2 text-[17px] font-extrabold">
+          {status.enabled ? (
+            <ShieldCheck className="size-[19px] text-brand" aria-hidden="true" />
+          ) : (
+            <ShieldAlert className="size-[19px] text-ink-3" aria-hidden="true" />
+          )}
+          Double authentification
+        </h2>
+        {status.enabled ? (
+          <StPill tone="ok">Active</StPill>
+        ) : status.required ? (
+          <StPill tone="bad">Requise pour votre rôle</StPill>
+        ) : (
+          <StPill tone="muted">Inactive</StPill>
+        )}
+      </div>
+
+      <p className="mb-5 max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+        Un code à six chiffres, généré par une application sur votre téléphone, sera demandé à chaque
+        connexion. Il fonctionne sans réseau ni crédit.
+      </p>
+
+      {status.enabled ? (
+        <div className="grid gap-4">
+          <p className="text-[13.5px] text-ink-2">
+            Il vous reste{" "}
+            <b className="text-ink">
+              {status.remainingRecoveryCodes} code
+              {status.remainingRecoveryCodes > 1 ? "s" : ""} de secours
+            </b>
+            .{" "}
+            {status.remainingRecoveryCodes <= 3
+              ? "Pensez à en régénérer une série."
+              : null}
+          </p>
+
+          <label className="grid max-w-[280px] gap-1.5">
+            <span className="text-[13px] font-bold">
+              Code de votre application, ou code de secours
+            </span>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              inputMode="text"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              className={field}
+            />
+          </label>
+
+          <div className="flex flex-wrap gap-2">
+            <Btn
+              variant="o"
+              loading={pending}
+              disabled={!code.trim()}
+              onClick={() =>
+                run(
+                  () =>
+                    api.post<{ recoveryCodes: string[] }>("/api/me/2fa", {
+                      action: "regenerate",
+                      code: code.trim(),
+                    }),
+                  ({ data }) => setCodes(data.recoveryCodes),
+                )
+              }
+            >
+              Régénérer les codes de secours
+            </Btn>
+            <Btn
+              variant="danger"
+              loading={pending}
+              disabled={!code.trim()}
+              onClick={() =>
+                run(
+                  () => api.del("/api/me/2fa", { body: JSON.stringify({ code: code.trim() }) }),
+                  () => {
+                    toast.success("Double authentification désactivée.");
+                    setCode("");
+                    setStatus((s) => ({ ...s, enabled: false, remainingRecoveryCodes: 0 }));
+                    router.refresh();
+                  },
+                )
+              }
+            >
+              Désactiver
+            </Btn>
+          </div>
+        </div>
+      ) : setup ? (
+        <div className="grid gap-4">
+          <ol className="grid gap-3 text-[14px] leading-relaxed text-ink-2">
+            <li>
+              <b className="text-ink">1.</b> Scannez ce code avec votre application
+              d&apos;authentification.
+            </li>
+          </ol>
+
+          <Image
+            src={setup.qr}
+            alt="Code QR d'enrôlement"
+            width={200}
+            height={200}
+            unoptimized
+            className="rounded-nk border border-line bg-white p-2"
+          />
+
+          <details className="text-[13px] text-ink-2">
+            <summary className="cursor-pointer font-semibold">
+              Le code ne se scanne pas ? Saisir la clé à la main
+            </summary>
+            <code className="mt-2 block break-all rounded-nk-sm bg-paper px-3 py-2 font-mono text-[13px]">
+              {setup.secret}
+            </code>
+          </details>
+
+          <label className="grid max-w-[280px] gap-1.5">
+            <span className="text-[13px] font-bold">
+              2. Saisissez le code affiché par l&apos;application
+            </span>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              className={field}
+            />
+          </label>
+
+          <div className="flex flex-wrap gap-2">
+            <Btn
+              loading={pending}
+              disabled={code.trim().length < 6}
+              onClick={() =>
+                run(
+                  () =>
+                    api.post<{ recoveryCodes: string[] }>("/api/me/2fa", {
+                      action: "enable",
+                      code: code.trim(),
+                    }),
+                  ({ data }) => setCodes(data.recoveryCodes),
+                )
+              }
+            >
+              Activer
+            </Btn>
+            <Btn variant="t" onClick={() => { setSetup(null); setCode(""); }}>
+              Annuler
+            </Btn>
+          </div>
+        </div>
+      ) : (
+        <Btn
+          loading={pending}
+          onClick={() =>
+            run(
+              () => api.post<{ qr: string; secret: string; uri: string }>("/api/me/2fa", { action: "setup" }),
+              ({ data }) => setSetup({ qr: data.qr, secret: data.secret }),
+            )
+          }
+        >
+          <ShieldCheck aria-hidden="true" />
+          Activer la double authentification
+        </Btn>
+      )}
+    </section>
+  );
+}
