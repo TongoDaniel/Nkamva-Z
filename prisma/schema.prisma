@@ -237,6 +237,7 @@ model User {
   messagesSent               Message[]
   liveParticipations         LiveParticipant[]
   liveMessages               LiveMessage[]
+  invoices                   Invoice[]
   disputesAsLearner          Dispute[]
   supportTickets             SupportTicket[]
   reportsFiled               Report[]                @relation("ReportsFiled")
@@ -384,6 +385,7 @@ model Purchase {
   periodStart           DateTime?
   periodEnd             DateTime?
   communitySubscription CommunitySubscription?
+  invoice               Invoice?
   disputes              Dispute[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -516,23 +518,23 @@ enum CommunityPostKind {
 }
 
 model CommunityPost {
-  id           String                 @id @default(uuid())
+  id           String               @id @default(uuid())
   communityId  String
-  community    Community              @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  community    Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
   authorId     String
-  author       User                   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  author       User                 @relation(fields: [authorId], references: [id], onDelete: Restrict)
   kind         CommunityPostKind
   body         String
-  pinned       Boolean                @default(false)
-  repliesCount Int                    @default(0)
+  pinned       Boolean              @default(false)
+  repliesCount Int                  @default(0)
   lastReplyAt  DateTime?
   replies      CommunityPostReply[]
   /// Retrait par l'auteur ou par le formateur. Effacer la ligne casserait le
   /// fil : les réponses resteraient sans question.
   deletedAt    DateTime?
   deletedById  String?
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   @@index([communityId, kind, createdAt])
   @@index([communityId, pinned, lastReplyAt])
@@ -687,11 +689,11 @@ enum ReplayStatus {
 }
 
 model Replay {
-  id              String       @id @default(uuid())
-  sessionId       String       @unique
-  session         LiveSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id              String         @id @default(uuid())
+  sessionId       String         @unique
+  session         LiveSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   communityId     String
-  community       Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  community       Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
   trainerId       String
   trainerProfile  TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
   title           String
@@ -703,13 +705,13 @@ model Replay {
   /// `BIGINT` : un enregistrement d'une heure dépasse la capacité d'un entier
   /// 32 bits, comme les vidéos de ressources. Compte dans le quota du formateur.
   sizeBytes       BigInt?
-  status          ReplayStatus @default(PROCESSING)
+  status          ReplayStatus   @default(PROCESSING)
   /// Arbitrage 51 — purge à 24 mois. La date est portée, pas recalculée : une
   /// règle qui change ne doit pas effacer rétroactivement ce qui était promis.
   purgeAt         DateTime
   purgedAt        DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([communityId, recordedAt])
   @@index([status, purgeAt])
@@ -861,6 +863,54 @@ model PayoutReviewEvent {
 
   @@index([payoutId, createdAt])
   @@map("payout_review_events")
+}
+
+// --- Facture ---
+// Une facture est **immuable** : ni son numéro, ni son montant, ni sa date ne
+// changent après émission. Ce qui doit être corrigé l'est par un avoir, pas par
+// une réécriture — d'où l'absence de tout champ modifiable ici.
+enum InvoiceKind {
+  /// Achat d'une ressource ou adhésion à une communauté.
+  PURCHASE
+  /// Période d'abonnement du formateur, stockage compris (arbitrage 69).
+  SUBSCRIPTION
+}
+
+model Invoice {
+  id                   String              @id @default(uuid())
+  /// Numéro affiché, figé à l'émission. Sa suite est **sans trou** : voir
+  /// `InvoiceCounter`, qui l'attribue.
+  number               String              @unique
+  kind                 InvoiceKind
+  /// Destinataire — l'acheteur, ou le formateur pour un abonnement.
+  userId               String
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  purchaseId           String?             @unique
+  purchase             Purchase?           @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  subscriptionChargeId String?             @unique
+  subscriptionCharge   SubscriptionCharge? @relation(fields: [subscriptionChargeId], references: [id], onDelete: Restrict)
+  /// Libellé et montants figés au moment de l'émission : le tarif change, la
+  /// facture émise ne change pas avec lui (décision 57).
+  label                String
+  amountFcfa           Int
+  issuedAt             DateTime            @default(now())
+  createdAt            DateTime            @default(now())
+
+  @@index([userId, issuedAt])
+  @@map("invoices")
+}
+
+/// Compteur de numérotation, une ligne par exercice.
+///
+/// Une séquence Postgres serait plus simple mais laisserait des trous : elle
+/// avance même quand la transaction échoue. Une numérotation de facture doit
+/// être continue — d'où une ligne verrouillée par l'`UPDATE`, qui n'avance que
+/// si la transaction aboutit.
+model InvoiceCounter {
+  year  Int @id
+  value Int @default(0)
+
+  @@map("invoice_counters")
 }
 
 // --- AuditLog ---
@@ -1376,6 +1426,7 @@ model SubscriptionCharge {
   amountDueFcfa  Int
   status         SubscriptionChargeStatus @default(DUE)
   settledAt      DateTime?
+  invoice        Invoice?
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
 

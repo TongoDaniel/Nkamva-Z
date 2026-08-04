@@ -26,6 +26,7 @@ import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { quotePrice } from './pricing'
 import { storageChargeFor } from './storage-tiers'
+import { issueInvoiceForSubscriptionCharge } from './invoices'
 import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
 import type { PrismaTransaction } from './types'
 
@@ -227,6 +228,19 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
     }
 
     result.renewed += 1
+
+    // La période ouverte a sa pièce, réglée ou non : une facture atteste d'une
+    // créance, elle n'atteste pas d'un paiement.
+    const charge = await db.subscriptionCharge.findFirst({
+      where: { trainerId: profile.id, periodStart },
+      select: { id: true },
+    })
+    if (charge) {
+      await deliverSideEffects('SUBSCRIPTION_INVOICE', { type: 'SubscriptionCharge', id: charge.id }, async () => {
+        await issueInvoiceForSubscriptionCharge(charge.id)
+      })
+    }
+
     if (waived) result.waived += 1
     else {
       result.pastDue += 1
