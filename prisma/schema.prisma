@@ -26,6 +26,15 @@ enum SanctionLevel {
   BANNED
 }
 
+// Arbitrage 47 — les deux circuits sont exclusifs. Une ressource est SOIT
+// incluse dans une communauté (gratuite pour ses membres), SOIT vendue à
+// l'unité. Jamais les deux : un membre ne peut donc jamais avoir « payé pour
+// rien » une ressource que son abonnement lui aurait donnée.
+enum CourseCircuit {
+  MARKETPLACE
+  COMMUNITY
+}
+
 enum Role {
   LEARNER
   PENDING_TRAINER
@@ -292,10 +301,10 @@ model TrainerProfile {
 
 // --- Course ---
 model Course {
-  id               String         @id @default(uuid())
+  id               String            @id @default(uuid())
   trainerId        String
-  trainerProfile   TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
-  slug             String         @unique
+  trainerProfile   TrainerProfile    @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  slug             String            @unique
   title            String
   blurb            String
   description      String
@@ -314,17 +323,19 @@ model Course {
   contentMimeType  String?
   priceFcfa        Int
   level            String?
-  language         String         @default("fr")
+  language         String            @default("fr")
   durationSeconds  Int?
   lessonsCount     Int?
-  status           String         @default("draft")
+  status           String            @default("draft")
   publishedAt      DateTime?
+  circuit          CourseCircuit     @default(MARKETPLACE)
+  communityLinks   CommunityCourse[]
   livekitRoomName  String?
   purchases        Purchase[]
   courseViews      CourseView[]
   favorites        Favorite[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([status, category])
   @@index([trainerId, status])
@@ -399,6 +410,7 @@ model Community {
   purchases        Purchase[]
   subscriptions    CommunitySubscription[]
   favorites        Favorite[]
+  courseLinks      CommunityCourse[]
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
@@ -455,6 +467,27 @@ model Favorite {
   @@unique([userId, communityId])
   @@index([userId, createdAt])
   @@map("favorites")
+}
+
+// --- CommunityCourse ---
+// Liaison bornée dans le temps, jamais supprimée (arbitrages 45 et 48).
+//
+// Délier une ressource la retire des futurs membres, mais tout membre qui y
+// avait accès pendant la liaison le conserve. La formule d'accès croise donc
+// les périodes de liaison et les périodes d'adhésion — supprimer la ligne
+// effacerait le droit acquis de quelqu'un.
+model CommunityCourse {
+  id          String    @id @default(uuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  linkedAt    DateTime  @default(now())
+  unlinkedAt  DateTime?
+
+  @@index([communityId, unlinkedAt])
+  @@index([courseId, unlinkedAt])
+  @@map("community_courses")
 }
 
 // --- Wallet ---

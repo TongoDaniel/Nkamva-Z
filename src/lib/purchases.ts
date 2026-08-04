@@ -66,6 +66,9 @@ export async function initiatePurchase(
 
   if (!course) throw new Error('COURSE_NOT_FOUND')
   if (course.status !== 'published') throw new Error('COURSE_NOT_AVAILABLE')
+  // Arbitrage 47 — circuits exclusifs. Elle s'obtient par l'abonnement à la
+  // communauté, pas à l'unité.
+  if (course.circuit === 'COMMUNITY') throw new Error('COURSE_NOT_FOR_SALE')
 
   // Vérifier si l'apprenant a déjà acheté
   const existing = await db.purchase.findFirst({
