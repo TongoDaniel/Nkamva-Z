@@ -102,6 +102,16 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   BODY_REQUIRED: { message: 'Écrivez un message', status: 400 },
   POST_NOT_FOUND: { message: 'Message introuvable', status: 404 },
   POST_DELETED: { message: 'Ce message a été retiré', status: 409 },
+  // --- Lives et replays (arbitrages 31 à 43, 51, 55) ---
+  LIVE_SESSION_NOT_FOUND: { message: 'Session introuvable', status: 404 },
+  LIVE_NOT_STARTED: { message: 'La séance n\'est pas en cours', status: 409 },
+  LIVE_ALREADY_ENDED: { message: 'La séance est terminée', status: 409 },
+  LIVE_CANCELED: { message: 'Cette séance a été annulée', status: 409 },
+  CANNOT_MUTE_HOST: { message: 'L\'animateur ne se coupe pas lui-même', status: 422 },
+  PARTICIPANT_NOT_FOUND: { message: 'Ce participant n\'est pas dans la séance', status: 404 },
+  TITLE_REQUIRED: { message: 'Donnez un titre à la séance', status: 400 },
+  REPLAY_NOT_FOUND: { message: 'Replay introuvable', status: 404 },
+  REPLAY_UNAVAILABLE: { message: 'L\'enregistrement de cette séance n\'est pas disponible', status: 409 },
   // --- Messagerie 1 à 1 (arbitrages 33 et 39) ---
   CONVERSATION_NOT_FOUND: { message: 'Conversation introuvable', status: 404 },
   MESSAGING_DISABLED: { message: 'La messagerie n\'est pas ouverte dans cette communauté', status: 422 },
