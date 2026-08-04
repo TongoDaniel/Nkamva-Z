@@ -283,6 +283,8 @@ model TrainerProfile {
    * (décision 68). Remis à null dès que la période est réglée.
    */
   subscriptionPastDueAt        DateTime?
+  /// Paliers de 50 Go achetés au-delà des 40 Go inclus (arbitrage 69).
+  storageTiers                 Int                       @default(0)
   subscriptionCharges          SubscriptionCharge[]
   wallet                       Wallet?
   ratingAverage                Float                     @default(0)
@@ -1278,8 +1280,20 @@ model Report {
 // Le tarif vit en base et il est daté : la gratuité de lancement n'est pas un
 // cas particulier codé en dur, c'est un tarif à 0 avec une date de fin.
 
+enum TariffKind {
+  /// Abonnement du formateur à la plateforme (décisions 49, 59).
+  SUBSCRIPTION
+  /// Palier de 50 Go de stockage au-delà des 40 Go inclus (arbitrages 54, 69).
+  STORAGE_TIER
+}
+
 model PlatformTariff {
   id          String      @id @default(uuid())
+  /// Ce que ce tarif facture. Sans lui, une requête de tarif d'abonnement
+  /// pourrait rendre le prix d'un palier de stockage — les deux vivent dans la
+  /// même table parce qu'ils suivent la même règle : administrés, datés,
+  /// jamais réécrits (décision 59).
+  kind        TariffKind  @default(SUBSCRIPTION)
   cadence     PlanCadence
   amountFcfa  Int
   /**
@@ -1291,7 +1305,7 @@ model PlatformTariff {
   createdById String?
   createdAt   DateTime    @default(now())
 
-  @@index([cadence, validFrom])
+  @@index([kind, cadence, validFrom])
   @@map("platform_tariffs")
 }
 
@@ -1355,6 +1369,10 @@ model SubscriptionCharge {
   listPriceFcfa  Int
   discountFcfa   Int                      @default(0)
   discountLabel  String?
+  /// Paliers de stockage facturés sur cette période, et leur montant. Figés
+  /// comme le reste : réduire ses paliers ne réécrit pas une période ouverte.
+  storageTiers   Int                      @default(0)
+  storageFcfa    Int                      @default(0)
   amountDueFcfa  Int
   status         SubscriptionChargeStatus @default(DUE)
   settledAt      DateTime?
