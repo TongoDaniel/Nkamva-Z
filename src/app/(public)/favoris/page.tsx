@@ -1,26 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Heart } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Heart, Users } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
-import { CommunityCard } from "@/components/nk/community-card";
-import { DemoNotice } from "@/components/nk/demo-notice";
 import { EmptyState } from "@/components/nk/empty-state";
 import { PageHead } from "@/components/nk/page-head";
-import { ResourceCard } from "@/components/nk/resource-card";
-import { COMMUNITIES } from "@/features/demo/community-data";
-import { DEMO_COURSES } from "@/lib/demo/catalog";
+import { Price, ResourceCard } from "@/components/nk/resource-card";
+import { getAuthContext } from "@/lib/api";
+import { listMyFavorites } from "@/lib/favorites";
+import { fmtNumber } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Vos favoris",
   description: "Ressources et communautés que vous avez mises de côté, à retrouver ici.",
+  robots: { index: false },
 };
-
-// Aucune route `/api/me/favorites` n'existe : la mise en favori n'est persistée
-// nulle part. L'écran montre donc la maquette avec un extrait du catalogue de
-// démonstration, et le dit. À rebrancher quand le modèle Favorite arrivera.
-const FAVORITE_COURSES = DEMO_COURSES.slice(0, 3);
-const FAVORITE_COMMUNITIES = COMMUNITIES.slice(0, 2);
 
 function Count({ n }: { n: number }) {
   return (
@@ -30,7 +27,15 @@ function Count({ n }: { n: number }) {
   );
 }
 
-export default function FavorisPage() {
+export default async function FavorisPage() {
+  // Les favoris appartiennent à quelqu'un : sans session il n'y a rien à
+  // montrer. Le lien étant visible dans la barre publique, la redirection porte
+  // le retour pour ne pas perdre l'intention.
+  const auth = await getAuthContext();
+  if (!auth) redirect("/auth/connexion?callbackUrl=/favoris");
+
+  const { courses, communities } = await listMyFavorites(auth.user.id);
+
   return (
     <div className="nk-wrap pb-16">
       <PageHead
@@ -39,17 +44,12 @@ export default function FavorisPage() {
         lead="Ressources et communautés que vous avez mises de côté, à retrouver ici."
       />
 
-      <DemoNotice className="mt-4">
-        Les favoris ne sont pas encore enregistrés : cet écran présente la mise en page avec un
-        extrait du catalogue de démonstration.
-      </DemoNotice>
-
       <section className="mt-9" aria-labelledby="fav-ressources">
         <h2 id="fav-ressources" className="mb-5 text-[clamp(22px,2.4vw,28px)] font-extrabold">
           Ressources
-          <Count n={FAVORITE_COURSES.length} />
+          <Count n={courses.length} />
         </h2>
-        {FAVORITE_COURSES.length === 0 ? (
+        {courses.length === 0 ? (
           <EmptyState
             icon={<Heart />}
             title="Aucune ressource en favori"
@@ -62,8 +62,10 @@ export default function FavorisPage() {
           />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {FAVORITE_COURSES.map((course) => (
-              <ResourceCard key={course.id} course={course} favoritable />
+            {courses.map((course) => (
+              // `favorited` est vrai par construction : on est sur la liste des
+              // favoris. Le cœur part donc allumé.
+              <ResourceCard key={course.id} course={course} favoritable favorited />
             ))}
           </div>
         )}
@@ -72,9 +74,9 @@ export default function FavorisPage() {
       <section className="mt-[52px]" aria-labelledby="fav-communautes">
         <h2 id="fav-communautes" className="mb-5 text-[clamp(22px,2.4vw,28px)] font-extrabold">
           Communautés
-          <Count n={FAVORITE_COMMUNITIES.length} />
+          <Count n={communities.length} />
         </h2>
-        {FAVORITE_COMMUNITIES.length === 0 ? (
+        {communities.length === 0 ? (
           <EmptyState
             icon={<Heart />}
             title="Aucune communauté en favori"
@@ -87,8 +89,43 @@ export default function FavorisPage() {
           />
         ) : (
           <div className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-            {FAVORITE_COMMUNITIES.map((community) => (
-              <CommunityCard key={community.slug} community={community} />
+            {communities.map((community) => (
+              <article
+                key={community.id}
+                className="flex flex-col overflow-hidden rounded-nk border border-line bg-card shadow-nk-sm"
+              >
+                <div className="h-[88px] bg-gradient-to-br from-navy to-info" />
+                <div className="flex flex-1 flex-col gap-2 px-5 py-4">
+                  <h3 className="text-[16px] font-extrabold leading-tight">
+                    <Link
+                      href={`/communautes/${community.slug}`}
+                      className="text-ink hover:text-brand"
+                    >
+                      {community.name}
+                    </Link>
+                  </h3>
+                  {community.trainerName ? (
+                    <p className="text-[13px] font-semibold text-ink-2">
+                      Animée par {community.trainerName}
+                    </p>
+                  ) : null}
+                  {community.description ? (
+                    <p className="line-clamp-3 text-[13.5px] leading-relaxed text-ink-2">
+                      {community.description}
+                    </p>
+                  ) : null}
+                  <div className="mt-auto flex items-center justify-between border-t border-line-2 pt-3.5">
+                    <span className="flex items-center gap-1.5 text-[12.5px] text-ink-3">
+                      <Users className="size-3.5" aria-hidden="true" />
+                      {fmtNumber(community.membersCount)}
+                    </span>
+                    <span>
+                      <Price amountFcfa={community.priceFcfa} className="text-[15px]" />
+                      <small className="ml-1 text-xs font-semibold text-ink-3">/ mois</small>
+                    </span>
+                  </div>
+                </div>
+              </article>
             ))}
           </div>
         )}

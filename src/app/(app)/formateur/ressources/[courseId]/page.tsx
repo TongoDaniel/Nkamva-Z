@@ -10,10 +10,12 @@ import { Cover, formatLabel } from "@/components/nk/cover";
 import { db } from "@/lib/db";
 import { getAuthContext } from "@/lib/api";
 import { getSalesByCourse } from "@/lib/trainer-stats";
+import { trainerStorage } from "@/lib/courses";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import { CourseForm, type CourseFormValues } from "../course-form";
 import { CourseActionsBar } from "./course-actions-bar";
 import { CoverUploader } from "./cover-uploader";
+import { ContentUploader } from "./content-uploader";
 import { COURSE_STATUS } from "../course-status";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +35,7 @@ export default async function EditCoursePage({
   if (!auth?.user.trainerId) return null;
 
   const course = await db.course.findUnique({ where: { id: courseId } });
+  const storage = await trainerStorage(auth.user.trainerId!);
   // Même règle que l'API : une ressource d'un autre formateur est introuvable,
   // pas « interdite » — on ne confirme pas son existence.
   if (!course || course.trainerId !== auth.user.trainerId) notFound();
@@ -113,6 +116,16 @@ export default async function EditCoursePage({
             />
           </div>
           <CoverUploader courseId={course.id} currentKey={course.coverS3Key} />
+
+          <div className="mt-6 border-t border-line-2 pt-6">
+            <h2 className="mb-3 text-[15px] font-bold">Contenu de la ressource</h2>
+            <ContentUploader
+              courseId={course.id}
+              currentKey={course.contentS3Key}
+              currentSizeBytes={course.contentSizeBytes === null ? null : Number(course.contentSizeBytes)}
+              remainingBytes={storage.remainingBytes}
+            />
+          </div>
         </div>
       </div>
 

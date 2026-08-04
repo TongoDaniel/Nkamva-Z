@@ -45,6 +45,7 @@ export async function cleanDatabase() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
       "audit_logs", "notifications", "settings", "email_otps", "pending_attachments",
+      "favorites",
       "trainer_application_review_events", "trainer_documents", "trainer_applications",
       "payout_method_review_events", "payout_review_events", "payouts",
       "wallet_reconciliations", "payout_methods", "wallets", "trainer_profiles",

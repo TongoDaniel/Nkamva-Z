@@ -206,6 +206,7 @@ model User {
   purchases                  Purchase[]
   communitySubscriptions     CommunitySubscription[]
   notifications              Notification[]
+  favorites                  Favorite[]
   disputesAsLearner          Dispute[]
   supportTickets             SupportTicket[]
   reportsFiled               Report[]                @relation("ReportsFiled")
@@ -276,30 +277,39 @@ model TrainerProfile {
 
 // --- Course ---
 model Course {
-  id              String         @id @default(uuid())
-  trainerId       String
-  trainerProfile  TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
-  slug            String         @unique
-  title           String
-  blurb           String
-  description     String
-  learnPoints     String[]
-  includes        String[]
-  category        String
-  format          String
-  coverS3Key      String?
-  priceFcfa       Int
-  level           String?
-  language        String         @default("fr")
-  durationSeconds Int?
-  lessonsCount    Int?
-  status          String         @default("draft")
-  publishedAt     DateTime?
-  livekitRoomName String?
-  purchases       Purchase[]
-  courseViews     CourseView[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id               String         @id @default(uuid())
+  trainerId        String
+  trainerProfile   TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  slug             String         @unique
+  title            String
+  blurb            String
+  description      String
+  learnPoints      String[]
+  includes         String[]
+  category         String
+  format           String
+  coverS3Key       String?
+  coverSizeBytes   BigInt?
+  // Contenu réellement vendu. Sans ces trois champs, la clé servie à l'acheteur
+  // était devinée (`course-content/{id}/main.mp4`) et ne correspondait à aucun
+  // objet téléversé : le formateur déposait ailleurs, l'apprenant recevait une
+  // URL signée vers du vide.
+  contentS3Key     String?
+  contentSizeBytes BigInt?
+  contentMimeType  String?
+  priceFcfa        Int
+  level            String?
+  language         String         @default("fr")
+  durationSeconds  Int?
+  lessonsCount     Int?
+  status           String         @default("draft")
+  publishedAt      DateTime?
+  livekitRoomName  String?
+  purchases        Purchase[]
+  courseViews      CourseView[]
+  favorites        Favorite[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([status, category])
   @@index([trainerId, status])
@@ -373,6 +383,7 @@ model Community {
   status           String                  @default("active")
   purchases        Purchase[]
   subscriptions    CommunitySubscription[]
+  favorites        Favorite[]
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
@@ -405,6 +416,30 @@ model CommunitySubscription {
   @@index([learnerId, status])
   @@index([communityId, status])
   @@map("community_subscriptions")
+}
+
+// --- Favorite ---
+// Une ligne par mise de côté. La cible est soit une ressource, soit une
+// communauté — jamais les deux, jamais aucune : une contrainte CHECK le tient en
+// base (voir la migration), Prisma ne sachant pas l'exprimer.
+//
+// Les deux index uniques portent chacun sur une colonne nullable : en Postgres
+// deux NULL ne se heurtent pas, un utilisateur peut donc avoir autant de
+// favoris de communautés qu'il veut sans que `courseId` NULL ne bloque.
+model Favorite {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId    String?
+  course      Course?    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  communityId String?
+  community   Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+
+  @@unique([userId, courseId])
+  @@unique([userId, communityId])
+  @@index([userId, createdAt])
+  @@map("favorites")
 }
 
 // --- Wallet ---

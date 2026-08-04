@@ -56,7 +56,13 @@ export function CoverUploader({
       });
       if (!upload.ok) throw new Error("UPLOAD_FAILED");
 
-      await api.patch(`/api/trainer/courses/${courseId}`, { coverS3Key: data.s3Key });
+      // Confirmation plutôt que PATCH direct : c'est elle qui relit la taille
+      // réelle de l'objet et alimente le quota de stockage.
+      await api.post(`/api/trainer/courses/${courseId}/upload/confirm`, {
+        s3Key: data.s3Key,
+        kind: "image",
+        mimeType: file.type,
+      });
       toast.success("Couverture mise à jour.");
       router.refresh();
     } catch (err) {

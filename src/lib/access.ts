@@ -47,19 +47,23 @@ export async function getCourseContentUrl(
     select: {
       id: true, title: true, format: true, durationSeconds: true,
       coverS3Key: true, trainerId: true,
-      // En production, le contenu du cours (vidéo, PDF) serait stocké sur R2
-      // avec une clé comme course-content/{courseId}/main.mp4
-      // Pour l'instant, on simule avec coverS3Key
+      contentS3Key: true, contentMimeType: true, contentSizeBytes: true,
     },
   })
 
   if (!course) throw new Error('COURSE_NOT_FOUND')
 
-  // Générer une URL signée pour le contenu
-  // En production : presignDownload(`course-content/${courseId}/main.${course.format === 'video' ? 'mp4' : 'pdf'}`)
-  // En dev : URL factice
-  const contentKey = `course-content/${courseId}/main.${course.format === 'video' ? 'mp4' : 'pdf'}`
-  const url = await presignDownload(contentKey)
+  // La clé est celle enregistrée à la confirmation du téléversement. Elle était
+  // auparavant devinée — `course-content/{courseId}/main.mp4` — alors que le
+  // formateur déposait sous `course-assets/…` : l'apprenant recevait une URL
+  // signée vers un objet qui n'a jamais existé.
+  //
+  // Un cours publié ne peut plus être sans contenu (`publishCourse` le refuse),
+  // mais un cours publié avant cette garde le peut : mieux vaut une erreur
+  // explicite qu'un lecteur qui tourne dans le vide.
+  if (!course.contentS3Key) throw new Error('CONTENT_UNAVAILABLE')
+
+  const url = await presignDownload(course.contentS3Key)
 
   return { url, course }
 }
