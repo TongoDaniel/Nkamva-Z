@@ -19,6 +19,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { db } from '@/lib/db'
 import { creditWalletOnPurchase } from '@/lib/wallet'
 import { auditStandalone } from '@/lib/audit'
+import { issueInvoiceQuietly } from '@/lib/invoices'
 
 // Ordre exact documenté pour la concaténation du HMAC.
 const HMAC_FIELDS = [
@@ -106,9 +107,12 @@ export async function POST(request: Request) {
   const status = await checkCinetPayTransaction(transactionId)
 
   if (status === 'ACCEPTED') {
-    await db.$transaction(async (tx) => {
-      await creditWalletOnPurchase(tx, transactionId, 'CINETPAY')
+    const credit = await db.$transaction(async (tx) => {
+      return creditWalletOnPurchase(tx, transactionId, 'CINETPAY')
     })
+    // Après le commit : une facture qui échoue ne doit pas faire rejouer le
+    // webhook, ni retarder l'accès de l'apprenant.
+    if (credit.credited && credit.purchaseId) await issueInvoiceQuietly(credit.purchaseId)
   } else {
     await auditStandalone({ action: 'CINETPAY_WEBHOOK_REFUSED', meta: { transactionId } })
   }

@@ -86,6 +86,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
     status: 422,
   },
   ALREADY_PUBLISHED: { message: 'Ressource déjà publiée', status: 409 },
+  INVOICE_NOT_FOUND: { message: 'Facture introuvable', status: 404 },
   // --- Communautés (arbitrages 45, 47, 48) ---
   COURSE_NOT_FOR_SALE: { message: 'Cette ressource est incluse dans une communauté', status: 422 },
   COURSE_ALREADY_SOLD: { message: 'Une ressource déjà vendue ne peut pas être incluse', status: 422 },
