@@ -19,6 +19,7 @@ import { remindPendingDeletions } from './jobs/remind-pending-deletions'
 import {
   renewDueSubscriptions, suspendOverdueSubscriptions, alertUpcomingSuspensions,
 } from './subscriptions'
+import { renewDueMemberships, expireOverdueMemberships } from './memberships'
 
 export interface ScheduledJob {
   name: string
@@ -112,6 +113,21 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'SUBSCRIPTION_SUSPENSION_ALERT',
     schedule: '45 1 * * *',
     run: async () => ({ ...(await alertUpcomingSuspensions()) }),
+  },
+  {
+    // Adhésions aux communautés arrivées à échéance : la période suivante
+    // s'ouvre et attend son règlement. Résiliations et bannissements s'y
+    // referment au même passage — c'est la même échéance qui les décide.
+    name: 'MEMBERSHIP_RENEWAL',
+    schedule: '15 2 * * *',
+    run: async () => ({ ...(await renewDueMemberships()) }),
+  },
+  {
+    // Fin d'adhésion au terme du délai de grâce. L'accès résiduel aux
+    // ressources reçues pendant l'adhésion n'est pas retiré (arbitrage 48).
+    name: 'MEMBERSHIP_EXPIRY',
+    schedule: '45 2 * * *',
+    run: async () => ({ ...(await expireOverdueMemberships()) }),
   },
 ]
 
