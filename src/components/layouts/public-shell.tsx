@@ -13,6 +13,7 @@ const NAV = [
   { href: "/communautes", label: "Communautés" },
   { href: "/formateurs", label: "Formateurs" },
   { href: "/tarifs", label: "Tarifs" },
+  { href: "/recherche", label: "Recherche" },
 ];
 
 const FOOTER_COLUMNS: Array<{ title: string; links: Array<{ href: string; label: string }> }> = [
