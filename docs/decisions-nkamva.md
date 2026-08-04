@@ -451,9 +451,10 @@ ressource.
 **33. Périmètre de la messagerie** — Un apprenant ne peut échanger avec un formateur que
 s'il est membre de sa communauté. L'achat d'une ressource à l'unité n'ouvre aucun droit
 de conversation : le fil se rattache à l'abonnement communautaire, pas à l'achat.
-> Statut : 📋 Aucun modèle de conversation dans `prisma/schema.prisma`. L'écran
-> `/messagerie` liste les formateurs des communautés rejointes, sur données de
-> démonstration.
+> Statut : ✅ Livré le 4 août 2026. `Conversation` porte `communityId` — jamais `courseId` —
+> et l'unicité `(communityId, learnerId)` donne un seul fil par membre. `writeBlockFor()`
+> dans `src/lib/messaging.ts` refuse l'écriture sans adhésion ouverte, des deux côtés.
+> `/messagerie` lit la base ; `message-data.ts` est supprimé.
 
 **34. Accès après résiliation** — Le membre qui quitte une communauté conserve l'accès
 aux replays et aux ressources de la communauté **intégrés pendant sa période
@@ -497,8 +498,10 @@ lancement. Un replay existe donc systématiquement.
 **39. Historique de conversation conservé** — Quand l'adhésion s'arrête, l'écriture
 cesse (arbitrage 33) mais **le fil reste lisible**, pour que le membre le retrouve s'il
 revient dans la communauté.
-> Statut : 📋 Aucun modèle de conversation. Conséquence : le fil ne peut pas être
-> supprimé à la résiliation, seulement passé en lecture seule.
+> Statut : ✅ Livré le 4 août 2026. La fermeture d'une souscription ne touche pas la
+> conversation ; `getConversation()` ne demande que d'en être participant, quand
+> `sendMessage()` exige l'adhésion. L'unicité est **totale et non partielle** : un membre
+> qui revient retrouve son fil au lieu d'en ouvrir un second à côté.
 
 **40. Pas d'exclusion en séance** — Le formateur peut couper un micro (arbitrage 35), il
 ne peut pas retirer quelqu'un de la session en cours. Couper et exclure ne sont pas le
@@ -746,8 +749,12 @@ communauté garde **un seul prix**, celui que porte déjà `Community.priceFcfa`
 cadences de l'arbitrage 49 ne concernent que l'abonnement du formateur à NkamVa.
 > Conséquence : **aucun modèle de formule communautaire à créer**, aucune matrice de
 > droits, aucun choix de cadence dans le tunnel d'adhésion. Le schéma actuel suffit.
-> Statut : ✅ Conforme en l'état — `Community.priceFcfa Int` et
-> `CommunitySubscription.periodStart`/`periodEnd` existent, rien à ajouter.
+> Statut : ✅ Consommé le 4 août 2026 par le parcours d'adhésion
+> (`src/lib/memberships.ts`) : un prix, une cadence mensuelle, aucun choix dans le tunnel.
+> ⚠️ Le sens des deux bornes de `CommunitySubscription` s'est précisé à l'usage :
+> `periodStart` date **l'entrée dans la communauté** et ne bouge plus, `periodEnd` avance
+> à chaque mois réglé. Les avancer toutes deux au renouvellement casse la formule d'accès
+> de l'arbitrage 48 — un ancien membre y perd les ressources liées avant son dernier mois.
 
 **59. Le tarif de l'abonnement plateforme est administré, pas déployé** — Le
 **Super-admin** bascule l'abonnement formateur de gratuit à payant et inversement depuis
