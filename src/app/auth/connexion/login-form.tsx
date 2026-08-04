@@ -21,6 +21,12 @@ function loginErrorMessage(code?: string | null): string | null {
   if (code === "CredentialsSignin") {
     return "Adresse e-mail ou mot de passe incorrect.";
   }
+  if (code === "TWO_FACTOR_INVALID") {
+    return "Code incorrect. Vérifiez l'heure de votre téléphone : un décalage suffit à le faire refuser.";
+  }
+  if (code === "TWO_FACTOR_ENROLLMENT_REQUIRED") {
+    return "Votre rôle exige la double authentification. Contactez un autre administrateur pour qu'il vous en ouvre l'accès.";
+  }
   return "La connexion a échoué. Réessayez dans un instant.";
 }
 
@@ -34,6 +40,12 @@ export function LoginForm() {
   const [error, setError] = React.useState<string | null>(loginErrorMessage(params.get("error")));
   const [emailError, setEmailError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
+  // Seconde étape : le mot de passe était bon, il manque le code. Le formulaire
+  // ne bascule qu'après que le serveur l'a demandé — il n'a aucune raison de
+  // savoir d'avance qui a activé la double authentification, et le lui faire
+  // dire en révélerait la liste.
+  const [totpRequired, setTotpRequired] = React.useState(false);
+  const [totp, setTotp] = React.useState("");
 
   const notice = params.get("verified")
     ? "Votre adresse e-mail est confirmée. Vous pouvez vous connecter."
@@ -65,10 +77,17 @@ export function LoginForm() {
       const res = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password,
+        ...(totp.trim() ? { totp: totp.trim() } : {}),
         redirect: false,
         callbackUrl,
       });
       if (!res || res.error) {
+        if (res?.error === "TWO_FACTOR_REQUIRED") {
+          setTotpRequired(true);
+          setError(null);
+          return;
+        }
+        if (res?.error === "TWO_FACTOR_INVALID") setTotp("");
         setError(loginErrorMessage(res?.error ?? "CredentialsSignin"));
         return;
       }
@@ -111,6 +130,27 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        {totpRequired ? (
+          <div className="mb-4">
+            <Field
+              label="Code de vérification"
+              type="text"
+              name="totp"
+              autoComplete="one-time-code"
+              inputMode="text"
+              required
+              autoFocus
+              placeholder="123456"
+              value={totp}
+              onChange={(e) => setTotp(e.target.value)}
+            />
+            <p className="-mt-2 text-[12.5px] leading-relaxed text-ink-2">
+              Ouvrez votre application d&apos;authentification. Vous pouvez aussi saisir l&apos;un de
+              vos codes de secours.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mb-5 mt-0.5 flex items-center justify-end text-[13.5px]">
           <Link href="/auth/mot-de-passe-oublie" className="font-semibold text-brand hover:text-brand-dark">
             Mot de passe oublié ?
