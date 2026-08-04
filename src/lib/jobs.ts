@@ -20,6 +20,7 @@ import {
   renewDueSubscriptions, suspendOverdueSubscriptions, alertUpcomingSuspensions,
 } from './subscriptions'
 import { renewDueMemberships, expireOverdueMemberships } from './memberships'
+import { refreshCommunityActivity } from './community-space'
 
 export interface ScheduledJob {
   name: string
@@ -128,6 +129,13 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'MEMBERSHIP_EXPIRY',
     schedule: '45 2 * * *',
     run: async () => ({ ...(await expireOverdueMemberships()) }),
+  },
+  {
+    // `Community.messagesPerDay` est affiché sur la fiche publique et restait à
+    // zéro faute de messages à compter. Moyenne glissante sur sept jours.
+    name: 'COMMUNITY_ACTIVITY_REFRESH',
+    schedule: '0 4 * * *',
+    run: async () => ({ ...(await refreshCommunityActivity()) }),
   },
 ]
 

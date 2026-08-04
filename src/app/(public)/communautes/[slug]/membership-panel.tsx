@@ -121,6 +121,9 @@ export function MembershipPanel({
 
   return (
     <div className="mt-4 grid gap-3">
+      <Btn asChild size="lg" block>
+        <Link href={`/mes-communautes/${slug}`}>Entrer dans la communauté</Link>
+      </Btn>
       <p className="flex items-start gap-2.5 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
         {membership.status === "BANNED" ? (
           <>
