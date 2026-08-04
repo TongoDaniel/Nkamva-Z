@@ -4,7 +4,7 @@
 
 import { db } from './db'
 import { auditStandalone } from './audit'
-import { presignUpload } from './s3'
+import { presignUpload, headObject, validateMagicNumber } from './s3'
 import { canTrainerWrite } from './subscriptions'
 import type { PrismaTransaction } from './types'
 
@@ -13,6 +13,43 @@ export const COURSE_UPLOAD_LIMITS = {
   pdf: { mimes: ['application/pdf'], maxSize: 10_485_760 },
   image: { mimes: ['image/png', 'image/jpeg', 'image/webp'], maxSize: 5_242_880 },
 } as const
+
+/**
+ * Arbitrage 54 — 40 Go inclus par formateur. Le quota porte sur celui qui
+ * téléverse, pas sur la communauté ni sur l'apprenant.
+ */
+export const TRAINER_STORAGE_QUOTA_BYTES = 40 * 1024 ** 3
+
+/**
+ * Octets déjà occupés par un formateur. Somme les tailles réellement
+ * enregistrées à la confirmation, jamais celles annoncées par le client.
+ *
+ * Les replays entreront dans ce total le jour où ils existeront (arbitrage 54 :
+ * un live en produit un automatiquement, un formateur peut donc épuiser son
+ * quota sans avoir rien téléversé lui-même).
+ */
+export async function trainerStorageUsedBytes(trainerId: string): Promise<number> {
+  const { _sum } = await db.course.aggregate({
+    where: { trainerId },
+    _sum: { contentSizeBytes: true, coverSizeBytes: true },
+  })
+  // Colonnes BIGINT — une seule vidéo peut peser 2 Go, soit un octet de plus
+  // qu'un entier 32 bits. La somme repasse en `number` ici : 40 Go tient
+  // largement sous la limite d'exactitude de JavaScript (9 Po).
+  // `BigInt(0)` plutôt que le littéral `0n` : la cible TypeScript du projet
+  // est antérieure à ES2020.
+  const total = (_sum.contentSizeBytes ?? BigInt(0)) + (_sum.coverSizeBytes ?? BigInt(0))
+  return Number(total)
+}
+
+export async function trainerStorage(trainerId: string) {
+  const usedBytes = await trainerStorageUsedBytes(trainerId)
+  return {
+    usedBytes,
+    quotaBytes: TRAINER_STORAGE_QUOTA_BYTES,
+    remainingBytes: Math.max(0, TRAINER_STORAGE_QUOTA_BYTES - usedBytes),
+  }
+}
 
 export async function createCourse(
   trainerId: string,
@@ -123,6 +160,9 @@ export async function publishCourse(courseId: string, trainerId: string, userId:
   // Décision 68 — les ressources d'un formateur suspendu sortent du catalogue ;
   // il ne peut pas les y remettre en republiant.
   if (!(await canTrainerWrite(trainerId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+  // Rien ne l'empêchait de publier une ressource sans contenu, donc de la
+  // vendre. L'acheteur ne l'aurait découvert qu'après paiement.
+  if (!course.contentS3Key) throw new Error('CONTENT_REQUIRED')
 
   const updated = await db.course.update({
     where: { id: courseId },
@@ -174,11 +214,72 @@ export async function presignCourseUpload(
   if (!(limits.mimes as readonly string[]).includes(params.mimeType)) throw new Error('MIME_NOT_ALLOWED')
   if (params.sizeBytes > limits.maxSize) throw new Error('SIZE_EXCEEDS_LIMIT')
 
+  // Arbitrage 54 — le blocage ne porte que sur le chemin d'écriture. La taille
+  // annoncée par le client suffit ici : la vérité est reprise à la
+  // confirmation, sur l'objet réellement déposé.
+  const { remainingBytes } = await trainerStorage(trainerId)
+  if (params.sizeBytes > remainingBytes) throw new Error('STORAGE_QUOTA_EXCEEDED')
+
   const ext = params.mimeType.split('/')[1]
   const s3Key = `course-assets/${courseId}/${params.kind}-${crypto.randomUUID()}.${ext}`
   const { uploadUrl, expiresAt } = await presignUpload(s3Key, params.mimeType, params.sizeBytes)
 
   return { uploadUrl, s3Key, expiresAt }
+}
+
+/**
+ * Confirme un téléversement : c'est ici, et seulement ici, que la clé entre en
+ * base. Sans cette étape le fichier existait sur R2 sans que rien ne le
+ * référence — le formateur croyait avoir publié, l'acheteur recevait une URL
+ * signée vers une clé devinée qui n'a jamais été écrite.
+ *
+ * La taille est relue sur l'objet (`headObject`), jamais reprise du client :
+ * c'est elle qui alimente le quota, elle ne peut pas être déclarative.
+ */
+export async function confirmCourseUpload(
+  courseId: string,
+  trainerId: string,
+  userId: string,
+  params: { s3Key: string; kind: 'video' | 'pdf' | 'image'; mimeType: string },
+) {
+  const course = await db.course.findUnique({ where: { id: courseId } })
+  if (!course) throw new Error('COURSE_NOT_FOUND')
+  if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
+  if (!(await canTrainerWrite(trainerId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+
+  // La clé doit être celle que nous avons émise pour CE cours : sinon un
+  // formateur pourrait rattacher l'objet d'un autre.
+  if (!params.s3Key.startsWith(`course-assets/${courseId}/`)) throw new Error('UPLOAD_NOT_FOUND')
+
+  const limits = COURSE_UPLOAD_LIMITS[params.kind]
+  if (!(limits.mimes as readonly string[]).includes(params.mimeType)) throw new Error('MIME_NOT_ALLOWED')
+
+  // Même contrôle de contenu que les pièces justificatives du Lot 1 : un PDF
+  // renommé en .mp4 est refusé. Sans identifiants R2, `headObject` renvoie null
+  // et la validation est sautée — le mode dev ne dépose rien de réel.
+  const head = await headObject(params.s3Key)
+  if (head) {
+    await validateMagicNumber(params.s3Key, params.mimeType)
+    if (head.contentLength > limits.maxSize) throw new Error('SIZE_EXCEEDS_LIMIT')
+  }
+  const sizeBytes = head?.contentLength ?? 0
+
+  const isCover = params.kind === 'image'
+  const updated = await db.course.update({
+    where: { id: courseId },
+    data: isCover
+      ? { coverS3Key: params.s3Key, coverSizeBytes: BigInt(sizeBytes) }
+      : { contentS3Key: params.s3Key, contentSizeBytes: BigInt(sizeBytes), contentMimeType: params.mimeType },
+  })
+
+  await auditStandalone({
+    actorId: userId, actorRole: 'TRAINER',
+    action: isCover ? 'COURSE_COVER_UPLOADED' : 'COURSE_CONTENT_UPLOADED',
+    targetType: 'Course', targetId: courseId,
+    meta: { s3Key: params.s3Key, sizeBytes, mimeType: params.mimeType },
+  })
+
+  return updated
 }
 
 // --- Helper : générer un slug unique ---

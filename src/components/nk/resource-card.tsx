@@ -22,11 +22,14 @@ export function Price({ amountFcfa, className }: { amountFcfa: number; className
 export function ResourceCard({
   course,
   favoritable,
+  favorited,
   className,
 }: {
   course: CourseListItem;
-  /** Affiche le cœur de mise en favori (non persisté à ce stade). */
+  /** Affiche le cœur de mise en favori. */
   favoritable?: boolean;
+  /** État initial du cœur, lu côté serveur pour éviter un clignotement. */
+  favorited?: boolean;
   className?: string;
 }) {
   const duration = fmtDuration(course.durationSeconds);
@@ -41,7 +44,9 @@ export function ResourceCard({
       )}
     >
       <Cover category={course.category} format={course.format} typeLabel={typeLabel}>
-        {favoritable ? <FavButton courseTitle={course.title} /> : null}
+        {favoritable ? (
+          <FavButton courseTitle={course.title} courseId={course.id} defaultPressed={favorited} />
+        ) : null}
       </Cover>
       <div className="flex flex-1 flex-col gap-2 px-[18px] pb-[18px] pt-4">
         <Chip tone={categoryTone(course.category)} className="self-start">

@@ -76,6 +76,12 @@ export async function requireTrainer(): Promise<AuthContext | NextResponse> {
 const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   // Communs
   NOT_OWNER: { message: 'Ressource non possédée', status: 403 },
+  COURSE_NOT_FOUND: { message: 'Ressource introuvable', status: 404 },
+  COMMUNITY_NOT_FOUND: { message: 'Communauté introuvable', status: 404 },
+  CONTENT_REQUIRED: { message: 'Déposez le contenu avant de publier', status: 422 },
+  CONTENT_UNAVAILABLE: { message: 'Le contenu de cette ressource est indisponible', status: 409 },
+  STORAGE_QUOTA_EXCEEDED: { message: 'Quota de stockage atteint', status: 422 },
+  ALREADY_PUBLISHED: { message: 'Ressource déjà publiée', status: 409 },
   // Lot 2 — litiges
   PURCHASE_NOT_FOUND: { message: 'Achat introuvable', status: 404 },
   PURCHASE_NOT_SUCCEEDED: { message: 'Achat non confirmé', status: 422 },

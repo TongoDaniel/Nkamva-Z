@@ -63,10 +63,12 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
     if (count === 0) return false
 
     // Données personnelles sans valeur comptable ni probatoire : supprimées.
+    // Les favoris en font partie — ils disent ce que la personne regardait.
     const [views, notifications, otps] = await Promise.all([
       tx.courseView.deleteMany({ where: { learnerId: userId } }),
       tx.notification.deleteMany({ where: { userId } }),
       tx.emailOtp.deleteMany({ where: { userId } }),
+      tx.favorite.deleteMany({ where: { userId } }),
     ])
 
     // Un profil formateur porte des informations publiques nominatives.
