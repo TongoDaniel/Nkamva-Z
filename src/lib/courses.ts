@@ -21,6 +21,13 @@ export const COURSE_UPLOAD_LIMITS = {
 export const TRAINER_STORAGE_QUOTA_BYTES = 40 * 1024 ** 3
 
 /**
+ * Arbitrage 69 — au-delà des 40 Go, le stockage s'achète par tranches de 50 Go.
+ * La constante vit ici parce que le quota se calcule ici ; le **prix**, lui,
+ * est administré et vit en base (voir `storage-tiers.ts`).
+ */
+export const STORAGE_TIER_BYTES = 50 * 1024 ** 3
+
+/**
  * Octets déjà occupés par un formateur. Somme les tailles réellement
  * enregistrées à la confirmation, jamais celles annoncées par le client.
  *
@@ -52,12 +59,26 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
   return Number(total)
 }
 
+/**
+ * Quota effectif : les 40 Go inclus, plus les paliers de 50 Go achetés
+ * (arbitrage 69). Lire le profil ici plutôt que la constante seule est ce qui
+ * rend l'extension réelle — sinon un formateur paierait de l'espace sans jamais
+ * pouvoir s'en servir.
+ */
 export async function trainerStorage(trainerId: string) {
-  const usedBytes = await trainerStorageUsedBytes(trainerId)
+  const [usedBytes, profile] = await Promise.all([
+    trainerStorageUsedBytes(trainerId),
+    db.trainerProfile.findUnique({
+      where: { id: trainerId },
+      select: { storageTiers: true },
+    }),
+  ])
+  const quotaBytes =
+    TRAINER_STORAGE_QUOTA_BYTES + (profile?.storageTiers ?? 0) * STORAGE_TIER_BYTES
   return {
     usedBytes,
-    quotaBytes: TRAINER_STORAGE_QUOTA_BYTES,
-    remainingBytes: Math.max(0, TRAINER_STORAGE_QUOTA_BYTES - usedBytes),
+    quotaBytes,
+    remainingBytes: Math.max(0, quotaBytes - usedBytes),
   }
 }
 

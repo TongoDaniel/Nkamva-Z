@@ -81,6 +81,10 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   CONTENT_REQUIRED: { message: 'Déposez le contenu avant de publier', status: 422 },
   CONTENT_UNAVAILABLE: { message: 'Le contenu de cette ressource est indisponible', status: 409 },
   STORAGE_QUOTA_EXCEEDED: { message: 'Quota de stockage atteint', status: 422 },
+  STORAGE_IN_USE: {
+    message: 'Libérez de la place avant de réduire vos paliers : vos contenus dépassent le quota visé',
+    status: 422,
+  },
   ALREADY_PUBLISHED: { message: 'Ressource déjà publiée', status: 409 },
   // --- Communautés (arbitrages 45, 47, 48) ---
   COURSE_NOT_FOR_SALE: { message: 'Cette ressource est incluse dans une communauté', status: 422 },
