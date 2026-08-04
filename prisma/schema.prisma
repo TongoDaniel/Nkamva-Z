@@ -15,6 +15,17 @@ datasource db {
 }
 
 // --- Enums ---
+// Arbitrage 63 — deux sanctions distinctes, pas un booléen.
+// RESTRICTED écarte la parole sans retirer l'accès (même patron que le membre
+// banni d'une communauté) ; BANNED coupe la connexion ET l'accès aux ressources
+// déjà payées, ce qui peut légitimement produire un litige — d'où sa réserve au
+// Super-admin.
+enum SanctionLevel {
+  NONE
+  RESTRICTED
+  BANNED
+}
+
 enum Role {
   LEARNER
   PENDING_TRAINER
@@ -197,6 +208,10 @@ model User {
   courseViews                CourseView[]
   suspendedAt                DateTime?
   suspendedReason            String?
+  sanctionLevel              SanctionLevel           @default(NONE)
+  sanctionReason             String?
+  sanctionedAt               DateTime?
+  sanctionedById             String?
   suspendedById              String?
   sessionsValidAfter         DateTime                @default(now())
   gdprExportRequestedAt      DateTime?

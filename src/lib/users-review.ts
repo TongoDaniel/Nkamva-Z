@@ -19,6 +19,8 @@ const USER_SELECT = {
   suspendedAt: true, suspendedReason: true,
   deletionRequestedAt: true, deletedAt: true,
   createdAt: true,
+  sanctionLevel: true,
+  sanctionReason: true,
   trainerProfile: { select: { id: true, approvedAt: true, suspendedAt: true } },
 } as const
 
