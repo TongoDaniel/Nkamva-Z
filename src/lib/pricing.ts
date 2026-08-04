@@ -20,10 +20,17 @@ export const CADENCE_LABELS: Record<PlanCadence, string> = {
   YEARLY: 'Annuelle',
 }
 
-/** Le tarif en vigueur pour une cadence, à une date donnée. */
+/**
+ * Le tarif d'**abonnement** en vigueur pour une cadence, à une date donnée.
+ *
+ * Le filtre sur `kind` n'est pas décoratif : depuis que les paliers de stockage
+ * partagent cette table (arbitrage 69), l'omettre ferait facturer l'abonnement
+ * au prix d'un palier — ou l'inverse — selon lequel a été posé en dernier.
+ */
 export async function getCurrentTariff(cadence: PlanCadence, at = new Date()) {
   return db.platformTariff.findFirst({
     where: {
+      kind: 'SUBSCRIPTION',
       cadence,
       validFrom: { lte: at },
       OR: [{ validUntil: null }, { validUntil: { gt: at } }],
@@ -42,7 +49,7 @@ export async function getCurrentTariffs(at = new Date()) {
 
 export async function listTariffs(cadence?: PlanCadence) {
   return db.platformTariff.findMany({
-    where: cadence ? { cadence } : {},
+    where: { kind: 'SUBSCRIPTION', ...(cadence ? { cadence } : {}) },
     orderBy: [{ cadence: 'asc' }, { validFrom: 'desc' }],
     take: 50,
   })
@@ -57,6 +64,8 @@ export async function setTariff(input: {
   cadence: PlanCadence
   amountFcfa: number
   validFrom: Date
+  /** Ce que ce tarif facture — l'abonnement par défaut (arbitrage 69). */
+  kind?: 'SUBSCRIPTION' | 'STORAGE_TIER'
   label?: string | null
   actorId: string
 }) {
@@ -65,9 +74,14 @@ export async function setTariff(input: {
   // à l'instant du clic ni au passé.
   if (input.validFrom.getTime() < Date.now() - 60_000) throw new Error('TARIFF_DATE_IN_PAST')
 
+  // Le bornage ne doit toucher que les tarifs de même nature : poser un prix de
+  // palier ne clôt pas le tarif d'abonnement en vigueur.
+  const kind = input.kind ?? 'SUBSCRIPTION'
+
   return db.$transaction(async (tx) => {
     const current = await tx.platformTariff.findFirst({
       where: {
+        kind,
         cadence: input.cadence,
         validFrom: { lte: input.validFrom },
         OR: [{ validUntil: null }, { validUntil: { gt: input.validFrom } }],
@@ -83,6 +97,7 @@ export async function setTariff(input: {
 
     const created = await tx.platformTariff.create({
       data: {
+        kind,
         cadence: input.cadence,
         amountFcfa: input.amountFcfa,
         validFrom: input.validFrom,
@@ -95,7 +110,7 @@ export async function setTariff(input: {
       actorId: input.actorId, actorRole: 'SUPER_ADMIN',
       action: 'PLATFORM_TARIFF_SET', targetType: 'PlatformTariff', targetId: created.id,
       meta: {
-        cadence: input.cadence, amountFcfa: input.amountFcfa,
+        kind, cadence: input.cadence, amountFcfa: input.amountFcfa,
         validFrom: input.validFrom.toISOString(), previousId: current?.id ?? null,
       },
     })

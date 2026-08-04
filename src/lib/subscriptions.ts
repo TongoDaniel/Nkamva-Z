@@ -25,6 +25,7 @@ import type { PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { quotePrice } from './pricing'
+import { storageChargeFor } from './storage-tiers'
 import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
 import type { PrismaTransaction } from './types'
 
@@ -56,6 +57,10 @@ export async function openFirstPeriod(
 ) {
   const quote = await quotePrice(cadence, { trainerId: trainerProfileId, at: now })
   const periodEnd = periodEndFor(now, cadence)
+  // Un formateur qui vient d'être approuvé n'a aucun palier : l'appel rend zéro.
+  // Il est fait quand même, pour que l'ouverture et le renouvellement calculent
+  // la même chose — une divergence entre les deux serait invisible longtemps.
+  const storage = await storageChargeFor(trainerProfileId, cadence, now)
 
   await tx.subscriptionCharge.create({
     data: {
@@ -66,11 +71,15 @@ export async function openFirstPeriod(
       listPriceFcfa: quote.listPriceFcfa,
       discountFcfa: quote.discountFcfa,
       discountLabel: quote.discountLabel,
-      amountDueFcfa: quote.payableFcfa,
+      storageTiers: storage.tiers,
+      storageFcfa: storage.amountFcfa,
+      amountDueFcfa: quote.payableFcfa + storage.amountFcfa,
       // Une période à zéro n'est pas « due » : elle est offerte. La distinguer
-      // évite qu'un job d'impayé s'acharne sur la cohorte de lancement.
-      status: quote.payableFcfa === 0 ? 'WAIVED' : 'DUE',
-      settledAt: quote.payableFcfa === 0 ? now : null,
+      // évite qu'un job d'impayé s'acharne sur la cohorte de lancement. Le
+      // stockage entre dans ce total : un abonnement offert avec des paliers
+      // payants reste dû.
+      status: quote.payableFcfa + storage.amountFcfa === 0 ? 'WAIVED' : 'DUE',
+      settledAt: quote.payableFcfa + storage.amountFcfa === 0 ? now : null,
     },
   })
 
@@ -84,7 +93,7 @@ export async function openFirstPeriod(
     },
   })
 
-  return { periodEnd, amountDueFcfa: quote.payableFcfa }
+  return { periodEnd, amountDueFcfa: quote.payableFcfa + storage.amountFcfa }
 }
 
 interface RenewalResult {
@@ -158,7 +167,12 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
     const periodStart = profile.subscriptionCurrentPeriodEnd ?? now
     const periodEnd = periodEndFor(periodStart, cadence)
     const quote = await quotePrice(cadence, { trainerId: profile.id, at: periodStart })
-    const waived = quote.payableFcfa === 0
+    // Arbitrage 69 — les paliers sont facturés **avec** l'abonnement, à sa
+    // cadence. Ils n'ont donc pas leur propre échéance, et le formateur n'a
+    // qu'une ligne à régler.
+    const storage = await storageChargeFor(profile.id, cadence, periodStart)
+    const dueFcfa = quote.payableFcfa + storage.amountFcfa
+    const waived = dueFcfa === 0
 
     try {
       await db.$transaction(async (tx) => {
@@ -171,7 +185,9 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
             listPriceFcfa: quote.listPriceFcfa,
             discountFcfa: quote.discountFcfa,
             discountLabel: quote.discountLabel,
-            amountDueFcfa: quote.payableFcfa,
+            storageTiers: storage.tiers,
+            storageFcfa: storage.amountFcfa,
+            amountDueFcfa: dueFcfa,
             status: waived ? 'WAIVED' : 'DUE',
             settledAt: waived ? periodStart : null,
           },
@@ -198,7 +214,8 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
           targetType: 'TrainerProfile', targetId: profile.id,
           meta: {
             cadence, periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(),
-            amountDueFcfa: quote.payableFcfa, discountLabel: quote.discountLabel,
+            amountDueFcfa: dueFcfa, storageTiers: storage.tiers,
+            storageFcfa: storage.amountFcfa, discountLabel: quote.discountLabel,
           },
         })
       })
@@ -217,7 +234,7 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
         notify(profile.userId, {
           type: 'SUBSCRIPTION_PAYMENT_DUE',
           title: 'Votre abonnement est à régler',
-          body: `${quote.payableFcfa} FCFA pour la période en cours. Sans règlement sous ${SUBSCRIPTION_GRACE_DAYS} jours, vos ressources sortiront du catalogue.`,
+          body: `${dueFcfa} FCFA pour la période en cours. Sans règlement sous ${SUBSCRIPTION_GRACE_DAYS} jours, vos ressources sortiront du catalogue.`,
           link: '/formateur/portefeuille',
         }),
       )
