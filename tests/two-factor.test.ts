@@ -11,7 +11,7 @@ import { prisma, cleanDatabase } from './setup'
 import {
   beginTwoFactorSetup, enableTwoFactor, disableTwoFactor, verifySecondFactor,
   getTwoFactorStatus, regenerateRecoveryCodes, twoFactorRequiredFor,
-  RECOVERY_CODE_COUNT,
+  assertSecondFactorForPayout, RECOVERY_CODE_COUNT,
 } from '@/lib/two-factor'
 import { authorizeCredentials } from '@/lib/auth'
 import { hashPassword } from '@/lib/password'
@@ -190,6 +190,39 @@ describe('Double authentification', () => {
       email: 'secours@test.com', password: 'MotDePasse1', totp: recoveryCodes[0],
     })
     expect(session).toMatchObject({ id: u.id })
+  })
+
+  // --- Verrou sur les moyens de paiement ---
+  //
+  // Ce verrou remplace l'alerte SMS de l'arbitrage 24, qui prévenait après coup
+  // qu'un RIB avait changé. Il empêche au lieu de prévenir.
+
+  it('pointer de l\'argent vers un nouveau compte exige un second facteur frais', async () => {
+    const u = await user('rib@test.com')
+    const { secret } = await enroll(u.id)
+
+    // Sans code : refusé, même avec une session parfaitement valide.
+    await expect(assertSecondFactorForPayout(u.id)).rejects.toThrow('TWO_FACTOR_REQUIRED')
+    await expect(assertSecondFactorForPayout(u.id, '000000'))
+      .rejects.toThrow('TWO_FACTOR_INVALID_CODE')
+
+    await expect(assertSecondFactorForPayout(u.id, currentCode(secret))).resolves.toBeUndefined()
+  })
+
+  it('sans double authentification, aucun moyen de paiement ne s\'enregistre', async () => {
+    const u = await user('sans2fa@test.com')
+
+    // Se contenter de vérifier que la protection existe ne suffirait pas : un
+    // attaquant qui tient la session pourrait l'activer lui-même. C'est
+    // pourquoi le refus porte ici sur l'absence, et le contrôle sur un code.
+    await expect(assertSecondFactorForPayout(u.id, '123456'))
+      .rejects.toThrow('TWO_FACTOR_SETUP_REQUIRED')
+  })
+
+  it('un code de secours vaut aussi pour le moyen de paiement', async () => {
+    const u = await user('secours-rib@test.com')
+    const { recoveryCodes } = await enroll(u.id)
+    await expect(assertSecondFactorForPayout(u.id, recoveryCodes[0])).resolves.toBeUndefined()
   })
 
   // --- Rôles ---

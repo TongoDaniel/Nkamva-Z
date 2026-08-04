@@ -3,7 +3,9 @@
 // ==========================================================================
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import * as OTPAuth from 'otpauth'
 import { prisma, cleanDatabase } from './setup'
+import { beginTwoFactorSetup, enableTwoFactor } from '@/lib/two-factor'
 
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }))
 import { getServerSession } from 'next-auth'
@@ -76,6 +78,21 @@ describe('Lot 3 — Routes', () => {
   }
 
   // -------------------------------------------------------------------------
+  /**
+   * Enregistrer un moyen de paiement exige un second facteur frais : on ne
+   * pointe pas de l'argent vers un nouveau compte sans prouver qu'on est là.
+   * Ces tests enrôlent donc comme le ferait un vrai formateur.
+   */
+  async function withSecondFactor(userId: string) {
+    const { secret } = await beginTwoFactorSetup(userId)
+    const totp = new OTPAuth.TOTP({
+      issuer: 'NkamVa', algorithm: 'SHA1', digits: 6, period: 30,
+      secret: OTPAuth.Secret.fromBase32(secret),
+    })
+    await enableTwoFactor(userId, totp.generate())
+    return totp.generate()
+  }
+
   it('POST /api/trainer/payout-methods — 401 sans session, 201 avec, 409 sans nom légal', async () => {
     signInAs(null)
     expect((await createMethodRoute(jsonRequest(IBAN_BODY))).status).toBe(401)
@@ -83,14 +100,19 @@ describe('Lot 3 — Routes', () => {
     // Décision 21 — sans verifiedLegalName, la vérification est impossible
     const noName = await setupActors({ legalName: null })
     signInAs({ id: noName.trainerUser.id, role: 'TRAINER', trainerId: noName.profile.id })
-    const blocked = await createMethodRoute(jsonRequest(IBAN_BODY))
+    const noNameCode = await withSecondFactor(noName.trainerUser.id)
+    const blocked = await createMethodRoute(jsonRequest({ ...IBAN_BODY, twoFactorCode: noNameCode }))
     expect(blocked.status).toBe(409)
     expect((await blocked.json()).error.code).toBe('IDENTITY_NAME_MISSING')
 
     await cleanDatabase()
     const { trainerUser, profile } = await setupActors()
     signInAs({ id: trainerUser.id, role: 'TRAINER', trainerId: profile.id })
-    const created = await createMethodRoute(jsonRequest(IBAN_BODY))
+    // Sans second facteur, la route refuse avant même de lire le dossier.
+    expect((await createMethodRoute(jsonRequest(IBAN_BODY))).status).toBe(403)
+
+    const code = await withSecondFactor(trainerUser.id)
+    const created = await createMethodRoute(jsonRequest({ ...IBAN_BODY, twoFactorCode: code }))
     expect(created.status).toBe(201)
     expect((await created.json()).data.verificationStatus).toBe('PENDING_REVIEW')
   })
@@ -99,9 +121,11 @@ describe('Lot 3 — Routes', () => {
   it('décision 28 — BUSINESS exige dénomination, immatriculation et preuve de représentation', async () => {
     const { trainerUser, profile } = await setupActors()
     signInAs({ id: trainerUser.id, role: 'TRAINER', trainerId: profile.id })
+    const code = await withSecondFactor(trainerUser.id)
 
     const incomplete = await createMethodRoute(jsonRequest({
       ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
+      twoFactorCode: code,
     }))
     expect(incomplete.status).toBe(400)
     expect((await incomplete.json()).error.code).toBe('BUSINESS_DOC_REQUIRED')
@@ -111,6 +135,7 @@ describe('Lot 3 — Routes', () => {
     const forged = await createMethodRoute(jsonRequest({
       ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
       businessDocS3Key: 'docs/rccm.pdf', legalRepProofS3Key: 'docs/rep.pdf',
+      twoFactorCode: code,
     }))
     expect(forged.status).toBe(400)
     expect((await forged.json()).error.code).toBe('ATTACHMENT_INVALID')
@@ -127,6 +152,7 @@ describe('Lot 3 — Routes', () => {
       ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
       businessDocS3Key: await presign('BUSINESS_DOC'),
       legalRepProofS3Key: await presign('LEGAL_REP_PROOF'),
+      twoFactorCode: code,
     }))
     expect(complete.status).toBe(201)
   })

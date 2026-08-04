@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { success, error, requireTrainer, parseBody, errorFromException } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { createPayoutMethod, listMyPayoutMethods } from '@/lib/payout-methods'
+import { assertSecondFactorForPayout } from '@/lib/two-factor'
 
 // Décision 28 — deux branches exclusives, le type de compte est choisi en premier.
 const CreateSchema = z.object({
@@ -16,6 +17,12 @@ const CreateSchema = z.object({
   bic: z.string().min(8).max(11).optional(),
   mobileOperator: z.enum(['WAVE', 'ORANGE_MONEY', 'MTN_MOMO', 'AIRTEL_MONEY', 'M_PESA']).optional(),
   mobilePhone: z.string().min(6).max(20).optional(),
+  /**
+   * Second facteur, exigé pour pointer de l'argent vers un nouveau compte.
+   * Remplace l'alerte SMS de l'arbitrage 24 : celle-ci prévenait après coup,
+   * celui-ci empêche.
+   */
+  twoFactorCode: z.string().min(6).max(20).optional(),
 })
 
 export async function GET() {
@@ -38,7 +45,13 @@ export async function POST(request: Request) {
   if (parsed instanceof Response) return parsed
 
   try {
-    return success(await createPayoutMethod(ctx.user.trainerId!, ctx.user.id, parsed.data), undefined, 201)
+    // Avant toute écriture : un code valide, saisi maintenant. Vérifier
+    // seulement que la protection *existe* ne servirait à rien — un attaquant
+    // qui tient la session pourrait l'activer lui-même.
+    await assertSecondFactorForPayout(ctx.user.id, parsed.data.twoFactorCode)
+
+    const { twoFactorCode: _ignored, ...input } = parsed.data
+    return success(await createPayoutMethod(ctx.user.trainerId!, ctx.user.id, input), undefined, 201)
   } catch (err) {
     return errorFromException(err)
   }

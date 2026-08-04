@@ -324,6 +324,34 @@ export async function getTwoFactorStatus(userId: string): Promise<TwoFactorStatu
   }
 }
 
+/**
+ * Exige un second facteur **frais** pour pointer de l'argent vers un nouveau
+ * compte. C'est la règle des banques et des plateformes d'échange, et elle
+ * remplace avantageusement l'alerte SMS de l'arbitrage 24 : celle-ci prévenait
+ * après coup, celle-ci empêche.
+ *
+ * Deux refus distincts, et la nuance compte :
+ *
+ * · Le compte a un second facteur → un code valide est exigé, maintenant. Se
+ *   contenter de vérifier que la protection *existe* ne servirait à rien : un
+ *   attaquant qui tient la session pourrait l'activer lui-même.
+ * · Le compte n'en a pas → on refuse, et on demande de l'activer d'abord.
+ *
+ * ⚠️ La garde vit au niveau de la route et non du service, comme
+ * `requireTrainer()` : c'est là qu'arrive le code, et c'est la couche qui porte
+ * déjà l'authentification. Toute nouvelle voie d'écriture d'un moyen de paiement
+ * devra l'appeler explicitement.
+ */
+export async function assertSecondFactorForPayout(userId: string, code?: string): Promise<void> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { twoFactorEnabledAt: true },
+  })
+  if (!user?.twoFactorEnabledAt) throw new Error('TWO_FACTOR_SETUP_REQUIRED')
+  if (!code?.trim()) throw new Error('TWO_FACTOR_REQUIRED')
+  if (!(await verifySecondFactor(userId, code.trim()))) throw new Error('TWO_FACTOR_INVALID_CODE')
+}
+
 /** Régénère les dix codes. Les précédents cessent de valoir immédiatement. */
 export async function regenerateRecoveryCodes(userId: string, code: string): Promise<string[]> {
   const user = await db.user.findUnique({
