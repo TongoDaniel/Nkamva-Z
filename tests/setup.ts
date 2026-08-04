@@ -49,6 +49,7 @@ export async function cleanDatabase() {
       "trainer_application_review_events", "trainer_documents", "trainer_applications",
       "payout_method_review_events", "payout_review_events", "payouts",
       "wallet_reconciliations", "payout_methods", "wallets", "trainer_profiles",
+      "community_post_replies", "community_posts",
       "community_courses", "community_subscriptions", "communities", "purchases", "courses",
       "course_views", "consumption_snapshots",
       "dispute_messages", "dispute_review_events", "fund_reservations",

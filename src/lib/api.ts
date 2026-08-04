@@ -94,6 +94,14 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   MEMBERSHIP_ALREADY_CANCELED: { message: 'Adhésion déjà résiliée', status: 409 },
   MEMBERSHIP_NOT_CANCELED: { message: 'Cette adhésion n\'est pas résiliée', status: 409 },
   NOT_MEMBER: { message: 'Réservé aux membres de cette communauté', status: 403 },
+  // --- Espace membre : annonces et fil de discussion ---
+  ACCOUNT_BANNED: { message: 'Votre compte est fermé', status: 403 },
+  MEMBER_BANNED: { message: 'Vous ne pouvez plus prendre la parole dans cette communauté', status: 403 },
+  ANNOUNCEMENT_FORBIDDEN: { message: 'Seul l\'animateur de la communauté publie des annonces', status: 403 },
+  SALON_DISABLED: { message: 'Ce salon n\'est pas ouvert dans cette communauté', status: 422 },
+  BODY_REQUIRED: { message: 'Écrivez un message', status: 400 },
+  POST_NOT_FOUND: { message: 'Message introuvable', status: 404 },
+  POST_DELETED: { message: 'Ce message a été retiré', status: 409 },
   // --- Sanctions de compte (arbitrage 63) ---
   SANCTION_FORBIDDEN: { message: 'Cette sanction est réservée au Super-admin', status: 403 },
   SANCTION_SELF_FORBIDDEN: { message: 'On ne se sanctionne pas soi-même', status: 422 },
