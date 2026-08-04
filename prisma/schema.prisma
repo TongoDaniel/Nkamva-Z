@@ -233,6 +233,8 @@ model User {
   favorites                  Favorite[]
   communityPosts             CommunityPost[]
   communityPostReplies       CommunityPostReply[]
+  conversations              Conversation[]
+  messagesSent               Message[]
   disputesAsLearner          Dispute[]
   supportTickets             SupportTicket[]
   reportsFiled               Report[]                @relation("ReportsFiled")
@@ -292,6 +294,7 @@ model TrainerProfile {
   payouts                      Payout[]
   payoutMethods                PayoutMethod[]
   communities                  Community[]
+  conversations                Conversation[]
   disputesAsTrainer            Dispute[]
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
@@ -414,6 +417,7 @@ model Community {
   favorites        Favorite[]
   courseLinks      CommunityCourse[]
   posts            CommunityPost[]
+  conversations    Conversation[]
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
@@ -541,6 +545,49 @@ model CommunityPostReply {
 
   @@index([postId, createdAt])
   @@map("community_post_replies")
+}
+
+// --- Messagerie 1 à 1 (arbitrages 33 et 39) ---
+// Le fil se rattache à **l'adhésion**, jamais à l'achat : c'est pourquoi il
+// porte `communityId`. Un apprenant qui a acheté une ressource à l'unité n'a
+// aucun droit de conversation, et l'unicité `(communityId, learnerId)` dit le
+// reste — une communauté, un formateur, donc un seul fil par membre.
+//
+// Le fil survit à l'adhésion (arbitrage 39) : quand elle s'arrête, l'écriture
+// cesse mais l'historique reste lisible, pour que le membre le retrouve s'il
+// revient. Il n'est donc jamais supprimé avec la souscription.
+model Conversation {
+  id             String         @id @default(uuid())
+  communityId    String
+  community      Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  learnerId      String
+  learner        User           @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  trainerId      String
+  trainerProfile TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  lastMessageAt  DateTime?
+  messages       Message[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([communityId, learnerId])
+  @@index([learnerId, lastMessageAt])
+  @@index([trainerId, lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  body           String
+  /// Lu par le destinataire, jamais par l'expéditeur.
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }
 
 // --- Wallet ---
