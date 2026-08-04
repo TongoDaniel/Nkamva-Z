@@ -21,6 +21,7 @@ import {
 } from './subscriptions'
 import { renewDueMemberships, expireOverdueMemberships } from './memberships'
 import { refreshCommunityActivity } from './community-space'
+import { purgeExpiredReplays, alertUpcomingReplayPurges } from './lives'
 
 export interface ScheduledJob {
   name: string
@@ -136,6 +137,20 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'COMMUNITY_ACTIVITY_REFRESH',
     schedule: '0 4 * * *',
     run: async () => ({ ...(await refreshCommunityActivity()) }),
+  },
+  {
+    // Arbitrage 51 — les replays vivent 24 mois. La purge rend au formateur
+    // l'espace de stockage correspondant (arbitrage 54).
+    name: 'REPLAY_PURGE',
+    schedule: '0 5 * * *',
+    run: async () => ({ ...(await purgeExpiredReplays()) }),
+  },
+  {
+    // Prévenir 30 jours avant : c'est la dernière fenêtre du formateur pour
+    // récupérer une copie de son enregistrement.
+    name: 'REPLAY_PURGE_ALERT',
+    schedule: '30 5 * * *',
+    run: async () => ({ ...(await alertUpcomingReplayPurges()) }),
   },
 ]
 

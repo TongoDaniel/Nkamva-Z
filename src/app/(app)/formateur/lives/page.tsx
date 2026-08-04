@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PlayCircle, Radio, Users, Video } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { DemoNotice } from "@/components/nk/demo-notice";
 import { Btn } from "@/components/nk/button";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
 import { EmptyState } from "@/components/nk/empty-state";
 import { getAuthContext } from "@/lib/api";
-import { LIVE_SESSIONS, REPLAYS, isLiveNow } from "@/features/demo/live-data";
+import { db } from "@/lib/db";
+import { listTrainerSessions, listMyReplays } from "@/lib/lives";
 import { fmtDuration, fmtNumber } from "@/lib/format";
+import { ScheduleLive } from "./schedule-live";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,23 @@ export default async function FormateurLivesPage() {
   const auth = await getAuthContext();
   if (!auth?.user.trainerId) return null;
 
-  // Sans modèle `LiveSession`, aucune session n'a d'hôte : le jeu de
-  // démonstration est présenté comme celui du formateur connecté.
-  const sessions = [...LIVE_SESSIONS]
-    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
-    .map((session) => ({ ...session, live: isLiveNow(session) }));
-  const replays = [...REPLAYS].sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime());
+  const [all, replays, communities] = await Promise.all([
+    listTrainerSessions(auth.user.trainerId),
+    listMyReplays(auth.user.id),
+    // Un live appartient à une communauté (arbitrage 32) : sans communauté
+    // ouverte, il n'y a rien à programmer, et le formulaire le dit.
+    db.community.findMany({
+      where: { trainerId: auth.user.trainerId, status: "active", eventsEnabled: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  // « À animer » ne montre pas le passé : une séance terminée appartient à ses
+  // replays, pas à l'agenda.
+  const sessions = all
+    .filter((s) => s.status === "SCHEDULED" || s.status === "LIVE")
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   const registered = sessions.reduce((total, s) => total + s.attendees, 0);
 
   return (
@@ -46,11 +58,8 @@ export default async function FormateurLivesPage() {
         crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Mes sessions" }]}
         title="Mes sessions live"
         lead="Les sessions que vous animez et les replays qu'elles ont produits."
+        actions={<ScheduleLive communities={communities} />}
       />
-      <DemoNotice className="mt-4">
-        Écran de démonstration : aucune session live n&apos;est encore modélisée, et la
-        programmation d&apos;un live n&apos;existe pas. Les sessions affichées sont fictives.
-      </DemoNotice>
 
       <div className="my-8 grid gap-4 sm:grid-cols-3">
         <StatTile
@@ -168,12 +177,14 @@ export default async function FormateurLivesPage() {
         )}
       </section>
 
-      {/* Arbitrage 43 : le téléchargement ne se règle pas par session. Ne pas
-          rajouter de case « téléchargeable » dans cet écran. */}
+      {/* Arbitrage 43, requalifié par 55 : les deux cadences ayant des droits
+          identiques, aucune ne refuse le téléchargement — il est devenu un droit
+          uniforme. Ce qui subsiste de l'arbitrage 43, c'est l'interdit : pas de
+          case « téléchargeable » par session. Ne pas en ajouter. */}
       <p className="rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
-        Le téléchargement d&apos;un replay dépend de la formule d&apos;abonnement de la communauté,
-        pas d&apos;un réglage par session : il n&apos;y a rien à cocher ici. La programmation
-        d&apos;un live, elle, attend le modèle de session.
+        Tout membre de la communauté peut télécharger vos replays : c&apos;est un droit uniforme,
+        il n&apos;y a rien à cocher par session. Chaque enregistrement est conservé 24 mois, puis
+        supprimé — vous serez prévenu un mois avant, et l&apos;espace vous sera rendu.
       </p>
     </div>
   );

@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Download, Gauge, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Download, Gauge, Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
-import { toast } from "@/components/nk/toast";
-import { cn } from "@/lib/utils";
-import type { Replay } from "@/features/demo/live-data";
+import { toast } from "sonner";
+import { api, ApiError } from "@/lib/client";
+import type { ReplayView } from "@/lib/lives";
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 
@@ -22,53 +22,106 @@ function clock(seconds: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 }
 
-export function ReplayPlayer({ replay }: { replay: Replay }) {
+export function ReplayPlayer({ replay }: { replay: ReplayView }) {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = React.useState(false);
   const [position, setPosition] = React.useState(0);
+  const [duration, setDuration] = React.useState(replay.durationSeconds);
   const [muted, setMuted] = React.useState(false);
   const [speed, setSpeed] = React.useState<number>(1);
   const [notes, setNotes] = React.useState("");
+  const [url, setUrl] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(replay.downloadable);
+  const [unavailable, setUnavailable] = React.useState(!replay.downloadable);
 
-  // Lecture simulée : la position avance tant qu'on est en lecture, à la
-  // vitesse choisie. Il n'y a pas de flux — c'est la maquette, pas un lecteur.
+  // L'URL est signée et expire : on la demande à l'ouverture de l'écran plutôt
+  // que de la rendre avec la page, où elle traînerait dans le HTML.
   React.useEffect(() => {
-    if (!playing) return;
-    const id = window.setInterval(() => {
-      setPosition((current) => {
-        const next = current + speed;
-        if (next >= replay.durationSeconds) {
-          setPlaying(false);
-          return replay.durationSeconds;
+    if (!replay.downloadable) return;
+    let alive = true;
+    api
+      .get<{ url: string }>(`/api/replays/${replay.id}?lecture=1`)
+      .then(({ data }) => {
+        if (alive) setUrl(data.url);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setUnavailable(true);
+        if (!(err instanceof ApiError && err.code === "REPLAY_UNAVAILABLE")) {
+          toast.error("L'enregistrement n'a pas pu être chargé.");
         }
-        return next;
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [playing, speed, replay.durationSeconds]);
+    return () => {
+      alive = false;
+    };
+  }, [replay.id, replay.downloadable]);
 
-  const progress = (position / replay.durationSeconds) * 100;
+  // La vitesse et le son se posent sur l'élément : c'est lui qui lit, il n'y a
+  // plus de progression simulée à tenir en parallèle.
+  React.useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = speed;
+  }, [speed, url]);
+
+  React.useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted;
+  }, [muted]);
+
+  function toggle() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) void video.play();
+    else video.pause();
+  }
+
+  function seek(seconds: number) {
+    setPosition(seconds);
+    if (videoRef.current) videoRef.current.currentTime = seconds;
+  }
+
+  const progress = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[1fr_320px]">
       <section className="min-w-0">
         <div className="overflow-hidden rounded-nk-lg bg-navy shadow-nk">
           <div className="relative grid aspect-video place-items-center bg-navy-2 text-center">
-            <Chip tone="gold" className="absolute left-4 top-4">
+            <Chip tone="gold" className="absolute left-4 top-4 z-[2]">
               Replay
             </Chip>
-            <div className="px-6">
-              <button
-                type="button"
-                onClick={() => setPlaying((p) => !p)}
-                aria-label={playing ? "Mettre en pause" : "Lancer la lecture"}
-                className="mx-auto grid size-[68px] cursor-pointer place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 [&_svg]:size-7"
-              >
-                {playing ? <Pause /> : <Play />}
-              </button>
-              <p className="mt-4 text-[13.5px] leading-relaxed text-[#b9c9dd]">
-                Le lecteur vidéo se branchera ici. La progression ci-dessous est simulée.
-              </p>
-            </div>
+            {url ? (
+              <video
+                ref={videoRef}
+                src={url}
+                className="size-full"
+                playsInline
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onTimeUpdate={(e) => setPosition(e.currentTarget.currentTime)}
+                onLoadedMetadata={(e) => {
+                  if (Number.isFinite(e.currentTarget.duration)) {
+                    setDuration(e.currentTarget.duration);
+                  }
+                }}
+              />
+            ) : (
+              <div className="px-6">
+                {loading ? (
+                  <>
+                    <Loader2 className="mx-auto size-8 animate-spin text-white" aria-hidden="true" />
+                    <p className="mt-4 text-[13.5px] text-[#b9c9dd]">Chargement de la vidéo…</p>
+                  </>
+                ) : (
+                  <p className="text-[13.5px] leading-relaxed text-[#b9c9dd]">
+                    {unavailable
+                      ? "L'enregistrement de cette séance n'est pas disponible."
+                      : "La vidéo n'a pas pu être ouverte."}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="px-5 py-4">
@@ -79,16 +132,26 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
               id="replay-position"
               type="range"
               min={0}
-              max={replay.durationSeconds}
+              max={Math.max(1, Math.round(duration))}
               step={1}
               value={Math.round(position)}
-              onChange={(e) => setPosition(Number(e.target.value))}
+              onChange={(e) => seek(Number(e.target.value))}
+              disabled={!url}
               className="w-full accent-brand"
               style={{ colorScheme: "dark" }}
             />
             <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={toggle}
+                disabled={!url}
+                aria-label={playing ? "Mettre en pause" : "Lancer la lecture"}
+                className="grid size-9 cursor-pointer place-items-center rounded-full border border-white/25 text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40 [&_svg]:size-[17px]"
+              >
+                {playing ? <Pause /> : <Play />}
+              </button>
               <span className="font-display text-[13px] font-bold tabular-nums text-white">
-                {clock(position)} <span className="text-[#b9c9dd]">/ {clock(replay.durationSeconds)}</span>
+                {clock(position)} <span className="text-[#b9c9dd]">/ {clock(duration)}</span>
               </span>
               <span className="sr-only" aria-live="off">
                 {Math.round(progress)} %
@@ -129,17 +192,24 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
         <div className="mt-5 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
           <h1 className="text-[21px] font-extrabold">{replay.title}</h1>
           <p className="mt-1.5 text-[13.5px] text-ink-2">
-            <Link href={`/communautes/${replay.community.slug}`} className="font-bold text-brand hover:text-brand-dark">
+            <Link
+              href={`/communautes/${replay.community.slug}`}
+              className="font-bold text-brand hover:text-brand-dark"
+            >
               {replay.community.name}
             </Link>{" "}
             · enregistré le{" "}
-            {new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(
-              replay.recordedAt,
-            )}
+            {new Intl.DateTimeFormat("fr-FR", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).format(replay.recordedAt)}
           </p>
-          <p className="mt-4 text-[15px] leading-relaxed text-ink-2 text-pretty">
-            {replay.description}
-          </p>
+          {replay.description ? (
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-2 text-pretty">
+              {replay.description}
+            </p>
+          ) : null}
 
           <div className="mt-5 flex items-center gap-3.5 border-t border-line-2 pt-5">
             <Avatar name={replay.host.name} size="lg" />
@@ -154,20 +224,28 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
       <div className="grid gap-4">
         <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
           <h2 className="mb-1.5 text-[15px] font-bold">Télécharger</h2>
+          {/* Arbitrage 43 requalifié par 55 : les deux cadences ayant des droits
+              identiques, aucune ne refuse le téléchargement — il est devenu un
+              droit uniforme de tout membre. Il n'y a pas de case par séance, et
+              il ne faut pas en ajouter. */}
           <p className="mb-4 text-[13.5px] leading-relaxed text-ink-2">
-            {replay.downloadable
-              ? "Le fichier MP4 sera proposé aux membres de la communauté."
-              : "Ce replay est réservé à la lecture en ligne : le formateur n'a pas autorisé le téléchargement."}
+            {unavailable
+              ? "L'enregistrement de cette séance n'est pas disponible."
+              : "Le fichier est à vous : tout membre de la communauté peut le télécharger."}
           </p>
-          <Btn
-            variant="o"
-            block
-            disabled={!replay.downloadable}
-            onClick={() => toast.success("Le téléchargement des replays n'est pas encore branché.")}
-          >
-            <Download aria-hidden="true" />
-            Télécharger le replay
-          </Btn>
+          {url ? (
+            <Btn asChild variant="o" block>
+              <a href={url} download={`${replay.title}.mp4`}>
+                <Download aria-hidden="true" />
+                Télécharger le replay
+              </a>
+            </Btn>
+          ) : (
+            <Btn variant="o" block disabled>
+              <Download aria-hidden="true" />
+              Télécharger le replay
+            </Btn>
+          )}
         </section>
 
         <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
@@ -182,8 +260,8 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
             placeholder="Un passage à revoir, une idée à appliquer…"
             className="w-full resize-y rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[14.5px] leading-relaxed outline-none placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
           />
-          <p className={cn("mt-2 text-[12.5px] text-ink-3")}>
-            Ces notes restent dans cet onglet : rien n&apos;est encore enregistré.
+          <p className="mt-2 text-[12.5px] text-ink-3">
+            Ces notes restent dans cet onglet : elles ne quittent pas votre navigateur.
           </p>
         </section>
       </div>
