@@ -1,42 +1,47 @@
-﻿import Link from 'next/link'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { MessageSquare, PlayCircle, Users } from 'lucide-react'
+import { MessageSquare, PlayCircle, Users, Library } from 'lucide-react'
 import { Btn } from '@/components/nk/button'
 import { Chip } from '@/components/nk/chip'
-import { Price } from '@/components/nk/resource-card'
+import { Price, ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
-import { DemoNotice } from '@/components/nk/demo-notice'
-import { ResourceCard } from '@/components/nk/resource-card'
-import { resourcesByAuthor, toCourseListItem } from '@/features/demo/catalog-data'
-import { COMMUNITIES, SALONS, communityBySlug } from '@/features/demo/community-data'
+import { Avatar } from '@/components/nk/avatar'
+import { getPublicCommunity } from '@/lib/communities'
+import { fmtNumber } from '@/lib/format'
 
-export function generateStaticParams() {
-  return COMMUNITIES.map(community => ({ slug: community.slug }))
-}
+// Rendu à la demande : le nombre de membres et les ressources incluses bougent
+// à chaque adhésion et à chaque liaison. L'ancienne version pré-générait les
+// pages depuis un jeu de données de démonstration.
+export const dynamic = 'force-dynamic'
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
   const { slug } = await params
-  const community = communityBySlug(slug)
+  const community = await getPublicCommunity(slug)
   if (!community) return { title: 'Communauté introuvable' }
-  return { title: community.name, description: community.description }
+  return { title: community.name, description: community.description ?? undefined }
 }
-
-const SALON_ICONS = {
-  forum: MessageSquare,
-  res: Users,
-  live: PlayCircle,
-} as const
 
 export default async function CommunityPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const community = communityBySlug(slug)
+  const community = await getPublicCommunity(slug)
   if (!community) notFound()
 
-  const resources = resourcesByAuthor(community.author.id)
+  const trainerName = community.trainer.fullName ?? 'Formateur NkamVa'
+
+  // Les salons annoncés suivent ce que la communauté a réellement activé.
+  const salons = [
+    community.forumEnabled && { icon: MessageSquare, label: 'Forum d\'entraide' },
+    community.resourcesEnabled && { icon: Library, label: 'Ressources partagées' },
+    community.eventsEnabled && { icon: PlayCircle, label: 'Sessions live' },
+  ].filter(Boolean) as { icon: typeof MessageSquare; label: string }[]
 
   return (
-    <div className="nk-wrap">
+    <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[
           { label: 'Accueil', href: '/' },
@@ -44,94 +49,134 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
           { label: community.name },
         ]}
         title={community.name}
-        lead={
-          <Chip tone={community.category.tone} className="mt-3">
-            {community.category.label}
-          </Chip>
-        }
       />
-      <DemoNotice className="mt-4" />
 
       <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1fr_320px]">
         <div>
-          <div className="relative overflow-hidden rounded-xl border border-line bg-card">
+          <div className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm">
             <div className="h-[140px] bg-gradient-to-br from-navy to-info" />
             <div className="px-6 pb-6">
-              <span className="-mt-8 grid size-[64px] place-items-center rounded-[18px] border-[3px] border-card bg-navy-2 font-display text-xl font-extrabold text-white">
-                {community.author.initials}
-              </span>
-              {/* Le nom n'est pas cliquable : cette page sert encore des données
-                  de démonstration, et `/formateurs/[trainerId]` ne connaît plus
-                  que de vrais profils. Le lien pointait vers un identifiant
-                  fictif et tombait en 404. À rebrancher en même temps que les
-                  communautés. */}
+              <div className="-mt-8">
+                <Avatar name={trainerName} size="lg" />
+              </div>
+              {/* Le nom mène à la fiche formateur, qui sert de vraies données. */}
               <p className="mt-3 text-[15px] text-ink-2">
-                Animée par <span className="font-bold text-ink">{community.author.name}</span> ·{' '}
-                {community.author.role}
+                Animée par{' '}
+                <Link
+                  href={`/formateurs/${community.trainer.id}`}
+                  className="font-bold text-ink hover:text-brand"
+                >
+                  {trainerName}
+                </Link>
+                {community.trainer.slogan ? ` · ${community.trainer.slogan}` : ''}
               </p>
-              <p className="mt-3 leading-[1.65] text-ink-2">{community.description}</p>
+
+              {community.description ? (
+                <p className="mt-3 whitespace-pre-line leading-[1.65] text-ink-2">
+                  {community.description}
+                </p>
+              ) : null}
 
               <div className="mt-5 flex flex-wrap gap-6 border-t border-line-2 pt-4 text-sm text-ink-2">
                 <span>
-                  <b className="font-bold text-ink">{community.members.toLocaleString('fr-FR')}</b> membres
+                  <b className="font-bold text-ink">{fmtNumber(community.membersCount)}</b> membres
                 </span>
-                <span>
-                  <b className="font-bold text-ink">{community.messages}</b> messages cette semaine
-                </span>
-                <span>
-                  <b className="font-bold text-ink">{community.lives}</b> lives à venir
-                </span>
+                {community.includedCount > 0 ? (
+                  <span>
+                    <b className="font-bold text-ink">{community.includedCount}</b> ressource
+                    {community.includedCount > 1 ? 's' : ''} incluse
+                    {community.includedCount > 1 ? 's' : ''}
+                  </span>
+                ) : null}
+                {community.messagesPerDay > 0 ? (
+                  <span>
+                    <b className="font-bold text-ink">{community.messagesPerDay}</b> messages / jour
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
 
-          <section className="mt-9">
-            <h2 className="mb-4 text-[21px] font-extrabold">Ce que vous y trouverez</h2>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {SALONS.map(salon => {
-                const Icon = SALON_ICONS[salon.key]
-                return (
-                  <div key={salon.key} className="rounded-xl border border-line bg-card p-5">
-                    <span className="grid size-10 place-items-center rounded-xl bg-brand-tint text-brand">
-                      <Icon className="size-5" />
-                    </span>
-                    <h3 className="mt-3 text-base font-bold">{salon.label}</h3>
-                    <p className="mt-1 text-[13.5px] leading-[1.5] text-ink-2">{salon.description}</p>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+          {salons.length > 0 ? (
+            <section className="mt-8">
+              <h2 className="mb-4 text-[19px] font-extrabold">Ce que vous y trouvez</h2>
+              <ul className="grid gap-3 sm:grid-cols-3">
+                {salons.map(({ icon: Icon, label }) => (
+                  <li
+                    key={label}
+                    className="flex items-center gap-2.5 rounded-nk border border-line bg-card px-4 py-3 text-[14px] font-semibold text-ink"
+                  >
+                    <Icon className="size-4 text-brand" aria-hidden="true" />
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
-          {resources.length > 0 && (
+          {community.rules ? (
+            <section className="mt-8">
+              <h2 className="mb-3 text-[19px] font-extrabold">Règles du salon</h2>
+              <p className="whitespace-pre-line leading-[1.65] text-ink-2">{community.rules}</p>
+            </section>
+          ) : null}
+
+          {community.courses.length > 0 ? (
             <section className="mt-9">
-              <h2 className="mb-5 text-[21px] font-extrabold">Les ressources de {community.author.name}</h2>
+              <div className="mb-5 flex items-baseline gap-2">
+                <h2 className="text-[19px] font-extrabold">Ressources incluses</h2>
+                <Chip tone="muted" className="font-display">
+                  {community.courses.length}
+                </Chip>
+              </div>
+              {/* Arbitrage 47 — ces ressources ne sont pas vendues à l'unité :
+                  elles s'obtiennent par l'abonnement, et leur prix n'a pas
+                  d'objet ici. */}
               <div className="grid gap-[18px] sm:grid-cols-2">
-                {resources.map((resource) => (
-                  <ResourceCard key={resource.slug} course={toCourseListItem(resource)} />
+                {community.courses.map((course) => (
+                  <ResourceCard key={course.id} course={course} />
                 ))}
               </div>
             </section>
-          )}
+          ) : null}
         </div>
 
         <aside className="lg:sticky lg:top-[86px]">
-          <div className="rounded-xl border border-line bg-card p-5 shadow-sm">
+          <div className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
             <span>
-              <Price amountFcfa={community.price} className="text-[28px]" />
+              <Price amountFcfa={community.priceFcfa} className="text-[26px]" />
               <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
             </span>
             <p className="mt-1 text-[13px] text-ink-3">Résiliable à tout moment</p>
 
-            <Btn asChild size="lg" className="mt-4 w-full">
-              <Link href={`/auth/connexion?callbackUrl=/communautes/${community.slug}`}>Rejoindre la communauté</Link>
-            </Btn>
+            {/* L'adhésion payante n'existe pas encore : aucune route, aucun
+                service. Annoncer un bouton « Rejoindre » qui renvoie vers la
+                connexion et n'y revient jamais serait pire que de le dire. */}
+            <p className="mt-4 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+              L&apos;adhésion en ligne n&apos;est pas encore ouverte. Contactez{' '}
+              <Link href="/contact" className="font-bold text-brand">
+                le support
+              </Link>{' '}
+              pour rejoindre cette communauté.
+            </p>
 
             <ul className="mt-4 grid gap-2 border-t border-line-2 pt-4 text-[13.5px] text-ink-2">
-              <li>Accès au forum et à l&apos;entraide entre membres</li>
-              <li>Ressources partagées par l&apos;animateur</li>
-              <li>Lives et rediffusions réservés aux membres</li>
+              <li className="flex items-center gap-2">
+                <Users className="size-3.5 shrink-0 text-ink-3" aria-hidden="true" />
+                {fmtNumber(community.membersCount)} membres
+              </li>
+              {community.includedCount > 0 ? (
+                <li className="flex items-center gap-2">
+                  <Library className="size-3.5 shrink-0 text-ink-3" aria-hidden="true" />
+                  {community.includedCount} ressource{community.includedCount > 1 ? 's' : ''} incluse
+                  {community.includedCount > 1 ? 's' : ''}
+                </li>
+              ) : null}
             </ul>
+
+            <Btn asChild variant="o" className="mt-4 w-full">
+              <Link href={`/formateurs/${community.trainer.id}`}>Voir le formateur</Link>
+            </Btn>
           </div>
         </aside>
       </div>

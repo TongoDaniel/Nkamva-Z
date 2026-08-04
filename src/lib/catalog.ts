@@ -19,6 +19,9 @@ export interface CatalogQuery {
 export async function searchCourses(params: CatalogQuery) {
   const where: any = {
     status: 'published',
+    // Arbitrage 47 — une ressource incluse dans une communauté n'est pas vendue
+    // à l'unité : elle n'a rien à faire au catalogue marchand.
+    circuit: 'MARKETPLACE',
   }
 
   if (params.search) {

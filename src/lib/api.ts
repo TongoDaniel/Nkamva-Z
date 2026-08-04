@@ -82,6 +82,11 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   CONTENT_UNAVAILABLE: { message: 'Le contenu de cette ressource est indisponible', status: 409 },
   STORAGE_QUOTA_EXCEEDED: { message: 'Quota de stockage atteint', status: 422 },
   ALREADY_PUBLISHED: { message: 'Ressource déjà publiée', status: 409 },
+  // --- Communautés (arbitrages 45, 47, 48) ---
+  COURSE_NOT_FOR_SALE: { message: 'Cette ressource est incluse dans une communauté', status: 422 },
+  COURSE_ALREADY_SOLD: { message: 'Une ressource déjà vendue ne peut pas être incluse', status: 422 },
+  COURSE_ALREADY_LINKED: { message: 'Ressource déjà incluse dans cette communauté', status: 409 },
+  COURSE_NOT_LINKED: { message: 'Ressource non incluse dans cette communauté', status: 404 },
   // --- Sanctions de compte (arbitrage 63) ---
   SANCTION_FORBIDDEN: { message: 'Cette sanction est réservée au Super-admin', status: 403 },
   SANCTION_SELF_FORBIDDEN: { message: 'On ne se sanctionne pas soi-même', status: 422 },
