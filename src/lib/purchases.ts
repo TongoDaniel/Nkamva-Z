@@ -11,6 +11,22 @@ import { POST as cinetpayWebhookHandler } from '@/app/api/webhooks/cinetpay/rout
 // Simule la réception du webhook provider en dev (pas de clé API configurée).
 // Passe par la même route webhook que la production : creditWalletOnPurchase
 // n'est jamais appelée directement depuis ce module.
+export async function simulateProviderWebhook(
+  provider: 'STRIPE' | 'CINETPAY',
+  providerTransactionId: string,
+): Promise<void> {
+  if (provider === 'STRIPE') await simulateStripeWebhook(providerTransactionId)
+  else await simulateCinetPayWebhook(providerTransactionId)
+}
+
+/**
+ * Le provider est-il en mode simulé ? Sans clé API, aucun paiement réel ne peut
+ * être ouvert : le dev fait tenir au webhook le rôle de l'opérateur.
+ */
+export function providerIsSimulated(provider: 'STRIPE' | 'CINETPAY'): boolean {
+  return provider === 'STRIPE' ? !process.env.STRIPE_SECRET_KEY : !process.env.CINETPAY_API_KEY
+}
+
 async function simulateStripeWebhook(providerTransactionId: string): Promise<void> {
   const event = {
     id: `evt_dev_${crypto.randomUUID()}`,

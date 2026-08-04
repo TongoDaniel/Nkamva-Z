@@ -87,6 +87,13 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   COURSE_ALREADY_SOLD: { message: 'Une ressource déjà vendue ne peut pas être incluse', status: 422 },
   COURSE_ALREADY_LINKED: { message: 'Ressource déjà incluse dans cette communauté', status: 409 },
   COURSE_NOT_LINKED: { message: 'Ressource non incluse dans cette communauté', status: 404 },
+  // --- Adhésion aux communautés (arbitrages 40, 58) ---
+  ALREADY_MEMBER: { message: 'Vous êtes déjà membre de cette communauté', status: 409 },
+  CANNOT_JOIN_OWN_COMMUNITY: { message: 'Vous animez cette communauté', status: 422 },
+  MEMBERSHIP_NOT_FOUND: { message: 'Aucune adhésion en cours à cette communauté', status: 404 },
+  MEMBERSHIP_ALREADY_CANCELED: { message: 'Adhésion déjà résiliée', status: 409 },
+  MEMBERSHIP_NOT_CANCELED: { message: 'Cette adhésion n\'est pas résiliée', status: 409 },
+  NOT_MEMBER: { message: 'Réservé aux membres de cette communauté', status: 403 },
   // --- Sanctions de compte (arbitrage 63) ---
   SANCTION_FORBIDDEN: { message: 'Cette sanction est réservée au Super-admin', status: 403 },
   SANCTION_SELF_FORBIDDEN: { message: 'On ne se sanctionne pas soi-même', status: 422 },

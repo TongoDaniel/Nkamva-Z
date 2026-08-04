@@ -1,0 +1,683 @@
+// ==========================================================================
+// Adhésion payante aux communautés — arbitrages 40, 44, 48, 58
+// ==========================================================================
+// Les modèles existaient déjà et attendaient : `CommunitySubscription` porte
+// les périodes, `Purchase` porte `communityId`, `periodStart` et `periodEnd`.
+// Ce qui manquait, c'était le parcours — d'où un bouton « Rejoindre » qui
+// renvoyait vers le support.
+//
+// Trois règles gouvernent ce module :
+//
+// 1. **Un prix, une cadence** (arbitrage 58) : `Community.priceFcfa` par mois.
+//    Aucune formule communautaire, aucun choix de cadence dans le tunnel.
+// 2. **Rien n'est ouvert avant que le paiement soit confirmé.** L'adhésion naît
+//    d'un `Purchase` PENDING ; c'est le webhook provider — et lui seul — qui la
+//    fait exister, dans la transaction qui crédite le portefeuille.
+// 3. **L'impayé retire la parole au terme du délai, jamais avant.** Comme
+//    l'abonnement formateur (décision 68), la période impayée reste ouverte
+//    pendant le délai de grâce : couper l'accès le jour même d'une échéance non
+//    réglée priverait de ses ressources quelqu'un dont le mobile money a
+//    simplement mis trois jours à confirmer.
+//
+// ⚠️ Ce module **n'encaisse rien** de lui-même, exactement comme
+// `subscriptions.ts` : aucun abonnement récurrent provider n'est branché
+// (`providerSubscriptionId` reste nul). Le renouvellement ouvre une période due
+// et attend un règlement ; il ne prélève pas.
+//
+// Le registre des périodes payées, c'est `Purchase` : une ligne SUCCEEDED par
+// période, avec son montant figé. La souscription, elle, ne porte que l'état
+// courant. Aucun modèle de facturation supplémentaire n'a été nécessaire.
+// ==========================================================================
+
+import type { CommunitySubscriptionStatus, PaymentProvider } from '@prisma/client'
+import { db } from './db'
+import { audit, auditStandalone } from './audit'
+import { notify, deliverSideEffects } from './notification'
+import type { PrismaTransaction } from './types'
+
+/**
+ * Statuts dont la période court encore — la même liste que celle de l'index
+ * unique partiel `community_subscriptions_active_unique` et que les
+ * `OPEN_STATUSES` de `communities.ts`. Les trois doivent rester alignées : une
+ * divergence rendrait l'index infranchissable pour du code qui se croit libre.
+ */
+const OPEN_STATUSES: CommunitySubscriptionStatus[] = ['ACTIVE', 'PAST_DUE', 'BANNED']
+
+/**
+ * Délai laissé au membre entre l'échéance non réglée et la fin de l'adhésion.
+ * ⚠️ Valeur reprise de l'abonnement formateur (`SUBSCRIPTION_GRACE_DAYS`),
+ * **non arbitrée pour les communautés** : elle est ici pour être discutée, pas
+ * pour être découverte au fond d'une condition.
+ */
+export const MEMBERSHIP_GRACE_DAYS = 14
+
+const DAY_MS = 86_400_000
+
+/** L'adhésion est mensuelle et ne connaît pas d'autre cadence (arbitrage 58). */
+export function periodEndFor(start: Date): Date {
+  const end = new Date(start)
+  end.setMonth(end.getMonth() + 1)
+  return end
+}
+
+// --- Lecture ---
+
+/**
+ * ⚠️ `periodStart` date le **début de l'adhésion**, pas celui du mois courant,
+ * et ne bouge plus ensuite. C'est ce que suppose la formule d'accès de
+ * l'arbitrage 48 : elle croise la période d'adhésion avec la période de
+ * liaison, et une période d'adhésion réduite au dernier mois ferait perdre à un
+ * ancien membre tout ce qui avait été lié avant. Seul `periodEnd` avance, à
+ * chaque mois **réglé**.
+ */
+export interface MembershipView {
+  id: string
+  communityId: string
+  status: CommunitySubscriptionStatus
+  periodStart: Date
+  periodEnd: Date
+  canceledAt: Date | null
+  bannedAt: Date | null
+  /** Échéance ouverte et non réglée, s'il y en a une. */
+  dueAmountFcfa: number | null
+  duePurchaseId: string | null
+  /** Date à laquelle un impayé mettra fin à l'adhésion. */
+  gracePeriodEndsAt: Date | null
+}
+
+/** L'adhésion en cours d'un apprenant à une communauté, close ou non. */
+export async function getMembership(
+  communityId: string,
+  learnerId: string,
+): Promise<MembershipView | null> {
+  const sub = await db.communitySubscription.findFirst({
+    where: { communityId, learnerId, status: { in: OPEN_STATUSES } },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!sub) return null
+
+  // L'échéance due est le `Purchase` PENDING de la communauté : le
+  // renouvellement en ouvre un par période, et l'index unique partiel garantit
+  // qu'il n'y en a jamais deux.
+  const due = sub.status === 'PAST_DUE'
+    ? await db.purchase.findFirst({
+        where: { learnerId, communityId, providerStatus: 'PENDING' },
+        select: { id: true, amountFcfa: true },
+      })
+    : null
+
+  return {
+    id: sub.id,
+    communityId: sub.communityId,
+    status: sub.status,
+    periodStart: sub.periodStart,
+    periodEnd: sub.periodEnd,
+    canceledAt: sub.canceledAt,
+    bannedAt: sub.bannedAt,
+    dueAmountFcfa: due?.amountFcfa ?? null,
+    duePurchaseId: due?.id ?? null,
+    // Le sursis court depuis la fin du dernier mois réglé — c'est-à-dire le
+    // début du mois impayé.
+    gracePeriodEndsAt: sub.status === 'PAST_DUE'
+      ? new Date(sub.periodEnd.getTime() + MEMBERSHIP_GRACE_DAYS * DAY_MS)
+      : null,
+  }
+}
+
+export interface MyCommunity {
+  subscriptionId: string
+  status: CommunitySubscriptionStatus
+  periodEnd: Date
+  canceledAt: Date | null
+  community: {
+    id: string
+    slug: string
+    name: string
+    coverS3Key: string | null
+    priceFcfa: number
+    membersCount: number
+    trainerName: string | null
+  }
+}
+
+/**
+ * Les communautés dont l'apprenant est membre à cet instant. Les adhésions
+ * closes n'y figurent pas : elles laissent un accès résiduel aux ressources
+ * (arbitrage 48), pas une place dans la communauté.
+ */
+export async function listMyMemberships(learnerId: string): Promise<MyCommunity[]> {
+  const subs = await db.communitySubscription.findMany({
+    where: { learnerId, status: { in: OPEN_STATUSES } },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true, status: true, periodEnd: true, canceledAt: true,
+      community: {
+        select: {
+          id: true, slug: true, name: true, coverS3Key: true, priceFcfa: true,
+          membersCount: true,
+          trainerProfile: { select: { user: { select: { fullName: true } } } },
+        },
+      },
+    },
+  })
+
+  return subs.map((s) => ({
+    subscriptionId: s.id,
+    status: s.status,
+    periodEnd: s.periodEnd,
+    canceledAt: s.canceledAt,
+    community: {
+      id: s.community.id,
+      slug: s.community.slug,
+      name: s.community.name,
+      coverS3Key: s.community.coverS3Key,
+      priceFcfa: s.community.priceFcfa,
+      membersCount: s.community.membersCount,
+      trainerName: s.community.trainerProfile.user.fullName,
+    },
+  }))
+}
+
+/** Membre à part entière — la lecture est ouverte, la parole se décide ailleurs. */
+export async function isMember(communityId: string, learnerId: string): Promise<boolean> {
+  const count = await db.communitySubscription.count({
+    where: { communityId, learnerId, status: { in: OPEN_STATUSES } },
+  })
+  return count > 0
+}
+
+// --- Adhérer, ou régler une échéance ---
+
+export interface MembershipPaymentIntent {
+  purchaseId: string
+  providerTransactionId: string
+  provider: PaymentProvider
+  amountFcfa: number
+  periodStart: Date
+  periodEnd: Date
+  /** `DUE` règle une période déjà ouverte, `JOIN` en ouvre une première. */
+  kind: 'JOIN' | 'DUE'
+}
+
+/**
+ * Ouvre le paiement d'une adhésion — première ou renouvellement. Ne crée aucune
+ * souscription : elle naîtra du webhook, quand le paiement sera confirmé.
+ *
+ * Réentrant à dessein : rappelée avec un paiement déjà en attente, elle rend le
+ * même, sans en créer un second. C'est le comportement de `initiatePurchase`,
+ * et la raison d'être de l'index `purchases_pending_community_unique`.
+ */
+export async function initiateMembershipPayment(
+  communityId: string,
+  learnerId: string,
+  provider: PaymentProvider,
+): Promise<MembershipPaymentIntent> {
+  const community = await db.community.findFirst({
+    where: { id: communityId, status: 'active' },
+    select: {
+      id: true, priceFcfa: true, commissionRate: true, trainerId: true,
+      trainerProfile: { select: { userId: true } },
+    },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+
+  // Le formateur anime sa communauté, il n'y adhère pas : s'y abonner lui
+  // ferait payer une commission sur son propre argent.
+  if (community.trainerProfile.userId === learnerId) throw new Error('CANNOT_JOIN_OWN_COMMUNITY')
+
+  // Un paiement déjà ouvert prime sur tout le reste : le provider choisi n'est
+  // pas rejoué, changer de moyen suppose d'abandonner celui-ci d'abord.
+  const pending = await db.purchase.findFirst({
+    where: { learnerId, communityId, providerStatus: 'PENDING' },
+    select: {
+      id: true, providerTransactionId: true, provider: true, amountFcfa: true,
+      periodStart: true, periodEnd: true,
+    },
+  })
+  if (pending?.providerTransactionId && pending.periodStart && pending.periodEnd) {
+    return {
+      purchaseId: pending.id,
+      providerTransactionId: pending.providerTransactionId,
+      provider: pending.provider,
+      amountFcfa: pending.amountFcfa,
+      periodStart: pending.periodStart,
+      periodEnd: pending.periodEnd,
+      kind: 'DUE',
+    }
+  }
+
+  const open = await db.communitySubscription.findFirst({
+    where: { communityId, learnerId, status: { in: OPEN_STATUSES } },
+    select: { id: true, status: true, periodStart: true, periodEnd: true },
+  })
+  if (open && open.status !== 'PAST_DUE') throw new Error('ALREADY_MEMBER')
+
+  const now = new Date()
+  // Une adhésion en impayé règle **le mois déjà entamé**, celui qui court
+  // depuis la fin du dernier mois réglé. Le payer en retard ne le décale pas :
+  // sans quoi traîner offrirait un mois glissant.
+  const periodStart = open ? open.periodEnd : now
+  const periodEnd = periodEndFor(periodStart)
+
+  const amountFcfa = community.priceFcfa
+  const trainerShareFcfa = Math.round(amountFcfa * (1 - community.commissionRate))
+  const providerTransactionId = `${provider === 'STRIPE' ? 'pi' : 'cp'}_${crypto.randomUUID()}`
+
+  let purchase
+  try {
+    purchase = await db.purchase.create({
+      data: {
+        learnerId,
+        trainerId: community.trainerId,
+        communityId,
+        amountFcfa,
+        commissionRate: community.commissionRate,
+        trainerShareFcfa,
+        platformShareFcfa: amountFcfa - trainerShareFcfa,
+        provider,
+        providerTransactionId,
+        providerStatus: 'PENDING',
+        periodStart,
+        periodEnd,
+      },
+    })
+  } catch (err: unknown) {
+    // Deux onglets, deux clics : l'index tranche, le perdant retombe sur le
+    // paiement du gagnant plutôt que d'en ouvrir un second.
+    if ((err as { code?: string })?.code !== 'P2002') throw err
+    const winner = await db.purchase.findFirst({
+      where: { learnerId, communityId, providerStatus: 'PENDING' },
+    })
+    if (!winner?.providerTransactionId) throw err
+    return {
+      purchaseId: winner.id,
+      providerTransactionId: winner.providerTransactionId,
+      provider: winner.provider,
+      amountFcfa: winner.amountFcfa,
+      periodStart: winner.periodStart!,
+      periodEnd: winner.periodEnd!,
+      kind: open ? 'DUE' : 'JOIN',
+    }
+  }
+
+  await auditStandalone({
+    actorId: learnerId, actorRole: 'LEARNER',
+    action: 'MEMBERSHIP_PAYMENT_INITIATED', targetType: 'Community', targetId: communityId,
+    meta: {
+      purchaseId: purchase.id, amountFcfa, provider, providerTransactionId,
+      periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(),
+      kind: open ? 'DUE' : 'JOIN',
+    },
+  })
+
+  return {
+    purchaseId: purchase.id,
+    providerTransactionId,
+    provider,
+    amountFcfa,
+    periodStart,
+    periodEnd,
+    kind: open ? 'DUE' : 'JOIN',
+  }
+}
+
+// --- Activation, depuis le webhook uniquement ---
+
+export interface MembershipActivation {
+  activated: boolean
+  subscriptionId: string | null
+  isNew: boolean
+}
+
+/**
+ * Fait exister — ou prolonge — l'adhésion que le paiement vient de confirmer.
+ *
+ * Appelée depuis `creditWalletOnPurchase`, donc dans la transaction du webhook :
+ * le crédit du formateur et l'ouverture de l'accès tombent ensemble ou pas du
+ * tout. Un achat de ressource passe ici sans rien faire.
+ */
+export async function activateMembershipForPurchase(
+  tx: PrismaTransaction,
+  purchaseId: string,
+): Promise<MembershipActivation> {
+  const purchase = await tx.purchase.findUnique({
+    where: { id: purchaseId },
+    select: {
+      id: true, learnerId: true, communityId: true, provider: true,
+      periodStart: true, periodEnd: true,
+    },
+  })
+  const idle = { activated: false, subscriptionId: null, isNew: false }
+  if (!purchase?.communityId || !purchase.periodStart || !purchase.periodEnd) return idle
+
+  const existing = await tx.communitySubscription.findFirst({
+    where: {
+      communityId: purchase.communityId,
+      learnerId: purchase.learnerId,
+      status: { in: OPEN_STATUSES },
+    },
+    select: { id: true, status: true },
+  })
+
+  if (existing) {
+    await tx.communitySubscription.update({
+      where: { id: existing.id },
+      data: {
+        // Régler son dû ne lève pas un bannissement : ce sont deux décisions
+        // distinctes, l'une comptable, l'autre de modération (arbitrage 40).
+        status: existing.status === 'BANNED' ? 'BANNED' : 'ACTIVE',
+        // `periodStart` n'est pas touché : il date l'entrée dans la communauté
+        // et fonde l'accès résiduel de l'arbitrage 48. Seul le terme avance.
+        periodEnd: purchase.periodEnd,
+      },
+    })
+    await audit(tx, {
+      actorId: purchase.learnerId, actorRole: 'LEARNER',
+      action: 'MEMBERSHIP_RENEWED', targetType: 'CommunitySubscription', targetId: existing.id,
+      meta: {
+        communityId: purchase.communityId, purchaseId: purchase.id,
+        periodEnd: purchase.periodEnd.toISOString(),
+      },
+    })
+    return { activated: true, subscriptionId: existing.id, isNew: false }
+  }
+
+  const sub = await tx.communitySubscription.create({
+    data: {
+      communityId: purchase.communityId,
+      learnerId: purchase.learnerId,
+      status: 'ACTIVE',
+      periodStart: purchase.periodStart,
+      periodEnd: purchase.periodEnd,
+      provider: purchase.provider,
+      purchaseId: purchase.id,
+    },
+  })
+
+  // Le compteur suit les adhésions ouvertes. Il est incrémenté ici seulement :
+  // un renouvellement ne crée pas un membre de plus.
+  await tx.community.update({
+    where: { id: purchase.communityId },
+    data: { membersCount: { increment: 1 } },
+  })
+
+  await audit(tx, {
+    actorId: purchase.learnerId, actorRole: 'LEARNER',
+    action: 'MEMBERSHIP_STARTED', targetType: 'CommunitySubscription', targetId: sub.id,
+    meta: {
+      communityId: purchase.communityId, purchaseId: purchase.id,
+      periodEnd: purchase.periodEnd.toISOString(),
+    },
+  })
+
+  return { activated: true, subscriptionId: sub.id, isNew: true }
+}
+
+// --- Résilier, revenir sur sa résiliation ---
+
+/**
+ * Résilie sans rien couper : l'adhésion court jusqu'au terme déjà payé, puis ne
+ * se renouvelle pas. « Résiliable à tout moment » ne veut pas dire « remboursé
+ * au prorata » — le mois entamé reste dû, et reste servi.
+ */
+export async function cancelMembership(communityId: string, learnerId: string) {
+  const sub = await db.communitySubscription.findFirst({
+    where: { communityId, learnerId, status: { in: OPEN_STATUSES } },
+    select: { id: true, status: true, canceledAt: true, periodEnd: true },
+  })
+  if (!sub) throw new Error('MEMBERSHIP_NOT_FOUND')
+  if (sub.canceledAt) throw new Error('MEMBERSHIP_ALREADY_CANCELED')
+
+  const now = new Date()
+  const updated = await db.$transaction(async (tx) => {
+    const result = await tx.communitySubscription.update({
+      where: { id: sub.id },
+      data: { canceledAt: now },
+      select: { id: true, canceledAt: true, periodEnd: true, status: true },
+    })
+    await audit(tx, {
+      actorId: learnerId, actorRole: 'LEARNER',
+      action: 'MEMBERSHIP_CANCELED', targetType: 'CommunitySubscription', targetId: sub.id,
+      meta: { communityId, effectiveAt: sub.periodEnd.toISOString() },
+    })
+    return result
+  })
+
+  return updated
+}
+
+/** Revient sur une résiliation, tant que la période court encore. */
+export async function resumeMembership(communityId: string, learnerId: string) {
+  const sub = await db.communitySubscription.findFirst({
+    where: { communityId, learnerId, status: { in: OPEN_STATUSES } },
+    select: { id: true, canceledAt: true },
+  })
+  if (!sub) throw new Error('MEMBERSHIP_NOT_FOUND')
+  if (!sub.canceledAt) throw new Error('MEMBERSHIP_NOT_CANCELED')
+
+  return db.$transaction(async (tx) => {
+    const result = await tx.communitySubscription.update({
+      where: { id: sub.id },
+      data: { canceledAt: null },
+      select: { id: true, canceledAt: true, periodEnd: true, status: true },
+    })
+    await audit(tx, {
+      actorId: learnerId, actorRole: 'LEARNER',
+      action: 'MEMBERSHIP_RESUMED', targetType: 'CommunitySubscription', targetId: sub.id,
+      meta: { communityId },
+    })
+    return result
+  })
+}
+
+// --- Cycle de vie (jobs planifiés) ---
+
+export interface MembershipRenewalResult {
+  /** Périodes ouvertes en attente de règlement. */
+  due: number
+  /** Adhésions arrivées au terme après résiliation. */
+  ended: number
+  /** Adhésions closes faute de communauté encore ouverte, ou après bannissement. */
+  closed: number
+}
+
+/**
+ * Ouvre la période suivante des adhésions arrivées à échéance.
+ *
+ * Idempotent par avancement : la souscription traitée voit son `periodEnd`
+ * repoussé et son statut passer à `PAST_DUE`, elle sort donc du filtre. Rejouer
+ * le tour ne facture pas deux fois — et l'index unique partiel sur les achats
+ * en attente le garantit même si le filtre était pris en défaut.
+ */
+export async function renewDueMemberships(now = new Date()): Promise<MembershipRenewalResult> {
+  const result: MembershipRenewalResult = { due: 0, ended: 0, closed: 0 }
+
+  const expiring = await db.communitySubscription.findMany({
+    where: { status: { in: ['ACTIVE', 'BANNED'] }, periodEnd: { lte: now } },
+    select: {
+      id: true, learnerId: true, communityId: true, status: true,
+      canceledAt: true, periodEnd: true, provider: true,
+      community: {
+        select: {
+          id: true, name: true, slug: true, status: true,
+          priceFcfa: true, commissionRate: true, trainerId: true,
+        },
+      },
+    },
+  })
+
+  for (const sub of expiring) {
+    // Trois raisons de ne pas renouveler, et une seule de renouveler.
+    //
+    // Le membre banni n'est pas reconduit : lui prélever un mois de plus dans
+    // une communauté dont on l'a écarté de la parole serait indéfendable.
+    // ⚠️ Choix par défaut, non arbitré — l'arbitrage 40 dit ce qu'est le
+    // bannissement, pas ce qu'il advient de la facturation.
+    const reason =
+      sub.canceledAt ? 'CANCELED'
+      : sub.community.status !== 'active' ? 'COMMUNITY_CLOSED'
+      : sub.status === 'BANNED' ? 'BANNED'
+      : null
+
+    if (reason) {
+      await closeMembership(sub.id, sub.communityId, reason === 'CANCELED' ? 'CANCELED' : 'EXPIRED', {
+        learnerId: sub.learnerId, reason, communityName: sub.community.name,
+      })
+      if (reason === 'CANCELED') result.ended += 1
+      else result.closed += 1
+      continue
+    }
+
+    const periodStart = sub.periodEnd
+    const periodEnd = periodEndFor(periodStart)
+    const amountFcfa = sub.community.priceFcfa
+    const trainerShareFcfa = Math.round(amountFcfa * (1 - sub.community.commissionRate))
+
+    try {
+      await db.$transaction(async (tx) => {
+        // Le montant est figé à l'ouverture de la période (décision 57) : un
+        // changement de prix de la communauté ne réécrit pas une échéance déjà
+        // ouverte.
+        await tx.purchase.create({
+          data: {
+            learnerId: sub.learnerId,
+            trainerId: sub.community.trainerId,
+            communityId: sub.communityId,
+            amountFcfa,
+            commissionRate: sub.community.commissionRate,
+            trainerShareFcfa,
+            platformShareFcfa: amountFcfa - trainerShareFcfa,
+            provider: sub.provider,
+            providerTransactionId: `${sub.provider === 'STRIPE' ? 'pi' : 'cp'}_${crypto.randomUUID()}`,
+            providerStatus: 'PENDING',
+            periodStart,
+            periodEnd,
+          },
+        })
+
+        // Seul le statut bascule. Les bornes de la souscription continuent de
+        // décrire ce qui a été **payé** : les avancer sur un mois non réglé
+        // ferait croire à un accès acquis, et le sursis n'aurait plus d'origine
+        // datée.
+        await tx.communitySubscription.update({
+          where: { id: sub.id },
+          data: { status: 'PAST_DUE' },
+        })
+
+        await audit(tx, {
+          actorId: null, actorRole: 'SYSTEM',
+          action: 'MEMBERSHIP_PERIOD_DUE', targetType: 'CommunitySubscription', targetId: sub.id,
+          meta: {
+            communityId: sub.communityId, amountFcfa,
+            periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(),
+          },
+        })
+      })
+    } catch (err) {
+      // Une échéance déjà ouverte : le job a été rejoué. C'est exactement ce que
+      // l'unicité doit produire, pas une erreur.
+      if (String(err).includes('Unique constraint')) continue
+      throw err
+    }
+
+    result.due += 1
+
+    await deliverSideEffects('MEMBERSHIP_DUE', { type: 'CommunitySubscription', id: sub.id }, () =>
+      notify(sub.learnerId, {
+        type: 'MEMBERSHIP_PAYMENT_DUE',
+        title: `Votre adhésion à ${sub.community.name} est à régler`,
+        body: `${amountFcfa} FCFA pour le mois en cours. Sans règlement sous ${MEMBERSHIP_GRACE_DAYS} jours, votre adhésion prendra fin.`,
+        link: `/communautes/${sub.community.slug}`,
+      }),
+    )
+  }
+
+  return result
+}
+
+/**
+ * Met fin aux adhésions dont l'échéance reste impayée au terme du délai de
+ * grâce. Le décompte court depuis la fin du dernier mois réglé — donc depuis
+ * l'ouverture du mois impayé —, pas depuis le passage du job : celui-ci peut
+ * prendre du retard sans allonger le sursis de personne.
+ */
+export async function expireOverdueMemberships(now = new Date()): Promise<{ expired: number }> {
+  const deadline = new Date(now.getTime() - MEMBERSHIP_GRACE_DAYS * DAY_MS)
+
+  const overdue = await db.communitySubscription.findMany({
+    where: { status: 'PAST_DUE', periodEnd: { lte: deadline } },
+    select: {
+      id: true, learnerId: true, communityId: true,
+      community: { select: { name: true } },
+    },
+  })
+
+  for (const sub of overdue) {
+    await closeMembership(sub.id, sub.communityId, 'EXPIRED', {
+      learnerId: sub.learnerId, reason: 'UNPAID', communityName: sub.community.name,
+    })
+  }
+
+  return { expired: overdue.length }
+}
+
+/**
+ * Ferme une adhésion : statut terminal, compteur de membres décrémenté, et
+ * l'échéance restée en attente marquée annulée — un paiement mobile money
+ * arrivé après coup ne doit pas ressusciter une adhésion close en silence.
+ *
+ * L'accès résiduel aux ressources n'est **pas** retiré : il se calcule sur le
+ * chevauchement des périodes (arbitrage 48), et cette ligne close en fait
+ * toujours partie.
+ */
+async function closeMembership(
+  subscriptionId: string,
+  communityId: string,
+  status: 'CANCELED' | 'EXPIRED',
+  context: { learnerId: string; reason: string; communityName: string },
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    await tx.communitySubscription.update({
+      where: { id: subscriptionId },
+      data: { status },
+    })
+
+    await tx.purchase.updateMany({
+      where: { learnerId: context.learnerId, communityId, providerStatus: 'PENDING' },
+      data: { providerStatus: 'CANCELED' },
+    })
+
+    // `decrement` sans plancher irait sous zéro si le compteur avait déjà
+    // dérivé ; on l'y ramène plutôt que de laisser un nombre de membres négatif
+    // s'afficher sur la fiche publique.
+    const community = await tx.community.findUnique({
+      where: { id: communityId },
+      select: { membersCount: true },
+    })
+    await tx.community.update({
+      where: { id: communityId },
+      data: { membersCount: Math.max(0, (community?.membersCount ?? 0) - 1) },
+    })
+
+    await audit(tx, {
+      actorId: null, actorRole: 'SYSTEM',
+      action: 'MEMBERSHIP_ENDED', targetType: 'CommunitySubscription', targetId: subscriptionId,
+      meta: { communityId, status, reason: context.reason },
+    })
+  })
+
+  await deliverSideEffects(
+    'MEMBERSHIP_ENDED',
+    { type: 'CommunitySubscription', id: subscriptionId },
+    () =>
+      notify(context.learnerId, {
+        type: 'MEMBERSHIP_ENDED',
+        title: `Votre adhésion à ${context.communityName} a pris fin`,
+        body:
+          context.reason === 'UNPAID'
+            ? 'L\'échéance est restée impayée. Vous gardez l\'accès aux ressources reçues pendant votre adhésion, et pouvez revenir quand vous le souhaitez.'
+            : 'Vous gardez l\'accès aux ressources reçues pendant votre adhésion, et pouvez revenir quand vous le souhaitez.',
+        link: '/mes-communautes',
+      }),
+  )
+}
