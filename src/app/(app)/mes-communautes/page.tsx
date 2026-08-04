@@ -89,7 +89,7 @@ export default async function MesCommunautesPage() {
                   href={
                     m.status === "PAST_DUE"
                       ? `/adhesion/${m.community.slug}`
-                      : `/communautes/${m.community.slug}`
+                      : `/mes-communautes/${m.community.slug}`
                   }
                 >
                   {m.status === "PAST_DUE" ? "Régler" : "Ouvrir"}

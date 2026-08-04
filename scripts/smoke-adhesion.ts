@@ -57,23 +57,28 @@ async function main() {
 
   // Le jeton reproduit ce que pose le callback `jwt` : `userId` et non `sub`,
   // et `issuedAt` figé — sans lui, `isSessionRevoked` fait tomber la session.
-  const full = await db.user.findUniqueOrThrow({
-    where: { id: learner.id },
-    select: { sessionsValidAfter: true },
-  })
-  const token = await encode({
-    token: {
-      userId: learner.id,
-      email: learner.email,
-      role: 'LEARNER',
-      adminRole: null,
-      trainerId: null,
-      sessionsValidAfter: full.sessionsValidAfter.toISOString(),
-      issuedAt: Math.floor(Date.now() / 1000),
-    },
-    secret: process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production',
-  })
-  const cookie = `next-auth.session-token=${token}`
+  async function cookieFor(userId: string, trainerId: string | null) {
+    const user = await db.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true, role: true, sessionsValidAfter: true },
+    })
+    const token = await encode({
+      token: {
+        userId,
+        email: user.email,
+        role: user.role,
+        adminRole: null,
+        trainerId,
+        sessionsValidAfter: user.sessionsValidAfter.toISOString(),
+        issuedAt: Math.floor(Date.now() / 1000),
+      },
+      secret: process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production',
+    })
+    return `next-auth.session-token=${token}`
+  }
+
+  const cookie = await cookieFor(learner.id, null)
+  const trainerCookie = await cookieFor(trainer!.userId, community.trainerId)
 
   const call = async (path: string, init?: RequestInit) => {
     const res = await fetch(`${BASE}${path}`, {
@@ -116,6 +121,60 @@ async function main() {
   console.log('  « Résilier »        :', html.includes('Résilier'))
   console.log('  frontière d\'erreur  :', html.includes('Une erreur est survenue') || html.includes('nk-error'))
 
+  // 4 bis — l'espace membre : annonce du formateur, discussion du membre
+  console.log('\n4 bis. espace membre')
+  const trainerCall = (path: string, init?: RequestInit) =>
+    fetch(`${BASE}${path}`, {
+      ...init,
+      headers: { cookie: trainerCookie, 'content-type': 'application/json', ...(init?.headers || {}) },
+    })
+
+  const announcement = await trainerCall(`/api/communities/${community.slug}/posts`, {
+    method: 'POST', body: JSON.stringify({ kind: 'ANNOUNCEMENT', body: 'Session jeudi à 18 h.' }),
+  })
+  console.log('  annonce (formateur)   :', announcement.status)
+
+  const usurped = await call(`/api/communities/${community.slug}/posts`, {
+    method: 'POST', body: JSON.stringify({ kind: 'ANNOUNCEMENT', body: 'Écoutez-moi' }),
+  })
+  console.log('  annonce (membre)      :', usurped.status, JSON.parse(usurped.body).error?.code)
+
+  const discussion = await call(`/api/communities/${community.slug}/posts`, {
+    method: 'POST', body: JSON.stringify({ kind: 'DISCUSSION', body: 'Une question sur le cours.' }),
+  })
+  console.log('  discussion (membre)   :', discussion.status)
+
+  const postId = JSON.parse(discussion.body).data.id as string
+  const reply = await trainerCall(`/api/communities/${community.slug}/posts/${postId}`, {
+    method: 'POST', body: JSON.stringify({ body: 'Bonne question.' }),
+  })
+  console.log('  réponse (formateur)   :', reply.status)
+
+  const space = await fetch(`${BASE}/mes-communautes/${community.slug}`, { headers: { cookie } })
+  const spaceHtml = await space.text()
+  console.log('  rendu de l\'espace     :', space.status)
+  console.log('  « Session jeudi »      :', spaceHtml.includes('Session jeudi'))
+  console.log('  « Une question »       :', spaceHtml.includes('Une question sur le cours'))
+  console.log('  « Bonne question »     :', spaceHtml.includes('Bonne question'))
+  console.log('  « Animateur »          :', spaceHtml.includes('Animateur'))
+  console.log('  frontière d\'erreur     :', spaceHtml.includes('Une erreur est survenue'))
+
+  // Un passant n'entre pas : il est renvoyé sur la fiche publique.
+  const outsider = await db.user.findFirst({
+    where: {
+      role: 'LEARNER', deletedAt: null, id: { notIn: [learner.id, trainer!.userId] },
+      communitySubscriptions: { none: { communityId: community.id } },
+    },
+    select: { id: true },
+  })
+  if (outsider) {
+    const denied = await fetch(`${BASE}/mes-communautes/${community.slug}`, {
+      headers: { cookie: await cookieFor(outsider.id, null) },
+      redirect: 'manual',
+    })
+    console.log('  non-membre            :', denied.status, denied.headers.get('location') ?? '')
+  }
+
   // 5 — résilier, puis se raviser
   console.log('\n5. résiliation puis reprise')
   console.log('  DELETE :', (await call(`/api/communities/${community.slug}/adhesion`, { method: 'DELETE' })).status)
@@ -133,6 +192,9 @@ async function main() {
   // 7 — remise en état : le smoke ne laisse ni membre ni communauté derrière lui
   if (sub) await db.communitySubscription.delete({ where: { id: sub.id } })
   await db.purchase.deleteMany({ where: { communityId: community.id } })
+  await db.communityPostReply.deleteMany({ where: { post: { communityId: community.id } } })
+  await db.communityPost.deleteMany({ where: { communityId: community.id } })
+  await db.notification.deleteMany({ where: { type: 'COMMUNITY_ANNOUNCEMENT' } })
   if (created) {
     await db.auditLog.deleteMany({ where: { targetId: community.id } })
     await db.community.delete({ where: { id: community.id } })
