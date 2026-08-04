@@ -175,6 +175,29 @@ async function main() {
     console.log('  non-membre            :', denied.status, denied.headers.get('location') ?? '')
   }
 
+  // 4 ter — la messagerie : le fil vient de l'adhésion (arbitrage 33)
+  console.log('\n4 ter. messagerie')
+  const opened = await call('/api/me/conversations', {
+    method: 'POST', body: JSON.stringify({ communitySlug: community.slug }),
+  })
+  console.log('  ouverture du fil      :', opened.status)
+  const conversationId = JSON.parse(opened.body).data?.id as string
+
+  console.log('  message (membre)      :', (await call(`/api/me/conversations/${conversationId}`, {
+    method: 'POST', body: JSON.stringify({ body: 'Bonjour, une question sur le module 2.' }),
+  })).status)
+  console.log('  réponse (formateur)   :', (await trainerCall(`/api/me/conversations/${conversationId}`, {
+    method: 'POST', body: JSON.stringify({ body: 'Bien sûr, je vous écoute.' }),
+  })).status)
+
+  const inbox = await fetch(`${BASE}/messagerie?fil=${conversationId}`, { headers: { cookie } })
+  const inboxHtml = await inbox.text()
+  console.log('  rendu de la messagerie:', inbox.status)
+  console.log('  « module 2 »           :', inboxHtml.includes('module 2'))
+  console.log('  « je vous écoute »     :', inboxHtml.includes('je vous écoute'))
+  console.log('  démonstration résiduelle:', inboxHtml.includes('Écran de démonstration'))
+  console.log('  frontière d\'erreur     :', inboxHtml.includes('Une erreur est survenue'))
+
   // 5 — résilier, puis se raviser
   console.log('\n5. résiliation puis reprise')
   console.log('  DELETE :', (await call(`/api/communities/${community.slug}/adhesion`, { method: 'DELETE' })).status)
@@ -194,7 +217,9 @@ async function main() {
   await db.purchase.deleteMany({ where: { communityId: community.id } })
   await db.communityPostReply.deleteMany({ where: { post: { communityId: community.id } } })
   await db.communityPost.deleteMany({ where: { communityId: community.id } })
-  await db.notification.deleteMany({ where: { type: 'COMMUNITY_ANNOUNCEMENT' } })
+  await db.message.deleteMany({ where: { conversation: { communityId: community.id } } })
+  await db.conversation.deleteMany({ where: { communityId: community.id } })
+  await db.notification.deleteMany({ where: { type: { in: ['COMMUNITY_ANNOUNCEMENT', 'MESSAGE'] } } })
   if (created) {
     await db.auditLog.deleteMany({ where: { targetId: community.id } })
     await db.community.delete({ where: { id: community.id } })

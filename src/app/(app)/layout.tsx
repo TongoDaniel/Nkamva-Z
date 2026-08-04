@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layouts/app-shell";
 import { getAuthContext } from "@/lib/api";
 import { db } from "@/lib/db";
+import { countUnreadMessages } from "@/lib/messaging";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Doublon volontaire du middleware : si la garde de navigation est un jour
@@ -11,10 +12,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Le nom complet n'est pas dans le JWT : la topbar le lit ici plutôt que de
   // se rabattre sur la partie locale de l'adresse e-mail.
-  const profile = await db.user.findUnique({
-    where: { id: auth.user.id },
-    select: { fullName: true, preferredName: true },
-  });
+  const [profile, unreadMessages] = await Promise.all([
+    db.user.findUnique({
+      where: { id: auth.user.id },
+      select: { fullName: true, preferredName: true },
+    }),
+    countUnreadMessages(auth.user.id, auth.user.trainerId),
+  ]);
 
   return (
     <AppShell
@@ -26,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           "Mon compte",
         email: auth.user.email,
         isTrainer: Boolean(auth.user.trainerId),
+        unreadMessages,
       }}
     >
       {children}

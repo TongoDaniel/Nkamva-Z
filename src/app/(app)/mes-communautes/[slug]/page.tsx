@@ -9,6 +9,7 @@ import { getAuthContext } from "@/lib/api";
 import { getCommunitySpace } from "@/lib/community-space";
 import { getPublicCommunity } from "@/lib/communities";
 import { CommunityFeed } from "./community-feed";
+import { OpenConversation } from "./open-conversation";
 
 export const dynamic = "force-dynamic";
 
@@ -122,9 +123,16 @@ export default async function EspaceCommunautePage({
               ferme l&apos;accès au fil, mais vous gardez les ressources reçues pendant
               votre adhésion.
             </p>
-            <Btn asChild variant="o" size="sm" block className="mt-4">
-              <Link href={`/communautes/${slug}`}>Gérer mon adhésion</Link>
-            </Btn>
+            <div className="mt-4 grid gap-2">
+              {/* Le formateur n'ouvre pas de fil avec lui-même : côté animateur,
+                  une conversation naît toujours de celle d'un membre. */}
+              {space.messagingEnabled && !space.isTrainer ? (
+                <OpenConversation slug={slug} />
+              ) : null}
+              <Btn asChild variant="o" size="sm" block>
+                <Link href={`/communautes/${slug}`}>Gérer mon adhésion</Link>
+              </Btn>
+            </div>
           </section>
         </aside>
       </div>
