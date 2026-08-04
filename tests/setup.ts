@@ -51,6 +51,13 @@ for (const key of [
   process.env[key] = ''
 }
 
+// `NEXTAUTH_SECRET` n'est pas une clé de service externe : elle signe les
+// jetons de session et dérive la clé qui chiffre les secrets TOTP. La
+// neutraliser casserait tout ce qui en dépend. On la **remplace** par une
+// valeur de test déterministe : le secret de dev ne sert jamais ici, et les
+// chiffrements restent reproductibles d'une exécution à l'autre.
+process.env.NEXTAUTH_SECRET = 'nkamva-test-secret-deterministe-0123456789'
+
 const prisma = new PrismaClient()
 
 // Helper : nettoyer toutes les tables entre les tests via TRUNCATE CASCADE.

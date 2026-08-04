@@ -95,6 +95,11 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
     message: 'Code invalide. Vérifiez l\'heure de votre téléphone : un décalage suffit à le faire refuser.',
     status: 422,
   },
+  TWO_FACTOR_REQUIRED: { message: 'Saisissez le code de votre application d’authentification', status: 403 },
+  TWO_FACTOR_SETUP_REQUIRED: {
+    message: 'Activez la double authentification avant d’enregistrer un moyen de paiement : sans elle, une session volée suffirait à détourner vos versements',
+    status: 403,
+  },
   NEXTAUTH_SECRET_MISSING: { message: 'Configuration incomplète du serveur', status: 500 },
   // --- Communautés (arbitrages 45, 47, 48) ---
   COURSE_NOT_FOR_SALE: { message: 'Cette ressource est incluse dans une communauté', status: 422 },

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, User } from "lucide-react";
 import { Btn } from "@/components/nk/button";
@@ -64,6 +65,10 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
   const [error, setError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const [pending, setPending] = React.useState(false);
+  // Second facteur, exigé pour pointer de l'argent vers un nouveau compte.
+  // Il remplace l'alerte SMS qui prévenait après coup qu'un RIB avait changé :
+  // celle-ci empêche au lieu de prévenir.
+  const [twoFactorCode, setTwoFactorCode] = React.useState("");
 
   /**
    * Un document qui arrive doit effacer l'erreur qui le réclamait, sinon le
@@ -106,6 +111,9 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
     if (type === "MOBILE_MONEY" && phone.trim().length < 6) {
       errors.mobilePhone = "Saisissez le numéro associé au compte mobile money.";
     }
+    if (twoFactorCode.trim().length < 6) {
+      errors.twoFactorCode = "Saisissez le code de votre application d'authentification.";
+    }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -127,6 +135,7 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
         ...(type === "BANK_IBAN"
           ? { iban: iban.replace(/\s+/g, ""), ...(bic.trim() ? { bic: bic.trim() } : {}) }
           : { mobileOperator: operator, mobilePhone: phone.trim() }),
+        twoFactorCode: twoFactorCode.trim(),
       });
       toast.success("Compte enregistré. Sa vérification commence.");
       router.push("/formateur/portefeuille");
@@ -327,6 +336,30 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
                 />
               </>
             )}
+
+            <div className="mt-2 rounded-nk border border-line-2 bg-paper p-4">
+              <Field
+                label="Code de votre application d'authentification"
+                type="text"
+                name="twoFactorCode"
+                autoComplete="one-time-code"
+                inputMode="text"
+                required
+                placeholder="123456"
+                value={twoFactorCode}
+                error={fieldErrors.twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value)}
+              />
+              <p className="-mt-2 text-[12.5px] leading-relaxed text-ink-2">
+                On ne pointe pas de l&apos;argent vers un nouveau compte sans preuve que vous êtes
+                bien là. Un code de secours convient aussi. Si vous n&apos;avez pas encore activé
+                la double authentification,{" "}
+                <Link href="/profil" className="font-semibold text-brand hover:text-brand-dark">
+                  faites-le d&apos;abord
+                </Link>
+                .
+              </p>
+            </div>
 
             <Btn type="submit" block size="lg" loading={pending} className="mt-2">
               {replacing ? "Remplacer mon compte" : "Enregistrer le compte"}

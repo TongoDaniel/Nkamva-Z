@@ -18,7 +18,6 @@ import type {
   PayoutMethodVerificationStatus, VerificationMethod,
 } from '@prisma/client'
 import { db } from './db'
-import { sendSms } from './sms'
 import { presignUpload, presignDownload, headObject, isS3Configured } from './s3'
 import { compareNames, normalizedLabel, type NameComparison } from './name-match'
 import { audit, auditStandalone } from './audit'
@@ -301,10 +300,7 @@ export async function createPayoutMethod(
 
   const previous = await db.payoutMethod.findFirst({
     where: { trainerId: trainerProfileId, isActive: true },
-    select: {
-      id: true, verificationStatus: true,
-      trainerEmailSnapshot: true, trainerPhoneSnapshot: true,
-    },
+    select: { id: true, verificationStatus: true, trainerEmailSnapshot: true },
   })
 
   const created = await db.$transaction(async (tx) => {
@@ -376,10 +372,13 @@ export async function createPayoutMethod(
     return method
   })
 
-  // Décision 24 — l'ancienne adresse **et l'ancien numéro** sont prévenus, avec
-  // un lien de signalement : c'est le garde-fou contre un détournement de
-  // compte, et il ne vaut que si les deux canaux partent. Quelqu'un qui a pris
-  // la main sur la boîte mail garde rarement le téléphone.
+  // Décision 24 — l'ancienne adresse est prévenue, avec un lien de signalement.
+  //
+  // Le canal SMS que cet arbitrage prévoyait a été retiré : il n'existait que
+  // parce qu'une boîte mail compromise recevait l'alerte à la place de sa
+  // victime. Ce scénario est désormais fermé en amont — changer un moyen de
+  // paiement exige un second facteur (voir `assertSecondFactorForPayout`), donc
+  // celui qui n'a que la boîte mail n'arrive jamais jusqu'ici.
   if (previous) {
     await deliverSideEffects('PAYOUT_METHOD_CHANGED', { type: 'PayoutMethod', id: created.id }, async () => {
       await notify(userId, {
@@ -407,13 +406,7 @@ export async function createPayoutMethod(
         tags: ['payout-method-changed'],
       })
 
-      // Sans fournisseur configuré, l'envoi est journalisé au lieu d'échouer :
-      // le jour où des identifiants sont posés, rien ici ne changera.
-      await sendSms({
-        to: previous.trainerPhoneSnapshot ?? '',
-        body: `NkamVa : le moyen de paiement de votre compte formateur vient d'être modifié. Si ce n'est pas vous, signalez-le sur ${absoluteUrl('/contact')}`,
-        tag: 'payout-method-changed',
-      })
+
     })
   }
 
