@@ -77,6 +77,7 @@ export interface CommunitySpace {
   broadcastEnabled: boolean
   resourcesEnabled: boolean
   eventsEnabled: boolean
+  messagingEnabled: boolean
   trainerId: string
   trainerName: string | null
   /** Le lecteur anime-t-il cette communauté ? */
@@ -161,7 +162,7 @@ export async function getCommunitySpace(slug: string, userId: string): Promise<C
     where: { slug, status: 'active' },
     select: {
       id: true, slug: true, name: true, trainerId: true,
-      forumEnabled: true, broadcastEnabled: true,
+      forumEnabled: true, broadcastEnabled: true, messagingEnabled: true,
       resourcesEnabled: true, eventsEnabled: true,
       trainerProfile: { select: { userId: true, user: { select: { id: true, fullName: true } } } },
     },
@@ -229,6 +230,7 @@ export async function getCommunitySpace(slug: string, userId: string): Promise<C
     broadcastEnabled: community.broadcastEnabled,
     resourcesEnabled: community.resourcesEnabled,
     eventsEnabled: community.eventsEnabled,
+    messagingEnabled: community.messagingEnabled,
     trainerId: community.trainerId,
     trainerName: community.trainerProfile.user.fullName,
     isTrainer: viewer.isTrainer,

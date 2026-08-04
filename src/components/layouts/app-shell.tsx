@@ -61,7 +61,28 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function AccountMenu({ name, email }: { name: string; email: string }) {
+/** Pastille de non-lus, posée à droite d'une entrée du menu. */
+function UnreadBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span
+      className="ml-auto grid min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white"
+      aria-label={`${count} non lu${count > 1 ? "s" : ""}`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
+function AccountMenu({
+  name,
+  email,
+  unreadMessages,
+}: {
+  name: string;
+  email: string;
+  unreadMessages: number;
+}) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
@@ -98,6 +119,7 @@ function AccountMenu({ name, email }: { name: string; email: string }) {
               >
                 <Icon className="size-[17px] text-ink-3" aria-hidden="true" />
                 {label}
+                {href === "/messagerie" ? <UnreadBadge count={unreadMessages} /> : null}
               </Link>
             </DropdownMenu.Item>
           ))}
@@ -122,6 +144,8 @@ export interface ShellUser {
   name: string;
   email: string;
   isTrainer: boolean;
+  /** Messages reçus non lus, tous fils confondus. Compté par le layout serveur. */
+  unreadMessages: number;
 }
 
 /**
@@ -167,7 +191,11 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           </nav>
 
           <div className="ml-auto flex items-center gap-2.5">
-            <AccountMenu name={user.name} email={user.email} />
+            <AccountMenu
+              name={user.name}
+              email={user.email}
+              unreadMessages={user.unreadMessages}
+            />
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}

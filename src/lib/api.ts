@@ -102,6 +102,13 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   BODY_REQUIRED: { message: 'Écrivez un message', status: 400 },
   POST_NOT_FOUND: { message: 'Message introuvable', status: 404 },
   POST_DELETED: { message: 'Ce message a été retiré', status: 409 },
+  // --- Messagerie 1 à 1 (arbitrages 33 et 39) ---
+  CONVERSATION_NOT_FOUND: { message: 'Conversation introuvable', status: 404 },
+  MESSAGING_DISABLED: { message: 'La messagerie n\'est pas ouverte dans cette communauté', status: 422 },
+  MEMBERSHIP_ENDED: {
+    message: 'Votre adhésion est terminée : le fil reste lisible, mais vous ne pouvez plus y écrire',
+    status: 403,
+  },
   // --- Sanctions de compte (arbitrage 63) ---
   SANCTION_FORBIDDEN: { message: 'Cette sanction est réservée au Super-admin', status: 403 },
   SANCTION_SELF_FORBIDDEN: { message: 'On ne se sanctionne pas soi-même', status: 422 },
