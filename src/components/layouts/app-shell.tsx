@@ -15,6 +15,7 @@ import {
   Radio,
   Settings,
   ShoppingBag,
+  Users,
   X,
   Library,
 } from "lucide-react";
@@ -47,6 +48,7 @@ const TRAINER_NAV = [
  */
 const ACCOUNT_LINKS = [
   { href: "/mes-ressources", label: "Mes ressources", icon: Library },
+  { href: "/mes-communautes", label: "Mes communautés", icon: Users },
   { href: "/mes-lives", label: "Mes lives", icon: Radio },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
   { href: "/favoris", label: "Favoris", icon: Heart },

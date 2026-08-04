@@ -74,6 +74,7 @@ export const api = {
       method: "PATCH",
       body: payload === undefined ? undefined : JSON.stringify(payload),
     }),
+  del: <T>(path: string, init?: RequestInit) => request<T>(path, { ...init, method: "DELETE" }),
 };
 
 /** Construit une query string en ignorant les valeurs vides. */

@@ -8,7 +8,10 @@ import { Price, ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
 import { Avatar } from '@/components/nk/avatar'
 import { getPublicCommunity } from '@/lib/communities'
+import { getMembership } from '@/lib/memberships'
+import { getAuthContext } from '@/lib/api'
 import { fmtNumber } from '@/lib/format'
+import { MembershipPanel } from './membership-panel'
 
 // Rendu à la demande : le nombre de membres et les ressources incluses bougent
 // à chaque adhésion et à chaque liaison. L'ancienne version pré-générait les
@@ -32,6 +35,12 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
   if (!community) notFound()
 
   const trainerName = community.trainer.fullName ?? 'Formateur NkamVa'
+
+  // La fiche reste publique : un visiteur non connecté la voit entièrement, et
+  // le pavé d'adhésion l'emmène se connecter au moment de payer, pas avant.
+  const auth = await getAuthContext()
+  const membership = auth ? await getMembership(community.id, auth.user.id) : null
+  const isOwner = auth?.user.trainerId === community.trainer.id
 
   // Les salons annoncés suivent ce que la communauté a réellement activé.
   const salons = [
@@ -149,16 +158,22 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
             </span>
             <p className="mt-1 text-[13px] text-ink-3">Résiliable à tout moment</p>
 
-            {/* L'adhésion payante n'existe pas encore : aucune route, aucun
-                service. Annoncer un bouton « Rejoindre » qui renvoie vers la
-                connexion et n'y revient jamais serait pire que de le dire. */}
-            <p className="mt-4 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
-              L&apos;adhésion en ligne n&apos;est pas encore ouverte. Contactez{' '}
-              <Link href="/contact" className="font-bold text-brand">
-                le support
-              </Link>{' '}
-              pour rejoindre cette communauté.
-            </p>
+            <MembershipPanel
+              slug={slug}
+              priceFcfa={community.priceFcfa}
+              isOwner={isOwner}
+              membership={
+                membership
+                  ? {
+                      status: membership.status,
+                      periodEnd: membership.periodEnd.toISOString(),
+                      canceledAt: membership.canceledAt?.toISOString() ?? null,
+                      dueAmountFcfa: membership.dueAmountFcfa,
+                      gracePeriodEndsAt: membership.gracePeriodEndsAt?.toISOString() ?? null,
+                    }
+                  : null
+              }
+            />
 
             <ul className="mt-4 grid gap-2 border-t border-line-2 pt-4 text-[13.5px] text-ink-2">
               <li className="flex items-center gap-2">

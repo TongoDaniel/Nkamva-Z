@@ -32,12 +32,18 @@ export default async function ConfirmationPage({
       provider: true,
       providerStatus: true,
       createdAt: true,
+      periodEnd: true,
       course: { select: { title: true, slug: true, format: true, category: true } },
+      community: { select: { name: true, slug: true } },
     },
   });
 
   if (!purchase) notFound();
   if (purchase.learnerId !== auth.user.id) notFound();
+
+  // Une adhésion et un achat à l'unité n'aboutissent pas au même endroit : l'un
+  // ouvre une place pour un mois, l'autre une ressource à vie.
+  const community = purchase.community;
 
   return (
     <div className="nk-wrap pb-16">
@@ -47,10 +53,19 @@ export default async function ConfirmationPage({
         initialStatus={purchase.providerStatus}
         amountFcfa={purchase.amountFcfa}
         provider={purchase.provider}
-        courseTitle={purchase.course?.title ?? "Votre ressource"}
+        courseTitle={purchase.course?.title ?? community?.name ?? "Votre ressource"}
         courseSlug={purchase.course?.slug ?? null}
         courseCategory={purchase.course?.category ?? null}
         courseFormat={purchase.course?.format ?? null}
+        community={
+          community
+            ? {
+                name: community.name,
+                slug: community.slug,
+                periodEnd: purchase.periodEnd?.toISOString() ?? null,
+              }
+            : null
+        }
       />
     </div>
   );

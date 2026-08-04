@@ -7,8 +7,15 @@ import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Cover, formatLabel } from "@/components/nk/cover";
 import { api } from "@/lib/client";
-import { fmtFcfa } from "@/lib/format";
+import { fmtDate, fmtFcfa } from "@/lib/format";
 import type { PaymentProvider, PaymentStatus } from "@/lib/dto";
+
+/** Renseigné quand le paiement porte une adhésion, et non une ressource. */
+export interface ConfirmationCommunity {
+  name: string;
+  slug: string;
+  periodEnd: string | null;
+}
 
 /** Convention Lot 0 : polling TanStack Query, pas de WebSocket. */
 const POLL_INTERVAL_MS = 8_000;
@@ -28,6 +35,7 @@ export function ConfirmationStatus({
   courseSlug,
   courseCategory,
   courseFormat,
+  community = null,
 }: {
   purchaseId: string;
   initialStatus: PaymentStatus;
@@ -37,6 +45,7 @@ export function ConfirmationStatus({
   courseSlug: string | null;
   courseCategory: string | null;
   courseFormat: string | null;
+  community?: ConfirmationCommunity | null;
 }) {
   const [timedOut, setTimedOut] = React.useState(false);
 
@@ -80,18 +89,40 @@ export function ConfirmationStatus({
               <CheckCircle2 className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement confirmé</h2>
-            <p className="mb-6 max-w-[52ch] text-ink-2">
-              <b className="text-ink">{courseTitle}</b> est ajoutée à vos ressources. L&apos;accès
-              est à vie : vous la retrouverez toujours dans votre espace.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Btn asChild size="lg">
-                <Link href="/mes-ressources">Accéder à ma ressource</Link>
-              </Btn>
-              <Btn asChild variant="o" size="lg">
-                <Link href="/mes-achats">Voir mes achats</Link>
-              </Btn>
-            </div>
+            {community ? (
+              <>
+                <p className="mb-6 max-w-[52ch] text-ink-2">
+                  Vous êtes membre de <b className="text-ink">{community.name}</b>.
+                  {community.periodEnd
+                    ? ` Votre adhésion court jusqu'au ${fmtDate(community.periodEnd)}, et vous serez prévenu avant l'échéance.`
+                    : ""}{" "}
+                  Les ressources incluses sont dès maintenant dans votre espace.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Btn asChild size="lg">
+                    <Link href={`/communautes/${community.slug}`}>Aller à la communauté</Link>
+                  </Btn>
+                  <Btn asChild variant="o" size="lg">
+                    <Link href="/mes-communautes">Mes communautés</Link>
+                  </Btn>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-6 max-w-[52ch] text-ink-2">
+                  <b className="text-ink">{courseTitle}</b> est ajoutée à vos ressources.
+                  L&apos;accès est à vie : vous la retrouverez toujours dans votre espace.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Btn asChild size="lg">
+                    <Link href="/mes-ressources">Accéder à ma ressource</Link>
+                  </Btn>
+                  <Btn asChild variant="o" size="lg">
+                    <Link href="/mes-achats">Voir mes achats</Link>
+                  </Btn>
+                </div>
+              </>
+            )}
           </>
         ) : failed ? (
           <>
@@ -104,9 +135,11 @@ export function ConfirmationStatus({
               prélevé et aucun accès n&apos;a été ouvert.
             </p>
             <div className="flex flex-wrap gap-3">
-              {courseSlug ? (
+              {courseSlug || community ? (
                 <Btn asChild size="lg">
-                  <Link href={`/achat/${courseSlug}`}>Réessayer le paiement</Link>
+                  <Link href={community ? `/adhesion/${community.slug}` : `/achat/${courseSlug}`}>
+                    Réessayer le paiement
+                  </Link>
                 </Btn>
               ) : null}
               <Btn asChild variant="o" size="lg">
@@ -161,7 +194,7 @@ export function ConfirmationStatus({
         ) : null}
         <dl className="grid gap-3 p-6 text-sm">
           <div className="flex justify-between gap-3">
-            <dt className="text-ink-2">Ressource</dt>
+            <dt className="text-ink-2">{community ? "Communauté" : "Ressource"}</dt>
             <dd className="text-right font-bold">{courseTitle}</dd>
           </div>
           <div className="flex justify-between gap-3">
