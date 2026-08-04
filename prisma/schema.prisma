@@ -633,6 +633,9 @@ model LiveSession {
   /// Enregistrement automatique (arbitrage 38) : identifiant d'egress LiveKit.
   /// Nul tant que le transport n'est pas configuré.
   egressId         String?
+  /// Flux d'ingestion Mux, quand c'est lui qui enregistre. Nul si le repli
+  /// fichier vers le stockage objet a été retenu.
+  muxStreamId      String?
   peakParticipants Int               @default(0)
   participants     LiveParticipant[]
   messages         LiveMessage[]
@@ -702,8 +705,14 @@ model Replay {
   recordedAt      DateTime
   durationSeconds Int?
   s3Key           String?
+  /// Identifiants Mux. Quand ils sont renseignés, l'enregistrement est hébergé
+  /// chez Mux : il ne consomme donc **pas** le quota du formateur, et
+  /// `sizeBytes` reste nul à dessein (arbitrage 54).
+  muxAssetId      String?
+  muxPlaybackId   String?
   /// `BIGINT` : un enregistrement d'une heure dépasse la capacité d'un entier
-  /// 32 bits, comme les vidéos de ressources. Compte dans le quota du formateur.
+  /// 32 bits, comme les vidéos de ressources. Ne compte dans le quota que pour
+  /// les replays réellement stockés chez nous.
   sizeBytes       BigInt?
   status          ReplayStatus   @default(PROCESSING)
   /// Arbitrage 51 — purge à 24 mois. La date est portée, pas recalculée : une

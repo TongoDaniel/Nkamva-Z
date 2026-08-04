@@ -34,8 +34,11 @@ import { notify, deliverSideEffects } from './notification'
 import { presignDownload } from './s3'
 import {
   isLiveKitConfigured, livekitUrl, mintJoinToken, ensureRoom, closeRoom,
-  setParticipantCanPublish, countConnected, startRecording, stopRecording,
+  setParticipantCanPublish, countConnected, startRecording, startStreamRecording, stopRecording,
 } from './livekit'
+import {
+  isMuxConfigured, createLiveStream, disableLiveStream, playbackUrl, downloadUrl,
+} from './mux'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts restent alignées. */
 const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
@@ -207,18 +210,28 @@ export async function startLiveSession(sessionId: string, userId: string) {
   await ensureRoom(session.roomName)
 
   const startedAt = new Date()
-  const s3Key = `replays/${sessionId}/enregistrement.mp4`
-  const egressId = await startRecording(session.roomName, s3Key)
+
+  // Mux enregistre quand il est configuré ; sinon l'egress dépose un fichier
+  // dans le stockage objet. Les deux chemins produisent un replay — c'est ce
+  // que l'arbitrage 38 exige, pas un fournisseur en particulier.
+  const stream = await createLiveStream()
+  const egressId = stream
+    ? await startStreamRecording(session.roomName, stream.rtmpUrl)
+    : await startRecording(session.roomName, `replays/${sessionId}/enregistrement.mp4`)
 
   await db.$transaction(async (tx) => {
     await tx.liveSession.update({
       where: { id: sessionId },
-      data: { status: 'LIVE', startedAt, egressId },
+      data: { status: 'LIVE', startedAt, egressId, muxStreamId: stream?.streamId ?? null },
     })
     await audit(tx, {
       actorId: userId, actorRole: 'TRAINER',
       action: 'LIVE_SESSION_STARTED', targetType: 'LiveSession', targetId: sessionId,
-      meta: { communityId: session.communityId, recording: Boolean(egressId) },
+      meta: {
+        communityId: session.communityId,
+        recording: Boolean(egressId),
+        recorder: stream ? 'MUX' : egressId ? 'STORAGE' : null,
+      },
     })
   })
 
@@ -239,12 +252,15 @@ export async function endLiveSession(sessionId: string, userId: string) {
     where: { id: sessionId },
     select: {
       id: true, communityId: true, trainerId: true, title: true,
-      startedAt: true, egressId: true, roomName: true,
+      startedAt: true, egressId: true, roomName: true, muxStreamId: true,
       community: { select: { name: true, slug: true } },
     },
   })
 
   if (full.egressId) await stopRecording(full.egressId)
+  // Le flux d'ingestion se ferme ; l'asset déjà produit, lui, survit et
+  // arrivera par webhook.
+  if (full.muxStreamId) await disableLiveStream(full.muxStreamId)
   await closeRoom(full.roomName)
 
   const endedAt = new Date()
@@ -271,7 +287,11 @@ export async function endLiveSession(sessionId: string, userId: string) {
         title: full.title,
         recordedAt,
         durationSeconds: Math.max(0, Math.round((endedAt.getTime() - recordedAt.getTime()) / 1000)),
-        s3Key: full.egressId ? `replays/${sessionId}/enregistrement.mp4` : null,
+        // Un replay hébergé par Mux n'a pas de clé chez nous : c'est le
+        // webhook qui apportera son identifiant de lecture.
+        s3Key: full.egressId && !full.muxStreamId
+          ? `replays/${sessionId}/enregistrement.mp4`
+          : null,
         status: full.egressId ? 'PROCESSING' : 'FAILED',
         purgeAt,
       },
@@ -856,15 +876,28 @@ export async function getReplay(replayId: string, userId: string): Promise<Repla
 }
 
 /** URL signée de lecture ou de téléchargement. Droit uniforme (arbitrage 55). */
-export async function getReplayUrl(replayId: string, userId: string): Promise<string> {
+export async function getReplayUrl(
+  replayId: string,
+  userId: string,
+  forDownload = false,
+): Promise<string> {
   const replay = await db.replay.findFirst({
     where: { id: replayId, purgedAt: null },
-    select: { id: true, communityId: true, recordedAt: true, s3Key: true, status: true },
+    select: {
+      id: true, communityId: true, recordedAt: true, s3Key: true, status: true,
+      muxPlaybackId: true,
+    },
   })
   if (!replay) throw new Error('REPLAY_NOT_FOUND')
   if (!(await hasReplayAccess(userId, replay))) throw new Error('NOT_MEMBER')
-  // La clé est celle enregistrée au démarrage de l'egress, jamais reconstruite.
-  if (!replay.s3Key || replay.status !== 'READY') throw new Error('REPLAY_UNAVAILABLE')
+  if (replay.status !== 'READY') throw new Error('REPLAY_UNAVAILABLE')
+
+  // Hébergé par Mux : lecture HLS adaptative, sans URL signée à renouveler.
+  if (replay.muxPlaybackId) {
+    return forDownload ? downloadUrl(replay.muxPlaybackId) : playbackUrl(replay.muxPlaybackId)
+  }
+  // Sinon, la clé enregistrée au démarrage de l'egress — jamais reconstruite.
+  if (!replay.s3Key) throw new Error('REPLAY_UNAVAILABLE')
   return presignDownload(replay.s3Key)
 }
 
@@ -936,21 +969,44 @@ export async function alertUpcomingReplayPurges(now = new Date()): Promise<{ ale
  */
 export async function markReplayReady(
   sessionId: string,
-  input: { s3Key: string; sizeBytes: number; durationSeconds?: number },
+  input: {
+    s3Key?: string
+    sizeBytes?: number
+    durationSeconds?: number
+    muxAssetId?: string
+    muxPlaybackId?: string
+  },
 ): Promise<void> {
   await db.replay.update({
     where: { sessionId },
     data: {
-      s3Key: input.s3Key,
-      sizeBytes: BigInt(input.sizeBytes),
       status: 'READY',
-      ...(input.durationSeconds ? { durationSeconds: input.durationSeconds } : {}),
+      ...(input.s3Key ? { s3Key: input.s3Key } : {}),
+      // Chez Mux, l'octet n'est pas chez nous : `sizeBytes` reste nul et le
+      // replay ne pèse pas sur le quota du formateur (arbitrage 54).
+      ...(input.sizeBytes !== undefined ? { sizeBytes: BigInt(input.sizeBytes) } : {}),
+      ...(input.durationSeconds ? { durationSeconds: Math.round(input.durationSeconds) } : {}),
+      ...(input.muxAssetId ? { muxAssetId: input.muxAssetId } : {}),
+      ...(input.muxPlaybackId ? { muxPlaybackId: input.muxPlaybackId } : {}),
     },
   })
   await auditStandalone({
     actorId: null, actorRole: 'SYSTEM',
     action: 'REPLAY_READY', targetType: 'Replay', targetId: sessionId,
-    meta: { sizeBytes: input.sizeBytes },
+    meta: {
+      sizeBytes: input.sizeBytes ?? 0,
+      host: input.muxPlaybackId ? 'MUX' : 'STORAGE',
+    },
+  })
+}
+
+/** Marque l'enregistrement en échec : Mux a renvoyé une erreur sur l'asset. */
+export async function markReplayFailed(sessionId: string, reason: string): Promise<void> {
+  await db.replay.updateMany({ where: { sessionId }, data: { status: 'FAILED' } })
+  await auditStandalone({
+    actorId: null, actorRole: 'SYSTEM',
+    action: 'REPLAY_FAILED', targetType: 'Replay', targetId: sessionId,
+    meta: { reason },
   })
 }
 

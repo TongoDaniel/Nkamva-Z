@@ -1,26 +1,76 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
+// ==========================================================================
+// Stockage objet — S3 et compatibles
+// ==========================================================================
+// ⚠️ Ces variables s'appelaient `R2_*` dans le code alors que l'environnement
+// fournit les noms standard `AWS_*`. Rien ne correspondait, donc
+// `isS3Configured()` rendait faux en permanence — et comme le repli est
+// silencieux (une URL `data:placeholder-…` au lieu d'une erreur), **aucun
+// fichier n'a jamais été stocké et rien ne le disait**. Corrigé le 4 août 2026.
+//
+// Les noms retenus sont ceux du SDK AWS (`AWS_ACCESS_KEY_ID`,
+// `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_ENDPOINT_URL`) : ce sont ceux que
+// la chaîne de credentials par défaut reconnaît, donc ceux qu'on a le moins de
+// chances de retaper de travers.
+// ==========================================================================
+
+export interface StorageConfig {
+  endpoint: string
+  accessKeyId: string
+  secretAccessKey: string
+  region: string
+  bucket: string
+}
+
+/**
+ * Configuration du stockage, ou `null` si elle est incomplète. Exportée parce
+ * que l'enregistrement des lives en a besoin : l'egress LiveKit dépose
+ * directement dans le même seau, et doit lire la même configuration — deux
+ * lectures divergentes, c'est le défaut qu'on vient de corriger.
+ */
+export function storageConfig(): StorageConfig | null {
+  const {
+    AWS_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+    AWS_REGION, AWS_BUCKET_NAME,
+  } = process.env
+  if (!AWS_ENDPOINT_URL || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) return null
+  return {
+    endpoint: AWS_ENDPOINT_URL,
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
+    // `auto` reste le défaut : c'est ce qu'attendent les compatibles S3 qui
+    // n'ont pas de régions, R2 en tête.
+    region: AWS_REGION || 'auto',
+    bucket: AWS_BUCKET_NAME || 'nkamva-dev',
+  }
+}
+
 let client: S3Client | null = null
 
 function getClient(): S3Client | null {
-  if (!process.env.R2_ENDPOINT || !process.env.R2_ACCESS_KEY || !process.env.R2_SECRET_KEY) return null
+  const config = storageConfig()
+  if (!config) return null
   if (!client) {
     client = new S3Client({
-      region: 'auto',
-      endpoint: process.env.R2_ENDPOINT,
-      credentials: { accessKeyId: process.env.R2_ACCESS_KEY!, secretAccessKey: process.env.R2_SECRET_KEY! },
+      region: config.region,
+      endpoint: config.endpoint,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
     })
   }
   return client
 }
 
-function getBucket(): string { return process.env.R2_BUCKET || 'nkamva-dev' }
+function getBucket(): string { return storageConfig()?.bucket ?? 'nkamva-dev' }
 export const SIGNED_URL_TTL = 300
 
 // Permet aux appelants de basculer sur un repli dev explicite plutôt que de
 // traiter un objet absent comme une erreur (aucun fichier n'est réellement
-// téléversé quand R2 n'est pas configuré).
+// téléversé quand le stockage n'est pas configuré).
 export function isS3Configured(): boolean { return getClient() !== null }
 
 export async function presignUpload(s3Key: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; expiresAt: Date }> {
