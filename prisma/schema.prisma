@@ -235,6 +235,8 @@ model User {
   communityPostReplies       CommunityPostReply[]
   conversations              Conversation[]
   messagesSent               Message[]
+  liveParticipations         LiveParticipant[]
+  liveMessages               LiveMessage[]
   disputesAsLearner          Dispute[]
   supportTickets             SupportTicket[]
   reportsFiled               Report[]                @relation("ReportsFiled")
@@ -295,6 +297,8 @@ model TrainerProfile {
   payoutMethods                PayoutMethod[]
   communities                  Community[]
   conversations                Conversation[]
+  liveSessions                 LiveSession[]
+  replays                      Replay[]
   disputesAsTrainer            Dispute[]
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
@@ -335,7 +339,6 @@ model Course {
   publishedAt      DateTime?
   circuit          CourseCircuit     @default(MARKETPLACE)
   communityLinks   CommunityCourse[]
-  livekitRoomName  String?
   purchases        Purchase[]
   courseViews      CourseView[]
   favorites        Favorite[]
@@ -418,6 +421,8 @@ model Community {
   courseLinks      CommunityCourse[]
   posts            CommunityPost[]
   conversations    Conversation[]
+  liveSessions     LiveSession[]
+  replays          Replay[]
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
@@ -588,6 +593,125 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+// --- Lives et replays (arbitrages 31 à 43, 46, 51, 55) ---
+// Un live appartient à une **communauté**, jamais à une ressource (arbitrage 32) :
+// c'est pourquoi `Course.livekitRoomName` a disparu avec cette migration — le
+// champ désignait une salle rattachée à une ressource, ce que l'arbitrage exclut.
+//
+// La capacité est la communauté elle-même (arbitrage 46) : aucun plafond de
+// session à modéliser, aucune jauge à régler. L'adhésion ouvre la porte.
+
+enum LiveSessionStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELED
+}
+
+model LiveSession {
+  id               String            @id @default(uuid())
+  communityId      String
+  community        Community         @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  trainerId        String
+  trainerProfile   TrainerProfile    @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  title            String
+  description      String?
+  scheduledStartAt DateTime
+  durationMinutes  Int               @default(60)
+  status           LiveSessionStatus @default(SCHEDULED)
+  startedAt        DateTime?
+  endedAt          DateTime?
+  /// Salle de transport, nommée à la création et jamais devinée — c'est
+  /// exactement l'erreur que `getCourseContentUrl` a coûté sur les ressources.
+  roomName         String            @unique
+  /// Enregistrement automatique (arbitrage 38) : identifiant d'egress LiveKit.
+  /// Nul tant que le transport n'est pas configuré.
+  egressId         String?
+  peakParticipants Int               @default(0)
+  participants     LiveParticipant[]
+  messages         LiveMessage[]
+  replay           Replay?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([communityId, scheduledStartAt])
+  @@index([status, scheduledStartAt])
+  @@map("live_sessions")
+}
+
+model LiveParticipant {
+  id           String      @id @default(uuid())
+  sessionId    String
+  session      LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt     DateTime    @default(now())
+  leftAt       DateTime?
+  /// Verrou posé par l'animateur (arbitrage 35). Ce n'est **pas** l'état du
+  /// micro : le lever ne rallume rien, cela rend au participant la commande de
+  /// son propre micro (arbitrage 41). Se traduit par `canPublish` côté LiveKit.
+  mutedByHost  Boolean     @default(false)
+  /// Horodatage et non booléen : c'est lui qui ordonne et numérote la file des
+  /// demandes de parole (arbitrage 36).
+  handRaisedAt DateTime?
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, handRaisedAt])
+  @@map("live_participants")
+}
+
+/// Salon du live. Conservé après la séance et rattaché au replay (arbitrage 42) :
+/// ce n'est pas un canal éphémère.
+model LiveMessage {
+  id        String      @id @default(uuid())
+  sessionId String
+  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body      String
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("live_messages")
+}
+
+enum ReplayStatus {
+  PROCESSING
+  READY
+  FAILED
+  PURGED
+}
+
+model Replay {
+  id              String       @id @default(uuid())
+  sessionId       String       @unique
+  session         LiveSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  communityId     String
+  community       Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  trainerId       String
+  trainerProfile  TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  title           String
+  /// Arbitrage 34 — **c'est la date du live qui fait foi**, pas celle de la mise
+  /// en ligne de l'enregistrement. C'est elle que croise l'accès résiduel.
+  recordedAt      DateTime
+  durationSeconds Int?
+  s3Key           String?
+  /// `BIGINT` : un enregistrement d'une heure dépasse la capacité d'un entier
+  /// 32 bits, comme les vidéos de ressources. Compte dans le quota du formateur.
+  sizeBytes       BigInt?
+  status          ReplayStatus @default(PROCESSING)
+  /// Arbitrage 51 — purge à 24 mois. La date est portée, pas recalculée : une
+  /// règle qui change ne doit pas effacer rétroactivement ce qui était promis.
+  purgeAt         DateTime
+  purgedAt        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([communityId, recordedAt])
+  @@index([status, purgeAt])
+  @@map("replays")
 }
 
 // --- Wallet ---

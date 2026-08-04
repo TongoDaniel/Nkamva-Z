@@ -34,6 +34,11 @@ for (const key of [
   'CINETPAY_API_KEY', 'CINETPAY_SITE_ID', 'CINETPAY_SECRET_KEY',
   'RESEND_API_KEY',
   'R2_ENDPOINT', 'R2_ACCESS_KEY', 'R2_SECRET_KEY',
+  // LIVEKIT_* : renseignées dans le .env de dev. Sans neutralisation,
+  // `startLiveSession` appelle réellement `createRoom` et `startEgress` sur le
+  // serveur temps réel — la suite ouvrirait des salles et lancerait des
+  // enregistrements facturés à chaque exécution.
+  'LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET',
 ]) {
   process.env[key] = ''
 }
@@ -49,6 +54,7 @@ export async function cleanDatabase() {
       "trainer_application_review_events", "trainer_documents", "trainer_applications",
       "payout_method_review_events", "payout_review_events", "payouts",
       "wallet_reconciliations", "payout_methods", "wallets", "trainer_profiles",
+      "replays", "live_messages", "live_participants", "live_sessions",
       "messages", "conversations",
       "community_post_replies", "community_posts",
       "community_courses", "community_subscriptions", "communities", "purchases", "courses",

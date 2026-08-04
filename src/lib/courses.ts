@@ -24,21 +24,31 @@ export const TRAINER_STORAGE_QUOTA_BYTES = 40 * 1024 ** 3
  * Octets déjà occupés par un formateur. Somme les tailles réellement
  * enregistrées à la confirmation, jamais celles annoncées par le client.
  *
- * Les replays entreront dans ce total le jour où ils existeront (arbitrage 54 :
- * un live en produit un automatiquement, un formateur peut donc épuiser son
- * quota sans avoir rien téléversé lui-même).
+ * **Les replays y entrent** (arbitrage 54) : un live en produit un
+ * automatiquement (arbitrage 38), un formateur peut donc épuiser son quota sans
+ * avoir rien téléversé lui-même. Un replay purgé au bout de 24 mois
+ * (arbitrage 51) lui rend la place — d'où le filtre sur `purgedAt`.
  */
 export async function trainerStorageUsedBytes(trainerId: string): Promise<number> {
-  const { _sum } = await db.course.aggregate({
-    where: { trainerId },
-    _sum: { contentSizeBytes: true, coverSizeBytes: true },
-  })
+  const [courses, replays] = await Promise.all([
+    db.course.aggregate({
+      where: { trainerId },
+      _sum: { contentSizeBytes: true, coverSizeBytes: true },
+    }),
+    db.replay.aggregate({
+      where: { trainerId, purgedAt: null },
+      _sum: { sizeBytes: true },
+    }),
+  ])
   // Colonnes BIGINT — une seule vidéo peut peser 2 Go, soit un octet de plus
   // qu'un entier 32 bits. La somme repasse en `number` ici : 40 Go tient
   // largement sous la limite d'exactitude de JavaScript (9 Po).
   // `BigInt(0)` plutôt que le littéral `0n` : la cible TypeScript du projet
   // est antérieure à ES2020.
-  const total = (_sum.contentSizeBytes ?? BigInt(0)) + (_sum.coverSizeBytes ?? BigInt(0))
+  const total =
+    (courses._sum.contentSizeBytes ?? BigInt(0)) +
+    (courses._sum.coverSizeBytes ?? BigInt(0)) +
+    (replays._sum.sizeBytes ?? BigInt(0))
   return Number(total)
 }
 

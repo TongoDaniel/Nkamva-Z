@@ -9,7 +9,7 @@ import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
 import { fmtDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { LiveSession, Replay } from "@/features/demo/live-data";
+import type { AgendaSession, ReplayView } from "@/lib/lives";
 
 type Tab = "upcoming" | "replays";
 
@@ -127,8 +127,8 @@ export function AgendaPane({
   sessions,
   replays,
 }: {
-  sessions: Array<LiveSession & { live: boolean }>;
-  replays: Replay[];
+  sessions: AgendaSession[];
+  replays: ReplayView[];
 }) {
   const [tab, setTab] = React.useState<Tab>("upcoming");
   const [flashed, setFlashed] = React.useState<string | null>(null);
