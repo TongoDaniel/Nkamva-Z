@@ -253,6 +253,13 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   AMOUNT_BELOW_MINIMUM: { message: 'Montant inférieur au minimum de retrait', status: 422 },
   INSUFFICIENT_WITHDRAWABLE_BALANCE: { message: 'Solde retirable insuffisant', status: 422 },
   STALE_PAYOUT: { message: 'Le retrait a été modifié entre-temps', status: 409 },
+  // --- Comptes d'administration (Super-admin) ---
+  EMAIL_ALREADY_USED: { message: 'Un compte existe déjà avec cette adresse', status: 409 },
+  NAME_REQUIRED: { message: 'Nom requis', status: 400 },
+  ADMIN_NOT_FOUND: { message: 'Administrateur introuvable', status: 404 },
+  SUPER_ADMIN_IMMUTABLE: { message: 'Le sous-rôle Super-admin ne se modifie pas depuis cette console', status: 403 },
+  ROLE_UNCHANGED: { message: 'Ce compte a déjà ce sous-rôle', status: 409 },
+  REVOKE_SELF_FORBIDDEN: { message: 'On ne retire pas ses propres droits d’administration', status: 422 },
 }
 
 export function errorFromException(err: unknown): NextResponse {
