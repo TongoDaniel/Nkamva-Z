@@ -48,7 +48,11 @@ export default async function EspaceCommunautePage({
 
   // Les ressources incluses sont déjà servies par la fiche publique : l'espace
   // les reprend telles quelles plutôt que d'en faire une seconde lecture.
-  const included = space.resourcesEnabled ? await getPublicCommunity(slug) : null;
+  // Le lecteur est indispensable ici : sans lui, une communauté privée rendrait
+  // `null` et l'onglet « Incluses » disparaîtrait pour ses propres membres.
+  const included = space.resourcesEnabled
+    ? await getPublicCommunity(slug, auth.user.id)
+    : null;
 
   return (
     <div className="nk-wrap pb-16">
