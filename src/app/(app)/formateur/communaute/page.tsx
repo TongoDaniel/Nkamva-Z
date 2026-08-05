@@ -6,8 +6,10 @@ import { Btn } from "@/components/nk/button";
 import { StatTile } from "@/components/nk/stat-tile";
 import { getAuthContext } from "@/lib/api";
 import { getMyCommunity } from "@/lib/communities";
+import { listCommunityInvitations } from "@/lib/invitations";
 import { fmtNumber } from "@/lib/format";
 import { CommunityForm, VisibilityToggle, type CommunityFormValues } from "./community-form";
+import { InvitationsPanel } from "./invitations-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,11 @@ export default async function MaCommunautePage() {
   if (!auth?.user.trainerId) return null;
 
   const community = await getMyCommunity(auth.user.trainerId);
+  // Les invitations sont chargées côté serveur : le panneau s'affiche rempli,
+  // sans attendre une seconde requête après hydratation.
+  const invitations = community
+    ? (await listCommunityInvitations(community.id, auth.user.id, 1, 50)).items
+    : [];
 
   // Aucun salon : l'écran est le formulaire d'ouverture, pas un état vide avec
   // un bouton qui mènerait ailleurs. Ouvrir une communauté est un formulaire
@@ -84,6 +91,15 @@ export default async function MaCommunautePage() {
       </div>
 
       <VisibilityToggle communityId={community.id} visibility={community.visibility} />
+
+      <InvitationsPanel
+        communityId={community.id}
+        isPrivate={community.visibility === "PRIVATE"}
+        initial={invitations.map((row) => ({
+          ...row,
+          expiresAt: row.expiresAt.toISOString(),
+        }))}
+      />
 
       <CommunityForm
         mode="edit"

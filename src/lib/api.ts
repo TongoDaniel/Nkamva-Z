@@ -27,6 +27,10 @@ const PUBLIC_ROUTES: { method: string; prefix: string }[] = [
   { method: 'GET', prefix: '/api/contact' },
   { method: 'POST', prefix: '/api/contact' },
   { method: 'GET', prefix: '/api/aide' },
+  // Consulter une invitation ne suppose pas d'avoir un compte : c'est
+  // précisément la situation de qui en reçoit une (arbitrage 80). L'accepter,
+  // elle, exige une session — la route POST n'est pas listée ici.
+  { method: 'GET', prefix: '/api/invitations/' },
   { method: 'POST', prefix: '/api/webhooks/' },
   { method: 'GET', prefix: '/api/health' },
 ]

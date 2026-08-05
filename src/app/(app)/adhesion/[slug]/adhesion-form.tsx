@@ -43,6 +43,7 @@ export function AdhesionForm({
   includedCount,
   trainerName,
   dueAmountFcfa,
+  invitation,
 }: {
   slug: string;
   name: string;
@@ -51,6 +52,13 @@ export function AdhesionForm({
   includedCount: number;
   trainerName: string | null;
   dueAmountFcfa: number | null;
+  /**
+   * Jeton d'invitation payante, quand le tunnel est entré depuis un lien. Il
+   * est seulement transmis : c'est le webhook qui le consommera, à la
+   * confirmation du paiement (arbitrage 78). Un tunnel abandonné laisse donc
+   * l'invitation utilisable.
+   */
+  invitation?: string | null;
 }) {
   const router = useRouter();
   const [provider, setProvider] = React.useState<PaymentProvider>("CINETPAY");
@@ -69,7 +77,7 @@ export function AdhesionForm({
     try {
       const { data } = await api.post<MembershipIntent>(
         `/api/communities/${encodeURIComponent(slug)}/adhesion`,
-        { provider },
+        { provider, ...(invitation ? { invitation } : {}) },
       );
       if (data.paymentUrl) {
         window.location.href = data.paymentUrl;
