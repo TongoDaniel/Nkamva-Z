@@ -974,28 +974,24 @@ async function seedReports() {
 
   // Les sanctions découlent des signalements retenus : le compte restreint est
   // celui que la Modération vient de juger, pas un compte tiré au hasard.
+  //
+  // L'exclusion, elle, est réservée au Super-admin (arbitrage 63) : elle retire
+  // l'accès à des biens déjà payés. C'est `applySanction` qui pose `suspendedAt`
+  // au passage — l'écrire à la main produirait un compte suspendu au niveau
+  // `NONE`, que l'annuaire afficherait « Actif » pendant que le compteur des
+  // suspensions le décompterait. Un état que le produit ne sait pas fabriquer.
   for (const learner of LEARNERS) {
-    if (learner.sanction) {
-      await applySanction(uid(learner.key), {
-        level: learner.sanction.level,
-        reason: learner.sanction.reason,
-        actorId: moderation,
-        actorAdminRole: 'MODERATION',
-      })
-    }
-    if (learner.suspended) {
-      await db.user.update({
-        where: { id: uid(learner.key) },
-        data: {
-          suspendedAt: daysAgo(6),
-          suspendedReason: learner.suspended.reason,
-          suspendedById: superAdmin,
-        },
-      })
-    }
+    if (!learner.sanction) continue
+    const bySuperAdmin = learner.sanction.level === 'BANNED'
+    await applySanction(uid(learner.key), {
+      level: learner.sanction.level,
+      reason: learner.sanction.reason,
+      actorId: bySuperAdmin ? superAdmin : moderation,
+      actorAdminRole: bySuperAdmin ? 'SUPER_ADMIN' : 'MODERATION',
+    })
   }
 
-  note(`${REPORTS.length} signalements instruits, 1 compte restreint, 1 compte suspendu`)
+  note(`${REPORTS.length} signalements instruits, 1 compte restreint, 1 compte exclu`)
 }
 
 // ==========================================================================
@@ -1268,6 +1264,7 @@ async function summarize() {
       ${addressFor('aminata')}      Aminata Diallo — 5 achats, 2 salons, 1 litige en cours
       ${addressFor('clarisse')}     Clarisse Mvondo — 1 remboursement obtenu
       ${addressFor('blaise')}       Blaise Zongo — compte restreint
+      ${addressFor('grace')}        Grâce Ilunga — compte exclu
 
     Candidatures à instruire
       ${addressFor('serge')}        Serge Abega — dossier soumis
