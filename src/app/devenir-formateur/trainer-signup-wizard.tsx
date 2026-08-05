@@ -218,6 +218,9 @@ export function TrainerSignupWizard() {
 
       <WizardCard
         title="Devenir formateur"
+        // Page autonome, sans `PageHead` ni topbar : cette carte porte le seul
+        // titre du document, donc le `h1`.
+        titleAs="h1"
         subtitle={
           [
             "Créez votre compte formateur sur NkamVa.",

@@ -69,12 +69,23 @@ export function WizardSteps({
 /** Carte contenant l'étape courante (`.wizcard`). */
 export function WizardCard({
   title,
+  titleAs: Title = "h2",
   subtitle,
   children,
   footer,
   className,
 }: {
   title: string;
+  /**
+   * Niveau du titre de la carte.
+   *
+   * `h2` par défaut : sur `/candidature`, la carte est précédée d'un
+   * `PageHead` qui porte déjà le `h1` de la page. Mais `/devenir-formateur`
+   * est une page autonome, sans en-tête ni topbar — la carte y est le seul
+   * titre, et un document qui commence à `h2` laisse les lecteurs d'écran
+   * sans point d'entrée. Ces pages passent donc `titleAs="h1"`.
+   */
+  titleAs?: "h1" | "h2";
   subtitle?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -87,7 +98,7 @@ export function WizardCard({
         className,
       )}
     >
-      <h2 className="mb-1.5 text-center text-[23px] font-bold">{title}</h2>
+      <Title className="mb-1.5 text-center text-[23px] font-bold">{title}</Title>
       {subtitle ? (
         <p className="mb-6 text-center text-[14.5px] text-ink-2">{subtitle}</p>
       ) : null}
