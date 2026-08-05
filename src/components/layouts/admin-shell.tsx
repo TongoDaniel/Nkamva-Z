@@ -76,21 +76,45 @@ export interface AdminUser {
 
 export function AdminShell({
   children,
-  nav = ADMIN_NAV,
   user,
+  pendingApplications = 0,
 }: {
   children: React.ReactNode;
-  nav?: AdminNavGroup[];
   /** Fourni par le layout serveur : `useSession()` est vide au premier rendu. */
   user: AdminUser;
+  /**
+   * Dossiers formateur en attente d'instruction, compté côté serveur.
+   *
+   * C'est un **nombre**, et pas la navigation déjà décorée : `ADMIN_NAV` est
+   * exporté depuis ce module client, et un composant serveur qui l'importe ne
+   * reçoit pas le tableau mais la référence client que React met à sa place.
+   * Le layout appelait `nav.map()` dessus — ce qui faisait tomber en 500 tout
+   * l'espace d'administration dès qu'une candidature était en attente, donc
+   * précisément quand la pastille servait à quelque chose.
+   */
+  pendingApplications?: number;
 }) {
   const pathname = usePathname() ?? "/admin";
   const [open, setOpen] = React.useState(false);
   const { name, email, adminRole } = user;
 
   // Décision 7 — le filtrage se fait ici, pas dans le layout : la navigation
-  // porte des icônes, qui ne peuvent pas traverser la frontière serveur.
-  const visibleNav = React.useMemo(() => navForSubRole(nav, adminRole), [nav, adminRole]);
+  // porte des icônes, qui ne peuvent pas traverser la frontière serveur. La
+  // pastille se pose au même endroit, pour la même raison.
+  const visibleNav = React.useMemo(() => {
+    const decorated: AdminNavGroup[] =
+      pendingApplications > 0
+        ? ADMIN_NAV.map((group) => ({
+            ...group,
+            items: group.items.map((item) =>
+              item.href === "/admin/validation-formateurs"
+                ? { ...item, badge: pendingApplications }
+                : item,
+            ),
+          }))
+        : ADMIN_NAV;
+    return navForSubRole(decorated, adminRole);
+  }, [pendingApplications, adminRole]);
 
   React.useEffect(() => {
     setOpen(false);
