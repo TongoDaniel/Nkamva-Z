@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   BadgeCheck, BarChart3, CreditCard, FileClock, Gavel, LayoutDashboard,
-  LogOut, Menu, Receipt, RefreshCw, Settings, ShieldAlert, Undo2, Users, Wallet, X,
+  LogOut, Menu, Receipt, RefreshCw, Settings, ShieldAlert, Undo2, UserCog, Users, Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       // Décision 7 — Finances a une lecture seule sur les utilisateurs ; le
       // journal d'audit et les paramètres restent au Super-admin.
       { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users, roles: ["FINANCES"] },
+      { href: "/admin/administrateurs", label: "Administrateurs", icon: UserCog, roles: [] },
       { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock, roles: [] },
       { href: "/admin/parametres", label: "Paramètres", icon: Settings, roles: [] },
     ],
