@@ -94,6 +94,10 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
     db.community.findMany({
       where: {
         status: 'active',
+        // Arbitrage 81 : la recherche est une surface publique comme une autre.
+        // Une communauté privée qui remonterait ici serait fermée de nom
+        // seulement.
+        visibility: 'PUBLIC',
         OR: [{ name: contains }, { description: contains }],
       },
       select: {

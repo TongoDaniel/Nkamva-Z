@@ -33,6 +33,7 @@ import type { CommunitySubscriptionStatus, PaymentProvider } from '@prisma/clien
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
+import { consumeInvitationForPurchase } from './invitations'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -211,6 +212,12 @@ export async function initiateMembershipPayment(
   communityId: string,
   learnerId: string,
   provider: PaymentProvider,
+  /**
+   * Invitation payante déjà validée par `resolveInvitationForTunnel`. Elle est
+   * seulement **portée** par l'achat : rien n'est consommé ici (arbitrage 78),
+   * un tunnel abandonné laisse l'invitation utilisable.
+   */
+  invitationId?: string | null,
 ): Promise<MembershipPaymentIntent> {
   const community = await db.community.findFirst({
     where: { id: communityId, status: 'active' },
@@ -279,6 +286,9 @@ export async function initiateMembershipPayment(
         providerStatus: 'PENDING',
         periodStart,
         periodEnd,
+        invitationId: invitationId ?? null,
+        // Le champ existait depuis le Lot 0 et n'était alimenté par personne.
+        acquisitionSource: invitationId ? 'INVITATION' : null,
       },
     })
   } catch (err: unknown) {
@@ -344,7 +354,7 @@ export async function activateMembershipForPurchase(
     where: { id: purchaseId },
     select: {
       id: true, learnerId: true, communityId: true, provider: true,
-      periodStart: true, periodEnd: true,
+      periodStart: true, periodEnd: true, invitationId: true,
     },
   })
   const idle = { activated: false, subscriptionId: null, isNew: false }
@@ -382,6 +392,14 @@ export async function activateMembershipForPurchase(
     return { activated: true, subscriptionId: existing.id, isNew: false }
   }
 
+  // L'invitation payante se consomme **ici**, et nulle part ailleurs : dans la
+  // transaction du webhook, au moment où l'adhésion existe pour de bon
+  // (arbitrage 78). Un renouvellement ne passe pas par cette branche, il n'y a
+  // donc aucun risque de décompter deux fois la même invitation.
+  if (purchase.invitationId) {
+    await consumeInvitationForPurchase(tx, purchase.invitationId, purchase.learnerId)
+  }
+
   const sub = await tx.communitySubscription.create({
     data: {
       communityId: purchase.communityId,
@@ -391,6 +409,7 @@ export async function activateMembershipForPurchase(
       periodEnd: purchase.periodEnd,
       provider: purchase.provider,
       purchaseId: purchase.id,
+      invitationId: purchase.invitationId,
     },
   })
 
@@ -407,6 +426,7 @@ export async function activateMembershipForPurchase(
     meta: {
       communityId: purchase.communityId, purchaseId: purchase.id,
       periodEnd: purchase.periodEnd.toISOString(),
+      invitationId: purchase.invitationId,
     },
   })
 
@@ -507,6 +527,22 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
   })
 
   for (const sub of expiring) {
+    // L'adhésion offerte est traitée à part, et **avant** tout le reste
+    // (arbitrage 77). `provider` nul en est la définition : personne n'y a
+    // jamais attaché de moyen de paiement, il n'y a donc rien avec quoi la
+    // reconduire. Sortir ce cas d'abord donne aussi à TypeScript le
+    // rétrécissement dont il a besoin — la suite recopie `sub.provider` sur
+    // l'achat du renouvellement, où un `null` serait une facture adressée à
+    // quelqu'un qui n'a jamais rien acheté.
+    const provider = sub.provider
+    if (provider === null) {
+      await closeMembership(sub.id, sub.communityId, 'EXPIRED', {
+        learnerId: sub.learnerId, reason: 'GIFT_ENDED', communityName: sub.community.name,
+      })
+      result.closed += 1
+      continue
+    }
+
     // Trois raisons de ne pas renouveler, et une seule de renouveler.
     //
     // Le membre banni n'est pas reconduit : lui prélever un mois de plus dans
@@ -547,8 +583,8 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
             commissionRate: sub.community.commissionRate,
             trainerShareFcfa,
             platformShareFcfa: amountFcfa - trainerShareFcfa,
-            provider: sub.provider,
-            providerTransactionId: `${sub.provider === 'STRIPE' ? 'pi' : 'cp'}_${crypto.randomUUID()}`,
+            provider,
+            providerTransactionId: `${provider === 'STRIPE' ? 'pi' : 'cp'}_${crypto.randomUUID()}`,
             providerStatus: 'PENDING',
             periodStart,
             periodEnd,
@@ -672,10 +708,18 @@ async function closeMembership(
     () =>
       notify(context.learnerId, {
         type: 'MEMBERSHIP_ENDED',
-        title: `Votre adhésion à ${context.communityName} a pris fin`,
+        title:
+          context.reason === 'GIFT_ENDED'
+            ? `Vos mois offerts dans ${context.communityName} sont terminés`
+            : `Votre adhésion à ${context.communityName} a pris fin`,
         body:
           context.reason === 'UNPAID'
             ? 'L\'échéance est restée impayée. Vous gardez l\'accès aux ressources reçues pendant votre adhésion, et pouvez revenir quand vous le souhaitez.'
+            // L'invité n'a jamais donné de moyen de paiement : rien ne lui a été
+            // prélevé et rien ne le sera (arbitrage 77). Le dire noir sur blanc
+            // vaut mieux que de le laisser le déduire.
+            : context.reason === 'GIFT_ENDED'
+            ? 'Rien ne vous a été prélevé et rien ne le sera : une adhésion offerte ne se reconduit pas. Vous gardez l\'accès aux ressources reçues pendant ces mois, et pouvez rejoindre la communauté quand vous le souhaitez.'
             : 'Vous gardez l\'accès aux ressources reçues pendant votre adhésion, et pouvez revenir quand vous le souhaitez.',
         link: '/mes-communautes',
       }),

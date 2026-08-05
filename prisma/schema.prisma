@@ -85,6 +85,40 @@ enum CommunitySubscriptionStatus {
   EXPIRED
 }
 
+/// Arbitrage 81. PRIVATE sort la communauté de l'annuaire, de la recherche, de
+/// la fiche formateur et de sa propre page publique — et révoque, à la bascule,
+/// les liens partageables en circulation.
+enum CommunityVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+/// Forme de l'invitation — comment elle circule (arbitrage 71).
+enum InvitationKind {
+  /// Adressée à une adresse e-mail, consommable une seule fois.
+  NOMINATIVE
+  /// Lien à copier, plusieurs acceptations, plafonné et daté. Jamais sur une
+  /// communauté privée (arbitrage 74).
+  SHARE_LINK
+}
+
+/// Nature de l'invitation — ce qu'elle ouvre (arbitrages 72 et 73).
+///
+/// La forme et la nature sont deux attributs distincts : le nominatif porte les
+/// deux natures. Les confondre rendrait toute communauté privée gratuite à vie,
+/// puisqu'elle ne s'entre qu'au nominatif.
+enum InvitationGrant {
+  /// 1 à 3 mois offerts. Réservée à la forme nominative.
+  GIFT
+  /// Mène au tunnel d'adhésion, au tarif de la communauté.
+  PAID
+}
+
+enum InvitationIssuerRole {
+  TRAINER
+  MEMBER
+}
+
 enum PayoutMethodType {
   BANK_IBAN
   MOBILE_MONEY
@@ -249,6 +283,7 @@ model User {
   reportsFiled               Report[]                @relation("ReportsFiled")
   reportsReviewed            Report[]                @relation("ReportsReviewed")
   emailOtps                  EmailOtp[]
+  invitationsIssued          CommunityInvitation[]   @relation("InvitationsIssued")
   createdAt                  DateTime                @default(now())
   updatedAt                  DateTime                @updatedAt
 
@@ -390,6 +425,11 @@ model Purchase {
   accessRestoredAt      DateTime?
   periodStart           DateTime?
   periodEnd             DateTime?
+  /// Porte l'invitation payante de l'initiation jusqu'au webhook : c'est là, et
+  /// là seulement, qu'elle sera consommée (arbitrage 78). Un tunnel abandonné
+  /// laisse donc l'invitation utilisable.
+  invitationId          String?
+  invitation            CommunityInvitation?   @relation(fields: [invitationId], references: [id], onDelete: SetNull)
   communitySubscription CommunitySubscription?
   invoice               Invoice?
   disputes              Dispute[]
@@ -425,6 +465,9 @@ model Community {
   membersCount     Int                     @default(0)
   messagesPerDay   Int                     @default(0)
   status           String                  @default("active")
+  /// Arbitrage 81. `status` dit si la communauté vit ; `visibility` dit si on
+  /// peut la trouver. Une privée reste `active` — elle est fermée, pas close.
+  visibility       CommunityVisibility     @default(PUBLIC)
   purchases        Purchase[]
   subscriptions    CommunitySubscription[]
   favorites        Favorite[]
@@ -433,10 +476,12 @@ model Community {
   conversations    Conversation[]
   liveSessions     LiveSession[]
   replays          Replay[]
+  invitations      CommunityInvitation[]
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
   @@index([trainerId, status])
+  @@index([visibility, status])
   @@map("communities")
 }
 
@@ -450,10 +495,18 @@ model CommunitySubscription {
   status                 CommunitySubscriptionStatus @default(ACTIVE)
   periodStart            DateTime
   periodEnd              DateTime
-  provider               PaymentProvider
+  /// ⚠️ Nullable depuis l'arbitrage 77 : un provider nul **est** la définition
+  /// d'une adhésion offerte. Aucun moyen de paiement n'y a jamais été attaché,
+  /// il n'y a donc rien avec quoi la reconduire — c'est ce que lit
+  /// `renewDueMemberships` pour la fermer au lieu d'ouvrir une échéance.
+  provider               PaymentProvider?
   providerSubscriptionId String?
   purchaseId             String?                     @unique
   purchase               Purchase?                   @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  /// Attribution (arbitrage 76) : par quelle invitation ce membre est arrivé.
+  /// Nulle pour une adhésion venue du catalogue.
+  invitationId           String?
+  invitation             CommunityInvitation?        @relation(fields: [invitationId], references: [id], onDelete: SetNull)
   bannedAt               DateTime?
   bannedReason           String?
   bannedById             String?
@@ -465,6 +518,72 @@ model CommunitySubscription {
   @@index([learnerId, status])
   @@index([communityId, status])
   @@map("community_subscriptions")
+}
+
+// --- CommunityInvitation (arbitrages 71-86) ---
+// Un droit d'entrer, matérialisé par un jeton dans une URL. Elle ne crée aucun
+// compte, ne prélève rien, et ne lève aucune décision de modération.
+//
+// Deux attributs distincts, et c'est le cœur du modèle :
+//   `kind`  — la forme : adressée (usage unique) ou lien partageable ;
+//   `grant` — la nature : mois offerts ou tunnel payant.
+// Les confondre rendrait toute communauté privée gratuite à vie, puisqu'elle ne
+// s'entre qu'au nominatif (arbitrages 73 et 74).
+//
+// Le **statut n'est pas une colonne** : il se déduit de `revokedAt`,
+// `acceptedAt`, `usesCount` et `expiresAt` (`invitationStatus()`). Une colonne
+// mentirait le jour où l'expiration tombe, sans que rien ne l'ait écrite.
+//
+// Trois contraintes CHECK et deux index uniques partiels vivent en SQL brut
+// dans la migration : Prisma ne sait exprimer ni les unes ni les autres.
+model CommunityInvitation {
+  id            String                  @id @default(uuid())
+  communityId   String
+  community     Community               @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  issuerId      String
+  issuer        User                    @relation("InvitationsIssued", fields: [issuerId], references: [id], onDelete: Restrict)
+  issuerRole    InvitationIssuerRole
+  kind          InvitationKind
+  grant         InvitationGrant
+  /// Normalisée en minuscules. Non nulle si et seulement si NOMINATIVE.
+  /// ⚠️ Donnée personnelle d'un tiers qui n'a peut-être aucun compte
+  /// (arbitrage 80) : purgée 90 jours après l'état terminal.
+  email         String?
+  /// 1 à 3 (arbitrage 75). Non nul si et seulement si GIFT.
+  giftMonths    Int?
+  /// SHA-256 du jeton — le chemin de recherche, identique pour les deux formes.
+  tokenHash     String                  @unique
+  /// Jeton en clair, **et seulement pour un SHARE_LINK** : un lien de parrainage
+  /// est fait pour être recopié, donc pour être réaffiché. Le garder haché
+  /// obligerait à en régénérer un à chaque consultation, ce qui tuerait les
+  /// liens déjà partagés.
+  ///
+  /// Les deux jetons n'ont pas le même enjeu : un lien partageable fuité fait
+  /// adhérer quelqu'un **au tarif plein**, un jeton nominatif fuité coûte des
+  /// mois offerts au formateur. Le nominatif reste donc haché seul, et nul ici.
+  token         String?
+  /// Huit premiers caractères du jeton : de quoi reconnaître une ligne dans une
+  /// liste, pas de quoi l'accepter.
+  tokenPrefix   String
+  maxUses       Int                     @default(1)
+  usesCount     Int                     @default(0)
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  acceptedById  String?
+  revokedAt     DateTime?
+  revokedById   String?
+  /// Purge RGPD (arbitrage 80) : `email` est vidé, la ligne reste pour
+  /// l'attribution et pour l'audit.
+  anonymizedAt  DateTime?
+  subscriptions CommunitySubscription[]
+  purchases     Purchase[]
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@index([communityId, createdAt])
+  @@index([issuerId, createdAt])
+  @@index([expiresAt])
+  @@map("community_invitations")
 }
 
 // --- Favorite ---
@@ -651,6 +770,11 @@ model LiveSession {
 
   @@index([communityId, scheduledStartAt])
   @@index([status, scheduledStartAt])
+  /// Créé par la migration `20260804120000_mux_replays` mais jamais déclaré
+  /// ici : le webhook Mux retrouve la session par ce champ. Sans cette ligne,
+  /// la prochaine migration générée le supprimait sans que personne ne
+  /// l'ait demandé.
+  @@index([muxStreamId])
   @@map("live_sessions")
 }
 

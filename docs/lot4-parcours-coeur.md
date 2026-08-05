@@ -195,7 +195,7 @@ les communautés soient rebranchées à leur tour.
 | Profil apprenant (RGPD) | ✅ (export et suppression) |
 | Recherche transversale | ❌ — la recherche est par section, pas globale |
 | Onboarding apprenant | Hors périmètre (décision 6) |
-| Invitations communauté magic link | ❌ |
+| Invitations communauté magic link | ❌ — spécifié le 5 août 2026 (`docs/invitations.md`, arbitrages 71-86) |
 | Facture PDF | ❌ |
 | Communautés apprenant | ⚠️ Écrans publics ✅, espace membre ❌ |
 | Lives (LiveKit) | ⚠️ Écrans de démonstration, aucun LiveKit branché |
@@ -206,7 +206,7 @@ les communautés soient rebranchées à leur tour.
 | Revenus formateur (analytics) | ❌ |
 | Abonnement SaaS formateur | ❌ |
 | Communauté formateur (posts) | ❌ |
-| Invitations communauté formateur | ❌ |
+| Invitations communauté formateur | ❌ — spécifié le 5 août 2026 (`docs/invitations.md`, arbitrages 71-86) |
 | Membres & apprenants | ❌ |
 | Lives formateur | ❌ |
 | Replays | ❌ |

@@ -24,21 +24,27 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const community = await getPublicCommunity(slug)
+  // Le lecteur compte jusque dans les métadonnées : sans lui, le membre d'une
+  // communauté privée verrait « Communauté introuvable » dans son onglet, sur
+  // une page qui s'affiche parfaitement.
+  const auth = await getAuthContext()
+  const community = await getPublicCommunity(slug, auth?.user.id)
   if (!community) return { title: 'Communauté introuvable' }
   return { title: community.name, description: community.description ?? undefined }
 }
 
 export default async function CommunityPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const community = await getPublicCommunity(slug)
+  // La fiche reste publique : un visiteur non connecté la voit entièrement, et
+  // le pavé d'adhésion l'emmène se connecter au moment de payer, pas avant.
+  // Une communauté **privée**, elle, répond 404 à qui n'en est ni membre ni
+  // l'animateur (arbitrage 81) — d'où la lecture de session avant la requête.
+  const auth = await getAuthContext()
+  const community = await getPublicCommunity(slug, auth?.user.id)
   if (!community) notFound()
 
   const trainerName = community.trainer.fullName ?? 'Formateur NkamVa'
 
-  // La fiche reste publique : un visiteur non connecté la voit entièrement, et
-  // le pavé d'adhésion l'emmène se connecter au moment de payer, pas avant.
-  const auth = await getAuthContext()
   const membership = auth ? await getMembership(community.id, auth.user.id) : null
   const isOwner = auth?.user.trainerId === community.trainer.id
 
