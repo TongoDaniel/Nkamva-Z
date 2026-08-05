@@ -31,7 +31,10 @@ export function PageHead({
               <li key={`${c.label}-${i}`} className="flex items-center gap-2">
                 {i > 0 ? <ChevronRight className="size-3.5 opacity-55" aria-hidden="true" /> : null}
                 {c.href ? (
-                  <Link href={c.href} className="text-ink-2 hover:text-brand">
+                  // `nk-tap` : le fil d'Ariane est en `flex`, donc ses liens
+                  // sont des blocs de 20px de haut — pas des liens au fil du
+                  // texte, et l'exemption WCAG 2.5.5 ne les couvre pas.
+                  <Link href={c.href} className="nk-tap relative text-ink-2 hover:text-brand">
                     {c.label}
                   </Link>
                 ) : (

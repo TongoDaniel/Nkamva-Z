@@ -268,7 +268,7 @@ export default async function LandingPage() {
                   {row.cta ? (
                     <Link
                       href={row.cta.href}
-                      className="group inline-flex items-center gap-1.5 text-[14.5px] font-bold"
+                      className="nk-tap group relative inline-flex items-center gap-1.5 text-[14.5px] font-bold"
                     >
                       {row.cta.label}
                       <ArrowRight
