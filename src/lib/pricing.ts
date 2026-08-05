@@ -177,6 +177,10 @@ export async function createDiscount(input: {
 
 /** Clôt une remise sans la supprimer : l'historique de facturation en dépend. */
 export async function endDiscount(discountId: string, actorId: string, actorRole: string) {
+  const existing = await db.platformDiscount.findUnique({ where: { id: discountId } })
+  if (!existing) throw new Error('DISCOUNT_NOT_FOUND')
+  if (existing.validUntil && existing.validUntil <= new Date()) throw new Error('DISCOUNT_ALREADY_ENDED')
+
   return db.$transaction(async (tx) => {
     const updated = await tx.platformDiscount.update({
       where: { id: discountId },

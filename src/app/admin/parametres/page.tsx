@@ -5,8 +5,11 @@ import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
 import { getAuthContext } from "@/lib/api";
 import { getCurrentTariffs, listTariffs, listDiscounts, CADENCE_LABELS } from "@/lib/pricing";
+import { listSettings } from "@/lib/settings";
 import { fmtFcfa, fmtDate } from "@/lib/format";
 import { PricingActions } from "./pricing-actions";
+import { EndDiscountButton } from "./end-discount-button";
+import { SettingRow } from "./setting-row";
 import { PLATFORM_RULES } from "./rules";
 
 export const dynamic = "force-dynamic";
@@ -28,10 +31,11 @@ export default async function ParametresPage() {
   // Super-admin. Finances n'a que les remises, qui ne vivent pas sur cet écran.
   if (auth?.user.adminRole !== "SUPER_ADMIN") redirect("/admin");
 
-  const [current, history, discounts] = await Promise.all([
+  const [current, history, discounts, settings] = await Promise.all([
     getCurrentTariffs(),
     listTariffs(),
     listDiscounts(),
+    listSettings(),
   ]);
 
   const now = new Date();
@@ -166,7 +170,10 @@ export default async function ParametresPage() {
                       {exhausted ? (
                         <StPill tone="muted">Épuisée</StPill>
                       ) : active ? (
-                        <StPill tone="ok">Active</StPill>
+                        <>
+                          <StPill tone="ok">Active</StPill>
+                          <EndDiscountButton discountId={discount.id} />
+                        </>
                       ) : (
                         <StPill tone="muted">Inactive</StPill>
                       )}
@@ -182,6 +189,28 @@ export default async function ParametresPage() {
             </>
           )}
         </AdminCard>
+
+        {settings.length > 0 ? (
+          <AdminCard title="Réglages système">
+            <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
+              Ces valeurs vivent en base, pas dans le code — contrairement aux règles ci-dessous.{" "}
+              <b className="font-bold text-ink">
+                Aucun écran ne les relit encore aujourd&apos;hui
+              </b>{" "}
+              : les modifier change ce qui est stocké, pas ce que fait la plateforme.
+            </p>
+            <dl>
+              {settings.map((setting) => (
+                <SettingRow
+                  key={setting.key}
+                  settingKey={setting.key}
+                  value={setting.value}
+                  description={setting.description}
+                />
+              ))}
+            </dl>
+          </AdminCard>
+        ) : null}
 
         <AdminCard title="Règles en vigueur">
           <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
