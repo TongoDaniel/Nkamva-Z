@@ -34,6 +34,7 @@ const LEARNER_NAV = [
 const TRAINER_NAV = [
   { href: "/formateur", label: "Espace formateur" },
   { href: "/formateur/ressources", label: "Mes publications" },
+  { href: "/formateur/communaute", label: "Ma communauté" },
   // « Mes sessions » et non « Mes lives » : le menu du compte porte déjà une
   // entrée « Mes lives » côté apprenant, que le formateur voit aussi.
   { href: "/formateur/lives", label: "Mes sessions" },
