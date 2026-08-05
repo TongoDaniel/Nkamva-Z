@@ -52,7 +52,7 @@ export default async function RecherchePage({
           type="search"
           defaultValue={results.query}
           placeholder="Un sujet, un formateur, une communauté…"
-          className="flex-1 rounded-full border border-line bg-card px-5 py-2.5 text-[14.5px] text-ink outline-none focus-visible:border-brand"
+          className="min-w-0 flex-1 rounded-full border border-line bg-card px-5 py-2.5 text-base text-ink outline-none focus-visible:border-brand md:text-[14.5px]"
         />
         <Btn type="submit">Chercher</Btn>
       </form>

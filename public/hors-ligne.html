@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Hors ligne — NkamVa</title>
+    <meta name="theme-color" content="#022342" />
+    <!--
+      Page volontairement autonome : styles en ligne, aucune police ni image
+      distante. C'est la seule page qui doit s'afficher quand il n'y a plus de
+      réseau — elle ne peut dépendre de rien qui se télécharge.
+    -->
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: max(1.5rem, env(safe-area-inset-top)) 1.5rem
+          max(1.5rem, env(safe-area-inset-bottom));
+        background: #f6f3ec;
+        color: #15211b;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.5;
+        -webkit-text-size-adjust: 100%;
+      }
+      main {
+        max-width: 30rem;
+        text-align: center;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1.5rem;
+        border-radius: 18px;
+        background: #022342;
+        color: #fff;
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0 0 1.75rem;
+        color: #4c5a52;
+      }
+      button {
+        min-height: 44px;
+        padding: 0.75rem 1.5rem;
+        border: 0;
+        border-radius: 999px;
+        background: #1c5ed0;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:active {
+        transform: scale(0.97);
+      }
+      small {
+        display: block;
+        margin-top: 1.5rem;
+        color: #626e69;
+        font-size: 0.8125rem;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0e1620;
+          color: #f0eee6;
+        }
+        p {
+          color: #a5b1bd;
+        }
+        small {
+          color: #a5b1bd;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">N</div>
+      <h1>Pas de connexion</h1>
+      <p>
+        NkamVa n'arrive pas à joindre le réseau. Vos ressources déjà ouvertes
+        restent disponibles une fois la connexion revenue.
+      </p>
+      <button type="button" onclick="location.reload()">Réessayer</button>
+      <small>La page se rechargera dès que le réseau sera de retour.</small>
+    </main>
+    <script>
+      // Retour du réseau : on recharge sans faire attendre un geste.
+      addEventListener("online", () => location.reload());
+    </script>
+  </body>
+</html>

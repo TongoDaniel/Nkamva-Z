@@ -334,6 +334,31 @@
     animation-play-state: paused;
   }
 
+  /* Cible tactile : sur écran tactile, étend la zone sensible à 44 px sans
+     toucher au dessin du bouton (WCAG 2.5.5, Apple HIG). L'élément doit être
+     positionné — c'est le cas de tous ceux qui portent la classe.
+     Poser `size-11` à la place changerait la maquette sur mobile ; ici le
+     bouton garde ses 38 px visibles et gagne 44 px de zone utile.
+     Deux conditions plutôt qu'une : `pointer: coarse` couvre les tablettes
+     larges, `max-width` couvre les navigateurs de bureau étroits — et rend la
+     règle vérifiable autrement que sur un vrai téléphone. */
+  @media (pointer: coarse), (max-width: 767px) {
+    .nk-tap::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  /* Retrait bas des barres fixes sur mobiles à encoche / barre gestuelle. */
+  .nk-safe-b {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+
   /* Squelette de chargement (`.sk`). */
   .nk-skeleton {
     position: relative;
@@ -362,6 +387,68 @@
   }
   .nk-marquee {
     animation: none;
+  }
+}
+
+/* ==========================================================================
+   Socle mobile — règles volontairement hors couche
+   --------------------------------------------------------------------------
+   Les utilitaires Tailwind vivent dans `@layer utilities` ; du CSS non
+   superposé l'emporte sur n'importe quelle couche, quelle que soit la
+   spécificité. C'est ce qu'il faut ici : ces règles doivent gagner contre les
+   `text-[15px]` semés dans les écrans, sans avoir à les réécrire un par un.
+   ========================================================================== */
+
+/* iOS Safari zoome le viewport dès qu'un champ passe sous 16 px à la mise au
+   point — et ne dézoome pas ensuite. Le corps de page est à 15 px, et la
+   préflight Tailwind fait hériter la police aux contrôles de formulaire :
+   sans ce plancher, *tous* les champs du produit déclenchent le zoom.
+   `.nk-field-size` laisse un champ garder sa taille propre (cases du code à
+   six chiffres, qui sont volontairement à 22 px). */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not(.nk-field-size),
+  select:not(.nk-field-size),
+  textarea:not(.nk-field-size) {
+    font-size: 16px;
+  }
+}
+
+/* Le halo gris de tap d'Android double l'état `:active` déjà dessiné. */
+@media (pointer: coarse) {
+  a,
+  button,
+  [role="button"],
+  label,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Encoches et barre gestuelle : le conteneur central respire des deux côtés
+   en paysage, où l'encoche mord sur la zone utile. */
+@supports (padding: max(0px)) {
+  .nk-wrap {
+    padding-left: max(1.125rem, env(safe-area-inset-left));
+    padding-right: max(1.125rem, env(safe-area-inset-right));
+  }
+
+  @media (min-width: 860px) {
+    .nk-wrap {
+      padding-left: max(1.75rem, env(safe-area-inset-left));
+      padding-right: max(1.75rem, env(safe-area-inset-right));
+    }
+  }
+}
+
+/* Un tiroir ouvert ne doit pas propager son défilement à la page dessous.
+   Borné à la largeur où le tiroir existe vraiment (au-delà, la barre latérale
+   admin est fixe et l'état « ouvert » n'a plus de sens) : au-dessus, bloquer
+   le défilement ferait disparaître la barre de défilement et décalerait la
+   mise en page. */
+@media (max-width: 860px) {
+  .nk-drawer-open {
+    overflow: hidden;
+    overscroll-behavior: contain;
   }
 }
 

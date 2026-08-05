@@ -151,7 +151,7 @@ export function Pager({
               aria-current={p === page ? "page" : undefined}
               aria-label={`Page ${p}`}
               className={cn(
-                "size-[34px] cursor-pointer rounded-nk-sm border text-[13px] font-bold",
+                "nk-tap relative size-[34px] cursor-pointer rounded-nk-sm border text-[13px] font-bold",
                 p === page
                   ? "border-ink bg-ink text-paper"
                   : "border-line bg-card text-ink-2 hover:border-ink-3",

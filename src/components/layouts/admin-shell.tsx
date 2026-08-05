@@ -131,6 +131,14 @@ export function AdminShell({
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Tiroir ouvert : la page dessous ne doit pas défiler. Sans ça, un geste sur
+  // le voile fait glisser le contenu masqué et le tiroir paraît décroché.
+  React.useEffect(() => {
+    if (!open) return;
+    document.body.classList.add("nk-drawer-open");
+    return () => document.body.classList.remove("nk-drawer-open");
+  }, [open]);
+
   return (
     <div className="flex min-h-screen bg-paper">
       <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
@@ -145,7 +153,7 @@ export function AdminShell({
           aria-expanded={open}
           aria-controls="nk-admin-nav"
           aria-label="Ouvrir la navigation"
-          className="grid size-[38px] shrink-0 cursor-pointer place-items-center rounded-nk-sm border border-line bg-card"
+          className="nk-tap relative grid size-[38px] shrink-0 cursor-pointer place-items-center rounded-nk-sm border border-line bg-card"
         >
           <Menu className="size-[19px]" aria-hidden="true" />
         </button>

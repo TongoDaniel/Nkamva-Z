@@ -85,7 +85,7 @@ export function PublicTopbar() {
           <Link
             href="/favoris"
             aria-label="Favoris"
-            className="grid size-[42px] place-items-center rounded-full border border-line bg-card text-ink-2 transition duration-150 hover:-translate-y-px hover:border-ink-3 hover:text-ink max-[560px]:hidden"
+            className="nk-tap relative grid size-[42px] place-items-center rounded-full border border-line bg-card text-ink-2 transition duration-150 hover:-translate-y-px hover:border-ink-3 hover:text-ink max-[560px]:hidden"
           >
             <Heart className="size-[19px]" aria-hidden="true" />
           </Link>
@@ -101,7 +101,7 @@ export function PublicTopbar() {
             aria-expanded={open}
             aria-controls="nk-mobile-nav"
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            className="grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink min-[820px]:hidden"
+            className="nk-tap relative grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink min-[820px]:hidden"
           >
             {open ? (
               <X className="size-5" aria-hidden="true" />
