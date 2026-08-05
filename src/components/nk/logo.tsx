@@ -21,7 +21,9 @@ export function Logo({
     <Link
       href={href}
       className={cn(
-        "inline-flex items-center gap-2.5 font-display text-[21px] font-extrabold tracking-[-0.01em] text-ink hover:text-ink",
+        // `nk-tap` : en mode `compact` le mot passe en `sr-only` sous 860px et
+        // le lien se réduit à la marque, soit 36×36 — sous la cible tactile.
+        "nk-tap relative inline-flex items-center gap-2.5 font-display text-[21px] font-extrabold tracking-[-0.01em] text-ink hover:text-ink",
         className,
       )}
     >

@@ -114,15 +114,19 @@ export function Tabs({
                     active &&
                       "after:absolute after:inset-x-3 after:-bottom-[1.5px] after:h-[3px] after:rounded-sm after:bg-brand after:content-['']",
                   )
-                : variant === "chip"
+                : // `nk-tap` seulement ici : la variante `underline` dessine
+                  // son trait actif avec `after:`, et le pseudo-élément de la
+                  // zone tactile le remplacerait. Elle mesure 46 px de haut,
+                  // elle n'en a pas besoin — `chip` fait 40 px et `pill` 34.
+                  variant === "chip"
                   ? cn(
-                      "rounded-full border-[1.5px] px-[18px] py-[9px] text-sm",
+                      "nk-tap rounded-full border-[1.5px] px-[18px] py-[9px] text-sm",
                       active
                         ? "border-ink bg-ink text-paper"
                         : "border-line bg-card text-ink-2 hover:border-ink-3 hover:text-ink",
                     )
                   : cn(
-                      "rounded-full px-4 py-2 text-[13px]",
+                      "nk-tap rounded-full px-4 py-2 text-[13px]",
                       active ? "bg-ink text-paper" : "text-ink-2 hover:text-ink",
                     ),
             )}
