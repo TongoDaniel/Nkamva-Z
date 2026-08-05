@@ -12,6 +12,13 @@ export function fmtFcfa(amountFcfa: number): string {
   return `${fmtNumber(amountFcfa)}${NBSP}FCFA`;
 }
 
+/** 2_147_483_648 → « 2.0 Go ». Repris du dépôt de contenu, pour le quota de stockage. */
+export function fmtBytes(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} Go`;
+  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} Mo`;
+  return `${Math.round(bytes / 1024)} Ko`;
+}
+
 /** 15600 → « 4 h 20 » · 320 → « 5 min ». */
 export function fmtDuration(seconds?: number | null): string | null {
   if (!seconds || seconds <= 0) return null;

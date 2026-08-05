@@ -13,8 +13,10 @@ import { getTrainerWallet } from "@/lib/trainer-stats";
 import { listMyPayoutMethods, getWithdrawableMethod } from "@/lib/payout-methods";
 import { listMyPayouts, PAYOUT_MIN_AMOUNT_FCFA, IN_FLIGHT_PAYOUT_STATUSES } from "@/lib/payouts";
 import { getMySubscription } from "@/lib/subscriptions";
+import { getTrainerStorage } from "@/lib/storage-tiers";
 import { fmtFcfa, fmtDate } from "@/lib/format";
 import { KycPanel } from "./kyc-panel";
+import { StoragePanel } from "./storage-panel";
 import { PayoutRequestForm } from "./payout-request-form";
 import { MicroDepositForm } from "./micro-deposit-form";
 import {
@@ -36,13 +38,14 @@ export default async function PortefeuillePage() {
   if (!auth?.user.trainerId) return null;
   const trainerId = auth.user.trainerId;
 
-  const [wallet, kyc, methods, payouts, withdrawable, subscription] = await Promise.all([
+  const [wallet, kyc, methods, payouts, withdrawable, subscription, storage] = await Promise.all([
     getTrainerWallet(trainerId),
     computeKycScore(trainerId),
     listMyPayoutMethods(trainerId),
     listMyPayouts(trainerId, 1, 20),
     getWithdrawableMethod(trainerId),
     getMySubscription(trainerId),
+    getTrainerStorage(trainerId),
   ]);
 
   const active = methods.find((m) => m.isActive) ?? null;
@@ -261,6 +264,8 @@ export default async function PortefeuillePage() {
               </details>
             ) : null}
           </section>
+
+          <StoragePanel storage={storage} />
 
           <section
             aria-labelledby="retraits-titre"

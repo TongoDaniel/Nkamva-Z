@@ -260,6 +260,14 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   SUPER_ADMIN_IMMUTABLE: { message: 'Le sous-rôle Super-admin ne se modifie pas depuis cette console', status: 403 },
   ROLE_UNCHANGED: { message: 'Ce compte a déjà ce sous-rôle', status: 409 },
   REVOKE_SELF_FORBIDDEN: { message: 'On ne retire pas ses propres droits d’administration', status: 422 },
+  // --- Réductions (décisions 60, 62) ---
+  DISCOUNT_NOT_FOUND: { message: 'Réduction introuvable', status: 404 },
+  DISCOUNT_ALREADY_ENDED: { message: 'Cette réduction est déjà terminée', status: 409 },
+  // --- Réglages système ---
+  SETTING_NOT_FOUND: { message: 'Ce réglage n’existe pas', status: 404 },
+  VALUE_REQUIRED: { message: 'Une valeur est requise', status: 400 },
+  VALUE_TOO_LONG: { message: 'Valeur trop longue (500 caractères maximum)', status: 400 },
+  VALUE_UNCHANGED: { message: 'La valeur est déjà celle-ci', status: 409 },
 }
 
 export function errorFromException(err: unknown): NextResponse {
