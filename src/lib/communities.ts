@@ -19,7 +19,8 @@
 // ==========================================================================
 
 import { db } from './db'
-import { auditStandalone } from './audit'
+import { audit, auditStandalone } from './audit'
+import { notify, deliverSideEffects } from './notification'
 import { canTrainerWrite } from './subscriptions'
 import type { CourseListItem } from './dto'
 
@@ -334,6 +335,182 @@ export async function getMyCommunity(trainerProfileId: string) {
       },
     },
   })
+}
+
+// ==========================================================================
+// Les membres, vus par l'animateur
+// ==========================================================================
+// `bannedAt`, `bannedReason` et `bannedById` étaient **lus** par tout le
+// produit — `resolveViewer` en tire le silence dans le salon, `blockerFor` le
+// refus d'une invitation — et rien ne les écrivait. Le formateur n'avait aucun
+// moyen d'écarter quelqu'un de son propre fil.
+
+export interface CommunityMember {
+  learnerId: string
+  fullName: string | null
+  status: string
+  periodStart: Date
+  periodEnd: Date
+  bannedAt: Date | null
+  bannedReason: string | null
+  canceledAt: Date | null
+  /** Entré par une invitation, et laquelle (arbitrage 76). */
+  viaInvitation: boolean
+  joinedAt: Date
+}
+
+export async function listCommunityMembers(
+  communityId: string,
+  trainerProfileId: string,
+): Promise<CommunityMember[]> {
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+
+  const rows = await db.communitySubscription.findMany({
+    where: { communityId },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+    select: {
+      learnerId: true, status: true, periodStart: true, periodEnd: true,
+      bannedAt: true, bannedReason: true, canceledAt: true, invitationId: true,
+      createdAt: true,
+      learner: { select: { fullName: true } },
+    },
+  })
+
+  return rows.map((row) => ({
+    learnerId: row.learnerId,
+    fullName: row.learner.fullName,
+    status: row.status,
+    periodStart: row.periodStart,
+    periodEnd: row.periodEnd,
+    bannedAt: row.bannedAt,
+    bannedReason: row.bannedReason,
+    canceledAt: row.canceledAt,
+    viaInvitation: row.invitationId != null,
+    joinedAt: row.createdAt,
+  }))
+}
+
+/**
+ * Bannir, c'est **retirer la parole, pas l'accès** (arbitrage 40).
+ *
+ * `BANNED` fait partie des statuts « ouverts » : le membre continue de lire le
+ * salon et de consulter les ressources incluses jusqu'au terme de la période
+ * qu'il a payée. C'est délibéré — lui couper l'accès à ce qu'il a réglé serait
+ * une sanction financière déguisée, et c'est exactement ce que le remboursement
+ * existe pour traiter. Le même patron que la restriction de compte.
+ *
+ * Le motif est obligatoire : il est affiché au membre et sert de trace le jour
+ * où la décision est contestée.
+ */
+export async function banCommunityMember(
+  communityId: string,
+  learnerId: string,
+  trainerProfileId: string,
+  userId: string,
+  reason: string,
+) {
+  const motive = reason.trim()
+  if (motive.length < 10) throw new Error('REASON_REQUIRED')
+
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true, name: true, slug: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+
+  const subscription = await db.communitySubscription.findFirst({
+    where: { communityId, learnerId, status: { in: [...OPEN_STATUSES] } },
+    select: { id: true, status: true },
+  })
+  if (!subscription) throw new Error('MEMBER_NOT_FOUND')
+  if (subscription.status === 'BANNED') throw new Error('ALREADY_BANNED')
+
+  await db.$transaction(async (tx) => {
+    await tx.communitySubscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: 'BANNED',
+        bannedAt: new Date(),
+        bannedReason: motive,
+        bannedById: userId,
+      },
+    })
+    await audit(tx, {
+      actorId: userId, actorRole: 'TRAINER',
+      action: 'COMMUNITY_MEMBER_BANNED', targetType: 'CommunitySubscription', targetId: subscription.id,
+      meta: { communityId, learnerId, fromStatus: subscription.status, reason: motive },
+    })
+  })
+
+  // Le membre l'apprend, avec le motif : une exclusion silencieuse se découvre
+  // en essayant d'écrire, et se lit comme une panne.
+  await deliverSideEffects('COMMUNITY_MEMBER_BANNED', { type: 'CommunitySubscription', id: subscription.id }, () =>
+    notify(learnerId, {
+      type: 'COMMUNITY_MEMBER_BANNED',
+      title: `Vous ne pouvez plus écrire dans ${community.name}`,
+      body: `${motive}\n\nVous gardez l'accès en lecture et aux ressources incluses jusqu'au terme de la période déjà réglée.`,
+      link: `/mes-communautes/${community.slug}`,
+    }),
+  )
+
+  return { banned: true }
+}
+
+/** Rend la parole. La période, elle, n'a jamais été interrompue. */
+export async function unbanCommunityMember(
+  communityId: string,
+  learnerId: string,
+  trainerProfileId: string,
+  userId: string,
+) {
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true, name: true, slug: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+
+  const subscription = await db.communitySubscription.findFirst({
+    where: { communityId, learnerId, status: 'BANNED' },
+    select: { id: true, periodEnd: true, canceledAt: true },
+  })
+  if (!subscription) throw new Error('MEMBER_NOT_BANNED')
+
+  // On ne rend pas `ACTIVE` à quelqu'un dont la période est close ou résiliée :
+  // le statut doit refléter la réalité de son adhésion, pas la levée de la
+  // sanction. `EXPIRED` est ce que le job de renouvellement aurait posé.
+  const expired = subscription.periodEnd < new Date()
+  const status = subscription.canceledAt || expired ? 'EXPIRED' : 'ACTIVE'
+
+  await db.$transaction(async (tx) => {
+    await tx.communitySubscription.update({
+      where: { id: subscription.id },
+      data: { status, bannedAt: null, bannedReason: null, bannedById: null },
+    })
+    await audit(tx, {
+      actorId: userId, actorRole: 'TRAINER',
+      action: 'COMMUNITY_MEMBER_UNBANNED', targetType: 'CommunitySubscription', targetId: subscription.id,
+      meta: { communityId, learnerId, toStatus: status },
+    })
+  })
+
+  await deliverSideEffects('COMMUNITY_MEMBER_UNBANNED', { type: 'CommunitySubscription', id: subscription.id }, () =>
+    notify(learnerId, {
+      type: 'COMMUNITY_MEMBER_UNBANNED',
+      title: `Vous pouvez de nouveau écrire dans ${community.name}`,
+      body: 'La restriction posée sur votre participation a été levée.',
+      link: `/mes-communautes/${community.slug}`,
+    }),
+  )
+
+  return { status }
 }
 
 // --- Ressources incluses : liaison et déliaison (formateur) ---
