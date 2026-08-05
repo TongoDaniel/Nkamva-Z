@@ -20,7 +20,14 @@ const runtime = process.env.NKAMVA_RUNTIME ?? 'bun'
 
 const child = spawn(runtime, [entry], {
   stdio: 'inherit',
-  env: { ...process.env, NODE_ENV: 'production' },
+  env: {
+    ...process.env,
+    NODE_ENV: 'production',
+    // Marge de sécurité sur la taille max des en-têtes HTTP (16 Ko par défaut
+    // côté Node) : ça n'autorise pas les cookies à grossir sans limite, juste
+    // de la marge avant un rejet 431 si un jour l'un d'eux dérape.
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-http-header-size=32768'].filter(Boolean).join(' '),
+  },
   // Sur Windows, `bun`/`node` sont des `.cmd` que seul le shell sait résoudre.
   shell: process.platform === 'win32',
 })

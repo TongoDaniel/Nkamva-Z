@@ -98,6 +98,10 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: '/auth/connexion', error: '/auth/erreur' },
   callbacks: {
+    // Le token ne doit garder que des scalaires courts (id, rôle, dates). Un
+    // champ qui grossit avec l'usage (liste, objet variable) grossit le cookie
+    // de session à chaque requête — jusqu'au 494/431 côté proxy, un rejet que
+    // l'app ne peut pas rattraper puisqu'elle ne reçoit jamais la requête.
     async jwt({ token, user }) {
       if (user) {
         token.userId = (user as any).id; token.role = (user as any).role; token.adminRole = (user as any).adminRole; token.trainerId = (user as any).trainerId; token.sessionsValidAfter = (user as any).sessionsValidAfter
