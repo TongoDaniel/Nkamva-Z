@@ -11,6 +11,11 @@ import { cn } from "@/lib/utils";
 export const btnVariants = cva(
   [
     "inline-flex items-center justify-center gap-2 whitespace-nowrap",
+    // `nk-tap` garantit 44 px de zone tactile sur écran tactile sans changer le
+    // dessin : la taille `sm` ne fait que 40 px de haut. `relative` ancre le
+    // pseudo-élément ; tailwind-merge le laisse céder à un `absolute` passé en
+    // `className`.
+    "nk-tap relative",
     "font-sans font-semibold leading-none rounded-full border-[1.5px] border-transparent",
     "cursor-pointer no-underline select-none",
     "transition-[transform,box-shadow,background-color,border-color,color] duration-150",
@@ -88,7 +93,7 @@ export const IconBtn = React.forwardRef<
       ref={ref}
       type={type ?? "button"}
       className={cn(
-        "relative grid size-[42px] place-items-center rounded-full border border-line bg-card text-ink-2",
+        "nk-tap relative grid size-[42px] place-items-center rounded-full border border-line bg-card text-ink-2",
         "cursor-pointer transition duration-150 hover:border-ink-3 hover:text-ink hover:-translate-y-px",
         "[&_svg]:size-[19px]",
         className,

@@ -33,7 +33,8 @@ export const PillInput = React.forwardRef<HTMLInputElement, PillInputProps>(
         <input
           ref={ref}
           className={cn(
-            "min-w-0 flex-1 border-0 bg-transparent text-[15px] font-medium text-ink outline-none",
+            // 16 px sous `md` : en deçà, iOS zoome le viewport à la mise au point.
+            "min-w-0 flex-1 border-0 bg-transparent text-base font-medium text-ink outline-none md:text-[15px]",
             "placeholder:text-ink-3",
             className,
           )}
@@ -77,7 +78,7 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(function Fie
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
         className={cn(
-          "w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-[13px] text-[15px] font-medium text-ink",
+          "w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-[13px] text-base font-medium text-ink md:text-[15px]",
           "outline-none transition duration-150 placeholder:text-ink-3",
           "focus:border-brand focus:ring-[3px] focus:ring-brand/25",
           error && "border-danger focus:border-danger focus:ring-danger/25",
@@ -151,7 +152,7 @@ export const PasswordField = React.forwardRef<HTMLInputElement, PasswordFieldPro
             aria-invalid={error ? true : undefined}
             aria-describedby={describedBy || undefined}
             className={cn(
-              "w-full rounded-xl border-[1.5px] border-line bg-card py-[13px] pl-3.5 pr-11 text-[15px] font-medium text-ink",
+              "w-full rounded-xl border-[1.5px] border-line bg-card py-[13px] pl-3.5 pr-11 text-base font-medium text-ink md:text-[15px]",
               "outline-none transition duration-150 placeholder:text-ink-3",
               "focus:border-brand focus:ring-[3px] focus:ring-brand/25",
               error && "border-danger focus:border-danger focus:ring-danger/25",
@@ -164,7 +165,7 @@ export const PasswordField = React.forwardRef<HTMLInputElement, PasswordFieldPro
             onClick={() => setVisible((v) => !v)}
             aria-label={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
             aria-pressed={visible}
-            className="absolute inset-y-1 right-1 grid w-[38px] cursor-pointer place-items-center rounded-lg text-ink-3 hover:text-ink"
+            className="nk-tap absolute inset-y-1 right-1 grid w-[38px] cursor-pointer place-items-center rounded-lg text-ink-3 hover:text-ink"
           >
             {visible ? (
               <EyeOff className="size-[19px]" aria-hidden="true" />
@@ -290,7 +291,9 @@ export function OtpInput({
             aria-label={`Chiffre ${i + 1}`}
             aria-invalid={error ? true : undefined}
             className={cn(
-              "size-[48px] h-14 rounded-xl border-[1.5px] border-line bg-card text-center font-display text-[22px] font-extrabold text-ink",
+              // `nk-field-size` : ces cases sont volontairement à 22 px, le
+              // plancher mobile à 16 px ne doit pas les rabaisser.
+              "nk-field-size size-[48px] h-14 rounded-xl border-[1.5px] border-line bg-card text-center font-display text-[22px] font-extrabold text-ink",
               "outline-none transition focus:border-brand focus:ring-[3px] focus:ring-brand/25",
               "disabled:opacity-50",
               error && "border-danger",

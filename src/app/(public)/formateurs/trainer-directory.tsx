@@ -125,9 +125,13 @@ export function TrainerDirectory({ trainers }: { trainers: PublicTrainer[] }) {
           {visible.map((trainer) => {
             const name = trainer.fullName ?? "Formateur NkamVa";
             return (
+              /* `min-w-0` : la carte est un élément de grille, donc à
+                 `min-width: auto`. Le `truncate` du nom lui impose alors sa
+                 largeur de texte entière — 406 px de carte dans 339 px de
+                 colonne, soit 49 px de débordement horizontal sur mobile. */
               <article
                 key={trainer.id}
-                className="flex flex-col rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+                className="flex min-w-0 flex-col rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
               >
                 <div className="mb-4 flex items-center gap-3.5">
                   <Avatar name={name} size="lg" />

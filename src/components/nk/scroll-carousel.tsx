@@ -93,7 +93,7 @@ function CarouselButton({
         direction === "prev" ? "Faire défiler vers la gauche" : "Faire défiler vers la droite"
       }
       className={cn(
-        "grid size-[38px] cursor-pointer place-items-center rounded-full border-[1.5px] border-line bg-card text-ink-2",
+        "nk-tap relative grid size-[38px] cursor-pointer place-items-center rounded-full border-[1.5px] border-line bg-card text-ink-2",
         "transition duration-150 hover:border-ink hover:text-ink",
         "disabled:cursor-default disabled:opacity-35 disabled:hover:border-line disabled:hover:text-ink-2",
       )}

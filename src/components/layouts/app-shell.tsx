@@ -203,7 +203,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               aria-expanded={open}
               aria-controls="nk-app-nav"
               aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-              className="grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink min-[820px]:hidden"
+              className="nk-tap relative grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink min-[820px]:hidden"
             >
               {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
             </button>

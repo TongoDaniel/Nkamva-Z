@@ -72,7 +72,7 @@ export function FavButton({
         void persist(next);
       }}
       className={cn(
-        "absolute right-3 top-3 z-[3] grid size-[38px] cursor-pointer place-items-center rounded-full",
+        "nk-tap absolute right-3 top-3 z-[3] grid size-[38px] cursor-pointer place-items-center rounded-full",
         "bg-card/90 shadow-nk-sm backdrop-blur-[3px] transition duration-150 hover:scale-110",
         "disabled:cursor-progress disabled:opacity-70",
         pressed ? "text-danger" : "text-ink-2 hover:text-danger",

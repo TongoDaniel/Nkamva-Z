@@ -109,7 +109,7 @@ export default async function UtilisateursPage({
         </nav>
 
         {/* Recherche en GET : l'URL reste partageable entre administrateurs. */}
-        <form action="/admin/utilisateurs" className="flex items-center gap-2">
+        <form action="/admin/utilisateurs" className="flex w-full items-center gap-2 sm:w-auto">
           <input type="hidden" name="role" value={tab} />
           <label htmlFor="q" className="sr-only">
             Rechercher un compte
@@ -119,7 +119,7 @@ export default async function UtilisateursPage({
             name="q"
             defaultValue={search ?? ""}
             placeholder="Nom ou adresse e-mail"
-            className="w-[240px] rounded-full border-[1.5px] border-line bg-card px-4 py-2 text-[13px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
+            className="w-full rounded-full border-[1.5px] border-line bg-card px-4 py-2 text-base text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25 sm:w-[240px] sm:text-[13px]"
           />
         </form>
       </div>

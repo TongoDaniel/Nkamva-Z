@@ -65,9 +65,13 @@ function MonthGrid({
   );
 
   return (
+    /* Padding réduit sous `sm` : sept colonnes dans 339 px ne laissent que
+       39 px par case avec `p-5`, sous les 44 px de cible tactile. À `p-3` la
+       case monte à 41,6 px, et `nk-tap` complète jusqu'à 44 px sans empiéter
+       sur la voisine (2,4 px demandés dans 4 px de gouttière). */
     <section
       aria-label={`Calendrier de ${monthLabel}`}
-      className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm"
+      className="rounded-nk-lg border border-line bg-card p-3 shadow-nk-sm sm:p-5"
     >
       <h2 className="mb-3 text-[15px] font-extrabold capitalize">{monthLabel}</h2>
       <div className="grid grid-cols-7 gap-1 text-center">
@@ -104,7 +108,7 @@ function MonthGrid({
               onClick={() => onPick(mark)}
               aria-label={`${label} — ${mark.tab === "upcoming" ? "live prévu" : "replay disponible"}`}
               className={cn(
-                "grid aspect-square cursor-pointer place-items-center rounded-nk-sm text-[13px] font-bold transition",
+                "nk-tap relative grid aspect-square cursor-pointer place-items-center rounded-nk-sm text-[13px] font-bold transition",
                 mark.tab === "upcoming"
                   ? "bg-brand text-white hover:bg-brand-dark"
                   : "bg-brand-tint text-brand hover:bg-brand-tint-2",

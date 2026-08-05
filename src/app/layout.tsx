@@ -26,7 +26,26 @@ export const metadata: Metadata = {
     "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire — la ressource reste à vous, à vie.",
   keywords: ["NkamVa", "formation en ligne", "cours", "communauté", "formateurs", "FCFA"],
   authors: [{ name: "NkamVa" }],
-  icons: { icon: "/logo.svg" },
+  applicationName: "NkamVa",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "NkamVa",
+    // `default` garde la barre d'état lisible sur le papier chaud ; `black`
+    // la rendrait illisible et `black-translucent` ferait passer le contenu
+    // sous l'encoche.
+    statusBarStyle: "default",
+  },
+  // Les numéros de téléphone détectés par Safari sont rendus en bleu iOS et
+  // cassent la typographie des fiches formateur.
+  formatDetection: { telephone: false },
   openGraph: {
     title: "NkamVa",
     description: "Plateforme de formation en ligne : cours, communautés et formateurs.",
@@ -42,9 +61,18 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f6f3ec",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f3ec" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1620" },
+  ],
   width: "device-width",
   initialScale: 1,
+  // `viewport-fit: cover` fait passer la page sous l'encoche ; les retraits
+  // sont repris par les `env(safe-area-inset-*)` de `globals.css`.
+  viewportFit: "cover",
+  // Ni `maximumScale` ni `userScalable: false` : brider le zoom est un défaut
+  // d'accessibilité (WCAG 1.4.4). Le zoom involontaire d'iOS se règle par le
+  // plancher de 16 px sur les champs, pas en interdisant le geste.
 };
 
 export default function RootLayout({

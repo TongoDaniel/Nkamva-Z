@@ -116,8 +116,8 @@ async function CatalogBody({ searchParams }: { searchParams: SearchParams }) {
                     aria-label={`Page ${p}`}
                     className={
                       p === page
-                        ? "grid size-10 place-items-center rounded-full bg-ink text-sm font-bold text-paper"
-                        : "grid size-10 place-items-center rounded-full border border-line bg-card text-sm font-bold text-ink-2 hover:border-ink-3"
+                        ? "nk-tap relative grid size-10 place-items-center rounded-full bg-ink text-sm font-bold text-paper"
+                        : "nk-tap relative grid size-10 place-items-center rounded-full border border-line bg-card text-sm font-bold text-ink-2 hover:border-ink-3"
                     }
                   >
                     {p}
