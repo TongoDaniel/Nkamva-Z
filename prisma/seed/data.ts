@@ -222,8 +222,17 @@ export interface LearnerSeed {
   bio?: string
   /** Compte créé il y a n jours — étale les inscriptions sur l'axe du temps. */
   createdDaysAgo: number
-  sanction?: { level: 'RESTRICTED'; reason: string }
-  suspended?: { reason: string }
+  /**
+   * Arbitrage 63 — deux niveaux, pas un booléen. `RESTRICTED` écarte la parole
+   * sans retirer l'accès ; `BANNED` coupe la connexion **et** l'accès aux
+   * ressources déjà payées, ce qui la réserve au Super-admin.
+   *
+   * Les deux passent par `applySanction`, qui pose aussi `suspendedAt` — le
+   * champ que lit l'authentification. L'écrire à la main produirait un compte
+   * suspendu au niveau `NONE` : un état que le produit ne sait pas fabriquer,
+   * et que ses écrans lisent de deux façons contradictoires.
+   */
+  sanction?: { level: 'RESTRICTED' | 'BANNED'; reason: string }
 }
 
 export const LEARNERS: LearnerSeed[] = [
@@ -266,8 +275,10 @@ export const LEARNERS: LearnerSeed[] = [
     fullName: 'Grâce Ilunga',
     countryCode: 'CD',
     createdDaysAgo: 27,
-    suspended: {
-      reason: 'Trois contestations de paiement ouvertes chez le fournisseur en deux semaines.',
+    sanction: {
+      level: 'BANNED',
+      reason:
+        'Trois contestations de paiement ouvertes chez le fournisseur en deux semaines, sans réponse aux demandes du support.',
     },
   },
 ]
