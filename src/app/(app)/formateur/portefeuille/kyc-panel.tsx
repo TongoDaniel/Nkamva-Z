@@ -139,10 +139,16 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
             automatiquement — hors délai de sécurité en cours sur un moyen de paiement récent.
           </>
         )}
-        {kyc.details.carenceUntil ? (
+        {/* `carenceUntil` reste renseigné après l'échéance : c'est la date du
+            délai, pas son état. La condition portait dessus, si bien qu'un
+            formateur dont le délai était écoulé depuis des semaines lisait
+            encore « en cours » — sur la ligne même qui lui explique pourquoi
+            ses retraits ne partent pas tout seuls. `carenceActive` compare, lui,
+            à l'instant présent. */}
+        {kyc.carenceActive ? (
           <>
             {" "}
-            Délai de sécurité en cours jusqu&apos;au {fmtDate(kyc.details.carenceUntil)}.
+            Délai de sécurité en cours jusqu&apos;au {fmtDate(kyc.details.carenceUntil!)}.
           </>
         ) : null}
       </p>
