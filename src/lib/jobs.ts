@@ -21,7 +21,7 @@ import {
 } from './subscriptions'
 import { renewDueMemberships, expireOverdueMemberships } from './memberships'
 import { refreshCommunityActivity } from './community-space'
-import { purgeExpiredReplays, alertUpcomingReplayPurges } from './lives'
+import { purgeExpiredReplays, alertUpcomingReplayPurges, reconcileProcessingReplays } from './lives'
 
 export interface ScheduledJob {
   name: string
@@ -151,6 +151,14 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'REPLAY_PURGE_ALERT',
     schedule: '30 5 * * *',
     run: async () => ({ ...(await alertUpcomingReplayPurges()) }),
+  },
+  {
+    // L'egress fichier (sans Mux) n'a aucun webhook : sans ce job, un replay
+    // parti par ce chemin reste `PROCESSING` pour toujours. Cadence resserrée
+    // — dix minutes — parce que c'est la seule chose qui le débloque.
+    name: 'REPLAY_RECONCILE',
+    schedule: '*/10 * * * *',
+    run: async () => ({ ...(await reconcileProcessingReplays()) }),
   },
 ]
 

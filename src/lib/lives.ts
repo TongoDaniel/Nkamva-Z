@@ -35,6 +35,7 @@ import { presignDownload } from './s3'
 import {
   isLiveKitConfigured, livekitUrl, mintJoinToken, ensureRoom, closeRoom,
   setParticipantCanPublish, countConnected, startRecording, startStreamRecording, stopRecording,
+  getEgressOutcome,
 } from './livekit'
 import {
   isMuxConfigured, createLiveStream, disableLiveStream, playbackUrl, downloadUrl,
@@ -1008,6 +1009,62 @@ export async function markReplayFailed(sessionId: string, reason: string): Promi
     action: 'REPLAY_FAILED', targetType: 'Replay', targetId: sessionId,
     meta: { reason },
   })
+}
+
+/**
+ * Fait aboutir les replays que l'egress fichier a laissés en `PROCESSING`.
+ *
+ * L'enregistrement composé vers Mux se referme par webhook (`video.asset.ready`,
+ * voir `/api/webhooks/mux`) : quand Mux est configuré, `PROCESSING` se résout
+ * tout seul. L'egress fichier vers R2 — le repli utilisé sans Mux — n'a **aucun
+ * webhook** : `stopRecording` demande l'arrêt sans jamais attendre que le
+ * fichier soit écrit. Sans ce job, un replay parti par ce chemin restait
+ * `PROCESSING` indéfiniment, une promesse que l'arbitrage 38 ne tenait qu'à
+ * moitié — et `sizeBytes` n'était jamais renseigné, ce qui faussait
+ * silencieusement le quota de stockage du formateur (arbitrage 54).
+ *
+ * On ne retente que les sessions qui ont un `egressId` mais pas de
+ * `muxStreamId` : celles qui attendent le webhook Mux ont déjà leur chemin de
+ * résolution, les interroger ici les ferait consulter deux fois.
+ */
+export async function reconcileProcessingReplays(): Promise<{
+  resolved: number
+  failed: number
+  stillProcessing: number
+}> {
+  const pending = await db.replay.findMany({
+    where: { status: 'PROCESSING', session: { egressId: { not: null }, muxStreamId: null } },
+    select: { id: true, sessionId: true, session: { select: { egressId: true } } },
+  })
+
+  let resolved = 0
+  let failed = 0
+  let stillProcessing = 0
+
+  for (const replay of pending) {
+    const egressId = replay.session.egressId
+    if (!egressId) continue
+
+    const outcome = await getEgressOutcome(egressId)
+    if (!outcome.done) {
+      stillProcessing++
+      continue
+    }
+
+    if (outcome.ok) {
+      await markReplayReady(replay.sessionId, {
+        s3Key: outcome.s3Key,
+        sizeBytes: outcome.sizeBytes,
+        durationSeconds: outcome.durationSeconds,
+      })
+      resolved++
+    } else {
+      await markReplayFailed(replay.sessionId, outcome.reason)
+      failed++
+    }
+  }
+
+  return { resolved, failed, stillProcessing }
 }
 
 // --- Diffusion ---

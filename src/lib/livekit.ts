@@ -24,7 +24,7 @@
 // ==========================================================================
 
 import {
-  AccessToken, EgressClient, RoomServiceClient,
+  AccessToken, EgressClient, RoomServiceClient, EgressStatus,
   EncodedFileOutput, EncodedFileType, S3Upload, StreamOutput, StreamProtocol,
 } from 'livekit-server-sdk'
 import { storageConfig } from './s3'
@@ -264,5 +264,56 @@ export async function stopRecording(egressId: string): Promise<void> {
     // L'egress s'arrête seul quand la salle se vide : le trouver déjà terminé
     // est le cas courant, pas une anomalie.
     console.warn('[LIVEKIT:EGRESS_STOP]', { egressId, error: String(err) })
+  }
+}
+
+export type EgressOutcome =
+  | { done: false }
+  | { done: true; ok: true; s3Key: string; sizeBytes: number; durationSeconds: number }
+  | { done: true; ok: false; reason: string }
+
+/**
+ * État réel d'un enregistrement fichier, interrogé directement chez LiveKit.
+ *
+ * Contrepartie du webhook Mux côté enregistrement composé en salle : ce
+ * chemin-ci — l'egress fichier vers R2, utilisé quand Mux n'est pas configuré
+ * — n'a **aucun webhook**. `stopRecording` ne fait que demander l'arrêt, sans
+ * attendre que le fichier soit réellement écrit ; sans ce module, un replay
+ * parti par ce chemin reste `PROCESSING` pour toujours, une promesse que
+ * l'arbitrage 38 tient à moitié. Voir `reconcileProcessingReplays` dans
+ * `lives.ts`, qui appelle ceci depuis un job planifié.
+ */
+export async function getEgressOutcome(egressId: string): Promise<EgressOutcome> {
+  const client = egress()
+  if (!client) return { done: false }
+
+  try {
+    const [info] = await client.listEgress({ egressId })
+    if (!info) return { done: false }
+
+    switch (info.status) {
+      case EgressStatus.EGRESS_COMPLETE:
+      case EgressStatus.EGRESS_LIMIT_REACHED: {
+        const file = info.fileResults[0]
+        if (!file) return { done: true, ok: false, reason: 'aucun fichier produit' }
+        return {
+          done: true,
+          ok: true,
+          s3Key: file.filename,
+          sizeBytes: Number(file.size),
+          // Nanosecondes chez LiveKit (`FileInfo.duration`).
+          durationSeconds: Math.round(Number(file.duration) / 1_000_000_000),
+        }
+      }
+      case EgressStatus.EGRESS_FAILED:
+      case EgressStatus.EGRESS_ABORTED:
+        return { done: true, ok: false, reason: info.error || 'échec de l\'enregistrement' }
+      default:
+        // STARTING, ACTIVE, ENDING : le fichier n'est pas encore là.
+        return { done: false }
+    }
+  } catch (err) {
+    console.warn('[LIVEKIT:EGRESS_STATUS]', { egressId, error: String(err) })
+    return { done: false }
   }
 }
