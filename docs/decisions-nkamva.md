@@ -967,6 +967,106 @@ applique la cadence en attente, détecte l'impayé et exécute la décision 68.
 
 ---
 
+## Arbitrages 71-86 — Invitations aux communautés
+
+*Tranchés le 5 août 2026, avant toute implémentation. La spécification complète — modèle,
+migration, parcours, refus, tests — est dans `docs/invitations.md` ; ce qui suit en est la
+synthèse décisionnelle. Statut de tous : 📋 rien n'existe en base ni en code.*
+
+**71. Trois natures, deux formes** — L'invitation ouvre une adhésion **offerte**, une
+adhésion **payante**, ou l'entrée dans une **communauté privée**. Elle prend deux formes :
+**nominative** (adressée à une adresse e-mail, usage unique) ou **lien partageable**
+(plusieurs acceptations, plafonné et daté). La forme et la nature sont deux attributs
+distincts (`kind`, `grant`), pas un seul.
+
+**72. La gratuité est nominative, toujours** — Une adhésion offerte ne s'obtient que par
+une invitation adressée et consommable une seule fois. Un lien gratuit qui circule est une
+gratuité qu'on ne contrôle plus.
+
+**73. Le nominatif n'est pas la gratuité** — La forme nominative porte aussi bien une
+adhésion offerte qu'une adhésion payante. C'est une **conséquence** de l'arbitrage 74, pas
+un choix de plus : si le nominatif impliquait la gratuité, une communauté privée — qui ne
+s'entre qu'au nominatif — ne pourrait jamais encaisser un franc.
+
+**74. Le lien partageable ne mène qu'au tarif, et jamais dans une communauté privée** —
+Basculer une communauté en privé **révoque les liens partageables en circulation**, dans la
+même transaction. Sans cela la fermeture serait cosmétique.
+
+**75. Le formateur offre, le membre parraine** — Le formateur émet les deux formes et fixe
+la durée offerte entre **1 et 3 mois** par invitation. Le membre actif n'émet que le lien
+partageable payant. Offrir coûte de l'argent au formateur : la décision lui appartient.
+> Conséquence : un membre d'une communauté privée ne peut émettre aucun lien.
+
+**76. Le parrainage ne rapporte rien au parrain** — Ni mois offert, ni remise.
+L'attribution est conservée (`CommunitySubscription.invitationId`) pour qu'une contrepartie
+puisse s'y greffer plus tard sans reprise de modèle.
+> Ajourné, pas refusé : toute contrepartie ouvre la question de son financement — part du
+> formateur ou commission NkamVa —, donc les invariants financiers.
+
+**77. L'adhésion offerte ne se reconduit pas** — Au terme, elle se ferme comme une
+résiliation : accès résiduel conservé (arbitrage 48), aucune échéance ouverte, aucun
+`PAST_DUE`. Facturer quelqu'un qui n'a jamais donné de moyen de paiement est une surprise,
+pas une conversion.
+> Conséquence de modélisation : `CommunitySubscription.provider` devient **nullable**, et un
+> provider nul **est** la définition d'une adhésion offerte — il n'y a rien avec quoi la
+> reconduire. C'est ce que lira `renewDueMemberships` pour la fermer.
+
+**78. Une invitation payante ne se consomme qu'au paiement confirmé** — Ouvrir le tunnel ne
+consomme rien ; l'usage est décompté dans la transaction du webhook. Un tunnel abandonné ne
+brûle pas l'invitation. Symétrique de « rien n'est ouvert avant que le paiement soit
+confirmé » (`src/lib/memberships.ts`).
+
+**79. Une invitation ne blanchit rien** — Refusée à un compte banni de la communauté,
+sanctionné, suspendu, et au formateur de la communauté lui-même. Une porte ouverte n'est
+pas une décision annulée.
+
+**80. L'adresse invitée est une donnée personnelle** — Inviter, c'est stocker l'adresse de
+quelqu'un qui n'a rien demandé et n'a peut-être pas de compte. Rétention **90 jours après
+l'état terminal**, purge planifiée, aucun usage marketing, aucune réutilisation, mention
+dans la politique de confidentialité, présence dans l'export RGPD des deux côtés.
+
+**81. La communauté privée sort de toutes les surfaces publiques** — Annuaire, recherche
+transversale, panneau « Communauté » de la fiche formateur, et page `/communautes/[slug]`
+qui répond **404** — un 403 révélerait son existence. Les membres déjà entrés restent
+membres : passer en privé ferme la porte, ça n'expulse personne.
+
+**82. Un jeton invalide ne révèle rien** — Inconnu, expiré, révoqué ou épuisé : même
+message générique, sans nom de communauté ni de formateur, sans dire lequel des quatre cas
+s'applique. Seule exception, imposée par l'arbitrage 73 : l'adresse discordante est
+signalée, masquée (`j••••@exemple.com`).
+
+**83. L'invitation ne crée pas de compte et ne vaut pas vérification d'adresse** — Le cas
+majoritaire d'une invitation nominative est un invité **qui n'est pas encore sur NkamVa**.
+Il s'inscrit et vérifie son adresse par l'OTP existant, comme tout le monde ; le lien
+d'invitation ne remplace pas cette preuve. Un e-mail se transfère : si le jeton valait
+`emailVerifiedAt`, un tiers pourrait poser un mot de passe sur une adresse qui n'est pas la
+sienne. Le code arrive dans la même boîte que l'invitation — le coût ergonomique est d'un
+écran.
+> L'alternative (le jeton vaut vérification, pas d'OTP) — ce que « magic link » désigne
+> d'ordinaire, et le mot qu'emploie l'inventaire du Lot 4 — a été pesée et écartée :
+> l'invitation nominative garde de l'argent derrière elle (arbitrage 75), un lien transféré
+> ne doit pas pouvoir le déplacer. Le mot « magic link » de l'inventaire est donc trompeur.
+> Conséquence technique, plus large que les invitations : la chaîne
+> `/auth/inscription` → `/auth/verifier-code` → `/auth/connexion` **perd aujourd'hui la
+> destination**. Seul `login-form.tsx:36` lit un `callbackUrl`. Un paramètre `next`,
+> validé comme chemin interne, doit la traverser.
+
+**84. L'adresse invitée est imposée à l'inscription** — Arriver sur `/auth/inscription`
+depuis une invitation nominative préremplit et verrouille le champ e-mail. Sans cela,
+l'invité s'inscrit avec son adresse habituelle et récolte un `INVITATION_EMAIL_MISMATCH`
+après avoir tout fait. Le verrouillage est ergonomique : **le refus reste côté serveur**.
+
+**85. Une invitation en attente rejoint le compte qui vient de naître** — À la création
+d'un compte, les invitations nominatives `PENDING` adressées à cette adresse lui sont
+rattachées (notification in-app, carte sur `/accueil`). C'est une **lecture, pas une
+acceptation** : adhérer, même gratuitement, reste un geste de l'invité.
+
+**86. Le formateur ne voit qu'un statut d'invitation** — Jamais un statut de personne. Sa
+liste ne dit pas si l'adresse invitée correspond à un compte existant : ce serait une sonde
+d'énumération offerte à qui veut tester des adresses une par une.
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |
@@ -1089,6 +1189,15 @@ negativeSince non null  ⟺  solde retirable < 0
 
 ## Points non arbitrés
 
+- **Quota d'invitations offertes** (arbitrages 71-75) — `INVITATION_GIFT_MONTHLY_QUOTA = 20`
+  par communauté et par 30 jours glissants. Valeur de sécurité, pas règle produit : faut-il
+  un quota du tout, ou la commission perdue est-elle l'affaire du seul formateur ?
+- **Plafond du lien de parrainage** (arbitrage 74) — 25 acceptations, 90 jours. Aucune
+  justification produit : uniquement la maîtrise du dégât si le lien fuite.
+- **Préavis avant la fin des mois offerts** (arbitrage 77) — 3 jours retenus, jamais
+  discutés. Même question ouverte que le préavis de purge d'un replay (arbitrage 51).
+- **Contrepartie du parrain** (arbitrage 76) — ajournée. Elle suppose de dire qui la
+  finance : la part du formateur, ou la commission NkamVa.
 - **Délai de grâce avant suspension** (arbitrage 70) — 14 jours retenus par défaut dans
   `SUBSCRIPTION_GRACE_DAYS`, jamais arbitrés. La valeur est nommée et isolée pour être
   discutée, pas découverte au fond d'une condition.

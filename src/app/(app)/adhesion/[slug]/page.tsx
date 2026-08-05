@@ -18,7 +18,7 @@ export default async function AdhesionPage({ params }: { params: Promise<{ slug:
   const auth = await getAuthContext();
   if (!auth) redirect(`/auth/connexion?callbackUrl=${encodeURIComponent(`/adhesion/${slug}`)}`);
 
-  const community = await getPublicCommunity(slug);
+  const community = await getPublicCommunity(slug, auth.user.id);
   if (!community) notFound();
 
   // Déjà membre et à jour : rien à payer, on ne fait pas traverser le tunnel.

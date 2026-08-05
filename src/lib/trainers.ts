@@ -130,7 +130,10 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
         take: 24,
       },
       communities: {
-        where: { status: 'active' },
+        // Arbitrage 81. Le panneau « Communauté » de la fiche formateur est une
+        // surface publique : une privée n'y figure pas, sans quoi son existence
+        // et son tarif seraient annoncés à tout visiteur.
+        where: { status: 'active', visibility: 'PUBLIC' },
         select: { slug: true, name: true, description: true, priceFcfa: true, membersCount: true },
         orderBy: { createdAt: 'asc' },
         take: 1,

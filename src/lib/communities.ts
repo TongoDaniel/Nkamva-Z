@@ -48,6 +48,10 @@ export async function listPublicCommunities(search?: string): Promise<PublicComm
   const rows = await db.community.findMany({
     where: {
       status: 'active',
+      // Arbitrage 81 : une communauté privée sort de toutes les surfaces
+      // publiques. `status` dit qu'elle vit, `visibility` dit qu'on peut la
+      // trouver — les deux sont nécessaires.
+      visibility: 'PUBLIC',
       ...(search
         ? {
             OR: [
@@ -64,12 +68,51 @@ export async function listPublicCommunities(search?: string): Promise<PublicComm
   return rows.map(toPublic)
 }
 
-export async function getPublicCommunity(slug: string) {
+/**
+ * La fiche publique d'une communauté.
+ *
+ * Une communauté **privée** répond `null` — donc 404 côté page — sauf au membre
+ * qui y est déjà (arbitrage 81). Un 403 dirait qu'elle existe, ce qui suffirait
+ * à cartographier les communautés fermées en essayant des slugs.
+ *
+ * L'invité porteur d'un jeton valide, lui, ne passe pas par ici : il voit la
+ * communauté depuis `/invitation/[token]`, où le jeton fait autorité.
+ */
+export async function getPublicCommunity(
+  slug: string,
+  viewerId?: string | null,
+  /**
+   * Identifiant de la communauté dont une invitation valide vient d'être
+   * reconnue. C'est ce qui laisse un invité **pas encore membre** lire une
+   * communauté privée pendant le tunnel d'adhésion payant : sans cette porte,
+   * l'arbitrage 73 (le nominatif peut être payant) n'aurait aucun chemin
+   * praticable. L'appelant a la charge d'avoir validé l'invitation.
+   */
+  allowPrivateCommunityId?: string | null,
+) {
   const community = await db.community.findFirst({
     where: { slug, status: 'active' },
-    select: { ...SELECT_PUBLIC, rules: true, messagesPerDay: true, broadcastEnabled: true },
+    select: {
+      ...SELECT_PUBLIC, rules: true, messagesPerDay: true, broadcastEnabled: true,
+      visibility: true,
+      // Surcharge volontaire de `SELECT_PUBLIC` : `userId` sert au contrôle
+      // ci-dessous, et n'a rien à faire dans la fiche publique.
+      trainerProfile: { select: { id: true, slogan: true, userId: true, user: { select: { fullName: true } } } },
+    },
   })
   if (!community) return null
+
+  if (community.visibility === 'PRIVATE' && community.id !== allowPrivateCommunityId) {
+    if (!viewerId) return null
+    // Le formateur voit sa propre communauté fermée : il l'anime, il n'y adhère
+    // pas, il n'apparaîtrait donc dans aucune souscription.
+    if (community.trainerProfile.userId !== viewerId) {
+      const member = await db.communitySubscription.count({
+        where: { communityId: community.id, learnerId: viewerId, status: { in: [...OPEN_STATUSES] } },
+      })
+      if (member === 0) return null
+    }
+  }
 
   // Seules les ressources encore liées sont annoncées publiquement : c'est ce
   // qu'un futur membre recevra. Ce qui a été délié n'appartient plus à l'offre.
