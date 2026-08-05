@@ -20,6 +20,7 @@
 
 import { db } from './db'
 import { auditStandalone } from './audit'
+import { canTrainerWrite } from './subscriptions'
 import type { CourseListItem } from './dto'
 
 /**
@@ -129,6 +130,210 @@ export async function getPublicCommunity(
     broadcastEnabled: community.broadcastEnabled,
     courses: links.map((l) => toCard(l.course)),
   }
+}
+
+// ==========================================================================
+// Ouvrir et tenir sa communauté (formateur)
+// ==========================================================================
+// Ces fonctions manquaient entièrement. Le modèle, les adhésions, les salons,
+// la messagerie, les lives et les invitations existaient tous — au-dessus d'un
+// objet que rien ne savait créer. Les trois communautés du jeu de démonstration
+// étaient écrites directement en base, faute de chemin.
+//
+// Un seul salon par formateur, à dessein : `Community.trainerId` n'est pas
+// unique au schéma, mais tout le produit parle de « votre communauté » au
+// singulier — la fiche formateur en affiche une, `listMyMemberships` en attend
+// une par formateur. Autoriser la seconde demanderait de revoir ces écrans, pas
+// d'ajouter une ligne.
+
+/** Longueurs retenues pour rester lisibles sur une carte comme sur mobile. */
+export const COMMUNITY_NAME_MAX = 80
+export const COMMUNITY_DESCRIPTION_MAX = 2000
+export const COMMUNITY_RULES_MAX = 2000
+
+/**
+ * Plancher du prix d'adhésion, aligné sur celui d'une ressource
+ * (`createCourse`). En dessous, la commission de 15 % n'a plus de sens : elle
+ * arrondirait à zéro.
+ */
+export const COMMUNITY_MIN_PRICE_FCFA = 500
+
+export interface CommunityInput {
+  name: string
+  description?: string | null
+  rules?: string | null
+  priceFcfa: number
+  forumEnabled?: boolean
+  broadcastEnabled?: boolean
+  messagingEnabled?: boolean
+  resourcesEnabled?: boolean
+  eventsEnabled?: boolean
+}
+
+/** Slug unique, dérivé du nom — même fabrique que celle des ressources. */
+async function generateCommunitySlug(name: string, excludeId?: string): Promise<string> {
+  const base =
+    name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-') || 'communaute'
+
+  let slug = base
+  let counter = 1
+  while (true) {
+    const existing = await db.community.findFirst({
+      where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      select: { id: true },
+    })
+    if (!existing) break
+    slug = `${base}-${counter++}`
+  }
+  return slug
+}
+
+function assertCommunityInput(input: CommunityInput): void {
+  if (!input.name.trim()) throw new Error('NAME_REQUIRED')
+  if (input.name.length > COMMUNITY_NAME_MAX) throw new Error('NAME_TOO_LONG')
+  if (!Number.isInteger(input.priceFcfa) || input.priceFcfa < COMMUNITY_MIN_PRICE_FCFA) {
+    throw new Error('PRICE_TOO_LOW')
+  }
+  if ((input.description?.length ?? 0) > COMMUNITY_DESCRIPTION_MAX) throw new Error('DESCRIPTION_TOO_LONG')
+  if ((input.rules?.length ?? 0) > COMMUNITY_RULES_MAX) throw new Error('RULES_TOO_LONG')
+}
+
+export async function createCommunity(
+  trainerProfileId: string,
+  userId: string,
+  input: CommunityInput,
+) {
+  assertCommunityInput(input)
+
+  // Décision 68 — un abonnement suspendu ferme les chemins d'écriture. Ouvrir
+  // un salon payant en fait partie : il encaisserait des adhésions.
+  if (!(await canTrainerWrite(trainerProfileId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+
+  const existing = await db.community.findFirst({
+    where: { trainerId: trainerProfileId, status: 'active' },
+    select: { id: true },
+  })
+  if (existing) throw new Error('COMMUNITY_ALREADY_EXISTS')
+
+  const slug = await generateCommunitySlug(input.name)
+
+  const community = await db.community.create({
+    data: {
+      trainerId: trainerProfileId,
+      name: input.name.trim(),
+      slug,
+      description: input.description?.trim() || null,
+      rules: input.rules?.trim() || null,
+      priceFcfa: input.priceFcfa,
+      forumEnabled: input.forumEnabled ?? true,
+      broadcastEnabled: input.broadcastEnabled ?? true,
+      messagingEnabled: input.messagingEnabled ?? true,
+      resourcesEnabled: input.resourcesEnabled ?? true,
+      eventsEnabled: input.eventsEnabled ?? true,
+    },
+  })
+
+  await auditStandalone({
+    actorId: userId, actorRole: 'TRAINER',
+    action: 'COMMUNITY_CREATED', targetType: 'Community', targetId: community.id,
+    meta: { name: community.name, slug, priceFcfa: community.priceFcfa },
+  })
+
+  return community
+}
+
+/**
+ * Modifie le salon. Le **prix ne s'applique qu'aux adhésions à venir** : les
+ * périodes déjà réglées portent leur montant, et `initiateMembershipPayment`
+ * relit le prix courant à chaque échéance. Personne n'est débité de la
+ * différence en cours de mois.
+ *
+ * Le slug suit le nom, comme pour une ressource. Une communauté renommée change
+ * donc d'URL — c'est le comportement de `updateCourse`, et les liens partagés
+ * y survivent mal. Le nom est le seul champ dans ce cas ; le signaler à
+ * l'écran vaut mieux que de figer le slug et de laisser une adresse mentir.
+ */
+export async function updateCommunity(
+  communityId: string,
+  trainerProfileId: string,
+  userId: string,
+  input: Partial<CommunityInput>,
+) {
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true, name: true, priceFcfa: true, status: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+  if (community.status !== 'active') throw new Error('COMMUNITY_CLOSED')
+  if (!(await canTrainerWrite(trainerProfileId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+
+  assertCommunityInput({
+    name: input.name ?? community.name,
+    priceFcfa: input.priceFcfa ?? community.priceFcfa,
+    description: input.description,
+    rules: input.rules,
+  })
+
+  const renamed = input.name !== undefined && input.name.trim() !== community.name
+
+  const updated = await db.community.update({
+    where: { id: communityId },
+    data: {
+      ...(input.name !== undefined && {
+        name: input.name.trim(),
+        ...(renamed ? { slug: await generateCommunitySlug(input.name, communityId) } : {}),
+      }),
+      ...(input.description !== undefined && { description: input.description?.trim() || null }),
+      ...(input.rules !== undefined && { rules: input.rules?.trim() || null }),
+      ...(input.priceFcfa !== undefined && { priceFcfa: input.priceFcfa }),
+      ...(input.forumEnabled !== undefined && { forumEnabled: input.forumEnabled }),
+      ...(input.broadcastEnabled !== undefined && { broadcastEnabled: input.broadcastEnabled }),
+      ...(input.messagingEnabled !== undefined && { messagingEnabled: input.messagingEnabled }),
+      ...(input.resourcesEnabled !== undefined && { resourcesEnabled: input.resourcesEnabled }),
+      ...(input.eventsEnabled !== undefined && { eventsEnabled: input.eventsEnabled }),
+    },
+  })
+
+  await auditStandalone({
+    actorId: userId, actorRole: 'TRAINER',
+    action: 'COMMUNITY_UPDATED', targetType: 'Community', targetId: communityId,
+    meta: {
+      renamed,
+      ...(renamed ? { slug: updated.slug } : {}),
+      ...(input.priceFcfa !== undefined && input.priceFcfa !== community.priceFcfa
+        ? { priceFrom: community.priceFcfa, priceTo: input.priceFcfa }
+        : {}),
+    },
+  })
+
+  return updated
+}
+
+/** La communauté du formateur, avec de quoi remplir son écran de gestion. */
+export async function getMyCommunity(trainerProfileId: string) {
+  return db.community.findFirst({
+    where: { trainerId: trainerProfileId, status: 'active' },
+    select: {
+      id: true, slug: true, name: true, description: true, rules: true,
+      priceFcfa: true, visibility: true, membersCount: true, messagesPerDay: true,
+      forumEnabled: true, broadcastEnabled: true, messagingEnabled: true,
+      resourcesEnabled: true, eventsEnabled: true, createdAt: true,
+      _count: {
+        select: {
+          subscriptions: { where: { status: { in: ['ACTIVE', 'PAST_DUE'] } } },
+          courseLinks: { where: { unlinkedAt: null } },
+        },
+      },
+    },
+  })
 }
 
 // --- Ressources incluses : liaison et déliaison (formateur) ---
