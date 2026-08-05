@@ -13,10 +13,25 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function AdhesionPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function AdhesionPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ invitation?: string }>;
+}) {
   const { slug } = await params;
+  const { invitation } = await searchParams;
   const auth = await getAuthContext();
-  if (!auth) redirect(`/auth/connexion?callbackUrl=${encodeURIComponent(`/adhesion/${slug}`)}`);
+  // Le jeton suit la redirection de connexion : sans lui, quelqu'un qui arrive
+  // par une invitation payante et doit d'abord se connecter reviendrait dans un
+  // tunnel ordinaire, et son adhésion ne serait attribuée à personne.
+  if (!auth) {
+    const back = invitation
+      ? `/adhesion/${slug}?invitation=${encodeURIComponent(invitation)}`
+      : `/adhesion/${slug}`;
+    redirect(`/auth/connexion?callbackUrl=${encodeURIComponent(back)}`);
+  }
 
   const community = await getPublicCommunity(slug, auth.user.id);
   if (!community) notFound();
@@ -49,6 +64,7 @@ export default async function AdhesionPage({ params }: { params: Promise<{ slug:
         includedCount={community.includedCount}
         trainerName={community.trainer.fullName}
         dueAmountFcfa={membership?.dueAmountFcfa ?? null}
+        invitation={invitation ?? null}
       />
     </div>
   );
