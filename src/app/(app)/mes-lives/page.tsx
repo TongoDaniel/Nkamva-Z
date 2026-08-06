@@ -5,6 +5,10 @@ import { Btn } from "@/components/nk/button";
 import { getAuthContext } from "@/lib/api";
 import { listMyAgenda, listMyReplays } from "@/lib/lives";
 import { AgendaPane } from "./agenda-pane";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +36,7 @@ export default async function MesLivesPage() {
         lead="Vos sessions en direct et les replays de vos communautés."
         actions={
           <Btn asChild variant="o">
-            <Link href="/communautes">Explorer les communautés</Link>
+            <Link href={routes.communities}>Explorer les communautés</Link>
           </Btn>
         }
       />

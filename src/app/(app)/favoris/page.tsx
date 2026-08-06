@@ -10,6 +10,9 @@ import { Price, ResourceCard } from "@/components/nk/resource-card";
 import { getAuthContext } from "@/lib/api";
 import { listMyFavorites } from "@/lib/favorites";
 import { fmtNumber } from "@/lib/format";
+import { routesOf } from "@/lib/spaces";
+
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +32,8 @@ function Count({ n }: { n: number }) {
 
 export default async function FavorisPage() {
   // Les favoris appartiennent à quelqu'un : sans session il n'y a rien à
-  // montrer. Le lien étant visible dans la barre publique, la redirection porte
-  // le retour pour ne pas perdre l'intention.
+  // montrer. Le middleware garde déjà la route ; ce doublon reste au cas où la
+  // garde de navigation serait désactivée.
   const auth = await getAuthContext();
   if (!auth) redirect("/auth/connexion?callbackUrl=/favoris");
 
@@ -39,7 +42,7 @@ export default async function FavorisPage() {
   return (
     <div className="nk-wrap pb-16">
       <PageHead
-        crumbs={[{ label: "Accueil", href: "/" }, { label: "Favoris" }]}
+        crumbs={[{ label: "Accueil", href: routes.home }, { label: "Favoris" }]}
         title="Vos favoris"
         lead="Ressources et communautés que vous avez mises de côté, à retrouver ici."
       />
@@ -56,7 +59,7 @@ export default async function FavorisPage() {
             description="Touchez le cœur sur une ressource du catalogue pour la retrouver ici."
             action={
               <Btn asChild variant="o">
-                <Link href="/ressources">Parcourir le catalogue</Link>
+                <Link href={routes.catalog}>Parcourir le catalogue</Link>
               </Btn>
             }
           />
@@ -65,7 +68,7 @@ export default async function FavorisPage() {
             {courses.map((course) => (
               // `favorited` est vrai par construction : on est sur la liste des
               // favoris. Le cœur part donc allumé.
-              <ResourceCard key={course.id} course={course} favoritable favorited />
+              <ResourceCard key={course.id} course={course} space="app" favoritable favorited />
             ))}
           </div>
         )}
@@ -83,7 +86,7 @@ export default async function FavorisPage() {
             description="Mettez de côté les communautés qui vous intéressent pour les comparer plus tard."
             action={
               <Btn asChild variant="o">
-                <Link href="/communautes">Explorer les communautés</Link>
+                <Link href={routes.communities}>Explorer les communautés</Link>
               </Btn>
             }
           />
@@ -98,7 +101,7 @@ export default async function FavorisPage() {
                 <div className="flex flex-1 flex-col gap-2 px-5 py-4">
                   <h3 className="text-[16px] font-extrabold leading-tight">
                     <Link
-                      href={`/communautes/${community.slug}`}
+                      href={routes.community(community.slug)}
                       className="text-ink hover:text-brand"
                     >
                       {community.name}

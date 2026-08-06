@@ -9,6 +9,10 @@ import { getAuthContext } from "@/lib/api";
 import { listMyResources } from "@/lib/access";
 import type { ResourceItem } from "@/lib/dto";
 import { ResourceList } from "./resource-list";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +46,7 @@ export default async function MesRessourcesPage({
         lead="Retrouvez ici toutes les ressources que vous avez acquises. L'accès est à vie."
         actions={
           <Btn asChild variant="o">
-            <Link href="/ressources">Explorer le catalogue</Link>
+            <Link href={routes.catalog}>Explorer le catalogue</Link>
           </Btn>
         }
       />
@@ -68,7 +72,7 @@ export default async function MesRessourcesPage({
           description="Les cours, guides et modèles que vous achetez apparaissent ici, définitivement."
           action={
             <Btn asChild>
-              <Link href="/ressources">Découvrir le catalogue</Link>
+              <Link href={routes.catalog}>Découvrir le catalogue</Link>
             </Btn>
           }
         />

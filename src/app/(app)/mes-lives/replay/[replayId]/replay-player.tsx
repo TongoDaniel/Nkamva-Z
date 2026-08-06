@@ -9,6 +9,10 @@ import { Chip } from "@/components/nk/chip";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/client";
 import type { ReplayView } from "@/lib/lives";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 
@@ -193,7 +197,7 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
           <h1 className="text-[21px] font-extrabold">{replay.title}</h1>
           <p className="mt-1.5 text-[13.5px] text-ink-2">
             <Link
-              href={`/communautes/${replay.community.slug}`}
+              href={routes.community(replay.community.slug)}
               className="font-bold text-brand hover:text-brand-dark"
             >
               {replay.community.name}

@@ -24,6 +24,10 @@ import { api, ApiError } from "@/lib/client";
 import { useLiveRoom } from "@/hooks/use-live-room";
 import { cn } from "@/lib/utils";
 import type { LiveRoomView } from "@/lib/lives";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 type Panel = "chat" | "participants" | "notes";
 
@@ -498,7 +502,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
 
       <p className="flex items-center gap-2 text-[13px] text-ink-3 lg:col-span-2">
         <Users className="size-4" aria-hidden="true" />
-        <Link href={`/communautes/${room.community.slug}`} className="hover:text-brand">
+        <Link href={routes.community(room.community.slug)} className="hover:text-brand">
           {room.community.name}
         </Link>
         {" · "}
