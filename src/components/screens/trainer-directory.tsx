@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/nk/empty-state";
 import { PillInput } from "@/components/nk/input";
 import { Tabs, type TabItem } from "@/components/nk/tabs";
 import { fmtNumber } from "@/lib/format";
+import { routesOf, type Space } from "@/lib/spaces";
 import type { PublicTrainer } from "@/lib/trainers";
 
 /** Insensible à la casse et aux accents, comme la recherche du catalogue. */
@@ -27,7 +28,14 @@ function fold(value: string): string {
  * catalogue. Les onglets sont dérivés des domaines réellement présents, pas
  * d'une taxonomie figée qui afficherait des catégories vides.
  */
-export function TrainerDirectory({ trainers }: { trainers: PublicTrainer[] }) {
+export function TrainerDirectory({
+  trainers,
+  space,
+}: {
+  trainers: PublicTrainer[];
+  space: Space;
+}) {
+  const routes = routesOf(space);
   const [category, setCategory] = React.useState("all");
   const [search, setSearch] = React.useState("");
   // Identifiant littéral plutôt que `useId` : voir `community-directory.tsx`.
@@ -138,7 +146,7 @@ export function TrainerDirectory({ trainers }: { trainers: PublicTrainer[] }) {
                   <div className="min-w-0">
                     <h2 className="truncate text-[17px] font-extrabold">
                       <Link
-                        href={`/formateurs/${trainer.id}`}
+                        href={routes.trainer(trainer.id)}
                         className="text-ink hover:text-brand"
                       >
                         {name}

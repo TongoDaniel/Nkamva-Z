@@ -5,6 +5,11 @@ import { getPublicCommunity } from "@/lib/communities";
 import { getMembership } from "@/lib/memberships";
 import { getAuthContext } from "@/lib/api";
 import { AdhesionForm } from "./adhesion-form";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
+
 
 export const dynamic = "force-dynamic";
 
@@ -39,14 +44,14 @@ export default async function AdhesionPage({
   // Déjà membre et à jour : rien à payer, on ne fait pas traverser le tunnel.
   // Une adhésion en impayé, elle, a précisément quelque chose à y faire.
   const membership = await getMembership(community.id, auth.user.id);
-  if (membership && membership.status !== "PAST_DUE") redirect(`/communautes/${slug}`);
+  if (membership && membership.status !== "PAST_DUE") redirect(routes.community(slug));
 
   return (
     <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[
-          { label: "Communautés", href: "/communautes" },
-          { label: community.name, href: `/communautes/${slug}` },
+          { label: "Communautés", href: routes.communities },
+          { label: community.name, href: routes.community(slug) },
           { label: membership ? "Règlement" : "Adhésion" },
         ]}
         title={membership ? "Régler votre adhésion" : "Rejoindre la communauté"}

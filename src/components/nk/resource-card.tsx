@@ -5,6 +5,7 @@ import { categoryTone, Cover, formatLabel } from "./cover";
 import { FavButton } from "./fav-button";
 import { initials } from "./avatar";
 import { fmtDuration, fmtNumber } from "@/lib/format";
+import { routesOf, type Space } from "@/lib/spaces";
 import type { CourseListItem } from "@/lib/dto";
 import { cn } from "@/lib/utils";
 
@@ -21,11 +22,18 @@ export function Price({ amountFcfa, className }: { amountFcfa: number; className
 /** Carte ressource partagée catalogue / accueil / suggestions — port de `.rc`. */
 export function ResourceCard({
   course,
+  space,
   favoritable,
   favorited,
   className,
 }: {
   course: CourseListItem;
+  /**
+   * Espace qui rend la carte. Prop obligatoire et sans valeur par défaut : une
+   * carte posée dans l'espace connecté qui pointerait vers `/ressources` ferait
+   * retomber l'utilisateur dans la coquille visiteur.
+   */
+  space: Space;
   /** Affiche le cœur de mise en favori. */
   favoritable?: boolean;
   /** État initial du cœur, lu côté serveur pour éviter un clignotement. */
@@ -56,7 +64,7 @@ export function ResourceCard({
           {/* Le lien couvre toute la carte : une seule cible cliquable, un seul
               élément dans l'ordre de tabulation. */}
           <Link
-            href={`/ressources/${course.slug}`}
+            href={routesOf(space).course(course.slug)}
             className="text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand"
           >
             {course.title}

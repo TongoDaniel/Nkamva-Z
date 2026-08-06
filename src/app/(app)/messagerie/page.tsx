@@ -7,6 +7,10 @@ import { Btn } from "@/components/nk/button";
 import { getAuthContext } from "@/lib/api";
 import { listMyConversations, getConversation } from "@/lib/messaging";
 import { ConversationPane } from "./conversation-pane";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +57,7 @@ export default async function MessageriePage({
           description="Échanger avec un formateur suppose d'être membre de sa communauté : l'achat d'une ressource à l'unité n'ouvre pas de fil."
           action={
             <Btn asChild size="lg">
-              <Link href="/communautes">Voir les communautés</Link>
+              <Link href={routes.communities}>Voir les communautés</Link>
             </Btn>
           }
         />

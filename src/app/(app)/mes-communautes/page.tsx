@@ -9,6 +9,10 @@ import { Avatar } from "@/components/nk/avatar";
 import { getAuthContext } from "@/lib/api";
 import { listMyMemberships } from "@/lib/memberships";
 import { fmtDate, fmtFcfa, fmtNumber } from "@/lib/format";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +42,7 @@ export default async function MesCommunautesPage() {
           description="Chaque formateur anime la sienne : forum d'entraide, ressources incluses et sessions live."
           action={
             <Btn asChild size="lg">
-              <Link href="/communautes">Parcourir les communautés</Link>
+              <Link href={routes.communities}>Parcourir les communautés</Link>
             </Btn>
           }
         />
@@ -53,7 +57,7 @@ export default async function MesCommunautesPage() {
 
               <div className="min-w-[240px] flex-1">
                 <h2 className="text-[16.5px] font-bold leading-tight">
-                  <Link href={`/communautes/${m.community.slug}`} className="hover:text-brand">
+                  <Link href={routes.community(m.community.slug)} className="hover:text-brand">
                     {m.community.name}
                   </Link>
                 </h2>

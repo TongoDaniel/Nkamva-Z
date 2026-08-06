@@ -9,6 +9,11 @@ import { api, ApiError } from "@/lib/client";
 import { fmtFcfa, fmtNumber } from "@/lib/format";
 import type { PaymentProvider } from "@/lib/dto";
 import { cn } from "@/lib/utils";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
+
 
 const PROVIDERS: Array<{
   value: PaymentProvider;
@@ -86,7 +91,7 @@ export function AdhesionForm({
       router.push(`/achat/confirmation/${data.purchaseId}`);
     } catch (err) {
       if (err instanceof ApiError && err.code === "ALREADY_MEMBER") {
-        router.push(`/communautes/${slug}`);
+        router.push(routes.community(slug));
         return;
       }
       setError(

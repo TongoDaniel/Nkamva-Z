@@ -10,6 +10,10 @@ import { getCommunitySpace } from "@/lib/community-space";
 import { getPublicCommunity } from "@/lib/communities";
 import { CommunityFeed } from "./community-feed";
 import { OpenConversation } from "./open-conversation";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +45,7 @@ export default async function EspaceCommunautePage({
     const code = err instanceof Error ? err.message : "";
     // Qui n'est pas membre n'atterrit pas sur une page d'erreur : la fiche
     // publique lui dit ce qu'est cette communauté et comment y entrer.
-    if (code === "NOT_MEMBER") redirect(`/communautes/${slug}`);
+    if (code === "NOT_MEMBER") redirect(routes.community(slug));
     if (code === "COMMUNITY_NOT_FOUND") notFound();
     throw err;
   }
@@ -90,7 +94,7 @@ export default async function EspaceCommunautePage({
               </h2>
               <div className="mt-4 grid gap-4">
                 {included.courses.slice(0, 3).map((course) => (
-                  <ResourceCard key={course.id} course={course} />
+                  <ResourceCard key={course.id} course={course} space="app" />
                 ))}
               </div>
               {included.courses.length > 3 ? (
@@ -134,7 +138,7 @@ export default async function EspaceCommunautePage({
                 <OpenConversation slug={slug} />
               ) : null}
               <Btn asChild variant="o" size="sm" block>
-                <Link href={`/communautes/${slug}`}>Gérer mon adhésion</Link>
+                <Link href={routes.community(slug)}>Gérer mon adhésion</Link>
               </Btn>
             </div>
           </section>

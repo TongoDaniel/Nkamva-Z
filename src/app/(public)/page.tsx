@@ -321,7 +321,7 @@ export default async function LandingPage() {
               <ResourceCard
                 key={course.id}
                 course={course}
-                favoritable
+                space="public"
                 className="w-[296px] flex-none snap-start max-[640px]:w-[262px]"
               />
             ))}

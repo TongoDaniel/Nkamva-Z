@@ -85,7 +85,7 @@ export default async function RecherchePage({
               </h2>
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {results.courses.map((course) => (
-                  <ResourceCard key={course.id} course={course} favoritable />
+                  <ResourceCard key={course.id} course={course} space="public" />
                 ))}
               </div>
             </section>

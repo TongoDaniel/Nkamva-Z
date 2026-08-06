@@ -11,6 +11,10 @@ import { fmtDate, fmtFcfa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DISPUTE_STATUS } from "../dispute-status";
 import { ReplyForm } from "./reply-form";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -176,7 +180,7 @@ export default async function DisputeDetailPage({
 
           {course ? (
             <Btn asChild variant="o" size="sm" block className="mt-4">
-              <Link href={`/ressources/${course.slug}`}>Voir la ressource</Link>
+              <Link href={routes.course(course.slug)}>Voir la ressource</Link>
             </Btn>
           ) : null}
         </aside>

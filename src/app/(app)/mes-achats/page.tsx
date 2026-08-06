@@ -14,6 +14,10 @@ import { db } from "@/lib/db";
 import { DisputeButton } from "./dispute-button";
 import { fmtDate, fmtFcfa } from "@/lib/format";
 import type { PaymentStatus, PurchaseItem } from "@/lib/dto";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +84,7 @@ export default async function MesAchatsPage({
           <div className="min-w-0">
             <b className="block truncate text-sm font-bold">
               {row.course ? (
-                <Link href={`/ressources/${row.course.slug}`} className="text-ink hover:text-brand">
+                <Link href={routes.course(row.course.slug)} className="text-ink hover:text-brand">
                   {row.course.title}
                 </Link>
               ) : (
@@ -202,7 +206,7 @@ export default async function MesAchatsPage({
           description="Vos paiements apparaîtront ici, avec leur statut et leur montant."
           action={
             <Btn asChild>
-              <Link href="/ressources">Découvrir le catalogue</Link>
+              <Link href={routes.catalog}>Découvrir le catalogue</Link>
             </Btn>
           }
         />

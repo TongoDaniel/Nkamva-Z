@@ -12,6 +12,10 @@ import { listMyResources } from "@/lib/access";
 import { searchCourses } from "@/lib/catalog";
 import { db } from "@/lib/db";
 import { consumptionPercent, isDownloadable, type CourseListItem, type ResourceItem } from "@/lib/dto";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -138,7 +142,7 @@ export default async function AccueilPage({
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-[14.5px] font-bold">
-                      <Link href={`/ressources/${course.slug}`} className="text-ink hover:text-brand">
+                      <Link href={routes.course(course.slug)} className="text-ink hover:text-brand">
                         {course.title}
                       </Link>
                     </h3>
@@ -166,13 +170,13 @@ export default async function AccueilPage({
             <h2 id="suggestions" className="text-[17px] font-bold">
               Nouveautés du catalogue
             </h2>
-            <Link href="/ressources" className="text-[13px] font-bold text-brand">
+            <Link href={routes.catalog} className="text-[13px] font-bold text-brand">
               Tout le catalogue
             </Link>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {suggested.map((course) => (
-              <ResourceCard key={course.id} course={course} />
+              <ResourceCard key={course.id} course={course} space="app" />
             ))}
           </div>
         </section>

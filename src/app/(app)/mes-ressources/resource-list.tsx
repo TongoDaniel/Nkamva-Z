@@ -13,6 +13,10 @@ import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
 import { fmtDuration } from "@/lib/format";
 import { consumptionPercent, isDownloadable, type ResourceItem } from "@/lib/dto";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 function ResourceActions({ item }: { item: ResourceItem }) {
   const [pending, setPending] = React.useState(false);
@@ -126,7 +130,7 @@ export function ResourceList({
                     {duration ? ` · ${duration}` : ""}
                   </p>
                   <h2 className="text-[15.5px] font-bold leading-tight">
-                    <Link href={`/ressources/${course.slug}`} className="text-ink hover:text-brand">
+                    <Link href={routes.course(course.slug)} className="text-ink hover:text-brand">
                       {course.title}
                     </Link>
                   </h2>

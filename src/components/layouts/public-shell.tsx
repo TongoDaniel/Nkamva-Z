@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Logo } from "@/components/nk/logo";
 import { cn } from "@/lib/utils";
@@ -82,13 +82,9 @@ export function PublicTopbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2.5">
-          <Link
-            href="/favoris"
-            aria-label="Favoris"
-            className="nk-tap relative grid size-[42px] place-items-center rounded-full border border-line bg-card text-ink-2 transition duration-150 hover:-translate-y-px hover:border-ink-3 hover:text-ink max-[560px]:hidden"
-          >
-            <Heart className="size-[19px]" aria-hidden="true" />
-          </Link>
+          {/* Pas de favoris ici : ils appartiennent à un compte. Le cœur menait
+              une personne non connectée vers un écran qui la renvoyait aussitôt
+              se connecter. L'entrée vit dans le menu du compte, côté connecté. */}
           <Btn asChild variant="t" size="sm" className="max-[820px]:hidden">
             <Link href="/auth/connexion">Se connecter</Link>
           </Btn>
@@ -118,7 +114,7 @@ export function PublicTopbar() {
         hidden={!open}
         className="absolute inset-x-0 top-full z-[120] border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk min-[820px]:hidden"
       >
-        {[...NAV, { href: "/favoris", label: "Favoris" }].map((item) => (
+        {NAV.map((item) => (
           <Link
             key={item.href}
             href={item.href}

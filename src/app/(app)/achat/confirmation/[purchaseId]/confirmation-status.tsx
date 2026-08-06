@@ -9,6 +9,10 @@ import { Cover, formatLabel } from "@/components/nk/cover";
 import { api } from "@/lib/client";
 import { fmtDate, fmtFcfa } from "@/lib/format";
 import type { PaymentProvider, PaymentStatus } from "@/lib/dto";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 /** Renseigné quand le paiement porte une adhésion, et non une ressource. */
 export interface ConfirmationCommunity {
@@ -100,7 +104,7 @@ export function ConfirmationStatus({
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Btn asChild size="lg">
-                    <Link href={`/communautes/${community.slug}`}>Aller à la communauté</Link>
+                    <Link href={routes.community(community.slug)}>Aller à la communauté</Link>
                   </Btn>
                   <Btn asChild variant="o" size="lg">
                     <Link href="/mes-communautes">Mes communautés</Link>

@@ -6,6 +6,11 @@ import { checkCourseAccess } from "@/lib/access";
 import { getAuthContext } from "@/lib/api";
 import type { CourseDetail } from "@/lib/dto";
 import { CheckoutForm } from "./checkout-form";
+import { routesOf } from "@/lib/spaces";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
+
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +35,8 @@ export default async function AchatPage({ params }: { params: Promise<{ slug: st
     <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[
-          { label: "Ressources", href: "/ressources" },
-          { label: course.title, href: `/ressources/${course.slug}` },
+          { label: "Ressources", href: routes.catalog },
+          { label: course.title, href: routes.course(course.slug) },
           { label: "Paiement" },
         ]}
         title="Finaliser votre achat"

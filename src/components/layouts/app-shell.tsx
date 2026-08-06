@@ -25,7 +25,10 @@ import { cn } from "@/lib/utils";
 
 const LEARNER_NAV = [
   { href: "/accueil", label: "Accueil" },
-  { href: "/ressources", label: "Catalogue" },
+  // `/catalogue` et non `/ressources` : la version visiteur du catalogue rend
+  // la coquille publique, avec « Se connecter » — on sortait de son espace en
+  // cliquant sur un onglet de sa propre barre de navigation.
+  { href: "/catalogue", label: "Catalogue" },
   { href: "/mes-ressources", label: "Mes ressources" },
   { href: "/mes-achats", label: "Mes achats" },
 ];
