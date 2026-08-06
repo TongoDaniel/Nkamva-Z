@@ -74,7 +74,7 @@ describe('Adhésion aux communautés', () => {
 
   it('la part du formateur est figée à la commission de la communauté', async () => {
     const { community, learner } = await setup()
-    const intent = await initiateMembershipPayment(community.id, learner.id, 'CINETPAY')
+    const intent = await initiateMembershipPayment(community.id, learner.id, 'PAWAPAY')
 
     const purchase = await prisma.purchase.findUniqueOrThrow({ where: { id: intent.purchaseId } })
     expect(purchase.trainerShareFcfa).toBe(4250)

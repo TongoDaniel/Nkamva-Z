@@ -36,7 +36,7 @@ export default async function RemboursementsPage() {
     <>
       <AdminHead
         title="Remboursements à exécuter"
-        lead="CinetPay n'expose pas d'API de remboursement : ces virements se font à la main, puis se confirment ici."
+        lead="Le repli quand le remboursement automatique n'a pas pu aboutir : ces virements se font à la main, puis se confirment ici."
       />
 
       <AdminCard title={`${pending.length} en attente`}>

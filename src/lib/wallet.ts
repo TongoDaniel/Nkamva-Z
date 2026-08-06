@@ -1,6 +1,7 @@
 import { db } from './db'
 import { audit } from './audit'
 import { activateMembershipForPurchase } from './memberships'
+import type { PaymentProvider } from '@prisma/client'
 import type { PrismaTransaction } from './types'
 
 export interface CreditWalletOnPurchaseResult { credited: boolean; purchaseId: string | null; trainerId: string | null; amountFcfa: number; trainerShareFcfa: number }
@@ -29,7 +30,7 @@ export async function syncNegativeSince(tx: PrismaTransaction, walletId: string)
   }
 }
 
-export async function creditWalletOnPurchase(tx: PrismaTransaction, providerTransactionId: string, provider: 'STRIPE' | 'CINETPAY'): Promise<CreditWalletOnPurchaseResult> {
+export async function creditWalletOnPurchase(tx: PrismaTransaction, providerTransactionId: string, provider: PaymentProvider): Promise<CreditWalletOnPurchaseResult> {
   const result = await tx.purchase.updateMany({ where: { providerTransactionId, providerStatus: 'PENDING' }, data: { providerStatus: 'SUCCEEDED' } })
   if (result.count === 0) {
     await audit(tx, { action: 'WEBHOOK_DUPLICATE_IGNORED', meta: { provider, providerTransactionId, reason: 'purchase_already_succeeded_or_not_found' } })

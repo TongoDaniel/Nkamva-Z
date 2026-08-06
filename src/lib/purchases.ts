@@ -1,68 +1,210 @@
 // ==========================================================================
-// Lot 4 — Achat : initiation Stripe/CinetPay, Purchase PENDING, réconciliation
+// Lot 4 — Achat : ouverture du paiement (Stripe / PawaPay), réconciliation
+// ==========================================================================
+// **Ce module n'a plus de mode « simulé implicite ».**
+//
+// Il en avait un, et c'était le défaut le plus grave de la plateforme :
+// `initiatePurchase` créditait l'achat sans aucun paiement dès que
+// `STRIPE_SECRET_KEY` ou `CINETPAY_API_KEY` manquait. La condition portait sur
+// la présence d'une clé, jamais sur l'environnement — un déploiement qui
+// recopiait `.env.example` (où ces variables sont vides) ouvrait donc tout le
+// catalogue gratuitement, et créditait au passage les portefeuilles formateurs
+// d'un argent jamais encaissé, retirable ensuite.
+//
+// Le raccourci de développement existe toujours, mais il exige désormais DEUX
+// conditions explicites et ne peut pas être atteint en production. Voir
+// `simulationAllowed()`.
 // ==========================================================================
 
-import type { PaymentStatus } from '@prisma/client'
+import type { MobileMoneyOperator, PaymentProvider, PaymentStatus } from '@prisma/client'
 import { db } from './db'
 import { auditStandalone } from './audit'
 import { assertCanActAsLearner } from './roles'
-import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
-import { POST as cinetpayWebhookHandler } from '@/app/api/webhooks/cinetpay/route'
+import { creditWalletOnPurchase } from './wallet'
+import { issueInvoiceQuietly } from './invoices'
+import { getStripe } from './stripe'
+import {
+  assertOperational, checkDeposit, isPawaPayConfigured, pawapayCountry,
+  pawapayProviderCode, requestDeposit, toMsisdn, PawaPayError,
+} from './pawapay'
 
-// Simule la réception du webhook provider en dev (pas de clé API configurée).
-// Passe par la même route webhook que la production : creditWalletOnPurchase
-// n'est jamais appelée directement depuis ce module.
-export async function simulateProviderWebhook(
-  provider: 'STRIPE' | 'CINETPAY',
-  providerTransactionId: string,
-): Promise<void> {
-  if (provider === 'STRIPE') await simulateStripeWebhook(providerTransactionId)
-  else await simulateCinetPayWebhook(providerTransactionId)
+/**
+ * Devise à zéro décimale, chez Stripe comme chez PawaPay : `amountFcfa` part
+ * tel quel, sans multiplication par cent. Multiplier ici facturerait cent fois
+ * le prix affiché.
+ */
+export const PAYMENT_CURRENCY = 'XAF'
+
+/**
+ * Le raccourci de développement. **Deux verrous, et non un** :
+ *
+ *  1. `NODE_ENV !== 'production'` — infranchissable sur un déploiement réel ;
+ *  2. `ALLOW_PAYMENT_SIMULATION=1` — un geste explicite, pas un oubli.
+ *
+ * L'ancienne version se déclenchait sur l'ABSENCE d'une variable. C'est
+ * l'inverse de ce qu'il faut : une configuration incomplète doit refuser de
+ * fonctionner, jamais s'autoriser davantage.
+ */
+function simulationAllowed(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.ALLOW_PAYMENT_SIMULATION === '1'
+}
+
+export interface MobileMoneyPayer {
+  /** Numéro tel que saisi par l'apprenant ; normalisé en MSISDN plus bas. */
+  phoneNumber: string
+  operator: MobileMoneyOperator
+}
+
+export interface OpenPaymentParams {
+  purchaseId: string
+  provider: PaymentProvider
+  amountFcfa: number
+  /** Libellé porté sur le relevé du client (4 à 22 caractères chez PawaPay). */
+  label: string
+  learnerId: string
+  countryCode: string | null
+  /** Obligatoire pour PawaPay : le mobile money désigne un numéro, pas un compte. */
+  payer?: MobileMoneyPayer
+}
+
+export interface OpenPaymentResult {
+  providerTransactionId: string
+  /** Stripe : à remettre au composant de paiement côté navigateur. */
+  clientSecret?: string
+  /** Ce que l'écran doit demander à l'apprenant ensuite. */
+  nextStep: 'CONFIRM_ON_PHONE' | 'CONFIRM_CARD' | 'ALREADY_SETTLED'
 }
 
 /**
- * Le provider est-il en mode simulé ? Sans clé API, aucun paiement réel ne peut
- * être ouvert : le dev fait tenir au webhook le rôle de l'opérateur.
+ * Ouvre le paiement chez le fournisseur et rend de quoi le conclure côté
+ * client. **Seul endroit** où un paiement est ouvert : `initiatePurchase` et
+ * `initiateMembershipPayment` passent tous deux par ici, sans quoi le
+ * correctif ci-dessus n'aurait tenu que sur la moitié des tunnels.
+ *
+ * Ne passe jamais l'achat en `SUCCEEDED` : c'est le callback signé du
+ * fournisseur, et lui seul, qui le fait.
  */
-export function providerIsSimulated(provider: 'STRIPE' | 'CINETPAY'): boolean {
-  return provider === 'STRIPE' ? !process.env.STRIPE_SECRET_KEY : !process.env.CINETPAY_API_KEY
+export async function openProviderPayment(params: OpenPaymentParams): Promise<OpenPaymentResult> {
+  if (params.provider === 'PAWAPAY') return openPawaPayDeposit(params)
+  return openStripePaymentIntent(params)
 }
 
-async function simulateStripeWebhook(providerTransactionId: string): Promise<void> {
-  const event = {
-    id: `evt_dev_${crypto.randomUUID()}`,
-    object: 'event',
-    type: 'payment_intent.succeeded',
-    data: { object: { id: providerTransactionId, object: 'payment_intent', status: 'succeeded' } },
+async function openPawaPayDeposit(params: OpenPaymentParams): Promise<OpenPaymentResult> {
+  if (!isPawaPayConfigured()) {
+    if (simulationAllowed()) return settleWithoutProvider(params, 'PAWAPAY')
+    throw new Error('PAYMENT_PROVIDER_UNAVAILABLE')
   }
-  const request = new Request('http://localhost/api/webhooks/stripe', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(event),
+  if (!params.payer) throw new Error('MOBILE_MONEY_DETAILS_REQUIRED')
+
+  const country = params.countryCode ?? 'CM'
+  const providerCode = pawapayProviderCode(params.payer.operator, country)
+  if (!providerCode) throw new Error('PROVIDER_NOT_SUPPORTED')
+
+  // Bornes et disponibilité lues sur `/v2/active-conf` : un montant hors
+  // limites ou un opérateur fermé se refuse ici, avec un motif lisible, plutôt
+  // que de partir se faire rejeter et laisser un achat en attente.
+  const capability = await assertOperational(providerCode, 'DEPOSIT', params.amountFcfa)
+
+  // L'identifiant est le nôtre, et il fait office de clé d'idempotence chez
+  // PawaPay : le rejouer est sans effet. Un UUID nu, sans préfixe — le format
+  // est contraint.
+  const depositId = crypto.randomUUID()
+  const phoneNumber = toMsisdn(params.payer.phoneNumber, capability.prefix)
+
+  const response = await requestDeposit({
+    depositId,
+    phoneNumber,
+    provider: providerCode,
+    amountFcfa: params.amountFcfa,
+    customerMessage: params.label,
+    clientReferenceId: params.purchaseId,
+    metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
   })
-  const res = await stripeWebhookHandler(request)
-  if (!res.ok) throw new Error('DEV_WEBHOOK_SIMULATION_FAILED')
+
+  if (response.status === 'REJECTED') {
+    await auditStandalone({
+      action: 'PAYMENT_REJECTED', targetType: 'Purchase', targetId: params.purchaseId,
+      meta: {
+        provider: 'PAWAPAY', depositId,
+        failureCode: response.failureReason?.failureCode ?? null,
+        failureMessage: response.failureReason?.failureMessage ?? null,
+      },
+    })
+    throw new Error(response.failureReason?.failureCode || 'PAYMENT_REJECTED')
+  }
+
+  await db.purchase.update({
+    where: { id: params.purchaseId },
+    data: { providerTransactionId: depositId },
+  })
+
+  return { providerTransactionId: depositId, nextStep: 'CONFIRM_ON_PHONE' }
 }
 
-async function simulateCinetPayWebhook(providerTransactionId: string): Promise<void> {
-  // Reproduit le format réel (form-urlencoded, champ cpm_trans_id) pour
-  // exercer le même chemin de parsing qu'un vrai webhook CinetPay.
-  const body = new URLSearchParams({ cpm_trans_id: providerTransactionId, cpm_site_id: process.env.CINETPAY_SITE_ID || 'dev' }).toString()
-  const request = new Request('http://localhost/api/webhooks/cinetpay', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body,
+async function openStripePaymentIntent(params: OpenPaymentParams): Promise<OpenPaymentResult> {
+  const stripe = getStripe()
+  if (!stripe) {
+    if (simulationAllowed()) return settleWithoutProvider(params, 'STRIPE')
+    throw new Error('PAYMENT_PROVIDER_UNAVAILABLE')
+  }
+
+  // L'identifiant vient de Stripe, il ne s'invente pas : la version précédente
+  // fabriquait un faux `pi_<uuid>` que Stripe n'a jamais connu, si bien qu'aucun
+  // webhook réel n'aurait pu être rapproché de l'achat.
+  const intent = await stripe.paymentIntents.create(
+    {
+      amount: params.amountFcfa,
+      currency: PAYMENT_CURRENCY.toLowerCase(),
+      automatic_payment_methods: { enabled: true },
+      metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
+      description: params.label,
+    },
+    { idempotencyKey: `purchase_${params.purchaseId}` },
+  )
+
+  await db.purchase.update({
+    where: { id: params.purchaseId },
+    data: { providerTransactionId: intent.id },
   })
-  const res = await cinetpayWebhookHandler(request)
-  if (!res.ok) throw new Error('DEV_WEBHOOK_SIMULATION_FAILED')
+
+  return {
+    providerTransactionId: intent.id,
+    clientSecret: intent.client_secret ?? undefined,
+    nextStep: 'CONFIRM_CARD',
+  }
+}
+
+/**
+ * Raccourci de développement, atteignable uniquement sous les deux verrous de
+ * `simulationAllowed()`. Il crédite directement, sans passer par un faux
+ * webhook : les callbacks exigent désormais une signature du fournisseur qu'on
+ * ne saurait pas contrefaire — et c'est très bien ainsi.
+ */
+async function settleWithoutProvider(
+  params: OpenPaymentParams,
+  provider: PaymentProvider,
+): Promise<OpenPaymentResult> {
+  const providerTransactionId = crypto.randomUUID()
+  await db.purchase.update({
+    where: { id: params.purchaseId },
+    data: { providerTransactionId },
+  })
+  await auditStandalone({
+    action: 'PAYMENT_SIMULATED', targetType: 'Purchase', targetId: params.purchaseId,
+    meta: { provider, providerTransactionId, reason: 'ALLOW_PAYMENT_SIMULATION' },
+  })
+  const credit = await db.$transaction((tx) => creditWalletOnPurchase(tx, providerTransactionId, provider))
+  if (credit.credited && credit.purchaseId) await issueInvoiceQuietly(credit.purchaseId)
+  return { providerTransactionId, nextStep: 'ALREADY_SETTLED' }
 }
 
 export interface InitiatePurchaseResult {
   purchaseId: string
   providerTransactionId: string
-  paymentUrl?: string  // URL de paiement CinetPay (Stripe utilise client-side)
   clientSecret?: string  // Stripe PaymentIntent client_secret
-  provider: 'STRIPE' | 'CINETPAY'
+  provider: PaymentProvider
+  /** Ce que l'écran doit demander ensuite : le téléphone, la carte, ou rien. */
+  nextStep: OpenPaymentResult['nextStep']
 }
 
 // --- Initier un achat ---
@@ -70,7 +212,8 @@ export interface InitiatePurchaseResult {
 export async function initiatePurchase(
   courseId: string,
   learnerId: string,
-  provider: 'STRIPE' | 'CINETPAY',
+  provider: PaymentProvider,
+  payer?: MobileMoneyPayer,
 ): Promise<InitiatePurchaseResult> {
   // Avant toute chose, et avant tout appel au fournisseur de paiement : un
   // compte d'administration n'achète pas. Le journal d'audit de cette fonction
@@ -92,6 +235,11 @@ export async function initiatePurchase(
   // communauté, pas à l'unité.
   if (course.circuit === 'COMMUNITY') throw new Error('COURSE_NOT_FOR_SALE')
 
+  const learner = await db.user.findUnique({
+    where: { id: learnerId },
+    select: { countryCode: true },
+  })
+
   // Vérifier si l'apprenant a déjà acheté
   const existing = await db.purchase.findFirst({
     where: {
@@ -102,11 +250,33 @@ export async function initiatePurchase(
   })
   if (existing?.providerStatus === 'SUCCEEDED') throw new Error('ALREADY_PURCHASED')
   if (existing?.providerStatus === 'PENDING') {
-    // Retourner l'achat existant
+    // Un achat en attente qui porte déjà son identifiant fournisseur se reprend
+    // tel quel. S'il n'en a pas, c'est que l'ouverture du paiement a échoué
+    // après la création de la ligne : on la rouvre plutôt que de laisser
+    // l'apprenant bloqué sur un achat qu'aucun callback ne viendra conclure.
+    if (existing.providerTransactionId) {
+      return {
+        purchaseId: existing.id,
+        providerTransactionId: existing.providerTransactionId,
+        provider: existing.provider,
+        nextStep: existing.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
+      }
+    }
+    const reopened = await openProviderPayment({
+      purchaseId: existing.id,
+      provider,
+      amountFcfa: existing.amountFcfa,
+      label: course.title,
+      learnerId,
+      countryCode: learner?.countryCode ?? null,
+      payer,
+    })
     return {
       purchaseId: existing.id,
-      providerTransactionId: existing.providerTransactionId!,
-      provider: existing.provider,
+      providerTransactionId: reopened.providerTransactionId,
+      clientSecret: reopened.clientSecret,
+      provider,
+      nextStep: reopened.nextStep,
     }
   }
 
@@ -115,11 +285,6 @@ export async function initiatePurchase(
   const trainerShareFcfa = Math.round(amountFcfa * (1 - commissionRate))
   const platformShareFcfa = amountFcfa - trainerShareFcfa
 
-  // Générer un providerTransactionId unique
-  const providerTransactionId = provider === 'STRIPE'
-    ? `pi_${crypto.randomUUID()}`
-    : `cp_${crypto.randomUUID()}`
-
   // Le contrôle d'achat existant ci-dessus lit avant d'écrire : deux requêtes
   // simultanées voyaient toutes deux « aucun achat » et inséraient chacune la
   // leur. L'apprenant était débité deux fois et le formateur crédité deux fois —
@@ -127,6 +292,10 @@ export async function initiatePurchase(
   // `creditWalletOnPurchase` ne rattrapait rien. Reproduit 2 fois sur 6.
   // C'est désormais l'index unique partiel `purchases_active_course_unique` qui
   // tranche, en base : le perdant de la course retombe sur l'achat du gagnant.
+  // L'achat naît **sans** identifiant fournisseur : c'est l'ouverture du
+  // paiement qui le pose, parce que Stripe seul décide de l'identifiant de son
+  // PaymentIntent. L'ancienne version en fabriquait un (`pi_<uuid>`) que Stripe
+  // n'a jamais connu — aucun webhook réel n'aurait pu être rapproché.
   let purchase
   try {
     purchase = await db.purchase.create({
@@ -139,7 +308,6 @@ export async function initiatePurchase(
         trainerShareFcfa,
         platformShareFcfa,
         provider,
-        providerTransactionId,
         providerStatus: 'PENDING',
       },
     })
@@ -151,50 +319,54 @@ export async function initiatePurchase(
     })
     if (!winner) throw err
     if (winner.providerStatus === 'SUCCEEDED') throw new Error('ALREADY_PURCHASED')
+    if (!winner.providerTransactionId) throw new Error('PAYMENT_IN_PROGRESS')
     return {
       purchaseId: winner.id,
-      providerTransactionId: winner.providerTransactionId!,
+      providerTransactionId: winner.providerTransactionId,
       provider: winner.provider,
+      nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
     }
   }
 
   await auditStandalone({
     actorId: learnerId, actorRole: 'LEARNER',
     action: 'PURCHASE_INITIATED', targetType: 'Purchase', targetId: purchase.id,
-    meta: { courseId, amountFcfa, provider, providerTransactionId },
+    meta: { courseId, amountFcfa, provider },
   })
 
-  // En dev sans clés API : simuler la confirmation en repassant par la vraie
-  // route webhook (creditWalletOnPurchase n'est appelée que depuis elle).
-  if (provider === 'STRIPE' && !process.env.STRIPE_SECRET_KEY) {
-    await simulateStripeWebhook(providerTransactionId)
-    return {
+  // L'échec d'ouverture annule l'achat : le laisser en attente le rendrait
+  // irréparable — l'index unique partiel interdirait toute nouvelle tentative
+  // sur la même ressource tant qu'il vit.
+  let opened: OpenPaymentResult
+  try {
+    opened = await openProviderPayment({
       purchaseId: purchase.id,
-      providerTransactionId,
-      provider: 'STRIPE',
-      clientSecret: 'pi_dev_simulated_secret',
-    }
+      provider,
+      amountFcfa,
+      label: course.title,
+      learnerId,
+      countryCode: learner?.countryCode ?? null,
+      payer,
+    })
+  } catch (err) {
+    await db.purchase.updateMany({
+      where: { id: purchase.id, providerStatus: 'PENDING' },
+      data: { providerStatus: 'CANCELED' },
+    })
+    await auditStandalone({
+      actorId: learnerId, actorRole: 'LEARNER',
+      action: 'PURCHASE_OPEN_FAILED', targetType: 'Purchase', targetId: purchase.id,
+      meta: { provider, error: err instanceof Error ? err.message : String(err) },
+    })
+    throw err
   }
 
-  if (provider === 'CINETPAY' && !process.env.CINETPAY_API_KEY) {
-    await simulateCinetPayWebhook(providerTransactionId)
-    return {
-      purchaseId: purchase.id,
-      providerTransactionId,
-      provider: 'CINETPAY',
-      paymentUrl: undefined, // pas d'URL en dev
-    }
-  }
-
-  // Clés réelles configurées : création du paiement côté provider (PaymentIntent
-  // Stripe / paiement CinetPay) non implémentée à ce stade — hors périmètre de
-  // cette étape. La Purchase reste PENDING : le crédit n'intervient que lorsque
-  // le vrai webhook provider confirme le paiement (voir /api/webhooks/stripe et
-  // /api/webhooks/cinetpay). Un paiement non confirmé ne crédite jamais.
   return {
     purchaseId: purchase.id,
-    providerTransactionId,
+    providerTransactionId: opened.providerTransactionId,
+    clientSecret: opened.clientSecret,
     provider,
+    nextStep: opened.nextStep,
   }
 }
 
@@ -209,13 +381,68 @@ export async function reconcilePurchase(providerTransactionId: string): Promise<
   if (!purchase) return { status: 'NOT_FOUND', credited: false }
   if (purchase.providerStatus === 'SUCCEEDED') return { status: 'SUCCEEDED', credited: false }
 
-  // En production : appeler l'API provider pour vérifier le statut
-  // - Stripe : stripe.paymentIntents.retrieve(providerTransactionId)
-  // - CinetPay : API /payment/check
-  // Si le provider dit SUCCESS → créditer le wallet
+  // Cette fonction était une coquille vide : elle décrivait en commentaire ce
+  // qu'il aurait fallu faire et rendait toujours « rien à signaler ». La route
+  // qui l'appelle après un paiement laissait donc l'apprenant devant un écran
+  // d'attente qu'aucun événement ne débloquait si le callback se perdait.
+  //
+  // Le fournisseur reste seul juge : on lui redemande le statut, on ne le
+  // déduit jamais du fait que le client soit revenu sur la page.
+  const settled = await providerSaysSettled(purchase.provider, providerTransactionId)
 
-  // En dev : ne rien faire (le crédit a déjà été fait à l'initiation)
-  return { status: purchase.providerStatus, credited: false }
+  if (settled === 'FAILED') {
+    await db.purchase.updateMany({
+      where: { id: purchase.id, providerStatus: 'PENDING' },
+      data: { providerStatus: 'FAILED' },
+    })
+    return { status: 'FAILED', credited: false }
+  }
+
+  if (settled !== 'COMPLETED') return { status: purchase.providerStatus, credited: false }
+
+  // Même écriture idempotente que le callback : si celui-ci arrive entre-temps,
+  // l'un des deux voit `count === 0` et n'écrit rien.
+  const credit = await db.$transaction((tx) =>
+    creditWalletOnPurchase(tx, providerTransactionId, purchase.provider),
+  )
+  if (credit.credited && credit.purchaseId) {
+    await issueInvoiceQuietly(credit.purchaseId)
+    await auditStandalone({
+      action: 'PURCHASE_RECONCILED', targetType: 'Purchase', targetId: purchase.id,
+      meta: { provider: purchase.provider, providerTransactionId },
+    })
+  }
+  return { status: 'SUCCEEDED', credited: credit.credited }
+}
+
+/** Interroge le fournisseur. `null` quand le paiement n'est pas encore tranché. */
+async function providerSaysSettled(
+  provider: PaymentProvider,
+  providerTransactionId: string,
+): Promise<'COMPLETED' | 'FAILED' | null> {
+  try {
+    if (provider === 'PAWAPAY') {
+      if (!isPawaPayConfigured()) return null
+      const snapshot = await checkDeposit(providerTransactionId)
+      if (!snapshot) return null
+      if (snapshot.status === 'COMPLETED') return 'COMPLETED'
+      return snapshot.status === 'FAILED' ? 'FAILED' : null
+    }
+
+    const stripe = getStripe()
+    if (!stripe) return null
+    const intent = await stripe.paymentIntents.retrieve(providerTransactionId)
+    if (intent.status === 'succeeded') return 'COMPLETED'
+    return intent.status === 'canceled' ? 'FAILED' : null
+  } catch (err) {
+    // Une panne de réconciliation n'est pas une panne de paiement : on laisse
+    // l'achat en attente, le callback reste la voie normale.
+    console.error('[PAYMENT:RECONCILE_FAILED]', {
+      provider, providerTransactionId,
+      error: err instanceof PawaPayError ? err.message : String(err),
+    })
+    return null
+  }
 }
 
 // --- Lister les achats d'un apprenant ---

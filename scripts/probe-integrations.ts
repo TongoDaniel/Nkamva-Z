@@ -8,6 +8,7 @@
  */
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3'
 import { RoomServiceClient } from 'livekit-server-sdk'
+import { activeConfiguration, isPawaPayConfigured } from '../src/lib/pawapay'
 
 type Probe = { name: string; ok: boolean; detail: string }
 const results: Probe[] = []
@@ -120,18 +121,38 @@ async function probeStripe() {
   }
 }
 
-// --- CinetPay -------------------------------------------------------------
+// --- PawaPay --------------------------------------------------------------
 
-async function probeCinetPay() {
-  const configured = Boolean(process.env.CINETPAY_API_KEY && process.env.CINETPAY_SITE_ID)
-  record('CinetPay — identifiants', configured, configured ? 'présents' : 'absents : paiements simulés')
+async function probePawaPay() {
+  if (!isPawaPayConfigured()) {
+    // Ce n'est plus « paiements simulés » : sans jeton, on n'encaisse pas.
+    record('PawaPay — jeton', false, 'absent : aucun encaissement possible')
+    return
+  }
+  try {
+    // `/v2/active-conf` authentifie ET dit ce que le compte peut réellement
+    // faire : une sonde qui se contenterait de constater la présence du jeton
+    // ne prouverait rien.
+    const conf = await activeConfiguration(true)
+    const countries = (conf.countries ?? []).map((c) => c.country).join(', ') || 'aucun'
+    record('PawaPay — configuration active', true, `pays : ${countries}`)
+    record(
+      'PawaPay — callbacks signés',
+      Boolean(conf.signatureConfiguration?.signedCallbacks),
+      conf.signatureConfiguration?.signedCallbacks
+        ? 'activés'
+        : "DÉSACTIVÉS : les callbacks seront tous refusés, activez la signature côté PawaPay",
+    )
+  } catch (error) {
+    record('PawaPay — configuration active', false, String(error).slice(0, 120))
+  }
 }
 
 await probeR2()
 await probeLiveKit()
 await probeMux()
 await probeStripe()
-await probeCinetPay()
+await probePawaPay()
 
 const failed = results.filter((r) => !r.ok).length
 console.log(`\n${results.length - failed}/${results.length} sondes au vert.`)

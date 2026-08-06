@@ -33,7 +33,7 @@ export const REASON_LABELS: Record<string, string> = {
 export const SOURCE_LABELS: Record<string, string> = {
   LEARNER_REQUEST: "Demande de l'apprenant",
   STRIPE_CHARGEBACK: "Chargeback Stripe",
-  CINETPAY_DISPUTE: "Litige CinetPay",
+  PAWAPAY_DISPUTE: "Litige PawaPay",
   ADMIN_INITIATED: "Ouvert par un administrateur",
 };
 

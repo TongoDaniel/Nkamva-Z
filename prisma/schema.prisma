@@ -65,7 +65,7 @@ enum TrainerSubscriptionStatus {
 
 enum PaymentProvider {
   STRIPE
-  CINETPAY
+  PAWAPAY
 }
 
 enum PaymentStatus {
@@ -189,7 +189,7 @@ enum TrainerApplicationStatus {
 enum DisputeSource {
   LEARNER_REQUEST
   STRIPE_CHARGEBACK
-  CINETPAY_DISPUTE
+  PAWAPAY_DISPUTE
   ADMIN_INITIATED
 }
 
@@ -1381,7 +1381,7 @@ model ManualRefundTask {
   id               String    @id @default(uuid())
   disputeId        String    @unique
   dispute          Dispute   @relation(fields: [disputeId], references: [id], onDelete: Restrict)
-  provider         String    @default("CINETPAY")
+  provider         String    @default("PAWAPAY")
   refundAmountFcfa Int
   trainerDebitFcfa Int
   status           String    @default("PENDING")

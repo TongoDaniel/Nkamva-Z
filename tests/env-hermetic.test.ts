@@ -19,7 +19,7 @@ describe('environnement de test', () => {
   it('aucune clé de service externe n\'est active', () => {
     for (const key of [
       'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PUBLISHABLE_KEY',
-      'CINETPAY_API_KEY', 'CINETPAY_SITE_ID',
+      'PAWAPAY_API_TOKEN', 'PAWAPAY_BASE_URL',
       'RESEND_API_KEY',
       'AWS_ENDPOINT_URL', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY',
       'LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET',

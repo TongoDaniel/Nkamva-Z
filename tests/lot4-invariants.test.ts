@@ -9,7 +9,7 @@ import { createCourse, publishCourse } from '@/lib/courses'
 import { initiatePurchase, reconcilePurchase } from '@/lib/purchases'
 import { checkCourseAccess, updateWatchProgress, markCourseDownloaded, getConsumptionPercent } from '@/lib/access'
 import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
-import { POST as cinetpayWebhookHandler } from '@/app/api/webhooks/cinetpay/route'
+import { POST as pawapayDepositHandler } from '@/app/api/webhooks/pawapay/deposits/route'
 
 function stripeSucceededRequest(providerTransactionId: string) {
   return new Request('http://localhost/api/webhooks/stripe', {
@@ -124,29 +124,38 @@ async function withContent(courseId: string) {
   })
 
   // -------------------------------------------------------------------------
-  it('achat CinetPay complet : initiation → crédit wallet', async () => {
+  it('achat PawaPay complet : initiation → crédit wallet', async () => {
     const { profile, course } = await setupTrainerWithCourse({ price: 8000 })
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
 
-    const result = await initiatePurchase(course.id, learner.id, 'CINETPAY')
-    expect(result.provider).toBe('CINETPAY')
-    expect(result.providerTransactionId).toMatch(/^cp_/)
+    const result = await initiatePurchase(course.id, learner.id, 'PAWAPAY')
+    expect(result.provider).toBe('PAWAPAY')
+    // L'identifiant est un UUID nu : PawaPay impose ce format, et l'ancien
+    // préfixe `cp_` aurait fait rejeter le dépôt.
+    expect(result.providerTransactionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
 
     const wallet = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
     expect(wallet?.balance).toBe(6800) // 85% de 8000
   })
 
   // -------------------------------------------------------------------------
-  it('webhook CinetPay malformé : journalisé (WEBHOOK_MALFORMED), aucun crédit', async () => {
-    const res = await cinetpayWebhookHandler(new Request('http://localhost/api/webhooks/cinetpay', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: 'foo=bar', // ni cpm_trans_id en form-encoded, ni JSON valide
-    }))
-    expect(res.status).toBe(400)
+  // Le webhook CinetPay qu'on remplace acceptait n'importe quel POST anonyme
+  // dès que sa clé secrète manquait. Celui-ci refuse par défaut : c'est
+  // l'invariant qui compte, et il doit tenir même sans configuration.
+  it('callback PawaPay non signé : refusé, aucun crédit', async () => {
+    const res = await pawapayDepositHandler(
+      new Request('http://localhost/api/webhooks/pawapay/deposits', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ depositId: crypto.randomUUID(), status: 'COMPLETED' }),
+      }),
+    )
+    expect(res.status).toBeGreaterThanOrEqual(400)
 
-    const auditCount = await prisma.auditLog.count({ where: { action: 'WEBHOOK_MALFORMED' } })
-    expect(auditCount).toBe(1)
+    const rejected = await prisma.auditLog.count({ where: { action: 'PAWAPAY_CALLBACK_REJECTED' } })
+    expect(rejected).toBe(1)
   })
 
   // -------------------------------------------------------------------------
@@ -263,7 +272,7 @@ async function withContent(courseId: string) {
     await publishCourse(course.id, profile.id, 'trainer-id')
 
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
-    await initiatePurchase(course.id, learner.id, 'CINETPAY')
+    await initiatePurchase(course.id, learner.id, 'PAWAPAY')
 
     // Marquer comme téléchargé
     await markCourseDownloaded(course.id, learner.id)

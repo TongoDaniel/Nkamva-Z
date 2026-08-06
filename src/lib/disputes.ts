@@ -26,6 +26,7 @@ import { assertCanWrite } from './user-sanctions'
 import { presignUpload } from './s3'
 import { syncNegativeSince } from './wallet'
 import { getStripe } from './stripe'
+import { isPawaPayConfigured, requestRefund, PawaPayError } from './pawapay'
 import type { PrismaTransaction } from './types'
 
 // --- Constantes ---
@@ -34,7 +35,9 @@ export const LEARNER_RESPONSE_DEADLINE_DAYS = 7
 export const PLATFORM_COMMISSION_RATE = 0.15
 export const TRAINER_SHARE_RATE = 0.85
 export const WALLET_NEGATIVE_ALERT_DAYS = 60
-export const CINETPAY_REFUND_TIMEOUT_SECONDS = 30
+// Le remboursement PawaPay est asynchrone : plus de délai d'attente à borner ici,
+// le timeout HTTP vit dans `pawapay.ts` (REQUEST_TIMEOUT_MS).
+export const REFUND_REQUEST_TIMEOUT_SECONDS = 30
 export const DISPUTE_MESSAGE_MAX_LENGTH = 5000
 export const DISPUTE_OPENING_WINDOW_DAYS = 14
 export const CONSUMPTION_THRESHOLD = 0.3
@@ -857,58 +860,85 @@ async function notifyTrainerResolution(disputeId: string) {
 // ==========================================================================
 
 /**
- * Décision 15 — tentative de refund CinetPay : idempotence par `disputeId`,
- * timeout 30 s, aucun retry automatique silencieux. Tout échec (refus, HTTP,
- * timeout, clés absentes) bascule explicitement en tâche manuelle Finances.
+ * Décision 15 — remboursement mobile money. La tâche manuelle Finances reste le
+ * filet, mais elle cesse d'être le cas nominal.
  *
- * ⚠️ CinetPay ne documente pas publiquement d'endpoint de remboursement stable.
- * L'URL est donc surchargeable par `CINETPAY_REFUND_URL` et le contrat de
- * réponse est interprété de façon défensive : tant que les clés API ne sont pas
- * renseignées, ce chemin retourne NOT_CONFIGURED sans émettre aucun appel.
+ * Ce qu'elle remplace : `attemptCinetPayRefund` visait une URL **devinée**
+ * (`api-checkout.cinetpay.com/v2/payment/refund`), CinetPay ne documentant aucun
+ * endpoint de remboursement. Elle échouait donc à chaque appel, et tout
+ * remboursement partait en virement manuel. PawaPay, lui, documente `POST
+ * /v2/refunds` : c'est ce contrat-là qui est appelé ici.
+ *
+ * Trois différences de fond avec la version précédente :
+ *
+ * · **`refundId` = `disputeId`.** Un UUID que nous possédons déjà, qui sert de
+ *   clé d'idempotence chez PawaPay et permet au callback de retrouver le litige
+ *   sans table de correspondance.
+ * · **Le remboursement est asynchrone.** `ACCEPTED` ne veut pas dire remboursé :
+ *   c'est le callback `/api/webhooks/pawapay/refunds` qui conclut. On ne
+ *   `completeRefund` donc plus ici — le faire reviendrait à déclarer remboursé
+ *   ce qui n'est qu'accepté.
+ * · **Un identifiant qui n'est pas un UUID ne part pas.** Les achats hérités de
+ *   CinetPay portent un `cp_…` que PawaPay ne connaît pas ; ils vont directement
+ *   en tâche manuelle plutôt que de provoquer un rejet.
  */
-const CINETPAY_REFUND_URL = process.env.CINETPAY_REFUND_URL
-  || 'https://api-checkout.cinetpay.com/v2/payment/refund'
-
 type RefundAttempt =
-  | { ok: true; providerRefundId: string | null }
+  | { ok: true; accepted: true }
   | { ok: false; reason: string }
 
-async function attemptCinetPayRefund(params: {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+async function attemptPawaPayRefund(params: {
   disputeId: string
   transactionId: string | null
   amountFcfa: number
 }): Promise<RefundAttempt> {
-  if (!process.env.CINETPAY_API_KEY || !process.env.CINETPAY_SITE_ID) {
-    return { ok: false, reason: 'CINETPAY_NOT_CONFIGURED' }
-  }
+  if (!isPawaPayConfigured()) return { ok: false, reason: 'PAWAPAY_NOT_CONFIGURED' }
   if (!params.transactionId) return { ok: false, reason: 'MISSING_TRANSACTION_ID' }
+  if (!UUID_RE.test(params.transactionId)) return { ok: false, reason: 'LEGACY_TRANSACTION_ID' }
 
   try {
-    const res = await fetch(CINETPAY_REFUND_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        apikey: process.env.CINETPAY_API_KEY,
-        site_id: process.env.CINETPAY_SITE_ID,
-        transaction_id: params.transactionId,
-        amount: params.amountFcfa,
-        // Clé d'idempotence = disputeId : un rejeu porte la même référence.
-        reference: params.disputeId,
-      }),
-      signal: AbortSignal.timeout(CINETPAY_REFUND_TIMEOUT_SECONDS * 1000),
+    const response = await requestRefund({
+      refundId: params.disputeId,
+      depositId: params.transactionId,
+      amountFcfa: params.amountFcfa,
+      clientReferenceId: params.disputeId,
     })
 
-    if (!res.ok) return { ok: false, reason: `HTTP_${res.status}` }
-
-    const data = await res.json().catch(() => null)
-    const accepted = data?.code === '00' || data?.code === 0 || data?.data?.status === 'ACCEPTED'
-    if (!accepted) return { ok: false, reason: `REFUSED_${data?.code ?? 'UNKNOWN'}` }
-
-    return { ok: true, providerRefundId: data?.data?.refund_id ?? data?.data?.operation_id ?? null }
+    if (response.status === 'REJECTED') {
+      return { ok: false, reason: response.failureReason?.failureCode ?? 'REFUSED' }
+    }
+    // ACCEPTED comme DUPLICATE_IGNORED valent prise en charge : dans les deux
+    // cas PawaPay traite, et le callback tranchera.
+    return { ok: true, accepted: true }
   } catch (err) {
-    const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
-    return { ok: false, reason: timedOut ? 'TIMEOUT' : String(err) }
+    if (err instanceof PawaPayError) {
+      return { ok: false, reason: err.failureCode ?? err.message }
+    }
+    return { ok: false, reason: String(err) }
   }
+}
+
+/**
+ * Bascule un remboursement en traitement manuel Finances. Exportée parce que le
+ * callback de remboursement en a besoin : un refus prononcé par le fournisseur
+ * arrive de façon asynchrone, longtemps après `processRefund`.
+ */
+export async function fallBackToManualRefund(disputeId: string, reason: string): Promise<void> {
+  const dispute = await db.dispute.findUnique({
+    where: { id: disputeId },
+    select: { resolution: true, disputedAmountFcfa: true, refundStatus: true, purchase: { select: { refundAmountFcfa: true } } },
+  })
+  if (!dispute) throw new Error('DISPUTE_NOT_FOUND')
+  if (dispute.refundStatus === 'COMPLETED') return
+
+  await createManualRefundTask(
+    disputeId,
+    dispute.purchase.refundAmountFcfa ?? dispute.disputedAmountFcfa,
+    dispute.resolution === 'FULL_REFUND',
+    'PAWAPAY',
+    reason,
+  )
 }
 
 export async function processRefund(disputeId: string, actorId: string | null): Promise<void> {
@@ -924,26 +954,36 @@ export async function processRefund(disputeId: string, actorId: string | null): 
   const refundAmountFcfa = dispute.purchase.refundAmountFcfa ?? dispute.disputedAmountFcfa
   const full = dispute.resolution === 'FULL_REFUND'
 
-  // Décision 15 — CinetPay : tentative puis repli manuel explicite.
-  if (dispute.purchase.provider === 'CINETPAY') {
-    const attempt = await attemptCinetPayRefund({
+  // Décision 15 — PawaPay : demande de remboursement, puis attente du callback.
+  if (dispute.purchase.provider === 'PAWAPAY') {
+    const attempt = await attemptPawaPayRefund({
       disputeId,
       transactionId: dispute.purchase.providerTransactionId,
       amountFcfa: refundAmountFcfa,
     })
     if (attempt.ok) {
-      await completeRefund(disputeId, attempt.providerRefundId, actorId)
+      // Volontairement, rien de plus : le litige reste en cours de
+      // remboursement jusqu'à ce que `/api/webhooks/pawapay/refunds` confirme.
+      // Le déclarer terminé ici sur un simple « accepté » afficherait à
+      // l'apprenant un remboursement qui peut encore échouer.
+      await auditStandalone({
+        actorId, actorRole: actorId ? 'ADMIN' : 'SYSTEM',
+        action: 'DISPUTE_REFUND_REQUESTED', targetType: 'Dispute', targetId: disputeId,
+        meta: { provider: 'PAWAPAY', refundAmountFcfa },
+      })
       return
     }
-    await createManualRefundTask(disputeId, refundAmountFcfa, full, 'CINETPAY', attempt.reason)
+    await createManualRefundTask(disputeId, refundAmountFcfa, full, 'PAWAPAY', attempt.reason)
     return
   }
 
   const stripe = getStripe()
   if (!stripe) {
-    // Dev sans clé Stripe : le refund est réputé accepté par le provider,
-    // exactement comme initiatePurchase simule la confirmation de paiement.
-    await completeRefund(disputeId, `re_dev_${crypto.randomUUID()}`, actorId)
+    // Sans clé Stripe, on ne rembourse pas : on ouvre une tâche Finances. La
+    // version précédente déclarait le remboursement « réputé accepté par le
+    // provider » — l'apprenant voyait donc son argent rendu alors qu'aucun
+    // mouvement n'avait eu lieu, et le formateur était débité pour rien.
+    await createManualRefundTask(disputeId, refundAmountFcfa, full, 'STRIPE', 'STRIPE_NOT_CONFIGURED')
     return
   }
 

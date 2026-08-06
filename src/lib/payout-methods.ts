@@ -20,6 +20,7 @@ import type {
 import { db } from './db'
 import { presignUpload, presignDownload, headObject, isS3Configured } from './s3'
 import { compareNames, normalizedLabel, type NameComparison } from './name-match'
+import { lookupAccountName, pawapayProviderCode } from './pawapay'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
@@ -65,15 +66,26 @@ export type NameLookupResult = 'MATCH' | 'MISMATCH' | 'UNAVAILABLE'
  * Interroge l'opérateur pour connaître le nom réellement enregistré sur le
  * compte. **Seul point d'entrée d'une information externe** dans la couche (a).
  *
- * ⚠️ ÉCART ASSUMÉ : aucune API opérateur n'est disponible aujourd'hui, la
- * fonction renvoie donc toujours `null`. C'est ici, et nulle part ailleurs,
- * qu'un vrai provider se branche.
+ * ⚠️ ÉCART TOUJOURS OUVERT, et la migration vers PawaPay ne l'a pas refermé.
+ *
+ * `/v2/active-conf` annonce bien un type d'opération `NAME_LOOKUP`, mais aucun
+ * endpoint public de vérification du nom n'est documenté dans l'API v2 au
+ * 6 août 2026. On ne devine pas d'URL : c'est précisément ce qu'avait fait
+ * l'ancien remboursement CinetPay, dont l'adresse inventée échouait à chaque
+ * appel en envoyant le dossier en traitement manuel sans que personne le sache.
+ *
+ * Conséquence inchangée : aucun RIB mobile money ne s'auto-vérifie, tout part
+ * en revue Finances. `lookupAccountName` journalise l'écart si la configuration
+ * du compte annonce la capacité — c'est le signal qu'il devient branchable.
  */
 async function fetchOperatorAccountName(
-  _operator: MobileMoneyOperator,
-  _phone: string,
+  operator: MobileMoneyOperator,
+  phone: string,
+  countryCode = 'CM',
 ): Promise<string | null> {
-  return null
+  const providerCode = pawapayProviderCode(operator, countryCode)
+  if (!providerCode) return null
+  return lookupAccountName(phone, providerCode).catch(() => null)
 }
 
 /**
@@ -1035,7 +1047,13 @@ export async function listEscalations(page = 1, pageSize = 20) {
 export async function getWithdrawableMethod(trainerProfileId: string) {
   const method = await db.payoutMethod.findFirst({
     where: { trainerId: trainerProfileId, isActive: true },
-    select: { id: true, verificationStatus: true, carenceUntil: true },
+    // `type`, `mobileOperator` et `mobilePhone` s'ajoutent au strict nécessaire
+    // d'avant : `dispatchPayout` en a besoin pour savoir si le versement part
+    // chez PawaPay ou reste un virement manuel Finances.
+    select: {
+      id: true, verificationStatus: true, carenceUntil: true,
+      type: true, mobileOperator: true, mobilePhone: true,
+    },
   })
   if (!method) return { method: null, reason: 'PAYOUT_METHOD_MISSING' as const }
   if (!VERIFIED_STATUSES.includes(method.verificationStatus)) {

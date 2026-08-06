@@ -93,10 +93,16 @@ async function main() {
   console.log('\n1. état initial')
   console.log(' ', (await call(`/api/communities/${community.slug}/adhesion`)).body)
 
-  // 2 — adhérer (le webhook simulé confirme le paiement en dev)
+  // 2 — adhérer. En dev, `ALLOW_PAYMENT_SIMULATION=1` confirme le paiement sans
+  // fournisseur ; sans ce drapeau l'appel échoue en PAYMENT_PROVIDER_UNAVAILABLE,
+  // ce qui est le comportement voulu partout ailleurs.
   console.log('\n2. adhésion')
   const join = await call(`/api/communities/${community.slug}/adhesion`, {
-    method: 'POST', body: JSON.stringify({ provider: 'CINETPAY' }),
+    method: 'POST',
+    body: JSON.stringify({
+      provider: 'PAWAPAY',
+      payer: { phoneNumber: '670000000', operator: 'MTN_MOMO' },
+    }),
   })
   console.log(' ', join.status, join.body)
   if (join.status !== 200) throw new Error('adhésion refusée')

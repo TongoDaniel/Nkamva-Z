@@ -15,11 +15,17 @@
 
 import type { PayoutStatus, Prisma } from '@prisma/client'
 import { db } from './db'
-import { audit } from './audit'
+import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
 import { syncNegativeSince, withdrawableBalance } from './wallet'
 import { computeKycScore, KYC_THRESHOLD_VERIFIED } from './kyc'
 import { getWithdrawableMethod, PAYOUT_REVIEW_SLA_HOURS } from './payout-methods'
+// Aliasé : ce module exporte déjà `requestPayout`, qui est la demande du
+// formateur — l'homonyme de PawaPay est l'ordre de virement.
+import {
+  assertOperational, isPawaPayConfigured, pawapayProviderCode, toMsisdn,
+  requestPayout as requestPawaPayPayout, PawaPayError,
+} from './pawapay'
 import type { PrismaTransaction } from './types'
 
 export const PAYOUT_MIN_AMOUNT_FCFA = 10_000
@@ -161,6 +167,11 @@ export async function requestPayout(trainerProfileId: string, userId: string, am
     }),
   )
 
+  // Un retrait auto-approuvé n'attend aucune décision humaine : il part tout de
+  // suite. Sans cette ligne, l'auto-approbation ne ferait que déplacer
+  // l'attente, et Finances devrait quand même virer à la main.
+  if (autoApproved) await dispatchPayout(payout.id)
+
   return payout
 }
 
@@ -231,7 +242,110 @@ export async function approvePayout(payoutId: string, input: ReviewPayoutInput) 
     }),
   )
 
+  // Approuver ne versait rien : un administrateur allait faire le virement à la
+  // main, puis revenait cocher « payé ». Le mobile money part désormais tout
+  // seul — l'IBAN, lui, reste manuel (voir `dispatchPayout`).
+  await dispatchPayout(payoutId)
+
   return db.payout.findUniqueOrThrow({ where: { id: payoutId } })
+}
+
+// ==========================================================================
+// P5 bis — exécution du versement chez le fournisseur
+// ==========================================================================
+
+/**
+ * Envoie le virement à PawaPay quand le moyen de paiement est un mobile money.
+ *
+ * Ce que ça change : `markPayoutPaid` était purement déclaratif — il enregistrait
+ * qu'un humain affirmait avoir viré. Le versement est maintenant réellement
+ * ordonné ici, et c'est le callback `/api/webhooks/pawapay/payouts` qui viendra
+ * appeler `markPayoutPaid` ou `markPayoutFailed`.
+ *
+ * ⚠️ **L'IBAN reste manuel.** PawaPay ne distribue que du mobile money
+ * (`recipient.type: MMO`). Un retrait vers un compte bancaire suit exactement le
+ * circuit d'avant : Finances vire, puis marque payé depuis la console. Idem pour
+ * un opérateur que PawaPay ne dessert pas — Wave notamment.
+ *
+ * Ne lève jamais : l'échec d'expédition ne doit pas défaire une approbation
+ * valide. Le retrait reste APPROVED, visible dans la file Finances, et
+ * rattrapable à la main.
+ */
+export async function dispatchPayout(payoutId: string): Promise<void> {
+  const payout = await db.payout.findUnique({
+    where: { id: payoutId },
+    include: {
+      payoutMethod: { select: { type: true, mobileOperator: true, mobilePhone: true } },
+      trainerProfile: { select: { user: { select: { countryCode: true } } } },
+    },
+  })
+  if (!payout || !['APPROVED', 'AUTO_APPROVED'].includes(payout.status)) return
+
+  const method = payout.payoutMethod
+  if (method.type !== 'MOBILE_MONEY' || !method.mobileOperator || !method.mobilePhone) {
+    await auditStandalone({
+      action: 'PAYOUT_DISPATCH_MANUAL', targetType: 'Payout', targetId: payoutId,
+      meta: { reason: 'NOT_MOBILE_MONEY', methodType: method.type },
+    })
+    return
+  }
+
+  if (!isPawaPayConfigured()) {
+    await auditStandalone({
+      action: 'PAYOUT_DISPATCH_MANUAL', targetType: 'Payout', targetId: payoutId,
+      meta: { reason: 'PAWAPAY_NOT_CONFIGURED' },
+    })
+    return
+  }
+
+  const country = payout.trainerProfile.user.countryCode ?? 'CM'
+  const providerCode = pawapayProviderCode(method.mobileOperator, country)
+  if (!providerCode) {
+    await auditStandalone({
+      action: 'PAYOUT_DISPATCH_MANUAL', targetType: 'Payout', targetId: payoutId,
+      meta: { reason: 'PROVIDER_NOT_SUPPORTED', operator: method.mobileOperator, country },
+    })
+    return
+  }
+
+  try {
+    const capability = await assertOperational(providerCode, 'PAYOUT', payout.amountFcfa)
+    // `payoutId` est l'identifiant PawaPay : c'est déjà un UUID, il vaut clé
+    // d'idempotence et évite une colonne de correspondance de plus.
+    const response = await requestPawaPayPayout({
+      payoutId,
+      phoneNumber: toMsisdn(method.mobilePhone, capability.prefix),
+      provider: providerCode,
+      amountFcfa: payout.amountFcfa,
+      customerMessage: 'Retrait NkamVa',
+      clientReferenceId: payoutId,
+    })
+
+    if (response.status === 'REJECTED') {
+      await markPayoutFailed(payoutId, {
+        reason:
+          response.failureReason?.failureMessage ||
+          response.failureReason?.failureCode ||
+          'Versement refusé par le fournisseur',
+        actorId: null,
+        actorRole: 'SYSTEM',
+      })
+      return
+    }
+
+    await auditStandalone({
+      action: 'PAYOUT_DISPATCHED', targetType: 'Payout', targetId: payoutId,
+      meta: { provider: 'PAWAPAY', providerCode, amountFcfa: payout.amountFcfa, status: response.status },
+    })
+  } catch (err) {
+    // Le retrait reste APPROVED : Finances le voit toujours dans sa file et
+    // peut le reprendre. Échouer bruyamment ici annulerait une approbation qui,
+    // elle, était valide.
+    await auditStandalone({
+      action: 'PAYOUT_DISPATCH_FAILED', targetType: 'Payout', targetId: payoutId,
+      meta: { error: err instanceof PawaPayError ? (err.failureCode ?? err.message) : String(err) },
+    })
+  }
 }
 
 // ==========================================================================

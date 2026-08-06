@@ -8,11 +8,16 @@ import { success, error, requireAuth, requireLearner, parseBody, errorFromExcept
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiateMembershipPayment, cancelMembership, getMembership } from '@/lib/memberships'
 import { hashToken, resolveInvitationForTunnel } from '@/lib/invitations'
-import { simulateProviderWebhook, providerIsSimulated } from '@/lib/purchases'
+import { MobileMoneyPayerSchema } from '@/lib/payment-input'
 
 const JoinSchema = z
   .object({
-    provider: z.enum(['STRIPE', 'CINETPAY']),
+    provider: z.enum(['STRIPE', 'PAWAPAY']),
+    /**
+     * Numéro et opérateur mobile money. Obligatoire pour PawaPay, qui adresse un
+     * téléphone et non un compte ; ignoré pour Stripe.
+     */
+    payer: MobileMoneyPayerSchema.optional(),
     /**
      * Jeton d'une invitation payante, quand le tunnel est entré depuis un lien.
      * `initiateMembershipPayment` acceptait déjà un `invitationId` — personne ne
@@ -87,14 +92,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       ctx.user.id,
       parsed.data.provider,
       invitationId,
+      parsed.data.payer,
     )
 
-    // En dev sans clés API : la confirmation repasse par la vraie route webhook,
-    // seul chemin qui crédite le formateur et ouvre l'adhésion.
-    if (providerIsSimulated(intent.provider)) {
-      await simulateProviderWebhook(intent.provider, intent.providerTransactionId)
-    }
-
+    // Plus aucune simulation ici : le paiement est ouvert chez le fournisseur
+    // par `initiateMembershipPayment`, et seul son callback signé crédite le
+    // formateur et ouvre l'adhésion.
     return success(intent)
   } catch (err) {
     return errorFromException(err)
