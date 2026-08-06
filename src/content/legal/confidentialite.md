@@ -59,7 +59,7 @@ Plan d'abonnement et date de renouvellementGestion de l'abonnement
 
 ### 3.4 Données de paiement
 
-Les paiements sont traités par nos prestataires **CinetPay** (Mobile Money : Orange Money, MTN Mobile Money, Wave, Airtel Money, M-Pesa) et **Stripe** (carte bancaire). NkamVa ne stocke jamais votre numéro de carte bancaire ni votre code secret Mobile Money. Nous conservons uniquement : l'identifiant et le statut de la transaction, le moyen de paiement utilisé, le montant et la facture associée.
+Les paiements sont traités par nos prestataires **PawaPay** (Mobile Money : MTN Mobile Money, Orange Money, Airtel Money, M-Pesa) et **Stripe** (carte bancaire). NkamVa ne stocke jamais votre numéro de carte bancaire ni votre code secret Mobile Money. Nous conservons uniquement : l'identifiant et le statut de la transaction, le moyen de paiement utilisé, le montant et la facture associée.
 
 Pour les formateurs, les coordonnées de versement fournies pour le retrait des revenus (numéro Mobile Money ou coordonnées bancaires, nom du titulaire) sont conservées afin de traiter les demandes de paiement sortant.
 
@@ -68,7 +68,7 @@ Pour les formateurs, les coordonnées de versement fournies pour le retrait des 
 FinalitéBase légaleDonnées concernées
 Création et gestion de compteExécution du contratNom, email, mot de passe, rôle
 Accès aux ressources et communautésExécution du contratAchats, abonnements, activité
-Traitement des paiementsExécution du contratDonnées de transaction (CinetPay, Stripe)
+Traitement des paiementsExécution du contratDonnées de transaction (PawaPay, Stripe)
 Versement des revenus aux formateursExécution du contratCoordonnées de versement, montants
 Envoi d'e-mails transactionnelsExécution du contratEmail, nom
 Envoi de communications marketingConsentementEmail, préférences
@@ -96,7 +96,7 @@ Vos données personnelles ne sont jamais vendues à des tiers. Elles peuvent êt
 ### 6.1 Sous-traitants techniques
 
 PrestataireRôleLocalisation
-CinetPayPaiements Mobile Money (initiation et suivi des transactions)Côte d'Ivoire
+PawaPay (Payments Techco OÜ)Paiements Mobile Money : encaissements, remboursements et versements aux formateursEstonie (Union Européenne)
 StripePaiements par carte bancaire, abonnements formateursÉtats-Unis / Union Européenne
 ResendEnvoi des e-mails transactionnels et invitationsÉtats-Unis
 LiveKitSessions live (diffusion des flux audio/vidéo)États-Unis
@@ -115,7 +115,7 @@ NkamVa peut être amenée à divulguer vos données aux autorités compétentes 
 
 ## Article 7 — Transferts internationaux de données
 
-Certains de nos prestataires sont établis hors du Cameroun : Stripe, Resend, LiveKit et Cloudflare aux États-Unis, CinetPay en Côte d'Ivoire, l'hébergement étant assuré par Contabo en Allemagne (Union Européenne). Vos données peuvent donc être transférées et traitées dans ces pays. Ces transferts sont encadrés par des garanties appropriées :
+Certains de nos prestataires sont établis hors du Cameroun : Stripe, Resend, LiveKit et Cloudflare aux États-Unis, PawaPay en Estonie, l'hébergement étant assuré par Contabo en Allemagne (Union Européenne). Vos données peuvent donc être transférées et traitées dans ces pays. Ces transferts sont encadrés par des garanties appropriées :
 
 - Clauses contractuelles types approuvées par la Commission européenne pour les transferts vers des pays tiers (pour les utilisateurs UE)
 
@@ -172,7 +172,7 @@ NkamVa met en œuvre des mesures techniques et organisationnelles appropriées p
 
 - **Contrôle d'accès** : accès aux données strictement limité aux personnes habilitées
 
-- **Isolation des données de paiement** : aucun numéro de carte bancaire ni code secret Mobile Money n'est stocké sur nos serveurs (paiements délégués à CinetPay et Stripe)
+- **Isolation des données de paiement** : aucun numéro de carte bancaire ni code secret Mobile Money n'est stocké sur nos serveurs (paiements délégués à PawaPay et Stripe)
 
 - **Sauvegardes régulières** : sauvegardes chiffrées de la base de données
 

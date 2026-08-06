@@ -35,6 +35,7 @@ import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
 import { consumeInvitationForPurchase } from './invitations'
 import { assertCanActAsLearner } from './roles'
+import { openProviderPayment, type MobileMoneyPayer, type OpenPaymentResult } from './purchases'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -194,6 +195,10 @@ export interface MembershipPaymentIntent {
   purchaseId: string
   providerTransactionId: string
   provider: PaymentProvider
+  /** Stripe : à remettre au composant de paiement côté navigateur. */
+  clientSecret?: string
+  /** Ce que l'écran doit demander ensuite : le téléphone, la carte, ou rien. */
+  nextStep: OpenPaymentResult['nextStep']
   amountFcfa: number
   periodStart: Date
   periodEnd: Date
@@ -219,6 +224,8 @@ export async function initiateMembershipPayment(
    * un tunnel abandonné laisse l'invitation utilisable.
    */
   invitationId?: string | null,
+  /** Obligatoire pour PawaPay : le mobile money désigne un numéro, pas un compte. */
+  payer?: MobileMoneyPayer,
 ): Promise<MembershipPaymentIntent> {
   const community = await db.community.findFirst({
     where: { id: communityId, status: 'active' },
@@ -254,12 +261,18 @@ export async function initiateMembershipPayment(
       purchaseId: pending.id,
       providerTransactionId: pending.providerTransactionId,
       provider: pending.provider,
+      nextStep: pending.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
       amountFcfa: pending.amountFcfa,
       periodStart: pending.periodStart,
       periodEnd: pending.periodEnd,
       kind: 'DUE',
     }
   }
+
+  const learner = await db.user.findUnique({
+    where: { id: learnerId },
+    select: { countryCode: true },
+  })
 
   const open = await db.communitySubscription.findFirst({
     where: { communityId, learnerId, status: { in: OPEN_STATUSES } },
@@ -276,7 +289,6 @@ export async function initiateMembershipPayment(
 
   const amountFcfa = community.priceFcfa
   const trainerShareFcfa = Math.round(amountFcfa * (1 - community.commissionRate))
-  const providerTransactionId = `${provider === 'STRIPE' ? 'pi' : 'cp'}_${crypto.randomUUID()}`
 
   let purchase
   try {
@@ -290,7 +302,6 @@ export async function initiateMembershipPayment(
         trainerShareFcfa,
         platformShareFcfa: amountFcfa - trainerShareFcfa,
         provider,
-        providerTransactionId,
         providerStatus: 'PENDING',
         periodStart,
         periodEnd,
@@ -311,6 +322,7 @@ export async function initiateMembershipPayment(
       purchaseId: winner.id,
       providerTransactionId: winner.providerTransactionId,
       provider: winner.provider,
+      nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
       amountFcfa: winner.amountFcfa,
       periodStart: winner.periodStart!,
       periodEnd: winner.periodEnd!,
@@ -322,15 +334,38 @@ export async function initiateMembershipPayment(
     actorId: learnerId, actorRole: 'LEARNER',
     action: 'MEMBERSHIP_PAYMENT_INITIATED', targetType: 'Community', targetId: communityId,
     meta: {
-      purchaseId: purchase.id, amountFcfa, provider, providerTransactionId,
+      purchaseId: purchase.id, amountFcfa, provider,
       periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(),
       kind: open ? 'DUE' : 'JOIN',
     },
   })
 
+  // Même porte que l'achat à l'unité : l'adhésion n'a pas son propre chemin
+  // vers le fournisseur, sinon le jour où l'un est corrigé l'autre reste faux.
+  let opened
+  try {
+    opened = await openProviderPayment({
+      purchaseId: purchase.id,
+      provider,
+      amountFcfa,
+      label: 'Adhesion NkamVa',
+      learnerId,
+      countryCode: learner?.countryCode ?? null,
+      payer,
+    })
+  } catch (err) {
+    await db.purchase.updateMany({
+      where: { id: purchase.id, providerStatus: 'PENDING' },
+      data: { providerStatus: 'CANCELED' },
+    })
+    throw err
+  }
+
   return {
     purchaseId: purchase.id,
-    providerTransactionId,
+    providerTransactionId: opened.providerTransactionId,
+    clientSecret: opened.clientSecret,
+    nextStep: opened.nextStep,
     provider,
     amountFcfa,
     periodStart,

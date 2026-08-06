@@ -415,7 +415,7 @@ async function withContent(courseId: string) {
     const { learner, purchase, moderator, finance, profile } = await setupScenario()
     await prisma.purchase.update({
       where: { id: purchase.purchaseId },
-      data: { provider: 'CINETPAY' },
+      data: { provider: 'PAWAPAY' },
     })
     const dispute = await openDispute(learner.id, { purchaseId: purchase.purchaseId, reason: 'OTHER' })
     const current = await prisma.dispute.findUniqueOrThrow({ where: { id: dispute.id } })

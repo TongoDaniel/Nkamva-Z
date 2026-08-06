@@ -2,11 +2,17 @@
 import { success, error, requireLearner, parseBody } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiatePurchase } from '@/lib/purchases'
+import { MobileMoneyPayerSchema } from '@/lib/payment-input'
 import { z } from 'zod'
 
 const InitiateSchema = z.object({
   courseId: z.string().uuid(),
-  provider: z.enum(['STRIPE', 'CINETPAY']),
+  provider: z.enum(['STRIPE', 'PAWAPAY']),
+  /**
+   * Numéro et opérateur mobile money. Obligatoire pour PawaPay, qui adresse un
+   * téléphone et non un compte ; ignoré pour Stripe.
+   */
+  payer: MobileMoneyPayerSchema.optional(),
 })
 
 export async function POST(request: Request) {
@@ -29,7 +35,9 @@ export async function POST(request: Request) {
   if (parsed instanceof Response) return parsed
 
   try {
-    const result = await initiatePurchase(parsed.data.courseId, ctx.user.id, parsed.data.provider)
+    const result = await initiatePurchase(
+      parsed.data.courseId, ctx.user.id, parsed.data.provider, parsed.data.payer,
+    )
     return success(result, {}, 201)
   } catch (err: any) {
     if (err.message === 'COURSE_NOT_FOUND') return error('COURSE_NOT_FOUND', 'Cours introuvable', 404)

@@ -46,7 +46,7 @@ describe('Job — purge des comptes supprimés', () => {
       data: {
         learnerId, trainerId: trainer.id, courseId: course.id,
         amountFcfa: 10000, commissionRate: 0.15, trainerShareFcfa: 8500, platformShareFcfa: 1500,
-        provider: 'CINETPAY', providerTransactionId: `cp_${crypto.randomUUID()}`, providerStatus: 'SUCCEEDED',
+        provider: 'PAWAPAY', providerTransactionId: `cp_${crypto.randomUUID()}`, providerStatus: 'SUCCEEDED',
       },
     })
     await prisma.courseView.create({ data: { courseId: course.id, learnerId, watchedSeconds: 1200 } })

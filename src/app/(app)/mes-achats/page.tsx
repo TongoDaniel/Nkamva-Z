@@ -38,7 +38,7 @@ const STATUS: Record<PaymentStatus, { label: string; tone: "ok" | "warn" | "bad"
 };
 
 const PROVIDERS: Record<string, string> = {
-  CINETPAY: "Mobile money",
+  PAWAPAY: "Mobile money",
   STRIPE: "Carte bancaire",
 };
 

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { CreditCard, Library, ShieldCheck, Smartphone, Users } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { FormError } from "@/components/layouts/auth-shell";
+import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
+import { phoneNumberError } from "@/lib/payment-input";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa, fmtNumber } from "@/lib/format";
 import type { PaymentProvider } from "@/lib/dto";
@@ -22,9 +24,11 @@ const PROVIDERS: Array<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   {
-    value: "CINETPAY",
+    value: "PAWAPAY",
     label: "Mobile money",
-    detail: "Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa",
+    // Wave n'y figure plus : il n'est pas distribué par PawaPay, et le proposer
+    // ouvrirait un tunnel qui ne peut pas aboutir.
+    detail: "MTN MoMo, Orange Money, Airtel Money, M-Pesa",
     icon: Smartphone,
   },
   {
@@ -37,7 +41,6 @@ const PROVIDERS: Array<{
 
 interface MembershipIntent {
   purchaseId: string;
-  paymentUrl?: string;
 }
 
 export function AdhesionForm({
@@ -66,7 +69,12 @@ export function AdhesionForm({
   invitation?: string | null;
 }) {
   const router = useRouter();
-  const [provider, setProvider] = React.useState<PaymentProvider>("CINETPAY");
+  const [provider, setProvider] = React.useState<PaymentProvider>("PAWAPAY");
+  const [payer, setPayer] = React.useState<MobileMoneyValue>({
+    phoneNumber: "",
+    operator: "MTN_MOMO",
+  });
+  const [showPayerErrors, setShowPayerErrors] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
@@ -78,16 +86,26 @@ export function AdhesionForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Contrôle local avant l'aller-retour : un numéro vide ferait un 400 dont
+    // le message serait moins précis que celui affiché sous le champ.
+    if (provider === "PAWAPAY") {
+      setShowPayerErrors(true);
+      if (phoneNumberError(payer.phoneNumber)) return;
+    }
+
     setPending(true);
     try {
       const { data } = await api.post<MembershipIntent>(
         `/api/communities/${encodeURIComponent(slug)}/adhesion`,
-        { provider, ...(invitation ? { invitation } : {}) },
+        {
+          provider,
+          ...(invitation ? { invitation } : {}),
+          ...(provider === "PAWAPAY" ? { payer } : {}),
+        },
       );
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-        return;
-      }
+      // Plus de page de paiement hébergée : PawaPay pousse la demande sur le
+      // téléphone du membre, et l'écran de confirmation attend le callback.
       router.push(`/achat/confirmation/${data.purchaseId}`);
     } catch (err) {
       if (err instanceof ApiError && err.code === "ALREADY_MEMBER") {
@@ -133,6 +151,11 @@ export function AdhesionForm({
             </label>
           ))}
         </div>
+
+        {provider === "PAWAPAY" ? (
+          <MobileMoneyFields value={payer} onChange={setPayer} showErrors={showPayerErrors} />
+        ) : null}
+
         <p className="mt-5 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
           Votre place n&apos;est ouverte qu&apos;une fois le paiement confirmé par

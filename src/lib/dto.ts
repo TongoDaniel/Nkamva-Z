@@ -47,7 +47,7 @@ export interface CourseDetail extends CourseListItem {
   trainerProfile: TrainerSummary & { studentsCount: number };
 }
 
-export type PaymentProvider = "STRIPE" | "CINETPAY";
+export type PaymentProvider = "STRIPE" | "PAWAPAY";
 export type PaymentStatus =
   | "PENDING"
   | "SUCCEEDED"

@@ -26,7 +26,7 @@ const POLL_INTERVAL_MS = 8_000;
 const POLL_TIMEOUT_MS = 120_000;
 
 const PROVIDER_LABEL: Record<PaymentProvider, string> = {
-  CINETPAY: "Mobile money",
+  PAWAPAY: "Mobile money",
   STRIPE: "Carte bancaire",
 };
 
@@ -176,10 +176,16 @@ export function ConfirmationStatus({
             <span className="mb-5 grid size-16 place-items-center rounded-full bg-brand-tint text-brand">
               <Loader2 className="size-8 animate-spin" aria-hidden="true" />
             </span>
-            <h2 className="mb-2 text-[24px] font-extrabold">Confirmation en cours…</h2>
+            <h2 className="mb-2 text-[24px] font-extrabold">
+              {provider === "PAWAPAY" ? "Regardez votre téléphone" : "Confirmation en cours…"}
+            </h2>
+            {/* Le mobile money ne redirige plus vers une page hébergée : l'opérateur
+                pousse une demande sur le téléphone, et sans cette consigne
+                l'apprenant attend un écran qui ne viendra jamais. */}
             <p className="max-w-[52ch] text-ink-2">
-              Nous attendons la confirmation de l&apos;opérateur. Vous pouvez laisser cette page
-              ouverte : elle se met à jour toute seule.
+              {provider === "PAWAPAY"
+                ? "Une demande de paiement vient d’être envoyée sur votre numéro. Saisissez votre code secret pour la valider — cette page se met à jour toute seule."
+                : "Nous attendons la confirmation de l’opérateur. Vous pouvez laisser cette page ouverte : elle se met à jour toute seule."}
             </p>
           </>
         )}

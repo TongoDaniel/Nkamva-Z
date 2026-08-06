@@ -29,9 +29,11 @@ process.env.DATABASE_URL =
 // "undefined" (truthy) dans process.env.
 for (const key of [
   'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PUBLISHABLE_KEY',
-  // CINETPAY_SECRET_KEY : renseignée, le webhook exige un HMAC X-TOKEN valide
-  // et rejette en 400 les notifications forgées par les tests.
-  'CINETPAY_API_KEY', 'CINETPAY_SITE_ID', 'CINETPAY_SECRET_KEY',
+  // PAWAPAY_API_TOKEN : sans elle, aucun appel ne part chez le fournisseur — et
+  // les callbacks refusent tout, faute de pouvoir récupérer les clés publiques
+  // qui vérifient leur signature. C'est exactement ce qu'on veut en test.
+  'PAWAPAY_API_TOKEN', 'PAWAPAY_BASE_URL', 'PAWAPAY_ENVIRONMENT',
+  'PAWAPAY_CALLBACK_AUTHORITY',
   'RESEND_API_KEY',
   // Le stockage objet porte les noms standard du SDK AWS. Cette liste a
   // longtemps neutralisé `R2_*`, qui n'existaient nulle part : elle ne
@@ -57,6 +59,13 @@ for (const key of [
 // valeur de test déterministe : le secret de dev ne sert jamais ici, et les
 // chiffrements restent reproductibles d'une exécution à l'autre.
 process.env.NEXTAUTH_SECRET = 'nkamva-test-secret-deterministe-0123456789'
+
+// Les tests du parcours d'achat exercent les règles métier (crédit du
+// portefeuille, accès, litiges), pas le fournisseur de paiement. Sans ce
+// drapeau, `openProviderPayment` refuserait — c'est précisément le
+// comportement voulu en production, et c'est pourquoi il faut l'autoriser
+// explicitement ici plutôt que de le déduire d'une clé absente.
+process.env.ALLOW_PAYMENT_SIMULATION = '1'
 
 const prisma = new PrismaClient()
 

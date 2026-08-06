@@ -32,7 +32,7 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   beforeEach(async () => { await cleanDatabase() })
   afterEach(async () => { await cleanDatabase() })
 
-  async function setup(opts: { provider?: 'STRIPE' | 'CINETPAY'; purchasedDaysAgo?: number; watchedSeconds?: number } = {}) {
+  async function setup(opts: { provider?: 'STRIPE' | 'PAWAPAY'; purchasedDaysAgo?: number; watchedSeconds?: number } = {}) {
     const trainerUser = await prisma.user.create({ data: { email: `t-${crypto.randomUUID()}@test.com`, role: 'TRAINER' } })
     const trainer = await prisma.trainerProfile.create({ data: { userId: trainerUser.id } })
     const wallet = await prisma.wallet.create({ data: { trainerId: trainer.id, balance: RESERVED } })
@@ -377,7 +377,7 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   // --- Remboursement manuel (CinetPay) ---
 
   it('CinetPay — la décision crée une tâche et ne débite rien tout de suite', async () => {
-    const { admin, dispute, wallet: w } = await setup({ provider: 'CINETPAY' })
+    const { admin, dispute, wallet: w } = await setup({ provider: 'PAWAPAY' })
 
     const result = await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
@@ -395,11 +395,11 @@ describe('Lot 2 — Arbitrage des litiges', () => {
 
     const tasks = await listManualRefundTasks('PENDING')
     expect(tasks).toHaveLength(1)
-    expect(tasks[0]).toMatchObject({ provider: 'CINETPAY', refundAmountFcfa: AMOUNT, trainerDebitFcfa: RESERVED })
+    expect(tasks[0]).toMatchObject({ provider: 'PAWAPAY', refundAmountFcfa: AMOUNT, trainerDebitFcfa: RESERVED })
   })
 
   it('CinetPay — confirmer la tâche débite enfin le formateur', async () => {
-    const { admin, dispute, wallet: w, purchase } = await setup({ provider: 'CINETPAY' })
+    const { admin, dispute, wallet: w, purchase } = await setup({ provider: 'PAWAPAY' })
     await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
@@ -417,7 +417,7 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   })
 
   it('FR5 — annuler la tâche rend les fonds gelés au formateur', async () => {
-    const { admin, dispute, wallet: w, purchase } = await setup({ provider: 'CINETPAY' })
+    const { admin, dispute, wallet: w, purchase } = await setup({ provider: 'PAWAPAY' })
     await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
@@ -441,7 +441,7 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   })
 
   it('une tâche déjà traitée ne se rejoue pas', async () => {
-    const { admin, dispute } = await setup({ provider: 'CINETPAY' })
+    const { admin, dispute } = await setup({ provider: 'PAWAPAY' })
     await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',

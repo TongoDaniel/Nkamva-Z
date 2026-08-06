@@ -50,7 +50,7 @@ describe('Lot 2 — Litiges côté formateur', () => {
       data: {
         learnerId: learner.id, trainerId: trainer.id, courseId: course.id,
         amountFcfa: AMOUNT, commissionRate: 0.15, trainerShareFcfa: RESERVED,
-        platformShareFcfa: AMOUNT - RESERVED, provider: 'CINETPAY',
+        platformShareFcfa: AMOUNT - RESERVED, provider: 'PAWAPAY',
         providerTransactionId: `cp_${crypto.randomUUID()}`, providerStatus: 'SUCCEEDED',
         createdAt: new Date(Date.now() - 2 * DAY),
       },

@@ -25,7 +25,7 @@ export interface PurchaseSeed {
   ref: string
   courseKey: string
   learnerKey: string
-  provider: 'STRIPE' | 'CINETPAY'
+  provider: 'STRIPE' | 'PAWAPAY'
   daysAgo: number
   /**
    * `SUCCEEDED` passe par le crédit du portefeuille, comme le webhook.
@@ -38,55 +38,55 @@ export interface PurchaseSeed {
 
 export const PURCHASES: PurchaseSeed[] = [
   // Awa Sarr — le formateur le plus vendu
-  { ref: 'seed_tx_01', courseKey: 'hexagonale', learnerKey: 'aminata', provider: 'CINETPAY', daysAgo: 88 },
+  { ref: 'seed_tx_01', courseKey: 'hexagonale', learnerKey: 'aminata', provider: 'PAWAPAY', daysAgo: 88 },
   { ref: 'seed_tx_02', courseKey: 'hexagonale', learnerKey: 'ibrahim', provider: 'STRIPE', daysAgo: 74 },
   // Contesté puis rejeté : l'achat doit rester dans la fenêtre de 14 jours,
   // sinon `openDispute` refuse d'ouvrir le dossier (décision 18).
-  { ref: 'seed_tx_03', courseKey: 'hexagonale', learnerKey: 'jean', provider: 'CINETPAY', daysAgo: 13 },
-  { ref: 'seed_tx_04', courseKey: 'hexagonale', learnerKey: 'malick', provider: 'CINETPAY', daysAgo: 9 },
-  { ref: 'seed_tx_05', courseKey: 'tests-ci', learnerKey: 'aminata', provider: 'CINETPAY', daysAgo: 62 },
+  { ref: 'seed_tx_03', courseKey: 'hexagonale', learnerKey: 'jean', provider: 'PAWAPAY', daysAgo: 13 },
+  { ref: 'seed_tx_04', courseKey: 'hexagonale', learnerKey: 'malick', provider: 'PAWAPAY', daysAgo: 9 },
+  { ref: 'seed_tx_05', courseKey: 'tests-ci', learnerKey: 'aminata', provider: 'PAWAPAY', daysAgo: 62 },
   { ref: 'seed_tx_06', courseKey: 'tests-ci', learnerKey: 'nadia', provider: 'STRIPE', daysAgo: 44 },
-  { ref: 'seed_tx_07', courseKey: 'tests-ci', learnerKey: 'seydou', provider: 'CINETPAY', daysAgo: 20 },
-  { ref: 'seed_tx_08', courseKey: 'revue-code', learnerKey: 'ibrahim', provider: 'CINETPAY', daysAgo: 40 },
+  { ref: 'seed_tx_07', courseKey: 'tests-ci', learnerKey: 'seydou', provider: 'PAWAPAY', daysAgo: 20 },
+  { ref: 'seed_tx_08', courseKey: 'revue-code', learnerKey: 'ibrahim', provider: 'PAWAPAY', daysAgo: 40 },
   { ref: 'seed_tx_09', courseKey: 'revue-code', learnerKey: 'esther', provider: 'STRIPE', daysAgo: 14 },
   { ref: 'seed_tx_10', courseKey: 'pipelines', learnerKey: 'seydou', provider: 'STRIPE', daysAgo: 17 },
-  { ref: 'seed_tx_11', courseKey: 'pipelines', learnerKey: 'aminata', provider: 'CINETPAY', daysAgo: 6 },
-  { ref: 'seed_tx_12', courseKey: 'pipelines', learnerKey: 'malick', provider: 'CINETPAY', daysAgo: 2 },
+  { ref: 'seed_tx_11', courseKey: 'pipelines', learnerKey: 'aminata', provider: 'PAWAPAY', daysAgo: 6 },
+  { ref: 'seed_tx_12', courseKey: 'pipelines', learnerKey: 'malick', provider: 'PAWAPAY', daysAgo: 2 },
 
   // Moussa Traoré
-  { ref: 'seed_tx_13', courseKey: 'ohada-societe', learnerKey: 'nadia', provider: 'CINETPAY', daysAgo: 66 },
-  { ref: 'seed_tx_14', courseKey: 'ohada-societe', learnerKey: 'omar', provider: 'CINETPAY', daysAgo: 47 },
+  { ref: 'seed_tx_13', courseKey: 'ohada-societe', learnerKey: 'nadia', provider: 'PAWAPAY', daysAgo: 66 },
+  { ref: 'seed_tx_14', courseKey: 'ohada-societe', learnerKey: 'omar', provider: 'PAWAPAY', daysAgo: 47 },
   { ref: 'seed_tx_15', courseKey: 'ohada-societe', learnerKey: 'clarisse', provider: 'STRIPE', daysAgo: 24 },
   { ref: 'seed_tx_16', courseKey: 'kit-ohada', learnerKey: 'omar', provider: 'STRIPE', daysAgo: 45 },
-  { ref: 'seed_tx_17', courseKey: 'kit-ohada', learnerKey: 'esther', provider: 'CINETPAY', daysAgo: 11 },
+  { ref: 'seed_tx_17', courseKey: 'kit-ohada', learnerKey: 'esther', provider: 'PAWAPAY', daysAgo: 11 },
   // Contestée puis remboursée : voir DISPUTES.
-  { ref: 'seed_tx_18', courseKey: 'tresorerie', learnerKey: 'clarisse', provider: 'CINETPAY', daysAgo: 12 },
+  { ref: 'seed_tx_18', courseKey: 'tresorerie', learnerKey: 'clarisse', provider: 'PAWAPAY', daysAgo: 12 },
 
   // Fatou Ndiaye
-  { ref: 'seed_tx_19', courseKey: 'whatsapp', learnerKey: 'rita', provider: 'CINETPAY', daysAgo: 10 },
+  { ref: 'seed_tx_19', courseKey: 'whatsapp', learnerKey: 'rita', provider: 'PAWAPAY', daysAgo: 10 },
   { ref: 'seed_tx_20', courseKey: 'whatsapp', learnerKey: 'clarisse', provider: 'STRIPE', daysAgo: 29 },
-  { ref: 'seed_tx_21', courseKey: 'whatsapp', learnerKey: 'jean', provider: 'CINETPAY', daysAgo: 8 },
-  { ref: 'seed_tx_22', courseKey: 'notion-marketing', learnerKey: 'rita', provider: 'CINETPAY', daysAgo: 13 },
+  { ref: 'seed_tx_21', courseKey: 'whatsapp', learnerKey: 'jean', provider: 'PAWAPAY', daysAgo: 8 },
+  { ref: 'seed_tx_22', courseKey: 'notion-marketing', learnerKey: 'rita', provider: 'PAWAPAY', daysAgo: 13 },
   { ref: 'seed_tx_23', courseKey: 'notion-marketing', learnerKey: 'nadia', provider: 'STRIPE', daysAgo: 4 },
   // Achetée avant son retrait du catalogue : l'accès de l'acheteuse survit.
-  { ref: 'seed_tx_24', courseKey: 'pub-express', learnerKey: 'esther', provider: 'CINETPAY', daysAgo: 26 },
+  { ref: 'seed_tx_24', courseKey: 'pub-express', learnerKey: 'esther', provider: 'PAWAPAY', daysAgo: 26 },
 
   // Yao Kouassi
   { ref: 'seed_tx_25', courseKey: 'montage', learnerKey: 'jean', provider: 'STRIPE', daysAgo: 36 },
-  { ref: 'seed_tx_26', courseKey: 'montage', learnerKey: 'seydou', provider: 'CINETPAY', daysAgo: 21 },
+  { ref: 'seed_tx_26', courseKey: 'montage', learnerKey: 'seydou', provider: 'PAWAPAY', daysAgo: 21 },
   { ref: 'seed_tx_27', courseKey: 'identite', learnerKey: 'rita', provider: 'STRIPE', daysAgo: 10 },
   // Litige en cours : achat récent, ressource non téléchargée.
   { ref: 'seed_tx_28', courseKey: 'identite', learnerKey: 'aminata', provider: 'STRIPE', daysAgo: 5 },
 
   // Kofi Mensah
-  { ref: 'seed_tx_29', courseKey: 'tableaux-bord', learnerKey: 'clarisse', provider: 'CINETPAY', daysAgo: 34 },
+  { ref: 'seed_tx_29', courseKey: 'tableaux-bord', learnerKey: 'clarisse', provider: 'PAWAPAY', daysAgo: 34 },
   { ref: 'seed_tx_30', courseKey: 'tableaux-bord', learnerKey: 'omar', provider: 'STRIPE', daysAgo: 15 },
-  { ref: 'seed_tx_31', courseKey: 'budget-annuel', learnerKey: 'clarisse', provider: 'CINETPAY', daysAgo: 7 },
+  { ref: 'seed_tx_31', courseKey: 'budget-annuel', learnerKey: 'clarisse', provider: 'PAWAPAY', daysAgo: 7 },
 
   // Paiements qui n'ont pas abouti.
-  { ref: 'seed_tx_32', courseKey: 'hexagonale', learnerKey: 'esther', provider: 'CINETPAY', daysAgo: 3, outcome: 'PENDING' },
+  { ref: 'seed_tx_32', courseKey: 'hexagonale', learnerKey: 'esther', provider: 'PAWAPAY', daysAgo: 3, outcome: 'PENDING' },
   { ref: 'seed_tx_33', courseKey: 'tableaux-bord', learnerKey: 'malick', provider: 'STRIPE', daysAgo: 5, outcome: 'FAILED' },
-  { ref: 'seed_tx_34', courseKey: 'montage', learnerKey: 'grace', provider: 'CINETPAY', daysAgo: 18, outcome: 'FAILED' },
+  { ref: 'seed_tx_34', courseKey: 'montage', learnerKey: 'grace', provider: 'PAWAPAY', daysAgo: 18, outcome: 'FAILED' },
 ]
 
 // --- Adhésions aux communautés ---------------------------------------------
@@ -94,7 +94,7 @@ export const PURCHASES: PurchaseSeed[] = [
 export interface MembershipSeed {
   communityKey: string
   learnerKey: string
-  provider: 'STRIPE' | 'CINETPAY'
+  provider: 'STRIPE' | 'PAWAPAY'
   /** Ancienneté de l'adhésion, en jours. */
   daysAgo: number
   /** Résiliée : l'accès court jusqu'à la fin de la période déjà réglée. */
@@ -104,24 +104,24 @@ export interface MembershipSeed {
 }
 
 export const MEMBERSHIPS: MembershipSeed[] = [
-  { communityKey: 'atelier-code', learnerKey: 'aminata', provider: 'CINETPAY', daysAgo: 96 },
-  { communityKey: 'atelier-code', learnerKey: 'ibrahim', provider: 'CINETPAY', daysAgo: 71 },
+  { communityKey: 'atelier-code', learnerKey: 'aminata', provider: 'PAWAPAY', daysAgo: 96 },
+  { communityKey: 'atelier-code', learnerKey: 'ibrahim', provider: 'PAWAPAY', daysAgo: 71 },
   { communityKey: 'atelier-code', learnerKey: 'seydou', provider: 'STRIPE', daysAgo: 52 },
-  { communityKey: 'atelier-code', learnerKey: 'nadia', provider: 'CINETPAY', daysAgo: 38 },
+  { communityKey: 'atelier-code', learnerKey: 'nadia', provider: 'PAWAPAY', daysAgo: 38 },
   { communityKey: 'atelier-code', learnerKey: 'malick', provider: 'STRIPE', daysAgo: 9 },
-  { communityKey: 'atelier-code', learnerKey: 'jean', provider: 'CINETPAY', daysAgo: 60, canceled: true },
+  { communityKey: 'atelier-code', learnerKey: 'jean', provider: 'PAWAPAY', daysAgo: 60, canceled: true },
   {
     communityKey: 'atelier-code',
     learnerKey: 'blaise',
-    provider: 'CINETPAY',
+    provider: 'PAWAPAY',
     daysAgo: 33,
     banned: {
       reason: "Insultes envers un autre membre dans le fil « migrations », après un rappel resté sans effet.",
     },
   },
-  { communityKey: 'cercle-ohada', learnerKey: 'clarisse', provider: 'CINETPAY', daysAgo: 63 },
+  { communityKey: 'cercle-ohada', learnerKey: 'clarisse', provider: 'PAWAPAY', daysAgo: 63 },
   { communityKey: 'cercle-ohada', learnerKey: 'omar', provider: 'STRIPE', daysAgo: 41 },
-  { communityKey: 'cercle-ohada', learnerKey: 'esther', provider: 'CINETPAY', daysAgo: 16 },
+  { communityKey: 'cercle-ohada', learnerKey: 'esther', provider: 'PAWAPAY', daysAgo: 16 },
   { communityKey: 'studio-yao', learnerKey: 'rita', provider: 'STRIPE', daysAgo: 44 },
 ]
 
