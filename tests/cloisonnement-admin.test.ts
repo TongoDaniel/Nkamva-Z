@@ -19,6 +19,7 @@ import { initiatePurchase } from '@/lib/purchases'
 import { initiateMembershipPayment } from '@/lib/memberships'
 import { issueNominativeInvitation, acceptGiftInvitation } from '@/lib/invitations'
 import { createApplication } from '@/lib/trainer-applications'
+import { deactivateAdmin, reactivateAdmin } from '@/lib/admins'
 
 describe("Cloisonnement de l'administration", () => {
   beforeEach(async () => { await cleanDatabase() })
@@ -160,5 +161,110 @@ describe("Cloisonnement de l'administration", () => {
 
     await expect(initiateMembershipPayment(community.id, user.id, 'STRIPE'))
       .rejects.toThrow('CANNOT_JOIN_OWN_COMMUNITY')
+  })
+
+  // ── Arbitrage 88 — la frontière ne se franchit pas non plus en sortant ────
+
+  describe('Fermeture d’un compte d’administration', () => {
+    async function unSuperAdmin() {
+      return prisma.user.create({
+        data: {
+          email: 'super@test.com', role: 'ADMIN', adminRole: 'SUPER_ADMIN',
+          fullName: 'Super', emailVerifiedAt: new Date(),
+        },
+      })
+    }
+
+    async function unModerateur() {
+      return prisma.user.create({
+        data: {
+          email: 'moderation@test.com', role: 'ADMIN', adminRole: 'MODERATION',
+          fullName: 'Sarah Nkoulou', emailVerifiedAt: new Date(),
+        },
+      })
+    }
+
+    it('ferme le compte SANS le rétrograder en apprenant', async () => {
+      // Le cœur de l'arbitrage 88. Rétrograder rouvrirait la porte de sortie :
+      // se faire retirer ses droits suffirait à redevenir un acheteur
+      // ordinaire, en laissant derrière soi un journal signé d'un admin.
+      const acteur = await unSuperAdmin()
+      const cible = await unModerateur()
+
+      await deactivateAdmin(cible.id, acteur.id)
+
+      const apres = await prisma.user.findUniqueOrThrow({ where: { id: cible.id } })
+      expect(apres.suspendedAt).not.toBeNull()
+      expect(apres.role).toBe('ADMIN')
+      expect(apres.adminRole).toBe('MODERATION')
+    })
+
+    it('coupe les sessions déjà ouvertes', async () => {
+      // `suspendedAt` suffit côté serveur, mais le middleware ne lit que le
+      // JWT : sans ce bump, il laisserait passer jusqu'au rafraîchissement.
+      const acteur = await unSuperAdmin()
+      const cible = await unModerateur()
+      const avant = cible.sessionsValidAfter
+
+      await deactivateAdmin(cible.id, acteur.id)
+
+      const apres = await prisma.user.findUniqueOrThrow({ where: { id: cible.id } })
+      expect(apres.sessionsValidAfter.getTime()).toBeGreaterThan(avant.getTime())
+    })
+
+    it('journalise la fermeture', async () => {
+      const acteur = await unSuperAdmin()
+      const cible = await unModerateur()
+
+      await deactivateAdmin(cible.id, acteur.id)
+
+      const trace = await prisma.auditLog.findFirst({
+        where: { action: 'ADMIN_ACCOUNT_DEACTIVATED', targetId: cible.id },
+      })
+      expect(trace).not.toBeNull()
+      expect(trace?.actorId).toBe(acteur.id)
+    })
+
+    it('refuse de fermer son propre compte', async () => {
+      // La console ne doit jamais se fermer à celui qui vient d'y agir.
+      const acteur = await unSuperAdmin()
+      await expect(deactivateAdmin(acteur.id, acteur.id)).rejects.toThrow('REVOKE_SELF_FORBIDDEN')
+    })
+
+    it('refuse de fermer un super-administrateur', async () => {
+      const acteur = await unSuperAdmin()
+      const autreSuper = await prisma.user.create({
+        data: { email: 'super2@test.com', role: 'ADMIN', adminRole: 'SUPER_ADMIN', fullName: 'S2' },
+      })
+      await expect(deactivateAdmin(autreSuper.id, acteur.id)).rejects.toThrow('SUPER_ADMIN_IMMUTABLE')
+    })
+
+    it('refuse de fermer deux fois', async () => {
+      const acteur = await unSuperAdmin()
+      const cible = await unModerateur()
+
+      await deactivateAdmin(cible.id, acteur.id)
+      await expect(deactivateAdmin(cible.id, acteur.id)).rejects.toThrow('ADMIN_ALREADY_DEACTIVATED')
+    })
+
+    it('rouvre un compte fermé', async () => {
+      // Sans réouverture, un clic malheureux condamnerait le compte et
+      // couperait le journal d'audit en deux identités pour une personne.
+      const acteur = await unSuperAdmin()
+      const cible = await unModerateur()
+
+      await deactivateAdmin(cible.id, acteur.id)
+      await reactivateAdmin(cible.id, acteur.id)
+
+      const apres = await prisma.user.findUniqueOrThrow({ where: { id: cible.id } })
+      expect(apres.suspendedAt).toBeNull()
+      expect(apres.adminRole).toBe('MODERATION')
+    })
+
+    it('refuse de rouvrir un compte qui n’est pas fermé', async () => {
+      const acteur = await unSuperAdmin()
+      const cible = await unModerateur()
+      await expect(reactivateAdmin(cible.id, acteur.id)).rejects.toThrow('ADMIN_NOT_DEACTIVATED')
+    })
   })
 })
