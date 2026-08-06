@@ -6,6 +6,7 @@
 import { db } from './db'
 import { hashPassword, verifyPassword } from './password'
 import { auditStandalone } from './audit'
+import { canActAsLearner } from './roles'
 import { DELETION_GRACE_DAYS } from './dto'
 
 export { DELETION_GRACE_DAYS }
@@ -229,28 +230,88 @@ export async function buildGdprExport(userId: string) {
 
 // --- Suppression de compte ---
 
-export type DeletionRefusal = 'WALLET_NOT_EMPTY' | 'PUBLISHED_COURSES'
+export type DeletionRefusal =
+  | 'ADMIN_ACCOUNT'
+  | 'WALLET_NOT_EMPTY'
+  | 'PUBLISHED_COURSES'
+  | 'ACTIVE_COMMUNITY'
+  | 'OPEN_DISPUTE'
+  | 'PAYOUT_IN_FLIGHT'
+
+/** Un litige non tranché. Les trois autres statuts sont terminaux. */
+const OPEN_DISPUTE_STATUSES = ['OPEN', 'IN_REVIEW', 'WAITING_LEARNER'] as const
+
+/**
+ * Un retrait dont l'argent bouge encore. `PAID`, `REJECTED` et `FAILED` sont
+ * terminaux — dans les deux derniers cas les fonds sont revenus au
+ * portefeuille, que le contrôle de solde couvre déjà.
+ */
+const PAYOUT_IN_FLIGHT_STATUSES = ['PENDING', 'AUTO_APPROVED', 'IN_REVIEW', 'APPROVED'] as const
+
+/** Une adhésion qui donne encore accès, et qui a donc encore un animateur à servir. */
+const SERVED_MEMBERSHIP_STATUSES = ['ACTIVE', 'PAST_DUE'] as const
 
 /**
  * Enregistre une demande de suppression. Le compte reste utilisable pendant le
  * délai de grâce : c'est la seule façon d'offrir une annulation en autonomie
  * (la maquette prévoyait une désactivation immédiate annulable « par e-mail »,
- * canal qui n'existe pas). L'effacement effectif à J+30 relève d'un job
- * planifié, qui n'est pas encore en place.
+ * canal qui n'existe pas).
+ *
+ * Tous les refus ci-dessous partagent un même principe : **promettre un
+ * effacement qui laisserait quelqu'un d'autre en plan est pire que le refuser
+ * tout de suite.** Les clés étrangères financières sont en `onDelete: Restrict`,
+ * et l'effacement lui-même est une anonymisation — mais une écriture qui
+ * survit à une personne introuvable n'aide ni le litige en cours, ni le membre
+ * qui paie encore, ni le comptable.
  */
 export async function requestDeletion(
   userId: string,
   trainerId: string | null,
 ): Promise<{ ok: true; scheduledAt: string } | { ok: false; reason: DeletionRefusal }> {
+  // Un compte d'administration ne s'efface pas lui-même (arbitrage 88). Ce
+  // refus n'est pas de la même nature que les suivants : les autres demandent
+  // de solder une situation, celui-ci est définitif. Un administrateur qui
+  // part s'adresse à un super-admin, qui ferme son compte — ses décisions sur
+  // les litiges, les dossiers KYC et les retraits doivent rester attribuables.
+  // S'auto-anonymiser reviendrait à effacer sa propre signature du journal.
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
+  if (!user) throw new Error('USER_NOT_FOUND')
+  if (!canActAsLearner(user.role)) return { ok: false, reason: 'ADMIN_ACCOUNT' }
+
+  // Vaut pour tout le monde : on peut être partie à un litige comme acheteur
+  // sans être formateur. Partir en cours d'instruction laisserait l'autre
+  // partie et l'administrateur qui arbitre devant un dossier sans personne.
+  const disputesAsLearner = await db.dispute.count({
+    where: { learnerId: userId, status: { in: [...OPEN_DISPUTE_STATUSES] } },
+  })
+  if (disputesAsLearner > 0) return { ok: false, reason: 'OPEN_DISPUTE' }
+
   if (trainerId) {
-    // Les clés étrangères financières sont en onDelete: Restrict : promettre un
-    // effacement qui échouerait serait pire que le refuser tout de suite.
-    const [wallet, published] = await Promise.all([
+    const [wallet, published, communityMembers, payouts, disputesAsTrainer] = await Promise.all([
       db.wallet.findUnique({ where: { trainerId }, select: { balance: true } }),
       db.course.count({ where: { trainerId, status: 'published' } }),
+      // Une communauté vivante avec des membres qui paient : l'archiver n'est
+      // pas au système de le décider, c'est au formateur de prévenir les siens.
+      db.communitySubscription.count({
+        where: {
+          status: { in: [...SERVED_MEMBERSHIP_STATUSES] },
+          community: { trainerId, status: 'active' },
+        },
+      }),
+      db.payout.count({
+        where: { trainerId, status: { in: [...PAYOUT_IN_FLIGHT_STATUSES] } },
+      }),
+      db.dispute.count({
+        where: { trainerId, status: { in: [...OPEN_DISPUTE_STATUSES] } },
+      }),
     ])
     if ((wallet?.balance ?? 0) !== 0) return { ok: false, reason: 'WALLET_NOT_EMPTY' }
+    // Avant le solde nul on pouvait croire l'affaire close : un retrait en
+    // cours vide le portefeuille alors que l'argent n'est pas encore arrivé.
+    if (payouts > 0) return { ok: false, reason: 'PAYOUT_IN_FLIGHT' }
     if (published > 0) return { ok: false, reason: 'PUBLISHED_COURSES' }
+    if (communityMembers > 0) return { ok: false, reason: 'ACTIVE_COMMUNITY' }
+    if (disputesAsTrainer > 0) return { ok: false, reason: 'OPEN_DISPUTE' }
   }
 
   const requestedAt = new Date()
