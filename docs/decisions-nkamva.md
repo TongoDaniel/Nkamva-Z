@@ -1084,8 +1084,18 @@ doit pas pouvoir se favoriser — ni pouvoir en être soupçonné.
 **88. La frontière ne se franchit dans aucun sens** — On ne **promeut** pas un compte
 existant : `createAdmin` refuse une adresse déjà connue, et un administrateur se crée
 toujours sur une adresse dédiée. On ne **rétrograde** pas davantage : un administrateur qui
-part voit son compte désactivé, et s'en crée un personnel s'il veut acheter. Sans quoi
-l'interdiction de l'arbitrage 87 se contournerait en changeant de rôle le temps d'un achat.
+part voit son compte **fermé** — `suspendedAt` posé, `role` et `adminRole` conservés — et
+s'en crée un personnel s'il veut acheter. Sans quoi l'interdiction de l'arbitrage 87 se
+contournerait en changeant de rôle le temps d'un achat.
+> `revokeAdmin` faisait exactement cela : il écrivait `role: 'LEARNER', adminRole: null`.
+> C'était la porte de sortie de l'arbitrage 87 — se faire retirer ses droits suffisait à
+> redevenir acheteur, en laissant derrière soi un journal d'audit signé d'un administrateur
+> qui n'existait plus. Remplacé par `deactivateAdmin`, doublé de `reactivateAdmin` : une
+> fermeture sans réouverture condamnerait un compte sur un clic, et couperait son journal
+> en deux identités pour une même personne.
+> `suspendedAt` suffit à couper l'accès — `authorize` refuse la connexion et le callback
+> `session` annule les sessions ouvertes. Le bump de `sessionsValidAfter` s'y ajoute pour le
+> **middleware**, qui ne lit que le JWT et ne consulte pas la base.
 > Le tout premier super-administrateur ne peut naître d'aucun geste ordinaire — seul un
 > `SUPER_ADMIN` en crée un autre, et le sous-rôle est immuable. Il naît d'un script
 > d'amorçage à usage unique, `scripts/bootstrap-super-admin.ts`, qui refuse de s'exécuter

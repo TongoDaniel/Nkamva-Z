@@ -158,31 +158,81 @@ export async function changeAdminRole(
 }
 
 /**
- * Retire les droits d'administration : le compte redevient un apprenant
- * ordinaire, jamais supprimé. Interdit sur un `SUPER_ADMIN`, pour la même
- * raison que `changeAdminRole` — et sur son propre compte, pour la même
- * raison qu'`applySanction` refuse l'auto-sanction : la console ne doit
- * jamais se fermer à celui qui vient d'y agir.
+ * Ferme un compte d'administration (arbitrage 88).
+ *
+ * Le compte **reste** administrateur : `role` et `adminRole` sont conservés,
+ * seul `suspendedAt` est posé. Ce n'est pas un détail d'implémentation.
+ *
+ * Cette fonction rétrogradait autrefois vers `LEARNER`. C'était la porte de
+ * sortie de l'interdiction posée par l'arbitrage 87 : il suffisait de se faire
+ * retirer ses droits pour redevenir un acheteur ordinaire — avec, derrière
+ * soi, un journal d'audit signé par un administrateur. La frontière ne se
+ * franchit dans aucun sens : qui a été administrateur le reste, et s'ouvre un
+ * compte personnel s'il veut acheter.
+ *
+ * `suspendedAt` suffit à couper l'accès : `authorize` refuse la connexion
+ * (`ACCOUNT_SUSPENDED`) et le callback `session` annule toute session déjà
+ * ouverte, à la requête suivante. Le bump de `sessionsValidAfter` s'y ajoute
+ * pour que le **middleware** — qui ne lit que le JWT, sans toucher la base —
+ * cesse lui aussi de laisser passer, sans attendre le prochain rafraîchissement.
+ *
+ * Interdit sur un `SUPER_ADMIN`, pour la même raison que `changeAdminRole` —
+ * et sur son propre compte, pour la même raison qu'`applySanction` refuse
+ * l'auto-sanction : la console ne doit jamais se fermer à celui qui vient d'y
+ * agir.
  */
-export async function revokeAdmin(targetId: string, actorId: string): Promise<void> {
+export async function deactivateAdmin(targetId: string, actorId: string): Promise<void> {
   if (targetId === actorId) throw new Error('REVOKE_SELF_FORBIDDEN')
 
   const target = await db.user.findUnique({
     where: { id: targetId },
-    select: { id: true, role: true, adminRole: true, deletedAt: true },
+    select: { id: true, role: true, adminRole: true, deletedAt: true, suspendedAt: true },
   })
   if (!target || target.deletedAt || target.role !== 'ADMIN') throw new Error('ADMIN_NOT_FOUND')
   if (target.adminRole === 'SUPER_ADMIN') throw new Error('SUPER_ADMIN_IMMUTABLE')
+  if (target.suspendedAt) throw new Error('ADMIN_ALREADY_DEACTIVATED')
 
   await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: targetId },
-      data: { role: 'LEARNER', adminRole: null },
+      data: { suspendedAt: new Date(), sessionsValidAfter: new Date() },
     })
     await audit(tx, {
       actorId, actorRole: 'SUPER_ADMIN',
-      action: 'ADMIN_ACCESS_REVOKED', targetType: 'User', targetId,
-      meta: { previousAdminRole: target.adminRole },
+      action: 'ADMIN_ACCOUNT_DEACTIVATED', targetType: 'User', targetId,
+      meta: { adminRole: target.adminRole },
+    })
+  })
+}
+
+/**
+ * Rouvre un compte fermé.
+ *
+ * Contrepartie indispensable de la fonction précédente : sans elle, un clic
+ * malheureux condamnerait définitivement un compte, et le seul recours serait
+ * d'en créer un autre — en laissant derrière soi un journal d'audit coupé en
+ * deux entre deux identités pour une même personne.
+ *
+ * Le compte n'ayant jamais cessé d'être administrateur, il n'y a aucun rôle à
+ * lui rendre : lever `suspendedAt` suffit.
+ */
+export async function reactivateAdmin(targetId: string, actorId: string): Promise<void> {
+  const target = await db.user.findUnique({
+    where: { id: targetId },
+    select: { id: true, role: true, adminRole: true, deletedAt: true, suspendedAt: true },
+  })
+  if (!target || target.deletedAt || target.role !== 'ADMIN') throw new Error('ADMIN_NOT_FOUND')
+  if (!target.suspendedAt) throw new Error('ADMIN_NOT_DEACTIVATED')
+
+  await db.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: targetId },
+      data: { suspendedAt: null },
+    })
+    await audit(tx, {
+      actorId, actorRole: 'SUPER_ADMIN',
+      action: 'ADMIN_ACCOUNT_REACTIVATED', targetType: 'User', targetId,
+      meta: { adminRole: target.adminRole },
     })
   })
 }

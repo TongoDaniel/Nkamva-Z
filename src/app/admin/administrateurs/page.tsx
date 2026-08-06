@@ -66,7 +66,12 @@ export default async function AdministrateursPage() {
                   {admin.adminRole === "SUPER_ADMIN" ? (
                     <span className="text-[12px] text-ink-3">Sous-rôle immuable</span>
                   ) : (
-                    <AdminActions userId={admin.id} userName={name} currentRole={admin.adminRole} />
+                    <AdminActions
+                      userId={admin.id}
+                      userName={name}
+                      currentRole={admin.adminRole}
+                      suspended={!active}
+                    />
                   )}
                 </li>
               );

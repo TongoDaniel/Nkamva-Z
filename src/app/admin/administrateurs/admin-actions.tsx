@@ -13,26 +13,33 @@ const LABELS: Record<SubRole, string> = { FINANCES: "Finances", MODERATION: "Mod
 
 /**
  * Actions sur un administrateur non Super-admin. Un Super-admin n'a jamais
- * cette rangée : `changeAdminRole` et `revokeAdmin` refusent tout ce qui le
+ * cette rangée : `changeAdminRole` et `deactivateAdmin` refusent tout ce qui le
  * touche, dans un sens comme dans l'autre — la ligne l'annonce plutôt que de
  * proposer un bouton qui échouerait systématiquement.
  *
  * Cet écran n'est ouvert qu'au Super-admin (`requireAdminSubRole`), donc
  * l'acteur n'est jamais la personne visée par ces boutons : pas de garde
- * « soi-même » à poser ici, contrairement à `revokeAdmin` côté service, qui
+ * « soi-même » à poser ici, contrairement à `deactivateAdmin` côté service, qui
  * reste sollicitable ailleurs.
+ *
+ * Fermer un compte ne le rétrograde pas (arbitrage 88) : la personne reste
+ * administrateur, elle cesse de pouvoir se connecter. Le vocabulaire de
+ * l'écran doit le dire — « retirer les droits » laissait entendre que le compte
+ * redevenait ordinaire, ce qui est précisément ce qu'on ne fait plus.
  */
 export function AdminActions({
   userId,
   userName,
   currentRole,
+  suspended,
 }: {
   userId: string;
   userName: string;
   currentRole: SubRole;
+  suspended: boolean;
 }) {
   const router = useRouter();
-  const [confirmRevoke, setConfirmRevoke] = React.useState(false);
+  const [confirmClose, setConfirmClose] = React.useState(false);
   const [pending, setPending] = React.useState(false);
 
   const otherRole: SubRole = currentRole === "FINANCES" ? "MODERATION" : "FINANCES";
@@ -50,40 +57,65 @@ export function AdminActions({
     }
   }
 
-  async function revoke() {
+  async function closeAccount() {
     setPending(true);
     try {
       await api.del(`/api/admin/admins/${userId}`);
-      toast.success(`${userName} n'a plus de droits d'administration.`);
-      setConfirmRevoke(false);
+      toast.success(`Le compte de ${userName} est fermé.`);
+      setConfirmClose(false);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Le retrait a échoué.");
+      toast.error(err instanceof ApiError ? err.message : "La fermeture a échoué.");
     } finally {
       setPending(false);
     }
   }
 
+  // Rouvrir n'est pas destructeur et ne demande donc pas de confirmation : la
+  // fenêtre modale est réservée à ce qui coupe un accès, pas à ce qui le rend.
+  async function reopenAccount() {
+    setPending(true);
+    try {
+      await api.post(`/api/admin/admins/${userId}`);
+      toast.success(`Le compte de ${userName} est rouvert.`);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "La réouverture a échoué.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (suspended) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Btn size="sm" variant="o" onClick={reopenAccount} loading={pending}>
+          Rouvrir le compte
+        </Btn>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
-      <Btn size="sm" variant="o" onClick={switchRole} loading={pending && !confirmRevoke}>
+      <Btn size="sm" variant="o" onClick={switchRole} loading={pending && !confirmClose}>
         Passer en {LABELS[otherRole]}
       </Btn>
-      <Btn size="sm" variant="danger" onClick={() => setConfirmRevoke(true)}>
-        Retirer les droits
+      <Btn size="sm" variant="danger" onClick={() => setConfirmClose(true)}>
+        Fermer le compte
       </Btn>
 
       <Modal
-        open={confirmRevoke}
-        onOpenChange={setConfirmRevoke}
-        title={`Retirer les droits de ${userName}`}
-        description="Le compte redevient un apprenant ordinaire. Rien n'est supprimé : il pourra être recréé administrateur plus tard si besoin."
+        open={confirmClose}
+        onOpenChange={setConfirmClose}
+        title={`Fermer le compte de ${userName}`}
+        description="La personne ne pourra plus se connecter, et ses sessions ouvertes sont coupées immédiatement. Le compte reste un compte d'administration : il n'est ni supprimé, ni transformé en compte apprenant, et son journal d'audit reste lisible. Vous pourrez le rouvrir."
         footer={
           <>
-            <Btn variant="danger" onClick={revoke} loading={pending}>
-              Retirer les droits
+            <Btn variant="danger" onClick={closeAccount} loading={pending}>
+              Fermer le compte
             </Btn>
-            <Btn variant="o" onClick={() => setConfirmRevoke(false)}>
+            <Btn variant="o" onClick={() => setConfirmClose(false)}>
               Annuler
             </Btn>
           </>

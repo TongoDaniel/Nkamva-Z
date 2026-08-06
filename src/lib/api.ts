@@ -288,7 +288,9 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   ADMIN_NOT_FOUND: { message: 'Administrateur introuvable', status: 404 },
   SUPER_ADMIN_IMMUTABLE: { message: 'Le sous-rôle Super-admin ne se modifie pas depuis cette console', status: 403 },
   ROLE_UNCHANGED: { message: 'Ce compte a déjà ce sous-rôle', status: 409 },
-  REVOKE_SELF_FORBIDDEN: { message: 'On ne retire pas ses propres droits d’administration', status: 422 },
+  REVOKE_SELF_FORBIDDEN: { message: 'On ne ferme pas son propre compte d’administration', status: 422 },
+  ADMIN_ALREADY_DEACTIVATED: { message: 'Ce compte est déjà fermé', status: 409 },
+  ADMIN_NOT_DEACTIVATED: { message: 'Ce compte est déjà ouvert', status: 409 },
   // --- Réductions (décisions 60, 62) ---
   DISCOUNT_NOT_FOUND: { message: 'Réduction introuvable', status: 404 },
   DISCOUNT_ALREADY_ENDED: { message: 'Cette réduction est déjà terminée', status: 409 },
