@@ -1067,6 +1067,40 @@ d'énumération offerte à qui veut tester des adresses une par une.
 
 ---
 
+## Arbitrages 87-89 — Cloisonnement de l'administration
+
+*Tranchés le 6 août 2026. Statut : ✅ implémentés — `src/lib/roles.ts` porte la règle,
+`tests/cloisonnement-admin.test.ts` la tient dans ses deux sens.*
+
+**87. Un administrateur n'est qu'un administrateur** — Il n'achète aucune ressource,
+n'adhère à aucune communauté, n'accepte aucune invitation et ne candidate pas au statut de
+formateur. Ce n'est pas une simplification d'interface : ce sont les mêmes personnes qui
+tranchent les litiges, valident les dossiers KYC et libèrent les retraits. Qui arbitre ne
+doit pas pouvoir se favoriser — ni pouvoir en être soupçonné.
+> La règle est posée dans les **services**, pas seulement dans le middleware ni dans les
+> routes. Le middleware ne protège que les pages, et une garde de route ne protège que sa
+> route : un acte économique atteint par un autre chemin passerait au travers.
+
+**88. La frontière ne se franchit dans aucun sens** — On ne **promeut** pas un compte
+existant : `createAdmin` refuse une adresse déjà connue, et un administrateur se crée
+toujours sur une adresse dédiée. On ne **rétrograde** pas davantage : un administrateur qui
+part voit son compte désactivé, et s'en crée un personnel s'il veut acheter. Sans quoi
+l'interdiction de l'arbitrage 87 se contournerait en changeant de rôle le temps d'un achat.
+> Le tout premier super-administrateur ne peut naître d'aucun geste ordinaire — seul un
+> `SUPER_ADMIN` en crée un autre, et le sous-rôle est immuable. Il naît d'un script
+> d'amorçage à usage unique, `scripts/bootstrap-super-admin.ts`, qui refuse de s'exécuter
+> dès qu'un super-administrateur existe.
+
+**89. Le formateur garde tous les privilèges de l'apprenant** — Il achète les ressources
+des autres, adhère à leurs communautés, y prend la parole. Le conflit d'intérêts vise
+l'arbitre, pas le concurrent : un formateur qui suit le travail d'un confrère ne décide
+d'aucun litige et ne libère aucun retrait.
+> La seule communauté qui lui reste fermée est **la sienne**, et pour un motif sans rapport
+> avec celui-ci : s'y abonner lui ferait payer une commission sur son propre argent
+> (`CANNOT_JOIN_OWN_COMMUNITY`, antérieur à ces arbitrages).
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |

@@ -8,7 +8,7 @@
 // L'acceptation, elle, exige une session : elle ouvre une adhésion, donc elle
 // désigne quelqu'un.
 
-import { success, error, requireAuth, getAuthContext } from '@/lib/api'
+import { success, error, requireAuth, requireLearner, getAuthContext } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 import { previewInvitation, acceptGiftInvitation } from '@/lib/invitations'
 
@@ -31,7 +31,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
-  const ctx = await requireAuth()
+  // L'invitation gratuite est le contournement le plus simple de l'interdiction
+  // d'adhérer : il suffirait à un administrateur de s'en faire envoyer une.
+  const ctx = await requireLearner()
   if (ctx instanceof Response) return ctx
   const { token } = await params
 
@@ -51,6 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       EMAIL_NOT_VERIFIED: ['Vérifiez votre adresse e-mail avant d’accepter.', 403],
       ALREADY_MEMBER: ['Vous êtes déjà membre de cette communauté.', 409],
       CANNOT_JOIN_OWN_COMMUNITY: ['Vous animez cette communauté.', 400],
+      ADMIN_CANNOT_ACT_AS_LEARNER: ["Un compte d'administration ne peut pas rejoindre une communauté.", 403],
       MEMBERSHIP_BANNED: ['Vous avez été banni de cette communauté.', 403],
       ACCOUNT_BANNED: ['Votre compte ne permet pas de rejoindre une communauté.', 403],
     }

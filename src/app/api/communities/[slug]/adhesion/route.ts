@@ -4,7 +4,7 @@
 // d'où part le geste, et l'identifiant interne n'a pas à traverser le front.
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { success, error, requireAuth, parseBody, errorFromException } from '@/lib/api'
+import { success, error, requireAuth, requireLearner, parseBody, errorFromException } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiateMembershipPayment, cancelMembership, getMembership } from '@/lib/memberships'
 import { hashToken, resolveInvitationForTunnel } from '@/lib/invitations'
@@ -44,7 +44,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const ctx = await requireAuth()
+  // Adhérer est un acte d'apprenant : l'administration en est écartée. Le GET
+  // et le DELETE gardent `requireAuth` — ils ne créent rien, et un compte qui
+  // ne peut pas adhérer n'a de toute façon aucune adhésion à lire ou résilier.
+  const ctx = await requireLearner()
   if (ctx instanceof Response) return ctx
 
   const limit = checkRateLimit(

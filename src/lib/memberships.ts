@@ -34,6 +34,7 @@ import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
 import { consumeInvitationForPurchase } from './invitations'
+import { assertCanActAsLearner } from './roles'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -228,8 +229,15 @@ export async function initiateMembershipPayment(
   })
   if (!community) throw new Error('COMMUNITY_NOT_FOUND')
 
+  // Un compte d'administration n'adhère à aucune communauté : celui qui
+  // tranche les litiges et libère les retraits n'a rien à faire dans le salon
+  // d'un formateur qu'il aura peut-être à juger.
+  await assertCanActAsLearner(learnerId)
+
   // Le formateur anime sa communauté, il n'y adhère pas : s'y abonner lui
-  // ferait payer une commission sur son propre argent.
+  // ferait payer une commission sur son propre argent. Il reste en revanche
+  // libre d'adhérer à CELLES DES AUTRES — un formateur garde tous les
+  // privilèges de l'apprenant.
   if (community.trainerProfile.userId === learnerId) throw new Error('CANNOT_JOIN_OWN_COMMUNITY')
 
   // Un paiement déjà ouvert prime sur tout le reste : le provider choisi n'est

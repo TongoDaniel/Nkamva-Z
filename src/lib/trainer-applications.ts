@@ -14,6 +14,7 @@
 
 import type { Prisma, TrainerApplicationStatus, TrainerDocumentType, TrainerDocumentStatus } from '@prisma/client'
 import { db } from './db'
+import { canActAsLearner, ADMIN_CANNOT_ACT_AS_LEARNER } from './roles'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
@@ -112,6 +113,10 @@ export async function createApplication(userId: string, input: CreateApplication
   })
   if (!user || user.deletedAt) throw new Error('USER_NOT_FOUND')
   if (user.role === 'TRAINER') throw new Error('ALREADY_TRAINER')
+  // L'administration n'entre pas dans le catalogue par la porte des
+  // candidatures : ce sont ses propres collègues qui instruiraient le dossier.
+  // Le rôle est déjà chargé ci-dessus — pas de requête supplémentaire.
+  if (!canActAsLearner(user.role)) throw new Error(ADMIN_CANNOT_ACT_AS_LEARNER)
 
   // Un dossier rejeté n'empêche pas d'en ouvrir un nouveau ; tout autre statut si.
   const existing = await db.trainerApplication.findFirst({

@@ -42,6 +42,7 @@ import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
+import { assertCanActAsLearner } from './roles'
 import type { PrismaTransaction } from './types'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts doivent rester alignées. */
@@ -659,6 +660,11 @@ export interface GiftAcceptance {
  * motif que `consumeOtp`.
  */
 export async function acceptGiftInvitation(token: string, userId: string): Promise<GiftAcceptance> {
+  // Avant de consommer quoi que ce soit : l'invitation gratuite est le chemin
+  // par lequel l'interdiction d'adhérer se contournerait le plus simplement —
+  // il suffirait à un administrateur de s'en faire envoyer une.
+  await assertCanActAsLearner(userId)
+
   const invitation = await db.communityInvitation.findUnique({
     where: { tokenHash: hashToken(token) },
     include: {

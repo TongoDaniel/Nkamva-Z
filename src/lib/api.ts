@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
+import { canActAsLearner } from './roles'
 import type { Role, AdminRole } from '@prisma/client'
+
+/**
+ * Un seul libellé pour ce refus, réutilisé par `requireLearner` et par le
+ * mapping des erreurs métier : selon le chemin emprunté, le refus vient de la
+ * route ou du service, et l'utilisateur n'a pas à lire deux formulations
+ * différentes du même règlement.
+ */
+const ADMIN_ACT_MESSAGE =
+  "Un compte d'administration ne peut ni acheter, ni adhérer à une communauté, ni candidater comme formateur."
 
 export interface AuthContext { user: { id: string; email: string; role: Role; adminRole: AdminRole | null; trainerId: string | null } }
 
@@ -75,11 +85,30 @@ export async function requireTrainer(): Promise<AuthContext | NextResponse> {
   return ctx
 }
 
+/**
+ * Exige un compte autorisé à agir en apprenant — tout le monde sauf
+ * l'administration (cf. `src/lib/roles.ts`). Un formateur passe : il conserve
+ * l'intégralité des privilèges de l'apprenant.
+ *
+ * Refuser ici épargne au service une requête inutile et rend le message clair
+ * côté client. Ce n'est PAS la barrière : celle-ci est dans les services, où
+ * passe forcément tout appelant.
+ */
+export async function requireLearner(): Promise<AuthContext | NextResponse> {
+  const ctx = await requireAuth()
+  if (ctx instanceof NextResponse) return ctx
+  if (!canActAsLearner(ctx.user.role)) {
+    return error('ADMIN_CANNOT_ACT_AS_LEARNER', ADMIN_ACT_MESSAGE, 403)
+  }
+  return ctx
+}
+
 // Mapping mutualisé des erreurs métier levées par les services (`throw new
 // Error('CODE')`) vers l'enveloppe HTTP. Les routes n'ont plus qu'à relayer.
 const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   // Communs
   NOT_OWNER: { message: 'Ressource non possédée', status: 403 },
+  ADMIN_CANNOT_ACT_AS_LEARNER: { message: ADMIN_ACT_MESSAGE, status: 403 },
   COURSE_NOT_FOUND: { message: 'Ressource introuvable', status: 404 },
   COMMUNITY_NOT_FOUND: { message: 'Communauté introuvable', status: 404 },
   CONTENT_REQUIRED: { message: 'Déposez le contenu avant de publier', status: 422 },
