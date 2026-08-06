@@ -521,7 +521,17 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
   const result: MembershipRenewalResult = { due: 0, ended: 0, closed: 0 }
 
   const expiring = await db.communitySubscription.findMany({
-    where: { status: { in: ['ACTIVE', 'BANNED'] }, periodEnd: { lte: now } },
+    where: {
+      status: { in: ['ACTIVE', 'BANNED'] },
+      periodEnd: { lte: now },
+      // Un compte effacé n'est plus prélevé. `deletedAt` et non
+      // `deletionRequestedAt` : pendant le délai de grâce la personne est
+      // encore cliente, elle a payé sa période et peut encore annuler son
+      // départ. C'est l'anonymisation qui met fin à la relation — sans ce
+      // filtre, le job rouvrait chaque mois une échéance au nom de quelqu'un
+      // qui n'existe plus, et tentait de la prélever.
+      learner: { deletedAt: null },
+    },
     select: {
       id: true, learnerId: true, communityId: true, status: true,
       canceledAt: true, periodEnd: true, provider: true,

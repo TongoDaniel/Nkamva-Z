@@ -1109,6 +1109,28 @@ d'aucun litige et ne libère aucun retrait.
 > avec celui-ci : s'y abonner lui ferait payer une commission sur son propre argent
 > (`CANNOT_JOIN_OWN_COMMUNITY`, antérieur à ces arbitrages).
 
+**90. On ne part pas en laissant quelqu'un en plan** — `requestDeletion` refuse tant qu'une
+situation reste ouverte au nom de la personne. Six motifs, dont le premier n'est pas de la
+même nature que les autres :
+
+| Refus | Ce qu'il protège |
+|---|---|
+| `ADMIN_ACCOUNT` | La redevabilité. Un administrateur ne s'efface pas lui-même (arbitrage 88) : il s'adresse à un super-admin, qui **ferme** son compte. |
+| `WALLET_NOT_EMPTY` | L'argent du formateur, qu'il doit se faire verser avant. |
+| `PAYOUT_IN_FLIGHT` | Le retrait déjà débité mais pas encore versé — le solde peut être nul alors que l'argent bouge encore. |
+| `PUBLISHED_COURSES` | L'acheteur d'une ressource dont l'auteur disparaîtrait. |
+| `ACTIVE_COMMUNITY` | Les membres qui paient encore : les prévenir est au formateur, pas au système. |
+| `OPEN_DISPUTE` | L'autre partie et l'administrateur qui instruit. Vaut **aussi côté acheteur** : on peut être en litige sans être formateur. |
+
+> L'effacement est une **anonymisation**, pas une suppression de ligne : les écritures
+> comptables survivent à la personne (`onDelete: Restrict`). C'est justement pour cela que
+> les refus ci-dessus existent — une écriture qui survit à quelqu'un d'introuvable n'aide ni
+> le litige en cours, ni le membre qui paie, ni le comptable.
+>
+> Le renouvellement des adhésions ignore les comptes effacés, et **eux seuls** : pendant les
+> 30 jours de grâce la personne est encore cliente, elle a payé sa période et peut annuler
+> son départ. C'est `deletedAt` qui met fin au lien, pas `deletionRequestedAt`.
+
 ---
 
 ## Conventions techniques (Lot 0)
