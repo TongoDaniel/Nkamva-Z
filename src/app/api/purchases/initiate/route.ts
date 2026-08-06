@@ -1,5 +1,5 @@
 // Lot 4 — Achat : initier un paiement
-import { success, error, requireAuth, parseBody } from '@/lib/api'
+import { success, error, requireLearner, parseBody } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiatePurchase } from '@/lib/purchases'
 import { z } from 'zod'
@@ -10,7 +10,10 @@ const InitiateSchema = z.object({
 })
 
 export async function POST(request: Request) {
-  const ctx = await requireAuth()
+  // `requireLearner` et non `requireAuth` : un compte d'administration n'achète
+  // pas. Le refus tombe avant le compteur de tentatives ci-dessous — une règle
+  // de gouvernance n'a pas à consommer un quota anti-abus.
+  const ctx = await requireLearner()
   if (ctx instanceof Response) return ctx
 
   // Le plafond est large — abandonner un paiement puis le reprendre est normal —
@@ -32,6 +35,12 @@ export async function POST(request: Request) {
     if (err.message === 'COURSE_NOT_FOUND') return error('COURSE_NOT_FOUND', 'Cours introuvable', 404)
     if (err.message === 'COURSE_NOT_AVAILABLE') return error('COURSE_NOT_AVAILABLE', 'Cours non disponible', 403)
     if (err.message === 'ALREADY_PURCHASED') return error('ALREADY_PURCHASED', 'Déjà acheté', 409)
+    // Filet : `requireLearner` ci-dessus a normalement déjà refusé. Sans cette
+    // ligne, le refus levé par le service tomberait dans le 500 générique et se
+    // lirait comme une panne plutôt que comme une règle.
+    if (err.message === 'ADMIN_CANNOT_ACT_AS_LEARNER') {
+      return error('ADMIN_CANNOT_ACT_AS_LEARNER', "Un compte d'administration ne peut pas acheter.", 403)
+    }
     return error('INTERNAL_ERROR', 'Erreur', 500)
   }
 }

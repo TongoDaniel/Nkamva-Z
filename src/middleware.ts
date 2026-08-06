@@ -7,9 +7,14 @@ const PROTECTED_PREFIXES = [
   '/mon-compte',
   '/accueil',
   '/achat',
+  // Jumeaux connectés du catalogue public : ils ne rendent la coquille
+  // applicative que parce qu'une session existe, donc ils l'exigent.
+  '/catalogue',
   '/profil',
   '/candidature',
+  '/adhesion',
   '/mes-achats',
+  '/mes-communautes',
   '/mes-ressources',
   '/mes-litiges',
   '/mes-lives',
@@ -22,6 +27,30 @@ const PROTECTED_PREFIXES = [
 
 /** Préfixes réservés aux comptes ADMIN. */
 const ADMIN_PREFIXES = ['/admin']
+
+/**
+ * Préfixes INTERDITS aux comptes ADMIN — la réciproque de la ligne précédente.
+ *
+ * Un administrateur n'est qu'un administrateur : il n'achète pas, n'adhère à
+ * rien et ne candidate pas. Ce n'est pas du confort d'affichage, c'est une
+ * règle de conflit d'intérêts, expliquée dans `src/lib/roles.ts`.
+ *
+ * Cette liste ferme les PAGES. Elle ne suffit pas : les actes économiques sont
+ * refusés dans les services (`purchases.ts`, `memberships.ts`, `invitations.ts`,
+ * `trainer-applications.ts`), là où passe forcément tout appelant — y compris
+ * une requête directe à l'API, qui ne traverse pas ce fichier.
+ */
+const NON_ADMIN_PREFIXES = [
+  '/accueil', '/catalogue', '/achat', '/adhesion', '/mon-compte', '/profil',
+  '/mes-achats', '/mes-ressources', '/mes-litiges', '/mes-lives', '/mes-communautes',
+  '/messagerie', '/notifications', '/favoris',
+  '/formateur', '/devenir-formateur', '/candidature',
+]
+
+/** Où atterrit chaque rôle quand aucune destination n'est demandée. */
+function homeFor(role: unknown): string {
+  return role === 'ADMIN' ? '/admin' : '/accueil'
+}
 
 /** Pages d'authentification : inaccessibles quand on est déjà connecté. */
 const AUTH_PAGES = [
@@ -50,8 +79,23 @@ export async function middleware(request: NextRequest) {
   // Vers l'accueil de l'espace connecté, pas vers les réglages : quelqu'un qui
   // rouvre la page de connexion en étant déjà connecté veut reprendre son
   // parcours. C'est aussi la valeur par défaut de `callbackUrl` du formulaire.
+  //
+  // `homeFor` plutôt que `/accueil` en dur : un administrateur y serait envoyé
+  // dans un espace qui le renverrait aussitôt vers `/admin`, soit deux
+  // redirections et un écran qui clignote pour rien.
   if (authenticated && AUTH_PAGES.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
-    return NextResponse.redirect(new URL('/accueil', request.url))
+    return NextResponse.redirect(new URL(homeFor(token?.role), request.url))
+  }
+
+  // Le cloisonnement de l'administration se décide AVANT le test « cette page
+  // exige-t-elle une session ». Certaines pages interdites aux admins sont
+  // publiques — `/devenir-formateur` la première : sortie trop tôt, un
+  // administrateur y accéderait faute d'avoir été examiné.
+  if (
+    authenticated && token?.role === 'ADMIN' &&
+    NON_ADMIN_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`))
+  ) {
+    return NextResponse.redirect(new URL('/admin', request.url))
   }
 
   const isProtected = PROTECTED_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`))
@@ -75,6 +119,14 @@ export const config = {
     '/mon-compte/:path*',
     '/accueil/:path*',
     '/achat/:path*',
+    // Ajoutés avec le cloisonnement : sans eux, le middleware ne s'exécute même
+    // pas sur ces chemins et l'exclusion des admins n'y serait jamais évaluée.
+    // `/mes-communautes` y gagne au passage le `callbackUrl` que la garde du
+    // layout ne sait pas construire.
+    '/adhesion/:path*',
+    '/mes-communautes/:path*',
+    '/devenir-formateur/:path*',
+    '/catalogue/:path*',
     '/profil/:path*',
     '/candidature/:path*',
     '/mes-achats/:path*',

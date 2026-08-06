@@ -5,6 +5,7 @@
 import type { PaymentStatus } from '@prisma/client'
 import { db } from './db'
 import { auditStandalone } from './audit'
+import { assertCanActAsLearner } from './roles'
 import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
 import { POST as cinetpayWebhookHandler } from '@/app/api/webhooks/cinetpay/route'
 
@@ -71,6 +72,11 @@ export async function initiatePurchase(
   learnerId: string,
   provider: 'STRIPE' | 'CINETPAY',
 ): Promise<InitiatePurchaseResult> {
+  // Avant toute chose, et avant tout appel au fournisseur de paiement : un
+  // compte d'administration n'achète pas. Le journal d'audit de cette fonction
+  // écrit `actorRole: 'LEARNER'` en dur — il le SUPPOSAIT sans le vérifier.
+  await assertCanActAsLearner(learnerId)
+
   const course = await db.course.findUnique({
     where: { id: courseId },
     include: {

@@ -10,6 +10,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const auth = await getAuthContext();
   if (!auth) redirect("/auth/connexion");
 
+  // Même raison que le doublon ci-dessus, appliquée au cloisonnement de
+  // l'administration : le middleware travaille sur une liste de préfixes, qui
+  // ne peut que prendre du retard sur les routes réellement présentes ici.
+  // Cette garde-ci les couvre toutes, y compris celles qui n'existent pas
+  // encore. Voir `src/lib/roles.ts` pour la règle et son motif.
+  if (auth.user.role === "ADMIN") redirect("/admin");
+
   // Le nom complet n'est pas dans le JWT : la topbar le lit ici plutôt que de
   // se rabattre sur la partie locale de l'adresse e-mail.
   const [profile, unreadMessages] = await Promise.all([

@@ -1,6 +1,6 @@
 // Lot 1 — Créer une candidature formateur (T1)
 import { z } from 'zod'
-import { success, requireAuth, parseBody, errorFromException } from '@/lib/api'
+import { success, requireLearner, parseBody, errorFromException } from '@/lib/api'
 import { createApplication } from '@/lib/trainer-applications'
 
 const CreateSchema = z.object({
@@ -12,7 +12,7 @@ const CreateSchema = z.object({
 })
 
 export async function POST(request: Request) {
-  const ctx = await requireAuth()
+  const ctx = await requireLearner()
   if (ctx instanceof Response) return ctx
 
   const parsed = await parseBody(request, CreateSchema)
