@@ -14,12 +14,17 @@
  *    quelques pages.
  * 3. **L'écran affiche vraiment l'heure et les identifiants entiers.** Le reste
  *    ne se prouve que sur le HTML servi.
+ * 4. **Chaque filtre annonce ce que la même condition compte en base**, un
+ *    filtre inconnu est ignoré au lieu de vider l'écran, et aucun filtre ne se
+ *    perd en changeant d'onglet ou de page — le défaut qui obligerait à refaire
+ *    sa recherche à chaque clic.
  */
 import { encode } from 'next-auth/jwt'
 import { db } from '../src/lib/db'
 import {
   AUDIT_ACTION_LABELS, AUDIT_TARGET_LABELS, AUDIT_ACTION_GROUPS,
 } from '../src/lib/audit-labels'
+import { fmtNumber } from '../src/lib/format'
 
 const BASE = 'http://localhost:3000'
 const SECRET = process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production'
@@ -170,6 +175,119 @@ async function main() {
       empty ? 'écran vide alors que la base en contient' : 'écran peuplé alors que la base est vide',
     )
   }
+
+  // --- 5. Les filtres ----------------------------------------------------
+  //
+  // Un filtre se juge sur un nombre, pas sur son apparence : l'écran doit
+  // annoncer exactement ce que la même condition compte en base. Le décompte
+  // est relu avec `fmtNumber`, la fonction qui l'écrit — comparer à « 762 »
+  // échouerait sur l'espace insécable étroite de la locale française.
+  console.log('\n— Filtres ———————————————————————————————————————')
+
+  const url = (params: Record<string, string | number>) => {
+    const sp = new URLSearchParams({ groupe: 'all' })
+    for (const [k, v] of Object.entries(params)) sp.set(k, String(v))
+    return `${BASE}/admin/journal-audit?${sp.toString()}`
+  }
+  const screen = async (params: Record<string, string | number>) =>
+    readable(await (await fetch(url(params), { headers: { cookie } })).text())
+  const announces = (html: string, count: number) =>
+    html.includes(`${fmtNumber(count)} entrée`)
+
+  const total = await db.auditLog.count()
+
+  // a) Système / personnes : la partition la plus utile, et la somme des deux
+  //    doit rendre le total — sinon un filtre en perd en route.
+  const systemCount = await db.auditLog.count({ where: { actorId: null } })
+  const humanCount = await db.auditLog.count({ where: { actorId: { not: null } } })
+  check(
+    `acteur=systeme annonce ${systemCount} entrée(s)`,
+    announces(await screen({ acteur: 'systeme' }), systemCount),
+  )
+  check(
+    `acteur=humains annonce ${humanCount} entrée(s)`,
+    announces(await screen({ acteur: 'humains' }), humanCount),
+  )
+  check(
+    'les deux partitions couvrent le journal entier',
+    systemCount + humanCount === total,
+    `${systemCount} + ${humanCount} ≠ ${total}`,
+  )
+
+  // b) Un type d'action précis — le plus fréquent, pour que le contrôle porte.
+  const top = actions[0]
+  check(
+    `action=${top.action} annonce ${top._count._all} entrée(s)`,
+    announces(await screen({ action: top.action }), top._count._all),
+  )
+
+  // c) La recherche libre part du **libellé français**, celui que l'écran
+  //    affiche : personne ne tape `SCHEDULED_JOB_COMPLETED` de mémoire.
+  const label = AUDIT_ACTION_LABELS[top.action]
+  if (label) {
+    const byLabel = await screen({ q: label })
+    check(
+      `q=« ${label} » retrouve au moins les ${top._count._all} entrées de ${top.action}`,
+      !byLabel.includes('Aucune entrée') && byLabel.includes(label),
+    )
+  }
+
+  // d) Bornes de dates, incluses des deux côtés.
+  const day = new Date()
+  const iso = day.toISOString().slice(0, 10)
+  const dayCount = await db.auditLog.count({
+    where: { createdAt: { gte: new Date(`${iso}T00:00:00`), lte: new Date(`${iso}T23:59:59.999`) } },
+  })
+  check(
+    `du=au=${iso} annonce les ${dayCount} entrée(s) de la journée entière`,
+    announces(await screen({ du: iso, au: iso }), dayCount),
+  )
+
+  // e) Un filtre inventé est ignoré, pas appliqué à l'aveugle : une liste vide
+  //    ferait croire qu'il ne s'est rien passé.
+  check(
+    'un type d’action inexistant est ignoré, et le journal reste entier',
+    announces(await screen({ action: 'ACTION_QUI_N_EXISTE_PAS' }), total),
+  )
+  check(
+    'un acteur inexistant est ignoré de la même façon',
+    announces(await screen({ acteur: 'utilisateur-inexistant' }), total),
+  )
+
+  // f) Le défaut qui rend un filtre inutilisable : le perdre en changeant
+  //    d'onglet ou de page. On vérifie les `href` réellement rendus.
+  const withFilters = await screen({ acteur: 'humains', q: 'compte' })
+  const hrefs = withFilters.replaceAll('&amp;', '&')
+  check(
+    'les onglets de domaine reconduisent les filtres',
+    hrefs.includes('groupe=accounts&q=compte&acteur=humains'),
+    'un lien d’onglet perd q ou acteur',
+  )
+  // La pagination se contrôle sur un filtre dont on sait qu'il **dépasse** une
+  // page : `acteur=humains&q=compte` tient sur une seule, et l'absence de liens
+  // de page ferait échouer le contrôle sans qu'aucun filtre soit perdu.
+  if (systemCount > 30) {
+    const paged = (await screen({ acteur: 'systeme' })).replaceAll('&amp;', '&')
+    check(
+      'la pagination reconduit les filtres',
+      paged.includes('acteur=systeme&page=2'),
+      `aucun lien de page ne porte l’acteur (${systemCount} entrées, donc ${Math.ceil(systemCount / 30)} pages)`,
+    )
+  }
+
+  // g) Un intervalle inversé se dit, au lieu de rendre un écran vide muet.
+  check(
+    'un intervalle inversé est signalé',
+    (await screen({ du: '2026-08-07', au: '2026-08-01' })).includes(
+      'La date de début est postérieure à la date de fin',
+    ),
+  )
+
+  // h) Filtrer ne cache pas le total : l'écran l'annonce toujours.
+  check(
+    'l’écran filtré rappelle le total du journal',
+    (await screen({ acteur: 'systeme' })).includes(`sur ${fmtNumber(total)} au total`),
+  )
 
   console.log(failures ? `\n${failures} contrôle(s) en échec.` : '\nJournal conforme.')
   if (failures) process.exitCode = 1
