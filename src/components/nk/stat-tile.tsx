@@ -8,6 +8,20 @@ const TONES = {
   clay: "bg-clay-tint text-clay-ink",
 } as const;
 
+/**
+ * Le ton ne vivait que sur la pastille d'icône : sans `icon`, `tone` ne
+ * peignait rien et une rangée de quatre tuiles sortait en quatre cartes
+ * blanches identiques — c'est le cas de dix des onze écrans admin. Faute de
+ * glyphe, le ton se lit donc sur un filet vertical, qui suit l'arrondi de la
+ * carte.
+ */
+const RAILS = {
+  brand: "border-l-brand",
+  blue: "border-l-info",
+  gold: "border-l-gold",
+  clay: "border-l-clay",
+} as const;
+
 /** Tuile de chiffre clé — port de `.adm-stat` / `.mr-stat`. */
 export function StatTile({
   icon,
@@ -28,6 +42,7 @@ export function StatTile({
     <div
       className={cn(
         "flex items-center gap-3.5 rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm",
+        !icon && ["border-l-4", RAILS[tone]],
         className,
       )}
     >
