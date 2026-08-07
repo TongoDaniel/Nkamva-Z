@@ -15,7 +15,7 @@ import type { DiscountKind, PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
 import { fmtDate, fmtNumber } from './format'
-import { deliverSideEffects } from './notification'
+import { absoluteUrl, deliverSideEffects, notifyWithEmail } from './notification'
 
 export const CADENCE_LABELS: Record<PlanCadence, string> = {
   MONTHLY: 'Mensuelle',
@@ -250,20 +250,38 @@ async function announceTariffChange(input: {
   const direction = input.previousAmountFcfa !== null && input.amountFcfa > input.previousAmountFcfa
     ? 'augmente'
     : 'change'
+  const title = `Le tarif de l'abonnement ${input.amountFcfa === 0 ? 'passe à la gratuité' : direction}`
+  const grid =
+    `À partir du ${fmtDate(input.validFrom)}, l'abonnement formateur ` +
+    `${CADENCE_LABELS[input.cadence].toLowerCase()} est fixé à ${fmtNumber(input.amountFcfa)} FCFA par ${period}.`
+  const deferral =
+    `Votre prochaine échéance reste au tarif actuel : le nouveau prix s'appliquera à celle d'après, ` +
+    `et vous recevrez un rappel avec la date exacte.`
 
-  await db.notification.createMany({
-    data: trainers.map(({ userId }) => ({
-      userId,
-      type: 'SUBSCRIPTION_TARIFF_CHANGE_ANNOUNCED',
-      title: `Le tarif de l'abonnement ${input.amountFcfa === 0 ? 'passe à la gratuité' : direction}`,
-      body:
-        `À partir du ${fmtDate(input.validFrom)}, l'abonnement formateur ${CADENCE_LABELS[input.cadence].toLowerCase()} ` +
-        `est fixé à ${fmtNumber(input.amountFcfa)} FCFA par ${period}. ` +
-        `Votre prochaine échéance reste au tarif actuel : le nouveau prix s'appliquera à celle d'après, ` +
-        `et vous recevrez un rappel avec la date exacte.`,
-      link: '/formateur/portefeuille',
-    })),
-  })
+  // Un envoi par formateur, isolé : une adresse invalide ou un rate limit du
+  // fournisseur ne doit pas priver les suivants de l'annonce. `notifyWithEmail`
+  // écrit la notification avant de tenter l'email — l'information reste donc
+  // dans le compte même quand l'envoi échoue.
+  for (const { userId } of trainers) {
+    await deliverSideEffects('PLATFORM_TARIFF_ANNOUNCE_ONE', { type: 'User', id: userId }, () =>
+      notifyWithEmail(
+        userId,
+        {
+          type: 'SUBSCRIPTION_TARIFF_CHANGE_ANNOUNCED',
+          title,
+          body: `${grid} ${deferral}`,
+          link: '/formateur/portefeuille',
+        },
+        {
+          subject: `NkamVa — ${title}`,
+          title,
+          paragraphs: [grid, deferral],
+          cta: { label: 'Voir mon abonnement', url: absoluteUrl('/formateur/portefeuille') },
+        },
+        'subscriptionNoticeEmails',
+      ),
+    )
+  }
 }
 
 export async function listDiscounts(activeOnly = false) {

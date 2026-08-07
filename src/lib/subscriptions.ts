@@ -25,10 +25,10 @@ import type { PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { quotePrice, type PriceQuote } from './pricing'
-import { fmtDate } from './format'
+import { fmtDate, fmtNumber } from './format'
 import { storageChargeFor } from './storage-tiers'
 import { issueInvoiceForSubscriptionCharge } from './invoices'
-import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
+import { absoluteUrl, notify, notifyAdminSubRole, notifyWithEmail, deliverSideEffects } from './notification'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -306,17 +306,30 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
     // montant exact de l'échéance qui appliquera la nouvelle grille.
     if (quote.deferred && quote.postponedListPriceFcfa !== null) {
       result.deferred += 1
-      const postponed = quote.postponedListPriceFcfa
+      const period = cadence === 'YEARLY' ? 'an' : 'mois'
+      const title = 'Votre tarif change à la prochaine échéance'
+      const current = `Cette période reste à ${fmtNumber(quote.listPriceFcfa)} FCFA.`
+      const next =
+        `À partir du ${fmtDate(periodEnd)}, votre abonnement passera à ` +
+        `${fmtNumber(quote.postponedListPriceFcfa)} FCFA par ${period}.`
+
       await deliverSideEffects('SUBSCRIPTION_TARIFF_REMINDER', { type: 'TrainerProfile', id: profile.id }, () =>
-        notify(profile.userId, {
-          type: 'SUBSCRIPTION_TARIFF_CHANGE_REMINDER',
-          title: 'Votre tarif change à la prochaine échéance',
-          body:
-            `Cette période reste à ${quote.listPriceFcfa} FCFA. À partir du ` +
-            `${fmtDate(periodEnd)}, votre abonnement passera à ${postponed} FCFA ` +
-            `par ${cadence === 'YEARLY' ? 'an' : 'mois'}.`,
-          link: '/formateur/portefeuille',
-        }),
+        notifyWithEmail(
+          profile.userId,
+          {
+            type: 'SUBSCRIPTION_TARIFF_CHANGE_REMINDER',
+            title,
+            body: `${current} ${next}`,
+            link: '/formateur/portefeuille',
+          },
+          {
+            subject: `NkamVa — ${title}`,
+            title,
+            paragraphs: [current, next],
+            cta: { label: 'Voir mon abonnement', url: absoluteUrl('/formateur/portefeuille') },
+          },
+          'subscriptionNoticeEmails',
+        ),
       )
     }
 
