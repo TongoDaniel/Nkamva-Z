@@ -200,6 +200,9 @@ export default async function MesAchatsPage({
       <PageHead
         title="Mes achats"
         lead="L'historique de vos paiements : ressources achetées à l'unité et abonnements à vos communautés."
+        // Pas de « Voir mes ressources » ici : la barre de navigation porte
+        // déjà « Mes ressources ». Restent les deux écrans qui n'ont pas
+        // d'entrée à eux et dont les achats sont le point d'entrée.
         actions={
           <>
             <Btn asChild variant="o">
@@ -207,9 +210,6 @@ export default async function MesAchatsPage({
             </Btn>
             <Btn asChild variant="o">
               <Link href="/mes-litiges">Mes contestations</Link>
-            </Btn>
-            <Btn asChild variant="o">
-              <Link href="/mes-ressources">Voir mes ressources</Link>
             </Btn>
           </>
         }

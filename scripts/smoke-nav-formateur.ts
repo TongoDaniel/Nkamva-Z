@@ -1,8 +1,9 @@
 // Smoke test du regroupement des sections formateur.
 //
 // Vérifie ce qu'un code HTTP ne dit pas : que la barre principale ne porte plus
-// que « Espace formateur », et que les cinq sections sont bien joignables depuis
-// la sous-navigation de l'espace et depuis les cartes de sa page d'accueil.
+// que « Espace formateur », qu'aucune seconde barre n'est revenue, et que les
+// cinq sections restent joignables — par les cartes de `/formateur`, par le fil
+// d'Ariane qui y ramène, et par le menu burger sur mobile.
 //
 //   bun scripts/smoke-nav-formateur.ts
 import { config } from 'dotenv'
@@ -16,8 +17,13 @@ const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3000'
 
 const APP_NAV = 'Navigation de mon espace'
 const APP_NAV_MOBILE = 'Navigation de mon espace (mobile)'
-/** L'apostrophe du libellé ressort échappée dans le HTML : `l&#x27;espace`. */
-const TRAINER_NAV = /Navigation de l(&#x27;|')espace formateur/
+/** L'apostrophe des libellés ressort échappée dans le HTML : `d&#x27;Ariane`. */
+const CRUMBS = 'Fil d&#x27;Ariane'
+/**
+ * La barre de sous-navigation a été retirée : ce gardien empêche qu'elle
+ * revienne sans qu'on l'ait décidé.
+ */
+const SECOND_BAR = /Navigation de l(&#x27;|')espace formateur/
 
 const SECTIONS = [
   '/formateur/ressources',
@@ -96,7 +102,7 @@ async function main() {
   for (const href of SECTIONS) {
     check(`${href} a quitté la barre`, hrefCount(nav, href) === 0)
   }
-  check("la sous-navigation n'apparaît pas hors de l'espace", !TRAINER_NAV.test(accueil.html))
+  check("pas de seconde barre de navigation", !SECOND_BAR.test(accueil.html))
 
   // Le menu burger n'a pas la contrainte de place de la barre : les cinq
   // sections y sont dépliées, sinon elles coûteraient un écran de plus.
@@ -111,19 +117,27 @@ async function main() {
   console.log(`\nEspace formateur — ${BASE}/formateur`)
   const hub = await get('/formateur')
   check('/formateur répond', hub.status === 200, `HTTP ${hub.status}`)
-  check('la sous-navigation est rendue', TRAINER_NAV.test(hub.html))
+  check("pas de seconde barre de navigation", !SECOND_BAR.test(hub.html))
   for (const href of SECTIONS) {
-    // Deux occurrences attendues : l'entrée de la sous-navigation et la carte.
-    check(`${href} est joignable depuis l'espace`, hrefCount(hub.html, href) >= 2, `${hrefCount(hub.html, href)} lien(s)`)
+    // Les cartes « Gérer votre activité » sont désormais le seul chemin sur
+    // grand écran : si l'une perdait son lien, la section deviendrait orpheline.
+    check(`${href} est joignable par sa carte`, hrefCount(hub.html, href) >= 1, `${hrefCount(hub.html, href)} lien(s)`)
   }
+  // Les lignes de « Vos ressources » ouvrent la fiche : le lien du titre est
+  // étendu à la ligne entière, l'assertion porte sur sa cible.
+  check(
+    'les ressources listées ouvrent leur fiche',
+    /href="\/formateur\/ressources\/[0-9a-f-]{36}"/.test(hub.html),
+  )
 
   console.log('\nLes cinq sections')
   for (const href of SECTIONS) {
     const page = await get(href)
     check(`${href} répond`, page.status === 200, `HTTP ${page.status}`)
-    check(`${href} porte la sous-navigation`, TRAINER_NAV.test(page.html))
-    // Le lien de retour du fil d'Ariane, en plus de la sous-navigation.
-    check(`${href} ramène à l'espace`, hrefCount(page.html, '/formateur') >= 2)
+    check(`${href} n'a pas de seconde barre`, !SECOND_BAR.test(page.html))
+    // Sans sous-navigation, le retour à l'espace passe par le fil d'Ariane.
+    const crumbs = navSlice(page.html, CRUMBS)
+    check(`${href} ramène à l'espace par le fil d'Ariane`, hrefCount(crumbs, '/formateur') === 1)
   }
 
   console.log(failures === 0 ? '\nTout est vert.\n' : `\n${failures} échec(s).\n`)

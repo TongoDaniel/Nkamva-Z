@@ -25,14 +25,27 @@ import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
 import { TRAINER_SECTIONS } from "@/app/(app)/formateur/sections";
 
-const LEARNER_NAV = [
+interface NavItem {
+  href: string;
+  label: string;
+  /**
+   * Routes rattachées à cet onglet : elles l'allument faute d'avoir une entrée
+   * à elles. Sans ça, ouvrir ses factures éteint toute la barre — plus rien ne
+   * dit où l'on se trouve.
+   */
+  related?: string[];
+}
+
+const LEARNER_NAV: NavItem[] = [
   { href: "/accueil", label: "Accueil" },
   // `/catalogue` et non `/ressources` : la version visiteur du catalogue rend
   // la coquille publique, avec « Se connecter » — on sortait de son espace en
   // cliquant sur un onglet de sa propre barre de navigation.
   { href: "/catalogue", label: "Catalogue" },
   { href: "/mes-ressources", label: "Mes ressources" },
-  { href: "/mes-achats", label: "Mes achats" },
+  // Factures et contestations pendent des achats : leur fil d'Ariane y remonte,
+  // l'onglet le dit aussi.
+  { href: "/mes-achats", label: "Mes achats", related: ["/mes-factures", "/mes-litiges"] },
 ];
 
 /**
@@ -42,7 +55,7 @@ const LEARNER_NAV = [
  * sections vivent dans la sous-navigation de `/formateur` — et sont dépliées
  * sous cette entrée dans le menu mobile, qui n'a pas cette contrainte de place.
  */
-const TRAINER_NAV = [{ href: "/formateur", label: "Espace formateur" }];
+const TRAINER_NAV: NavItem[] = [{ href: "/formateur", label: "Espace formateur" }];
 
 /**
  * Le menu du compte reprend la barre latérale apprenant de la maquette. Les
@@ -65,6 +78,19 @@ const ACCOUNT_LINKS = [
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
+ * Onglet courant, routes rattachées comprises. `listed` porte les href qui ont
+ * déjà leur propre entrée dans la même liste — le menu mobile déplie « Mes
+ * factures » sous le compte, et deux entrées ne peuvent pas se déclarer
+ * « page courante » à la fois.
+ */
+function isCurrent(pathname: string, item: NavItem, listed?: Set<string>) {
+  if (isActive(pathname, item.href)) return true;
+  return (item.related ?? []).some(
+    (href) => !listed?.has(href) && isActive(pathname, href),
+  );
 }
 
 /** Pastille de non-lus, posée à droite d'une entrée du menu. */
@@ -163,6 +189,13 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = React.useState(false);
   const nav = user.isTrainer ? [...LEARNER_NAV, ...TRAINER_NAV] : LEARNER_NAV;
+  // Ce que le menu mobile ajoute sous les onglets : les écrans du menu du
+  // compte qui n'ont pas déjà leur entrée. Le calcul sert deux fois — pour les
+  // rendre, et pour savoir quelles routes rattachées y ont déjà un titulaire.
+  const burgerLinks = ACCOUNT_LINKS.filter(
+    (link) => !nav.some((item) => item.href === link.href),
+  );
+  const burgerHrefs = new Set(burgerLinks.map((link) => link.href));
 
   React.useEffect(() => {
     setOpen(false);
@@ -179,21 +212,26 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           <Logo href="/accueil" compact />
 
           <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 min-[820px]:flex">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActive(pathname, item.href) ? "page" : undefined}
-                className={cn(
-                  "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
-                  isActive(pathname, item.href)
-                    ? "bg-ink text-paper"
-                    : "text-ink-2 hover:bg-white/70 hover:text-ink",
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {nav.map((item) => {
+              // Le menu du compte ne marque aucune entrée courante : rien ne
+              // dispute ici les routes rattachées.
+              const current = isCurrent(pathname, item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={current ? "page" : undefined}
+                  className={cn(
+                    "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
+                    current
+                      ? "bg-ink text-paper"
+                      : "text-ink-2 hover:bg-white/70 hover:text-ink",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="ml-auto flex items-center gap-2.5">
@@ -235,7 +273,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             const sections = item.href === "/formateur" ? TRAINER_SECTIONS : [];
             const current = sections.length
               ? pathname === item.href
-              : isActive(pathname, item.href);
+              : isCurrent(pathname, item, burgerHrefs);
             return (
               <React.Fragment key={item.href}>
                 <Link
@@ -267,7 +305,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
           {/* Sous 820px le menu du compte n'existe pas : sans ce rappel, les
               écrans qu'il contient seraient injoignables sur mobile. */}
-          {ACCOUNT_LINKS.filter((link) => !nav.some((item) => item.href === link.href)).map(
+          {burgerLinks.map(
             ({ href, label, icon: Icon }) => (
               <Link
                 key={href}

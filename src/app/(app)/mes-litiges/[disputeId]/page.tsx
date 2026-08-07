@@ -51,6 +51,7 @@ export default async function DisputeDetailPage({
     <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[
+          { label: "Mes achats", href: "/mes-achats" },
           { label: "Mes contestations", href: "/mes-litiges" },
           { label: course?.title ?? "Contestation" },
         ]}
