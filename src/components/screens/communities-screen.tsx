@@ -51,12 +51,17 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
           {communities.map((community) => (
             <article
               key={community.id}
-              className="flex flex-col overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk"
+              className="group relative flex flex-col overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk focus-within:-translate-y-1 focus-within:shadow-nk"
             >
               <div className="h-[104px] bg-gradient-to-br from-navy to-info" />
               <div className="flex flex-1 flex-col gap-2.5 px-5 pb-5 pt-4">
                 <h2 className="text-[17px] font-extrabold leading-tight">
-                  <Link href={routes.community(community.slug)} className="text-ink hover:text-brand">
+                  {/* Le lien couvre toute la carte : une seule cible cliquable, un seul
+                      élément dans l'ordre de tabulation. */}
+                  <Link
+                    href={routes.community(community.slug)}
+                    className="text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand"
+                  >
                     {community.name}
                   </Link>
                 </h2>

@@ -12,6 +12,7 @@ export default function InscriptionPage() {
     <AuthShell
       aside={
         <AuthAside
+          photo="/auth/inscription-formatrice.webp"
           photoBrief="formatrice au travail, ambiance chaleureuse"
           quote="NkamVa a structuré ma communauté de 2 000 étudiants."
           author="Aissatou Diallo · Formatrice"
