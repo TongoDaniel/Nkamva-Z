@@ -26,6 +26,7 @@ import {
 } from '@/lib/subscriptions'
 import { setTariff } from '@/lib/pricing'
 import { fmtNumber } from '@/lib/format'
+import * as email from '@/lib/email'
 import { createCourse, publishCourse } from '@/lib/courses'
 
 /**
@@ -170,6 +171,79 @@ describe('Abonnement formateur — cycle de vie', () => {
         where: { userId: user.id, type: 'SUBSCRIPTION_TARIFF_CHANGE_REMINDER' },
       }),
     ).toBe(1)
+  })
+
+  // -------------------------------------------------------------------------
+  // L'email double la notification, et lui seul est désactivable. Couper l'un
+  // ne doit jamais couper l'autre : la notification est la trace.
+  it("l'annonce et le rappel partent par email, sauf si le formateur les a coupés", async () => {
+    const { user, profile, admin } = await setupTrainer()
+    const sent = vi.spyOn(email, 'sendEmail').mockResolvedValue(undefined)
+
+    try {
+      await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+      expect(sent).toHaveBeenCalledTimes(1)
+      expect(sent.mock.calls[0][0].to).toBe(user.email)
+      // L'email dit lui-même comment le couper.
+      expect(sent.mock.calls[0][0].html).toContain('Profil &amp; paramètres')
+
+      await renewDueSubscriptions()
+      const first = await prisma.subscriptionCharge.findFirstOrThrow({
+        where: { trainerId: profile.id }, orderBy: { periodStart: 'desc' },
+      })
+
+      // Le formateur coupe les emails d'information.
+      await prisma.user.update({ where: { id: user.id }, data: { subscriptionNoticeEmails: false } })
+      sent.mockClear()
+
+      await setTariff({ cadence: 'MONTHLY', amountFcfa: 9_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+      const deferredRun = await renewDueSubscriptions(new Date(first.periodEnd.getTime() + 1_000))
+      expect(deferredRun.deferred).toBe(1)
+
+      // Aucun email, mais l'annonce ET le rappel sont bien dans le compte.
+      expect(sent).not.toHaveBeenCalled()
+      expect(
+        await prisma.notification.count({
+          where: { userId: user.id, type: 'SUBSCRIPTION_TARIFF_CHANGE_ANNOUNCED' },
+        }),
+      ).toBe(2)
+      expect(
+        await prisma.notification.count({
+          where: { userId: user.id, type: 'SUBSCRIPTION_TARIFF_CHANGE_REMINDER' },
+        }),
+      ).toBe(1)
+    } finally {
+      sent.mockRestore()
+    }
+  })
+
+  // Une adresse qui échoue ne doit pas priver les suivants de l'annonce.
+  it("un envoi en échec n'empêche ni la notification ni les autres destinataires", async () => {
+    const { user, admin } = await setupTrainer()
+    const other = await prisma.user.create({ data: { email: 'autre@test.com', role: 'TRAINER' } })
+    await prisma.trainerProfile.create({ data: { userId: other.id } })
+
+    const sent = vi
+      .spyOn(email, 'sendEmail')
+      .mockRejectedValueOnce(new Error('Email send failed: invalid recipient'))
+      .mockResolvedValue(undefined)
+
+    try {
+      await setTariff({ cadence: 'MONTHLY', amountFcfa: 7_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+      expect(sent).toHaveBeenCalledTimes(2)
+    } finally {
+      sent.mockRestore()
+    }
+
+    // Les deux formateurs ont leur notification, y compris celui dont l'email
+    // a échoué : `notifyWithEmail` écrit la trace avant de tenter l'envoi.
+    for (const id of [user.id, other.id]) {
+      expect(
+        await prisma.notification.count({
+          where: { userId: id, type: 'SUBSCRIPTION_TARIFF_CHANGE_ANNOUNCED' },
+        }),
+      ).toBe(1)
+    }
   })
 
   // Un formateur qui souscrit APRÈS la publication paie le nouveau tarif tout

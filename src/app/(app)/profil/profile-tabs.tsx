@@ -4,6 +4,7 @@ import * as React from "react";
 import { Tabs } from "@/components/nk/tabs";
 import type { ProfileView } from "@/lib/profile";
 import { ProfileInfoPanel } from "./profile-info-panel";
+import { EmailPrefsPanel } from "./email-prefs-panel";
 import { SecurityPanel } from "./security-panel";
 import { DataPanel } from "./data-panel";
 
@@ -47,7 +48,12 @@ export function ProfileTabs({
       />
 
       <div id="profil-panneau" className="max-w-[760px]">
-        {tab === "profil" ? <ProfileInfoPanel profile={profile} /> : null}
+        {tab === "profil" ? (
+          <>
+            <ProfileInfoPanel profile={profile} />
+            <EmailPrefsPanel profile={profile} />
+          </>
+        ) : null}
         {tab === "securite" ? <SecurityPanel profile={profile} /> : null}
         {tab === "donnees" ? <DataPanel profile={profile} /> : null}
       </div>

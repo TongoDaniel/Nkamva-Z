@@ -68,6 +68,7 @@ import { issueInvoiceQuietly } from '../src/lib/invoices'
 import { toggleFavorite } from '../src/lib/favorites'
 import { isS3Configured } from '../src/lib/s3'
 
+import { bootstrapSuperAdmins, SUPER_ADMINS } from '../scripts/bootstrap-admins.mjs'
 import { resetApplicationData } from './seed/reset'
 import { buildPdf, buildMp4, uploadCourseContent } from './seed/assets'
 import {
@@ -1251,9 +1252,13 @@ async function summarize() {
   Toutes les adresses sont des sous-adresses de ${MAILBOX}.
 
     Administration
-      ${addressFor('admin')}        Super-admin
+      ${addressFor('admin')}        Super-admin (démo)
       ${addressFor('finances')}     Finances
       ${addressFor('moderation')}   Modération
+
+    Super-admins réels — rétablis à chaque passage, mot de passe indépendant
+    (BOOTSTRAP_ADMIN_PASSWORD, à défaut celui de scripts/bootstrap-admins.mjs)
+${SUPER_ADMINS.map((a) => `      ${a.email}${' '.repeat(Math.max(1, 30 - a.email.length))}${a.fullName}`).join('\n')}
 
     Formateurs
       ${addressFor('awa')}          Awa Sarr — vitrine : KYC complet, retrait versé, salon vivant
@@ -1292,7 +1297,14 @@ async function main() {
 
   const passwordHash = await hashPassword(DEV_PASSWORD)
 
+  // La purge ci-dessus a emporté les Super-admins réels avec le reste. Ils sont
+  // rétablis par le même script que celui du déploiement : deux chemins qui
+  // créeraient ces comptes chacun à sa façon finiraient par diverger.
   await seedAccounts(passwordHash)
+  const bootstrapped = await bootstrapSuperAdmins(db, {
+    password: process.env.BOOTSTRAP_ADMIN_PASSWORD,
+  })
+  for (const account of bootstrapped) note(`Super-admin ${account.email} — ${account.action}`)
   await seedPricing()
   await seedTrainers(passwordHash)
   await seedPendingApplications(passwordHash)

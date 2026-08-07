@@ -1,5 +1,6 @@
 import { db } from './db'
 import { auditStandalone } from './audit'
+import { sendEmail, renderSimpleEmail } from './email'
 
 export interface NotifyParams { type: string; title: string; body: string; link?: string | null }
 
@@ -35,6 +36,60 @@ export function absoluteUrl(path: string): string {
 
 export async function notify(userId: string, params: NotifyParams): Promise<void> {
   await db.notification.create({ data: { userId, type: params.type, title: params.title, body: params.body, link: params.link ?? null } })
+}
+
+/**
+ * Les préférences d'email que l'utilisateur peut éteindre lui-même.
+ *
+ * Le type est une union de **noms de colonnes de `User`** plutôt qu'une chaîne
+ * libre : ajouter une préférence oblige à ajouter le champ, et une préférence
+ * mal orthographiée ne se lit pas comme « désactivé » au moment de l'envoi.
+ */
+export type EmailPreference = 'subscriptionNoticeEmails'
+
+/** Comment couper l'envoi — dit dans l'email lui-même, pas ailleurs. */
+const OPT_OUT_FOOTNOTES: Record<EmailPreference, string> = {
+  subscriptionNoticeEmails:
+    "Vous pouvez désactiver ces emails d'information depuis Profil & paramètres, onglet Profil. " +
+    'Les messages liés à vos factures, impayés et litiges continueront de vous parvenir.',
+}
+
+/**
+ * Notification in-app **et** email d'accompagnement, l'email seul étant
+ * soumis à la préférence de l'utilisateur.
+ *
+ * La notification part toujours : c'est la trace, consultable dans le compte, et
+ * la couper reviendrait à laisser un formateur sans aucun moyen d'apprendre ce
+ * qui touche son argent. L'email n'est que le porte-voix — celui-là se coupe.
+ *
+ * Un compte effacé ne reçoit rien : son adresse n'a plus à être sollicitée.
+ */
+export async function notifyWithEmail(
+  userId: string,
+  params: NotifyParams,
+  email: { subject: string; title: string; paragraphs: string[]; cta?: { label: string; url: string } },
+  preference: EmailPreference,
+): Promise<void> {
+  await notify(userId, params)
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { email: true, deletedAt: true, [preference]: true },
+  })
+  if (!user || user.deletedAt || !user.email) return
+  if (!user[preference]) return
+
+  await sendEmail({
+    to: user.email,
+    subject: email.subject,
+    ...renderSimpleEmail({
+      title: email.title,
+      paragraphs: email.paragraphs,
+      cta: email.cta,
+      footnote: OPT_OUT_FOOTNOTES[preference],
+    }),
+    tags: [params.type.toLowerCase().replace(/_/g, '-')],
+  })
 }
 
 // --- Lecture côté destinataire ---
