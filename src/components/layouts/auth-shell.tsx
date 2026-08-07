@@ -62,7 +62,12 @@ export function AuthAside({
   return (
     <>
       {photo ? (
-        <Image src={photo} alt="" fill sizes="50vw" className="object-cover" />
+        // `object-top` : les visuels sont des portraits verticaux dont le sujet
+        // occupe le haut du cadre. Un recadrage centré lui couperait le visage
+        // dès que le panneau devient plus large que haut.
+        // Pas de `priority` : le panneau est masqué sous 1024px, un préchargement
+        // ferait payer ~100 Ko à des mobiles qui ne verront jamais la photo.
+        <Image src={photo} alt="" fill sizes="50vw" className="object-cover object-top" />
       ) : (
         <div className="absolute inset-0 grid place-items-center px-10 text-center">
           <div>
