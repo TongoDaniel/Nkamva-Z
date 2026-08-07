@@ -5,7 +5,7 @@ import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
 import { getAuthContext } from "@/lib/api";
 import { getCurrentTariffs, listTariffs, listDiscounts, CADENCE_LABELS } from "@/lib/pricing";
-import { listSettings } from "@/lib/settings";
+import { listSettings, SETTING_SPECS, isNumericSettingKey } from "@/lib/settings";
 import { fmtFcfa, fmtDate } from "@/lib/format";
 import { PricingActions } from "./pricing-actions";
 import { EndDiscountButton } from "./end-discount-button";
@@ -195,19 +195,27 @@ export default async function ParametresPage() {
             <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
               Ces valeurs vivent en base, pas dans le code — contrairement aux règles ci-dessous.{" "}
               <b className="font-bold text-ink">
-                Aucun écran ne les relit encore aujourd&apos;hui
+                Les modifier change ce que fait la plateforme, tout de suite
               </b>{" "}
-              : les modifier change ce qui est stocké, pas ce que fait la plateforme.
+              : chaque réglage dit sous sa valeur les écrans qu&apos;il commande.
             </p>
             <dl>
-              {settings.map((setting) => (
-                <SettingRow
-                  key={setting.key}
-                  settingKey={setting.key}
-                  value={setting.value}
-                  description={setting.description}
-                />
-              ))}
+              {settings.map((setting) => {
+                const spec = isNumericSettingKey(setting.key)
+                  ? SETTING_SPECS[setting.key]
+                  : null;
+                return (
+                  <SettingRow
+                    key={setting.key}
+                    settingKey={setting.key}
+                    value={setting.value}
+                    description={setting.description}
+                    effect={spec?.effect ?? null}
+                    min={spec?.min ?? null}
+                    max={spec?.max ?? null}
+                  />
+                );
+              })}
             </dl>
           </AdminCard>
         ) : null}
