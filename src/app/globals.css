@@ -14,8 +14,11 @@
      et `nkamva-landing.css` réinjectent par-dessus `nkamva.css`.
    - Back-office admin : vert forêt #0d6b4d, conservé par `nkamva-admin.css`
      pour distinguer l'admin du reste du produit sans nouvelle teinte.
-   La bascule se fait en posant `.nk-admin` sur la coquille admin : les tokens
-   d'accent sont indirects (`--brand` → `--color-brand`), donc un scope suffit.
+   La bascule se fait en posant `.nk-admin` sur la coquille admin (voir
+   `admin-shell.tsx`) : les tokens d'accent sont indirects (`--brand` →
+   `--color-brand`), donc un scope suffit — à condition que le scope redéclare
+   aussi les tokens dérivés, qui sont figés à leur point de déclaration. Le
+   détail est sur `.nk-admin` plus bas.
    ==========================================================================
    Écarts assumés vs maquette, pour respecter WCAG AA :
    - --color-ink-3 : #84908a (2.88:1 sur papier) → #626e69 (4.67:1).
@@ -26,6 +29,12 @@
      --color-gold-ink (5.5:1) : les valeurs d'origine tombaient à 3.7 et 2.8:1.
    Le bleu de marque passe AA sans retouche : 5.32:1 sur papier, 5.90:1 en
    blanc sur aplat, 4.96:1 sur sa propre pastille.
+   Le vert de l'admin passe partout au-dessus du bleu : 5.87:1 sur papier,
+   6.45:1 sur carte, 6.51:1 en blanc sur aplat, 5.48:1 sur sa pastille. Le
+   vert foncé (`--brand-dark`, texte des pastilles de statut) monte à 7.85:1
+   sur papier et 6.62:1 sur `--brand-tint-2`. Seul point limite, commun aux
+   deux accents : les initiales blanches d'un avatar tombent à 4.92:1 au
+   milieu du dégradé (4.80:1 côté bleu) et à 3.84:1 sur son arrivée.
    ========================================================================== */
 
 /* Bloc non-`inline` : les tokens sont émis comme variables CSS sur :root, donc
@@ -86,6 +95,7 @@
   --color-brand-dark: var(--brand-dark);
   --color-brand-tint: var(--brand-tint);
   --color-brand-tint-2: var(--brand-tint-2);
+  --color-brand-2: var(--brand-2);
   --shadow-brand: 0 8px 20px var(--brand-shadow);
 }
 
@@ -137,6 +147,9 @@
   --brand-tint: #e4ecf9;
   --brand-tint-2: #d0dff5;
   --brand-shadow: rgba(28, 94, 208, 0.3);
+  /* Extrémité claire des dégradés d'accent (avatars). Suit la marque, sinon
+     un dégradé bleu → azur devient vert → azur dans l'admin. */
+  --brand-2: #2e7cf6;
 
   --radius: 16px;
   --background: #f6f3ec;
@@ -181,6 +194,35 @@
   --brand-tint: #e0efe7;
   --brand-tint-2: #cfe6da;
   --brand-shadow: rgba(13, 107, 77, 0.3);
+  /* Assez clair pour que le dégradé se voie, assez sombre pour que les
+     initiales blanches d'un avatar tiennent — cf. l'en-tête sur le contraste. */
+  --brand-2: #12946a;
+
+  /* Redéclarer les jetons *dérivés* n'est pas redondant : une variable CSS est
+     substituée là où elle est déclarée, pas là où elle est lue. `--primary:
+     var(--brand)` posé sur `:root` vaut donc déjà #1c5ed0 quand il descend
+     ici, et `--color-brand` avec lui. Les utilitaires `bg-brand` y échappent
+     (`@theme inline` recopie `var(--brand)` dans la règle), mais tout ce qui
+     passe par un `var()` écrit à la main — anneau de focus, `::selection`,
+     `progress-ring` — et toutes les primitives shadcn restaient bleus dans un
+     back-office par ailleurs vert. */
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-tint-2: var(--brand-tint-2);
+  --color-brand-2: var(--brand-2);
+  --shadow-brand: 0 8px 20px var(--brand-shadow);
+
+  --primary: var(--brand);
+  --accent: var(--brand-tint);
+  --accent-foreground: var(--brand-dark);
+  --ring: var(--brand);
+  --sidebar-primary: var(--brand);
+  --sidebar-ring: var(--brand);
+  /* Palette catégorielle : `--chart-2` porte déjà le vert forêt. On échange les
+     deux rangs plutôt que de les faire doublon. */
+  --chart-1: var(--brand);
+  --chart-2: #2b5fa8;
 }
 
 .dark {
@@ -235,6 +277,15 @@
     z-index: 0;
     background:
       radial-gradient(1100px 500px at 85% -10%, rgba(28, 94, 208, 0.06), transparent 60%),
+      radial-gradient(900px 400px at -10% 110%, rgba(192, 95, 33, 0.05), transparent 60%);
+  }
+
+  /* Ce voile vit sur `body`, au-dessus de `.nk-admin` dans l'arbre : le scope ne
+     l'atteint pas, et `var(--brand)` y vaudrait de toute façon le bleu. `:has()`
+     va chercher la coquille admin plus bas pour teinter le halo en vert. */
+  body:has(.nk-admin)::before {
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(13, 107, 77, 0.06), transparent 60%),
       radial-gradient(900px 400px at -10% 110%, rgba(192, 95, 33, 0.05), transparent 60%);
   }
 

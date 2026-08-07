@@ -140,7 +140,7 @@ export function AdminShell({
   }, [open]);
 
   return (
-    <div className="flex min-h-screen bg-paper">
+    <div className="nk-admin flex min-h-screen bg-paper">
       <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
         Aller au contenu
       </a>
