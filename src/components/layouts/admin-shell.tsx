@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   BadgeCheck, BarChart3, CreditCard, FileClock, Gavel, LayoutDashboard,
-  LogOut, Menu, Receipt, RefreshCw, Settings, ShieldAlert, Undo2, UserCog, Users, Wallet, X,
+  LogOut, Menu, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2, UserCog, Users,
+  Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock, roles: [] },
       { href: "/admin/parametres", label: "Paramètres", icon: Settings, roles: [] },
     ],
+  },
+  {
+    // Sans `roles` — donc visible par les trois sous-rôles. C'est le seul
+    // écran de cette navigation qui parle du compte de la personne et non de
+    // la plateforme, d'où sa rubrique à part : rangé sous « Administration »,
+    // il se confondrait avec « Administrateurs », qui gère celui des autres.
+    title: "Mon accès",
+    items: [{ href: "/admin/mon-compte", label: "Mon compte", icon: ShieldCheck }],
   },
 ];
 
@@ -244,13 +253,20 @@ export function AdminShell({
         </div>
 
         <div className="flex items-center gap-3 border-t border-white/10 px-4.5 pb-5 pt-3.5">
-          <Avatar name={name} size="sm" />
-          <div className="min-w-0">
-            <b className="block truncate text-[13.3px] text-white">{name}</b>
-            <small className="block truncate text-[11.3px] text-[#98a49b]">
-              {adminRole ?? email}
-            </small>
-          </div>
+          {/* Le bloc d'identité mène au compte : c'est là qu'on le cherche,
+              bien avant de parcourir la navigation. */}
+          <Link
+            href="/admin/mon-compte"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-nk-sm hover:opacity-80"
+          >
+            <Avatar name={name} size="sm" />
+            <div className="min-w-0">
+              <b className="block truncate text-[13.3px] text-white">{name}</b>
+              <small className="block truncate text-[11.3px] text-[#98a49b]">
+                {adminRole ?? email}
+              </small>
+            </div>
+          </Link>
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
