@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ShieldAlert, TriangleAlert } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
+import { AttachmentPicker, type Attachment } from "@/components/nk/attachment-picker";
 import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export function DisputeButton({
   const [blocked, setBlocked] = React.useState<string | null>(null);
   const [reason, setReason] = React.useState<string>(DISPUTE_REASONS[0].value);
   const [detail, setDetail] = React.useState("");
+  const [attachments, setAttachments] = React.useState<Attachment[]>([]);
   const [pending, setPending] = React.useState(false);
 
   async function onOpen() {
@@ -64,6 +66,9 @@ export function DisputeButton({
         purchaseId,
         reason,
         reasonDetail: detail.trim(),
+        // Les clés sont consommées dans la transaction qui crée le litige :
+        // si l'ouverture échoue, aucune pièce n'est brûlée sans porteur.
+        ...(attachments.length ? { attachments: attachments.map((a) => a.s3Key) } : {}),
       });
       toast.success("Contestation ouverte. Le support vous répondra dans le fil.");
       setOpen(false);
@@ -176,11 +181,15 @@ export function DisputeButton({
               aria-describedby="dispute-detail-hint"
               className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
             />
-            <p id="dispute-detail-hint" className="mt-1.5 text-[12.5px] text-ink-3">
+            <p id="dispute-detail-hint" className="mb-4.5 mt-1.5 text-[12.5px] text-ink-3">
               {detail.trim().length < MIN_DETAIL
                 ? `Encore ${MIN_DETAIL - detail.trim().length} caractères.`
                 : "Ce texte n'est lu que par vous et par le support — jamais par le formateur."}
             </p>
+
+            {/* Une capture vaut souvent le paragraphe qu'on vient de demander :
+                le dépôt est proposé là, pas après l'ouverture du litige. */}
+            <AttachmentPicker value={attachments} onChange={setAttachments} className="!mb-0" />
           </>
         ) : null}
       </Modal>

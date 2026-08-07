@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   BadgeCheck, BarChart3, CreditCard, FileClock, Gavel, LayoutDashboard,
-  LogOut, Menu, Plug, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2, UserCog,
-  Users, Wallet, X,
+  LogOut, Menu, PiggyBank, Plug, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2,
+  UserCog, Users, Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
@@ -48,6 +48,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/remboursements", label: "Remboursements", icon: Undo2, roles: ["FINANCES"] },
       { href: "/admin/moyens-de-paiement", label: "Moyens de paiement", icon: CreditCard, roles: ["FINANCES"] },
       { href: "/admin/retraits", label: "Retraits", icon: Wallet, roles: ["FINANCES"] },
+      // Finances voit les écarts — c'est elle que le job alerte ; seul le
+      // Super-admin corrige, et l'écran n'affiche le bouton qu'à lui.
+      { href: "/admin/portefeuilles", label: "Portefeuilles", icon: PiggyBank, roles: ["FINANCES"] },
       { href: "/admin/abonnements", label: "Abonnements", icon: RefreshCw, roles: ["FINANCES"] },
     ],
   },

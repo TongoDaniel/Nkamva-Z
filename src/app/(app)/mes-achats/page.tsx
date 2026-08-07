@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Receipt, BookOpen, Users, Wallet } from "lucide-react";
+import { Receipt, BookOpen, Download, Users, Wallet } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Btn } from "@/components/nk/button";
@@ -66,6 +66,19 @@ export default async function MesAchatsPage({
         select: { purchaseId: true },
       })
     ).map((d) => d.purchaseId),
+  );
+
+  // La facture n'existe que pour un achat encaissé, et son émission peut avoir
+  // échoué sans faire échouer l'achat (`issueInvoiceQuietly`) : on lit ce qui
+  // existe réellement plutôt que de le déduire du statut. Une ligne sans facture
+  // ne propose donc pas un lien qui rendrait 404.
+  const invoiceByPurchase = new Map(
+    (
+      await db.invoice.findMany({
+        where: { userId: auth.user.id, purchaseId: { in: items.map((p) => p.id) } },
+        select: { id: true, purchaseId: true, number: true },
+      })
+    ).map((invoice) => [invoice.purchaseId, invoice]),
   );
   const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
@@ -138,6 +151,29 @@ export default async function MesAchatsPage({
       cell: (row) => <b className="whitespace-nowrap text-sm font-extrabold">{fmtFcfa(row.amountFcfa)}</b>,
     },
     {
+      key: "invoice",
+      header: "Facture",
+      width: "110px",
+      hideOnMobile: true,
+      // Ancre nue : la réponse porte un `content-disposition: attachment`, donc
+      // c'est un téléchargement et non une navigation.
+      cell: (row) => {
+        const invoice = invoiceByPurchase.get(row.id);
+        return invoice ? (
+          <a
+            href={`/api/me/invoices/${invoice.id}?pdf=1`}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline"
+          >
+            <Download className="size-3.5 shrink-0" aria-hidden="true" />
+            PDF
+            <span className="sr-only"> de la facture {invoice.number}</span>
+          </a>
+        ) : (
+          <span className="text-[13px] text-ink-3">—</span>
+        );
+      },
+    },
+    {
       key: "actions",
       header: <span className="sr-only">Actions</span>,
       width: "130px",
@@ -166,6 +202,9 @@ export default async function MesAchatsPage({
         lead="L'historique de vos paiements : ressources achetées à l'unité et abonnements à vos communautés."
         actions={
           <>
+            <Btn asChild variant="o">
+              <Link href="/mes-factures">Mes factures</Link>
+            </Btn>
             <Btn asChild variant="o">
               <Link href="/mes-litiges">Mes contestations</Link>
             </Btn>

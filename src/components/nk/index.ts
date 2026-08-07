@@ -29,3 +29,5 @@ export { PayBand, PayChips, PAY_COUNTRIES } from "./pay-band";
 export { BrowserFrame } from "./browser-frame";
 export { ScrollCarousel } from "./scroll-carousel";
 export { DemoNotice } from "./demo-notice";
+export { ReportButton, type ReportTargetType } from "./report-button";
+export { AttachmentPicker, MAX_ATTACHMENTS, type Attachment } from "./attachment-picker";

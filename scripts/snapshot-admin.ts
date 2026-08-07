@@ -52,6 +52,7 @@ const ADMIN_SCREENS = [
   '/admin/journal-audit',
   '/admin/litiges',
   '/admin/moyens-de-paiement',
+  '/admin/portefeuilles',
   '/admin/retraits',
   '/admin/signalements',
   '/admin/transactions',
@@ -66,6 +67,7 @@ const CONTROL_SCREENS: { path: string; as: 'anon' | 'formateur' }[] = [
   { path: '/tarifs', as: 'anon' },
   { path: '/formateur', as: 'formateur' },
   { path: '/mes-ressources', as: 'formateur' },
+  { path: '/mes-factures', as: 'formateur' },
 ]
 
 /** Tokens bruts posés par `.nk-admin`. */
