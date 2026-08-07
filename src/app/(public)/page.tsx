@@ -153,7 +153,7 @@ const FAQ_ITEMS = [
 ];
 
 export default async function LandingPage() {
-  const { courses, unavailable } = await featuredCourses(8);
+  const { courses, unavailable } = await featuredCourses();
 
   return (
     <>

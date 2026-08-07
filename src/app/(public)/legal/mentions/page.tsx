@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getSettingNumber } from "@/lib/settings";
 import { LegalPage, ToProvide } from "../legal-page";
+
+// Le délai de réponse annoncé ici est le même que sur /contact, et il vit en
+// base : deux pages qui promettent des délais différents seraient un
+// engagement contradictoire, dans un document qui engage.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Mentions légales",
   description: "Éditeur, hébergeur et contacts de la plateforme NkamVa.",
 };
 
-export default function MentionsPage() {
+export default async function MentionsPage() {
+  const responseHours = await getSettingNumber("support.response_time_hours");
+
   return (
     <LegalPage
       title="Mentions légales"
@@ -40,7 +48,7 @@ export default function MentionsPage() {
         <Link href="/contact" className="font-semibold text-brand">
           formulaire de contact
         </Link>
-        , réponse sous 24 heures ouvrées.
+        , réponse sous {responseHours} heures ouvrées.
         <br />
         Adresse électronique : <ToProvide>adresse de contact</ToProvide>
         <br />
