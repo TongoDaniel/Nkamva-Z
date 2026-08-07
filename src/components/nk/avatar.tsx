@@ -23,7 +23,10 @@ const avatarVariants = cva(
         // `.authcard .big` de la maquette : dégradé marque → azur. `.ava`
         // gardait un vert codé en dur, resté de l'accent précédent — non repris,
         // il produisait un dégradé bleu vers vert depuis la bascule de marque.
-        brand: "bg-linear-to-br from-brand to-azure",
+        // Les deux arrêts suivent l'accent (`--brand-2` = azur, vert sous
+        // `.nk-admin`) : pointer `azure` en dur rouvrait le même dégradé bicolore
+        // dans le back-office.
+        brand: "bg-linear-to-br from-brand to-brand-2",
         tint: "bg-brand-tint-2 !text-brand-dark",
         ink: "bg-ink",
       },
