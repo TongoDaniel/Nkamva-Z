@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/nk/empty-state";
 import { Btn } from "@/components/nk/button";
 import { Avatar } from "@/components/nk/avatar";
 import { getAuthContext } from "@/lib/api";
-import { listPayoutMethods, getPayoutMethodStats, PAYOUT_REVIEW_SLA_HOURS } from "@/lib/payout-methods";
+import { listPayoutMethods, getPayoutMethodStats } from "@/lib/payout-methods";
 import { METHOD_STATUS, NATURE_LABELS, OPERATOR_LABELS, hoursSince, formatAge } from "./status";
 import type { PayoutMethodVerificationStatus } from "@prisma/client";
 
@@ -70,7 +70,7 @@ export default async function MoyensDePaiementPage({
         <StatTile
           tone="clay"
           value={stats.slaBreaches}
-          label={`hors délai (> ${PAYOUT_REVIEW_SLA_HOURS} h)`}
+          label={`hors délai (> ${stats.slaHours} h)`}
         />
         <StatTile tone="blue" value={stats.blocked} label="escalades ouvertes" />
         <StatTile tone="brand" value={stats.verified} label="vérifiés" />
@@ -113,7 +113,7 @@ export default async function MoyensDePaiementPage({
               };
               const name = method.trainerProfile.user.fullName ?? method.trainerProfile.user.email;
               const age = hoursSince(method.createdAt);
-              const late = method.verificationStatus === "PENDING_REVIEW" && age > PAYOUT_REVIEW_SLA_HOURS;
+              const late = method.verificationStatus === "PENDING_REVIEW" && age > stats.slaHours;
 
               return (
                 <li

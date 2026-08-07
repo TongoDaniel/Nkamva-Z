@@ -81,8 +81,9 @@ export const DOCUMENT_LABELS: Record<string, string> = {
 };
 
 /**
- * Âge d'un dossier en heures — sert à repérer les dépassements du SLA de 48 h
- * sans afficher une date que l'instructeur devrait convertir de tête.
+ * Âge d'un dossier en heures — sert à repérer les dépassements du SLA de
+ * revue (réglage `payouts.review_sla_hours`) sans afficher une date que
+ * l'instructeur devrait convertir de tête.
  */
 export function hoursSince(date: Date | string): number {
   return (Date.now() - new Date(date).getTime()) / 3_600_000;

@@ -20,7 +20,7 @@ const SUBJECTS = [
 
 const MIN_MESSAGE = 20;
 
-export function ContactForm() {
+export function ContactForm({ responseHours }: { responseHours: number }) {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [subject, setSubject] = React.useState(SUBJECTS[0].value);
@@ -91,7 +91,8 @@ export function ContactForm() {
         </span>
         <h2 className="mb-2 text-[20px] font-extrabold">Message envoyé</h2>
         <p className="mx-auto max-w-[44ch] text-ink-2">
-          Nous vous répondons à <b className="text-ink">{email}</b> sous 24 heures ouvrées.
+          Nous vous répondons à <b className="text-ink">{email}</b> sous {responseHours} heures
+          ouvrées.
         </p>
       </div>
     );

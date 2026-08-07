@@ -24,6 +24,7 @@ import { lookupAccountName, pawapayProviderCode } from './pawapay'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
+import { getSettingNumber } from './settings'
 import type { PrismaTransaction } from './types'
 
 export const PAYOUT_METHOD_CARENCE_HOURS = 72
@@ -999,16 +1000,20 @@ export async function getBusinessDocumentUrl(
 
 /**
  * Compteurs de la file d'instruction. `slaBreaches` compte les dossiers en
- * attente depuis plus de 48 h — le SLA de la décision 23, que le job
+ * attente depuis plus que le SLA de la décision 23, que le job
  * `alertPayoutMethodSlaBreaches` surveille déjà côté alerte.
+ *
+ * `slaHours` accompagne le compteur : l'écran affiche « hors délai (> N h) »
+ * et doit dire le N qui a servi à compter, pas relire le réglage de son côté.
  */
 export async function getPayoutMethodStats() {
+  const slaHours = await getPayoutReviewSlaHours()
   const [byStatus, slaBreaches] = await Promise.all([
     db.payoutMethod.groupBy({ by: ['verificationStatus'], _count: { _all: true } }),
     db.payoutMethod.count({
       where: {
         verificationStatus: 'PENDING_REVIEW',
-        createdAt: { lt: new Date(Date.now() - PAYOUT_REVIEW_SLA_HOURS * 3_600_000) },
+        createdAt: { lt: new Date(Date.now() - slaHours * 3_600_000) },
       },
     }),
   ])
@@ -1020,6 +1025,7 @@ export async function getPayoutMethodStats() {
     blocked: counts.BLOCKED ?? 0,
     verified: (counts.VERIFIED ?? 0) + (counts.AUTO_VERIFIED ?? 0) + (counts.MANUAL_VERIFIED ?? 0),
     slaBreaches,
+    slaHours,
   }
 }
 
@@ -1071,19 +1077,29 @@ export async function getWithdrawableMethod(trainerProfileId: string) {
 // ==========================================================================
 
 /**
- * Définition unique du SLA de revue manuelle. Il vivait aussi dans `payouts.ts`,
- * avec la même valeur : `/admin/moyens-de-paiement` lisait l'une,
- * `/admin/retraits` et `/admin/parametres` l'autre. Le jour où le délai change,
- * deux écrans sur trois affichent l'ancien — et `/admin/parametres` le présente
- * comme LA règle de la plateforme. `payouts.ts` la ré-exporte pour ses
- * consommateurs (il importe déjà ce module, l'inverse serait circulaire).
+ * Lecture unique du SLA de revue manuelle. C'était une constante ; c'est
+ * maintenant le réglage `payouts.review_sla_hours`, dont la valeur par défaut
+ * reste 48 h (décision 23). Le passage en base a une raison : ce délai est le
+ * seul des trois arbitrages de la décision 23 que Finances doit pouvoir
+ * resserrer sans livraison, parce qu'il ne fait que déplacer le seuil d'une
+ * alerte et d'un compteur — il n'engage personne, contrairement à la carence
+ * ou au retrait minimum, qui restent dans le code.
+ *
+ * Un seul point de lecture pour tout le monde : `/admin/retraits`,
+ * `/admin/moyens-de-paiement`, le portefeuille formateur et les deux jobs.
+ * Le jour où le délai change, aucun écran n'affiche l'ancien.
+ * `payouts.ts` la ré-exporte pour ses consommateurs (il importe déjà ce
+ * module, l'inverse serait circulaire).
  */
-export const PAYOUT_REVIEW_SLA_HOURS = 48
+export function getPayoutReviewSlaHours(): Promise<number> {
+  return getSettingNumber('payouts.review_sla_hours')
+}
 
 export async function alertPayoutMethodSlaBreaches(): Promise<{ breached: number }> {
-  // ⚠️ Écart mineur assumé : l'arbitrage parle de 48 h « ouvrées », le code
-  // applique 48 h calendaires (pas de calendrier ouvré modélisé).
-  const threshold = new Date(Date.now() - PAYOUT_REVIEW_SLA_HOURS * 3_600_000)
+  // ⚠️ Écart mineur assumé : l'arbitrage parle d'heures « ouvrées », le code
+  // applique des heures calendaires (pas de calendrier ouvré modélisé).
+  const slaHours = await getPayoutReviewSlaHours()
+  const threshold = new Date(Date.now() - slaHours * 3_600_000)
 
   const breached = await db.payoutMethod.findMany({
     where: { verificationStatus: 'PENDING_REVIEW', createdAt: { lt: threshold } },
@@ -1096,7 +1112,7 @@ export async function alertPayoutMethodSlaBreaches(): Promise<{ breached: number
       meta: {
         trainerId: method.trainerId,
         waitingHours: Math.floor((Date.now() - method.createdAt.getTime()) / 3_600_000),
-        slaHours: PAYOUT_REVIEW_SLA_HOURS,
+        slaHours,
       },
     })
   }
@@ -1104,7 +1120,7 @@ export async function alertPayoutMethodSlaBreaches(): Promise<{ breached: number
   if (breached.length > 0) {
     await notifyAdminSubRole('FINANCES', {
       type: 'PAYOUT_METHOD_SLA_BREACH',
-      title: `${breached.length} moyen(s) de paiement en attente depuis plus de 48 h`,
+      title: `${breached.length} moyen(s) de paiement en attente depuis plus de ${slaHours} h`,
       body: 'Le SLA de revue manuelle est dépassé.',
       link: '/admin/payout-methods?status=PENDING_REVIEW',
     })

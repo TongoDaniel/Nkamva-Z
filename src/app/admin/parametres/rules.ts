@@ -11,7 +11,7 @@
 // ==========================================================================
 
 import { PAYOUT_METHOD_CARENCE_HOURS, PAYOUT_METHOD_MAX_REJECTIONS, BUSINESS_DOC_MAX_SIZE_BYTES } from "@/lib/payout-methods";
-import { PAYOUT_MIN_AMOUNT_FCFA, PAYOUT_REVIEW_SLA_HOURS } from "@/lib/payouts";
+import { PAYOUT_MIN_AMOUNT_FCFA } from "@/lib/payouts";
 import { KYC_THRESHOLD_VERIFIED, KYC_THRESHOLD_TO_VERIFY } from "@/lib/kyc";
 import { COMMISSION_LABEL } from "@/lib/commission";
 import { LEGAL_COMMISSION_LABEL, LEGAL_TERMS_UPDATED_AT } from "@/lib/legal-terms";
@@ -67,11 +67,10 @@ export const PLATFORM_RULES: PlatformRule[] = [
     source: "décision 23",
     note: "même si la vérification aboutit plus tôt",
   },
-  {
-    label: "SLA de revue manuelle",
-    value: `${PAYOUT_REVIEW_SLA_HOURS} h`,
-    source: "décision 23",
-  },
+  // Le SLA de revue manuelle a quitté cette liste : il vit en base, dans le
+  // réglage `payouts.review_sla_hours` juste au-dessus. Le laisser ici le
+  // présenterait comme une constante que seule une livraison peut changer,
+  // alors que l'écran l'édite.
   {
     label: "Refus avant blocage d'un moyen de paiement",
     value: String(PAYOUT_METHOD_MAX_REJECTIONS),

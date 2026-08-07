@@ -19,7 +19,7 @@ import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
 import { syncNegativeSince, withdrawableBalance } from './wallet'
 import { computeKycScore, KYC_THRESHOLD_VERIFIED } from './kyc'
-import { getWithdrawableMethod, PAYOUT_REVIEW_SLA_HOURS } from './payout-methods'
+import { getWithdrawableMethod, getPayoutReviewSlaHours } from './payout-methods'
 // Aliasé : ce module exporte déjà `requestPayout`, qui est la demande du
 // formateur — l'homonyme de PawaPay est l'ordre de virement.
 import {
@@ -31,8 +31,9 @@ import type { PrismaTransaction } from './types'
 export const PAYOUT_MIN_AMOUNT_FCFA = 10_000
 
 // Source unique dans `payout-methods.ts` : le même délai servait aux deux
-// familles d'écrans depuis deux constantes distinctes.
-export { PAYOUT_REVIEW_SLA_HOURS } from './payout-methods'
+// familles d'écrans depuis deux constantes distinctes. Il vit désormais en
+// base (réglage `payouts.review_sla_hours`), d'où la lecture asynchrone.
+export { getPayoutReviewSlaHours } from './payout-methods'
 
 /** Retraits « en vol » : ceux qui immobilisent du solde. */
 export const IN_FLIGHT_PAYOUT_STATUSES: PayoutStatus[] = ['PENDING', 'AUTO_APPROVED', 'IN_REVIEW', 'APPROVED']
@@ -633,7 +634,13 @@ export async function getPayoutDetail(payoutId: string) {
   return payout
 }
 
+/**
+ * `slaHours` voyage avec `slaBreaches` : la tuile dit « hors délai (> N h) »,
+ * et le N doit être celui qui a servi à compter — pas une seconde lecture du
+ * réglage côté écran, qui pourrait tomber entre les deux.
+ */
 export async function getPayoutStats() {
+  const slaHours = await getPayoutReviewSlaHours()
   const [byStatus, inFlightSum, paidSum, slaBreaches] = await Promise.all([
     db.payout.groupBy({ by: ['status'], _count: { _all: true } }),
     db.payout.aggregate({ where: { status: { in: IN_FLIGHT_PAYOUT_STATUSES } }, _sum: { amountFcfa: true } }),
@@ -641,7 +648,7 @@ export async function getPayoutStats() {
     db.payout.count({
       where: {
         status: 'IN_REVIEW',
-        submittedAt: { lt: new Date(Date.now() - PAYOUT_REVIEW_SLA_HOURS * 3_600_000) },
+        submittedAt: { lt: new Date(Date.now() - slaHours * 3_600_000) },
       },
     }),
   ])
@@ -653,6 +660,7 @@ export async function getPayoutStats() {
     inFlightTotalFcfa: inFlightSum._sum.amountFcfa ?? 0,
     paidTotalFcfa: paidSum._sum.amountFcfa ?? 0,
     slaBreaches,
+    slaHours,
   }
 }
 
@@ -661,13 +669,14 @@ export async function getPayoutStats() {
 // ==========================================================================
 
 export async function alertPayoutSlaBreaches(): Promise<{ breached: number }> {
-  const threshold = new Date(Date.now() - PAYOUT_REVIEW_SLA_HOURS * 3_600_000)
+  const slaHours = await getPayoutReviewSlaHours()
+  const threshold = new Date(Date.now() - slaHours * 3_600_000)
   const breached = await db.payout.count({ where: { status: 'IN_REVIEW', submittedAt: { lt: threshold } } })
 
   if (breached > 0) {
     await notifyAdminSubRole('FINANCES', {
       type: 'PAYOUT_SLA_BREACH',
-      title: `${breached} retrait(s) en attente depuis plus de 48 h`,
+      title: `${breached} retrait(s) en attente depuis plus de ${slaHours} h`,
       body: 'Le SLA de revue manuelle est dépassé.',
       link: '/admin/payouts?status=IN_REVIEW',
     })

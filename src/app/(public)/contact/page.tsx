@@ -2,14 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Clock, LifeBuoy, ShieldQuestion } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
+import { getSettingNumber } from "@/lib/settings";
 import { ContactForm } from "./contact-form";
+
+// Le délai annoncé vient du réglage `support.response_time_hours` : l'écran ne
+// peut pas être figé au build sans risquer de promettre l'ancien délai.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Nous contacter",
-  description: "Écrivez au support NkamVa. Réponse sous 24 heures ouvrées.",
+  description: "Écrivez au support NkamVa, le délai de réponse est annoncé sur la page.",
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const responseHours = await getSettingNumber("support.response_time_hours");
+
   return (
     <div className="nk-wrap pb-16">
       <PageHead
@@ -19,7 +26,7 @@ export default function ContactPage() {
       />
 
       <div className="grid items-start gap-6 pt-2 lg:grid-cols-[1fr_300px]">
-        <ContactForm />
+        <ContactForm responseHours={responseHours} />
 
         <aside className="grid gap-4">
           <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
@@ -31,8 +38,8 @@ export default function ContactPage() {
             </span>
             <h2 className="mb-1.5 text-[15px] font-bold">Délai de réponse</h2>
             <p className="text-[13.5px] leading-relaxed text-ink-2">
-              Sous 24 heures ouvrées. Les demandes liées à un paiement en cours sont traitées en
-              priorité.
+              Sous {responseHours} heures ouvrées. Les demandes liées à un paiement en cours sont
+              traitées en priorité.
             </p>
           </section>
 

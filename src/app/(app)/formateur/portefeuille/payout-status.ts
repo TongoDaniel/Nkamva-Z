@@ -17,81 +17,92 @@ export interface StatusMeta {
   help: string;
 }
 
-export const PAYOUT_STATUS: Record<string, StatusMeta> = {
-  PENDING: {
-    label: "Enregistrée",
-    tone: "muted",
-    help: "La demande vient d'être créée.",
-  },
-  IN_REVIEW: {
-    label: "En revue",
-    tone: "warn",
-    help: "Instruite par l'équipe Finances sous 48 h.",
-  },
-  AUTO_APPROVED: {
-    label: "Approuvée",
-    tone: "info",
-    help: "Approuvée automatiquement, le versement est en préparation.",
-  },
-  APPROVED: {
-    label: "Approuvée",
-    tone: "info",
-    help: "Le versement est en préparation.",
-  },
-  PAID: {
-    label: "Versée",
-    tone: "ok",
-    help: "Le montant a été débité de votre solde et envoyé.",
-  },
-  REJECTED: {
-    label: "Refusée",
-    tone: "bad",
-    help: "Le montant est resté sur votre solde, vous pouvez redemander.",
-  },
-  FAILED: {
-    label: "Échec du versement",
-    tone: "bad",
-    help: "Le virement n'a pas abouti. L'équipe Finances reprend la main.",
-  },
-};
+/**
+ * Les deux états « en attente d'instruction » annoncent un délai au formateur.
+ * Ce délai est le SLA que Finances se donne (`payouts.review_sla_hours`), pas
+ * un chiffre propre à cet écran : les maps sont donc construites à partir de
+ * lui, pour qu'un resserrage du SLA ne laisse pas le portefeuille promettre
+ * l'ancien délai — c'est la promesse faite au formateur qui serait fausse.
+ */
+export function payoutStatuses(slaHours: number): Record<string, StatusMeta> {
+  return {
+    PENDING: {
+      label: "Enregistrée",
+      tone: "muted",
+      help: "La demande vient d'être créée.",
+    },
+    IN_REVIEW: {
+      label: "En revue",
+      tone: "warn",
+      help: `Instruite par l'équipe Finances sous ${slaHours} h.`,
+    },
+    AUTO_APPROVED: {
+      label: "Approuvée",
+      tone: "info",
+      help: "Approuvée automatiquement, le versement est en préparation.",
+    },
+    APPROVED: {
+      label: "Approuvée",
+      tone: "info",
+      help: "Le versement est en préparation.",
+    },
+    PAID: {
+      label: "Versée",
+      tone: "ok",
+      help: "Le montant a été débité de votre solde et envoyé.",
+    },
+    REJECTED: {
+      label: "Refusée",
+      tone: "bad",
+      help: "Le montant est resté sur votre solde, vous pouvez redemander.",
+    },
+    FAILED: {
+      label: "Échec du versement",
+      tone: "bad",
+      help: "Le virement n'a pas abouti. L'équipe Finances reprend la main.",
+    },
+  };
+}
 
-export const PAYOUT_METHOD_STATUS: Record<string, StatusMeta> = {
-  PENDING_REVIEW: {
-    label: "En cours de vérification",
-    tone: "warn",
-    help: "Revue manuelle par l'équipe Finances, sous 48 h ouvrées.",
-  },
-  AUTO_VERIFIED: {
-    label: "Vérifié",
-    tone: "info",
-    help: "Vérifié automatiquement auprès de l'opérateur.",
-  },
-  MANUAL_VERIFIED: {
-    label: "Vérifié",
-    tone: "info",
-    help: "Vérifié par l'équipe Finances.",
-  },
-  VERIFIED: {
-    label: "Vérifié",
-    tone: "ok",
-    help: "Utilisable pour vos retraits.",
-  },
-  REJECTED: {
-    label: "Refusé",
-    tone: "bad",
-    help: "Vous pouvez en enregistrer un autre.",
-  },
-  BLOCKED: {
-    label: "Vérification suspendue",
-    tone: "bad",
-    help: "Après trois refus, un responsable reprend le dossier. Contactez le support.",
-  },
-  ARCHIVED: {
-    label: "Remplacé",
-    tone: "muted",
-    help: "Conservé pour l'historique, il ne sert plus aux retraits.",
-  },
-};
+export function payoutMethodStatuses(slaHours: number): Record<string, StatusMeta> {
+  return {
+    PENDING_REVIEW: {
+      label: "En cours de vérification",
+      tone: "warn",
+      help: `Revue manuelle par l'équipe Finances, sous ${slaHours} h ouvrées.`,
+    },
+    AUTO_VERIFIED: {
+      label: "Vérifié",
+      tone: "info",
+      help: "Vérifié automatiquement auprès de l'opérateur.",
+    },
+    MANUAL_VERIFIED: {
+      label: "Vérifié",
+      tone: "info",
+      help: "Vérifié par l'équipe Finances.",
+    },
+    VERIFIED: {
+      label: "Vérifié",
+      tone: "ok",
+      help: "Utilisable pour vos retraits.",
+    },
+    REJECTED: {
+      label: "Refusé",
+      tone: "bad",
+      help: "Vous pouvez en enregistrer un autre.",
+    },
+    BLOCKED: {
+      label: "Vérification suspendue",
+      tone: "bad",
+      help: "Après trois refus, un responsable reprend le dossier. Contactez le support.",
+    },
+    ARCHIVED: {
+      label: "Remplacé",
+      tone: "muted",
+      help: "Conservé pour l'historique, il ne sert plus aux retraits.",
+    },
+  };
+}
 
 export const OPERATOR_LABELS: Record<string, string> = {
   WAVE: "Wave",
