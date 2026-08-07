@@ -16,6 +16,9 @@ const UpdateSchema = z.object({
     .or(z.literal('')),
   countryCode: z.string().trim().length(2, 'Code pays sur 2 lettres').toUpperCase().nullable().optional().or(z.literal('')),
   bio: z.string().trim().max(1000, 'Bio trop longue').nullable().optional(),
+  // Préférence d'envoi, pas une donnée de profil : elle passe par la même route
+  // parce qu'elle vit sur le même enregistrement et suit le même audit.
+  subscriptionNoticeEmails: z.boolean().optional(),
 })
 
 export async function GET() {

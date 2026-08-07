@@ -65,5 +65,11 @@ jobs:
               -e DATABASE_URL="$(grep '^DATABASE_URL=' .env | cut -d= -f2-)" \
               node:22-alpine \
               npx --yes prisma@6 migrate deploy --schema=/prisma/schema.prisma
+            docker run --rm \
+              --network staging_internal \
+              -e DATABASE_URL="$(grep '^DATABASE_URL=' .env | cut -d= -f2-)" \
+              -e BOOTSTRAP_ADMIN_PASSWORD="$(grep '^BOOTSTRAP_ADMIN_PASSWORD=' .env | cut -d= -f2-)" \
+              ghcr.io/tongodaniel/nkamva:${{ github.sha }} \
+              node scripts/bootstrap-admins.mjs
             docker compose up -d
             docker image prune -f

@@ -22,6 +22,8 @@ export interface ProfileView {
   bio: string | null
   role: string
   isTrainer: boolean
+  /** Emails d'information sur l'abonnement — voir `User.subscriptionNoticeEmails`. */
+  subscriptionNoticeEmails: boolean
   createdAt: string
   gdprExportRequestedAt: string | null
   deletionRequestedAt: string | null
@@ -35,6 +37,7 @@ export async function getProfile(userId: string): Promise<ProfileView | null> {
     select: {
       id: true, email: true, emailVerifiedAt: true, fullName: true, preferredName: true,
       phone: true, countryCode: true, bio: true, role: true, createdAt: true,
+      subscriptionNoticeEmails: true,
       gdprExportRequestedAt: true, deletionRequestedAt: true,
       trainerProfile: { select: { id: true } },
     },
@@ -56,6 +59,7 @@ export async function getProfile(userId: string): Promise<ProfileView | null> {
     bio: user.bio,
     role: user.role,
     isTrainer: Boolean(user.trainerProfile),
+    subscriptionNoticeEmails: user.subscriptionNoticeEmails,
     createdAt: user.createdAt.toISOString(),
     gdprExportRequestedAt: user.gdprExportRequestedAt?.toISOString() ?? null,
     deletionRequestedAt: user.deletionRequestedAt?.toISOString() ?? null,
@@ -69,6 +73,7 @@ export interface ProfileUpdate {
   phone?: string | null
   countryCode?: string | null
   bio?: string | null
+  subscriptionNoticeEmails?: boolean
 }
 
 export async function updateProfile(userId: string, data: ProfileUpdate): Promise<ProfileView> {
@@ -80,6 +85,9 @@ export async function updateProfile(userId: string, data: ProfileUpdate): Promis
       ...(data.phone !== undefined && { phone: data.phone || null }),
       ...(data.countryCode !== undefined && { countryCode: data.countryCode || null }),
       ...(data.bio !== undefined && { bio: data.bio || null }),
+      ...(data.subscriptionNoticeEmails !== undefined && {
+        subscriptionNoticeEmails: data.subscriptionNoticeEmails,
+      }),
     },
   })
 
