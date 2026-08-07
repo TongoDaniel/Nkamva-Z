@@ -210,7 +210,12 @@
   --accent: var(--brand-tint);
   --accent-foreground: var(--brand-dark);
   --ring: var(--brand);
+  /* `--chart-2` porte déjà le vert forêt sur `:root` : faire suivre `--chart-1`
+     l'accent y collait deux rangs de la palette catégorielle sur la même
+     couleur. On échange les deux rangs plutôt que de les laisser en doublon —
+     le bleu produit reste dans la palette, au rang que le vert vient de quitter. */
   --chart-1: var(--brand);
+  --chart-2: #2b5fa8;
   --sidebar-primary: var(--brand);
   --sidebar-ring: var(--brand);
 }

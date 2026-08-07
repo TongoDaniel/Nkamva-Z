@@ -80,7 +80,12 @@ const DERIVED_TOKENS = [
   '--accent',
   '--accent-foreground',
   '--ring',
+  // Les deux premiers rangs de la palette catégorielle ensemble : `--chart-2`
+  // n'hérite de rien, mais `:root` lui donne le vert forêt. Faire suivre
+  // `--chart-1` l'accent les collait sur la même couleur dans l'admin — un
+  // doublon qu'on ne voit qu'en les surveillant par paire.
   '--chart-1',
+  '--chart-2',
   '--sidebar-primary',
   '--sidebar-ring',
 ]
@@ -108,6 +113,7 @@ const EXPECTED: Record<'admin' | 'produit', Record<string, string>> = {
     '--accent-foreground': '#0a563e',
     '--ring': '#0d6b4d',
     '--chart-1': '#0d6b4d',
+    '--chart-2': '#2b5fa8',
     '--sidebar-primary': '#0d6b4d',
     '--sidebar-ring': '#0d6b4d',
   },
@@ -128,6 +134,7 @@ const EXPECTED: Record<'admin' | 'produit', Record<string, string>> = {
     '--accent-foreground': '#144aa8',
     '--ring': '#1c5ed0',
     '--chart-1': '#1c5ed0',
+    '--chart-2': '#0d6b4d',
     '--sidebar-primary': '#1c5ed0',
     '--sidebar-ring': '#1c5ed0',
   },
