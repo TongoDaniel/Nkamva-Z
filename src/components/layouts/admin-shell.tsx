@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   BadgeCheck, BarChart3, CreditCard, FileClock, Gavel, LayoutDashboard,
-  LogOut, Menu, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2, UserCog, Users,
-  Wallet, X,
+  LogOut, Menu, Plug, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2, UserCog,
+  Users, Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
@@ -60,6 +60,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/administrateurs", label: "Administrateurs", icon: UserCog, roles: [] },
       { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock, roles: [] },
       { href: "/admin/parametres", label: "Paramètres", icon: Settings, roles: [] },
+      // Nomme les variables d'environnement du déploiement et le mode réel de
+      // chaque fournisseur — Super-admin, au même titre que les paramètres.
+      { href: "/admin/integrations", label: "Intégrations", icon: Plug, roles: [] },
     ],
   },
   {

@@ -7,7 +7,7 @@
  * vert. Poser la classe ne suffit donc pas, et le résultat partiel est plus
  * difficile à repérer qu'une absence totale de bascule — d'où ce garde-fou.
  *
- * Le script ouvre les 11 écrans admin à tuiles avec une session admin forgée,
+ * Le script ouvre les écrans admin avec une session admin forgée,
  * puis relève dans le DOM :
  *   - la présence de `.nk-admin` sur la coquille ;
  *   - les tokens d'accent **calculés** (bruts et dérivés) sous la coquille ;
@@ -38,10 +38,16 @@ const SECRET = process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-produ
 const BLUE = '#1c5ed0'
 const GREEN = '#0d6b4d'
 
-/** Les 11 écrans admin qui posent des tuiles de chiffres clés. */
+/**
+ * Les écrans du back-office. La plupart posent des tuiles de chiffres clés, et
+ * leurs tons sont alors contrôlés ; ceux qui n'en posent pas restent surveillés
+ * pour le reste — coquille, tokens, voile, dégradé. C'est le sens du scope
+ * `.nk-admin` : il vaut pour tout le bord admin, pas pour ses tableaux de bord.
+ */
 const ADMIN_SCREENS = [
   '/admin',
   '/admin/analytics',
+  '/admin/integrations',
   '/admin/abonnements',
   '/admin/journal-audit',
   '/admin/litiges',
@@ -456,7 +462,7 @@ async function main() {
     }
 
     // ── 1. Écrans admin ────────────────────────────────────────────────
-    console.log('━━━ 11 écrans admin à tuiles ━━━\n')
+    console.log(`━━━ ${ADMIN_SCREENS.length} écrans admin ━━━\n`)
     const adminReports: Report[] = []
     for (const path of ADMIN_SCREENS) {
       const r = await visit(path, admin.value)
@@ -466,7 +472,9 @@ async function main() {
       const stray = strayTokens(r.vars, 'admin')
       const veil = veilOk(r.paint.voileFond, 'admin')
       const grad = gradientOk(r.paint.degradeAvatar, 'admin')
-      const tonesOk = r.tileCount >= 4 && r.distinctTones.length >= 4
+      // Un écran sans tuile n'a pas de tons à contrôler. Exiger quatre couleurs
+      // là où il n'y a aucune tuile ferait échouer l'audit sur un écran sain.
+      const tonesOk = r.tileCount === 0 || (r.tileCount >= 4 && r.distinctTones.length >= 4)
 
       const flag = shellOk && !stray.length && veil && grad && tonesOk ? '✅' : '❌'
       console.log(
