@@ -35,6 +35,7 @@ export default async function MoyenDePaiementPage() {
     <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[
+          { label: "Espace formateur", href: "/formateur" },
           { label: "Portefeuille", href: "/formateur/portefeuille" },
           { label: "Moyen de paiement" },
         ]}

@@ -23,6 +23,7 @@ import {
 import { Logo } from "@/components/nk/logo";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
+import { TRAINER_SECTIONS } from "@/app/(app)/formateur/sections";
 
 const LEARNER_NAV = [
   { href: "/accueil", label: "Accueil" },
@@ -34,17 +35,14 @@ const LEARNER_NAV = [
   { href: "/mes-achats", label: "Mes achats" },
 ];
 
-/** Un formateur reste un apprenant : sa navigation ajoute, elle ne remplace pas. */
-const TRAINER_NAV = [
-  { href: "/formateur", label: "Espace formateur" },
-  { href: "/formateur/ressources", label: "Mes publications" },
-  { href: "/formateur/communaute", label: "Ma communauté" },
-  // « Mes sessions » et non « Mes lives » : le menu du compte porte déjà une
-  // entrée « Mes lives » côté apprenant, que le formateur voit aussi.
-  { href: "/formateur/lives", label: "Mes sessions" },
-  { href: "/formateur/portefeuille", label: "Portefeuille" },
-  { href: "/formateur/litiges", label: "Litiges" },
-];
+/**
+ * Un formateur reste un apprenant : sa navigation ajoute, elle ne remplace pas.
+ * Une seule entrée sur grand écran, et non les six de l'espace : alignés
+ * derrière les quatre onglets apprenant, ils débordaient la barre. Les cinq
+ * sections vivent dans la sous-navigation de `/formateur` — et sont dépliées
+ * sous cette entrée dans le menu mobile, qui n'a pas cette contrainte de place.
+ */
+const TRAINER_NAV = [{ href: "/formateur", label: "Espace formateur" }];
 
 /**
  * Le menu du compte reprend la barre latérale apprenant de la maquette. Les
@@ -221,18 +219,51 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           id="nk-app-nav"
           aria-label="Navigation de mon espace (mobile)"
           hidden={!open}
-          className="absolute inset-x-0 top-full z-[120] border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk min-[820px]:hidden"
+          // Le panneau est ancré à un en-tête `sticky` : ce qui dépasse le bas
+          // de l'écran ne se rattrape pas en faisant défiler la page. Depuis
+          // que les cinq sections formateur s'y déplient, la liste passe la
+          // hauteur d'un téléphone — elle défile donc en son sein. `dvh` et non
+          // `vh` : la barre d'adresse mobile mange la différence.
+          className="absolute inset-x-0 top-full z-[120] max-h-[calc(100dvh-62px)] overflow-y-auto overscroll-contain border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk md:max-h-[calc(100dvh-70px)] min-[820px]:hidden"
         >
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(pathname, item.href) ? "page" : undefined}
-              className="block border-b border-line-2 px-1.5 py-3.5 text-base font-bold text-ink hover:text-brand"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {nav.map((item) => {
+            // Les cinq sections de l'espace formateur sont dépliées ici : sous
+            // 820px la sous-navigation de `/formateur` n'est atteignable qu'une
+            // fois dans l'espace, ce qui coûtait un écran de plus pour ouvrir
+            // son portefeuille. Le parent n'est alors marqué courant que sur
+            // l'égalité stricte — sinon deux entrées porteraient `aria-current`.
+            const sections = item.href === "/formateur" ? TRAINER_SECTIONS : [];
+            const current = sections.length
+              ? pathname === item.href
+              : isActive(pathname, item.href);
+            return (
+              <React.Fragment key={item.href}>
+                <Link
+                  href={item.href}
+                  aria-current={current ? "page" : undefined}
+                  className="block border-b border-line-2 px-1.5 py-3.5 text-base font-bold text-ink hover:text-brand"
+                >
+                  {item.label}
+                </Link>
+                {sections.map((section) => {
+                  const active = isActive(pathname, section.href);
+                  return (
+                    <Link
+                      key={section.href}
+                      href={section.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "block border-b border-line-2 border-l-2 py-3 pl-4 pr-1.5 text-[15px] font-semibold hover:border-l-brand hover:text-brand",
+                        active ? "border-l-brand text-brand" : "border-l-line text-ink-2",
+                      )}
+                    >
+                      {section.label}
+                    </Link>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
 
           {/* Sous 820px le menu du compte n'existe pas : sans ce rappel, les
               écrans qu'il contient seraient injoignables sur mobile. */}

@@ -1,6 +1,18 @@
+import type { ComponentType } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, Coins, Plus, TrendingUp, Wallet } from "lucide-react";
+import {
+  BookOpen,
+  ChevronRight,
+  Coins,
+  Library,
+  Plus,
+  Radio,
+  Scale,
+  TrendingUp,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { Btn } from "@/components/nk/button";
 import { StatTile } from "@/components/nk/stat-tile";
@@ -12,8 +24,21 @@ import { listTrainerCourses } from "@/lib/courses";
 import { getTrainerOverview, getSalesByCourse } from "@/lib/trainer-stats";
 import { fmtFcfa, fmtNumber } from "@/lib/format";
 import { COURSE_STATUS } from "./ressources/course-status";
+import { TRAINER_SECTIONS } from "./sections";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Les icônes des sections, attachées ici : `sections.ts` est lu des deux côtés
+ * de la frontière serveur/client et ne peut donc pas en porter.
+ */
+const SECTION_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  "/formateur/ressources": Library,
+  "/formateur/communaute": Users,
+  "/formateur/lives": Radio,
+  "/formateur/portefeuille": Wallet,
+  "/formateur/litiges": Scale,
+};
 
 export const metadata: Metadata = {
   title: "Espace formateur",
@@ -84,6 +109,44 @@ export default async function FormateurPage() {
           }
         />
       </div>
+
+      <section aria-labelledby="sections" className="mb-10">
+        <h2 id="sections" className="mb-4 text-[17px] font-bold">
+          Gérer votre activité
+        </h2>
+        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {TRAINER_SECTIONS.map((section) => {
+            const Icon = SECTION_ICONS[section.href] ?? BookOpen;
+            return (
+              <li key={section.href}>
+                <Link
+                  href={section.href}
+                  className="group flex h-full items-start gap-4 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk"
+                >
+                  <span
+                    className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
+                    aria-hidden="true"
+                  >
+                    <Icon className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <b className="flex items-center gap-1.5 text-[14.5px] font-bold text-ink group-hover:text-brand">
+                      {section.label}
+                      <ChevronRight
+                        className="size-4 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
+                        aria-hidden="true"
+                      />
+                    </b>
+                    <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-2">
+                      {section.description}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       <section aria-labelledby="meilleures" className="mb-10">
         <div className="mb-4 flex items-baseline justify-between gap-3">

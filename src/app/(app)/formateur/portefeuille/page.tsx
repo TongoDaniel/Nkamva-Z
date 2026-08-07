@@ -102,6 +102,7 @@ export default async function PortefeuillePage() {
   return (
     <div className="nk-wrap pb-16">
       <PageHead
+        crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Portefeuille" }]}
         title="Portefeuille"
         lead="Votre solde, votre score de confiance et vos retraits. Le solde est crédité à chaque vente réellement encaissée."
         actions={
