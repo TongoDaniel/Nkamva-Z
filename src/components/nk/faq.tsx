@@ -14,18 +14,31 @@ export interface FaqItem {
  * Une seule question ouverte à la fois, comme la maquette. La hauteur est
  * animée par `grid-rows` plutôt que par `max-height` : pas de valeur magique
  * à maintenir quand la réponse s'allonge.
+ *
+ * `id` sert de racine aux identifiants des panneaux, et l'appelant le fournit
+ * plutôt que `useId`. Un identifiant `useId` encode la position du composant
+ * dans l'arbre React ; en `next dev`, les outils de développement de Next
+ * enveloppent chaque segment de route dans un `SegmentViewNode` (dev seulement,
+ * cf. `next/dist/next-devtools/userspace/app/segment-explorer-node.js`), ce qui
+ * ne donne pas le même arbre au rendu serveur qu'à l'hydratation : les deux
+ * rendus produisent alors deux identifiants différents et React signale une
+ * divergence d'hydratation qu'il ne rattrape pas. Un identifiant explicite est
+ * de surcroît lisible dans l'inspecteur, et deux accordéons sur une même page
+ * ne peuvent plus se marcher dessus tant que leurs `id` diffèrent.
  */
 export function Faq({
   items,
+  id,
   className,
   headingLevel: Heading = "h3",
 }: {
   items: FaqItem[];
+  /** Racine des `id` de panneaux — unique dans la page. */
+  id: string;
   className?: string;
   headingLevel?: "h2" | "h3";
 }) {
   const [openIndex, setOpenIndex] = React.useState<number | null>(null);
-  const id = React.useId();
 
   return (
     <div className={cn("mx-auto max-w-[780px]", className)}>
