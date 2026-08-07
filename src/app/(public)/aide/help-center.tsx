@@ -186,7 +186,13 @@ function fold(value: string): string {
     .toLowerCase();
 }
 
-export function HelpCenter({ subscription }: { subscription: string }) {
+export function HelpCenter({
+  subscription,
+  responseHours,
+}: {
+  subscription: string;
+  responseHours: number;
+}) {
   const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState<string | null>(null);
   // Identifiant littéral plutôt que `useId` : voir `community-directory.tsx`.
@@ -293,7 +299,7 @@ export function HelpCenter({ subscription }: { subscription: string }) {
           <EmptyState
             icon={<SearchX />}
             title="Aucune réponse ne correspond"
-            description="Essayez un autre mot, ou écrivez-nous : nous répondons sous 24 heures ouvrées."
+            description={`Essayez un autre mot, ou écrivez-nous : nous répondons sous ${responseHours} heures ouvrées.`}
             action={
               <Btn variant="o" onClick={() => setQuery("")}>
                 Effacer la recherche
@@ -362,7 +368,7 @@ export function HelpCenter({ subscription }: { subscription: string }) {
       <section className="mx-auto mt-4 max-w-[780px] rounded-nk-lg bg-gradient-to-r from-navy to-navy-2 px-8 py-9 text-center text-white">
         <h2 className="text-[22px] font-extrabold">Vous n&apos;avez pas trouvé votre réponse ?</h2>
         <p className="mx-auto mt-2 max-w-[52ch] text-[14.5px] leading-relaxed text-[#b9c9dd]">
-          Écrivez au support : nous répondons en français sous 24 heures ouvrées.
+          Écrivez au support : nous répondons en français sous {responseHours} heures ouvrées.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Btn asChild variant="light">

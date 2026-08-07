@@ -299,6 +299,10 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   VALUE_REQUIRED: { message: 'Une valeur est requise', status: 400 },
   VALUE_TOO_LONG: { message: 'Valeur trop longue (500 caractères maximum)', status: 400 },
   VALUE_UNCHANGED: { message: 'La valeur est déjà celle-ci', status: 409 },
+  SETTING_VALUE_INVALID: {
+    message: 'Valeur refusée : un entier est attendu, dans les bornes affichées sous le réglage',
+    status: 422,
+  },
 }
 
 export function errorFromException(err: unknown): NextResponse {

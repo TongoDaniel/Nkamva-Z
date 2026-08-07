@@ -10,7 +10,11 @@ import { EmptyState } from "@/components/nk/empty-state";
 import { getAuthContext } from "@/lib/api";
 import { computeKycScore } from "@/lib/kyc";
 import { getTrainerWallet } from "@/lib/trainer-stats";
-import { listMyPayoutMethods, getWithdrawableMethod } from "@/lib/payout-methods";
+import {
+  listMyPayoutMethods,
+  getWithdrawableMethod,
+  getPayoutReviewSlaHours,
+} from "@/lib/payout-methods";
 import { listMyPayouts, PAYOUT_MIN_AMOUNT_FCFA, IN_FLIGHT_PAYOUT_STATUSES } from "@/lib/payouts";
 import { getMySubscription } from "@/lib/subscriptions";
 import { getTrainerStorage } from "@/lib/storage-tiers";
@@ -20,8 +24,8 @@ import { StoragePanel } from "./storage-panel";
 import { PayoutRequestForm } from "./payout-request-form";
 import { MicroDepositForm } from "./micro-deposit-form";
 import {
-  PAYOUT_STATUS,
-  PAYOUT_METHOD_STATUS,
+  payoutStatuses,
+  payoutMethodStatuses,
   ACCOUNT_NATURE_LABELS,
   describeMethod,
 } from "./payout-status";
@@ -38,15 +42,22 @@ export default async function PortefeuillePage() {
   if (!auth?.user.trainerId) return null;
   const trainerId = auth.user.trainerId;
 
-  const [wallet, kyc, methods, payouts, withdrawable, subscription, storage] = await Promise.all([
-    getTrainerWallet(trainerId),
-    computeKycScore(trainerId),
-    listMyPayoutMethods(trainerId),
-    listMyPayouts(trainerId, 1, 20),
-    getWithdrawableMethod(trainerId),
-    getMySubscription(trainerId),
-    getTrainerStorage(trainerId),
-  ]);
+  const [wallet, kyc, methods, payouts, withdrawable, subscription, storage, slaHours] =
+    await Promise.all([
+      getTrainerWallet(trainerId),
+      computeKycScore(trainerId),
+      listMyPayoutMethods(trainerId),
+      listMyPayouts(trainerId, 1, 20),
+      getWithdrawableMethod(trainerId),
+      getMySubscription(trainerId),
+      getTrainerStorage(trainerId),
+      getPayoutReviewSlaHours(),
+    ]);
+
+  // Le délai annoncé au formateur est celui que Finances se donne : les deux
+  // ne peuvent pas diverger, sinon l'écran promet ce que la file ne tient pas.
+  const PAYOUT_STATUS = payoutStatuses(slaHours);
+  const PAYOUT_METHOD_STATUS = payoutMethodStatuses(slaHours);
 
   const active = methods.find((m) => m.isActive) ?? null;
   const archived = methods.filter((m) => !m.isActive);
