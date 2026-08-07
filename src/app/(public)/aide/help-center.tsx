@@ -195,7 +195,7 @@ export function HelpCenter({
 }) {
   const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState<string | null>(null);
-  // Identifiant littéral plutôt que `useId` : voir `community-directory.tsx`.
+  // Identifiant littéral plutôt que `useId` : voir `components/nk/faq.tsx`.
   const panelId = "aide-reponse";
 
   const groups = React.useMemo(() => buildGroups(subscription), [subscription]);
