@@ -428,7 +428,7 @@ export default async function LandingPage() {
             />
           </Reveal>
           <Reveal>
-            <Faq items={FAQ_ITEMS} />
+            <Faq id="accueil-faq" items={FAQ_ITEMS} />
           </Reveal>
         </div>
       </section>

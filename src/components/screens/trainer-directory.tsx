@@ -38,7 +38,7 @@ export function TrainerDirectory({
   const routes = routesOf(space);
   const [category, setCategory] = React.useState("all");
   const [search, setSearch] = React.useState("");
-  // Identifiant littéral plutôt que `useId` : voir `community-directory.tsx`.
+  // Identifiant littéral plutôt que `useId` : voir `components/nk/faq.tsx`.
   const gridId = "formateurs-grille";
 
   const tabs = React.useMemo<TabItem[]>(() => {
