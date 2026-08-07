@@ -4,7 +4,7 @@ import { getAuthContext } from "@/lib/api";
 import { getProfile } from "@/lib/profile";
 import { getTwoFactorStatus } from "@/lib/two-factor";
 import { ProfileTabs } from "./profile-tabs";
-import { TwoFactorPanel } from "./two-factor-panel";
+import { TwoFactorPanel } from "@/components/screens/two-factor-panel";
 
 export const dynamic = "force-dynamic";
 

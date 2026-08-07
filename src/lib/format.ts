@@ -36,6 +36,29 @@ export function fmtDate(value?: string | Date | null): string | null {
   return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(d);
 }
 
+/**
+ * Date **et heure à la seconde**, pour le journal d'audit.
+ *
+ * La seconde n'est pas du zèle : une tâche planifiée écrit des dizaines
+ * d'entrées dans la même minute, et le journal les rend dans l'ordre
+ * chronologique sans autre repère. Sans l'heure, 250 lignes portaient la même
+ * date et rien ne permettait de suivre un enchaînement — ni de dire quelle
+ * action avait précédé laquelle.
+ */
+export function fmtDateTime(value?: string | Date | null): string | null {
+  if (!value) return null;
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(d);
+}
+
 /** Durée restante d'un compte à rebours, en « m:ss ». */
 /**
  * Ancienneté abrégée, comme « il y a 2 h » de la maquette. Au-delà d'un mois on

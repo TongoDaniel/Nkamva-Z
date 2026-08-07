@@ -10,7 +10,7 @@ import { FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
 import type { ProfileView } from "@/lib/profile";
-import { SettingCard } from "./setting-card";
+import { SettingCard } from "@/components/nk/setting-card";
 
 interface Draft {
   fullName: string;
