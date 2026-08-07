@@ -6,7 +6,7 @@ import { CheckOption } from "@/components/nk/input";
 import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
 import type { ProfileView } from "@/lib/profile";
-import { SettingCard } from "./setting-card";
+import { SettingCard } from "@/components/nk/setting-card";
 
 /**
  * Préférences d'email.

@@ -44,7 +44,15 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  // `.claude/**` couvre les worktrees que l'outillage crée dans le dépôt
+  // (`.claude/worktrees/<nom>/`). Chacun porte son propre `.next`, que le motif
+  // `.next/**` — ancré à la racine — ne voyait pas : une tâche de fond lancée en
+  // parallèle faisait alors remonter des milliers d'erreurs venues de
+  // `node_modules` compilés, et rien de ce code n'est à nous.
+  ignores: [
+    "node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts",
+    "examples/**", "skills", ".claude/**",
+  ]
 }];
 
 export default eslintConfig;

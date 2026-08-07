@@ -10,6 +10,11 @@
 // ==========================================================================
 
 import { db } from './db'
+import { AUDIT_ACTION_GROUPS } from './audit-labels'
+
+// Les familles vivent avec les libellés : un onglet et le nom de son domaine
+// sont la même décision. Ré-exporté pour les appelants historiques.
+export { AUDIT_ACTION_GROUPS } from './audit-labels'
 
 export interface AuditLogFilters {
   action?: string
@@ -21,20 +26,6 @@ export interface AuditLogFilters {
   page?: number
   pageSize?: number
 }
-
-/**
- * Familles d'actions, pour filtrer sans connaître par cœur les libellés
- * SCREAMING_SNAKE_CASE. Les préfixes suivent le domaine qui les émet.
- */
-export const AUDIT_ACTION_GROUPS: Array<{ value: string; label: string; prefixes: string[] }> = [
-  { value: 'all', label: 'Toutes', prefixes: [] },
-  { value: 'trainers', label: 'Formateurs', prefixes: ['TRAINER_APPLICATION', 'TRAINER_DOCUMENT'] },
-  { value: 'disputes', label: 'Litiges', prefixes: ['DISPUTE', 'REFUND', 'DOUBLE_DEBIT'] },
-  { value: 'payouts', label: 'Retraits', prefixes: ['PAYOUT'] },
-  { value: 'wallets', label: 'Portefeuilles', prefixes: ['WALLET'] },
-  { value: 'purchases', label: 'Achats', prefixes: ['PURCHASE'] },
-  { value: 'jobs', label: 'Tâches planifiées', prefixes: ['SCHEDULED_JOB', 'PENDING_ATTACHMENT'] },
-]
 
 function groupWhere(group: string) {
   const found = AUDIT_ACTION_GROUPS.find(g => g.value === group)

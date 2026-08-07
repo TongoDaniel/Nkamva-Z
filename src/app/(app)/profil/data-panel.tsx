@@ -11,7 +11,7 @@ import { api, ApiError } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
 import { DELETION_GRACE_DAYS } from "@/lib/dto";
 import type { ProfileView } from "@/lib/profile";
-import { SettingCard, SettingRow } from "./setting-card";
+import { SettingCard, SettingRow } from "@/components/nk/setting-card";
 
 const CONFIRM_WORD = "SUPPRIMER";
 

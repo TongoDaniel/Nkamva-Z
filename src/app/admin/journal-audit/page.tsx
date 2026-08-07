@@ -7,7 +7,8 @@ import { StatTile } from "@/components/nk/stat-tile";
 import { EmptyState } from "@/components/nk/empty-state";
 import { getAuthContext } from "@/lib/api";
 import { listAuditLogs, getAuditStats, AUDIT_ACTION_GROUPS } from "@/lib/audit-review";
-import { fmtDate } from "@/lib/format";
+import { auditActionLabel, auditTargetLabel, shortenTargetId } from "@/lib/audit-labels";
+import { fmtDateTime } from "@/lib/format";
 import { AuditRow } from "./audit-row";
 
 export const dynamic = "force-dynamic";
@@ -104,6 +105,7 @@ export default async function JournalAuditPage({
               <AuditRow
                 key={entry.id}
                 action={entry.action}
+                actionLabel={auditActionLabel(entry.action)}
                 actorLabel={
                   entry.actor
                     ? entry.actor.fullName ?? entry.actor.email
@@ -112,9 +114,11 @@ export default async function JournalAuditPage({
                       : "Système"
                 }
                 actorRole={entry.actor?.adminRole ?? entry.actorRole ?? null}
-                targetType={entry.targetType}
+                targetLabel={auditTargetLabel(entry.targetType)}
                 targetId={entry.targetId}
-                createdAt={fmtDate(entry.createdAt) ?? ""}
+                targetIdShort={entry.targetId ? shortenTargetId(entry.targetId) : null}
+                createdAt={fmtDateTime(entry.createdAt) ?? ""}
+                createdAtIso={entry.createdAt.toISOString()}
                 meta={entry.meta}
                 group={group}
               />
