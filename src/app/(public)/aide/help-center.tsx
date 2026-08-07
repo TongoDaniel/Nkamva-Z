@@ -16,6 +16,7 @@ import {
 import { Btn } from "@/components/nk/button";
 import { PillInput } from "@/components/nk/input";
 import { EmptyState } from "@/components/nk/empty-state";
+import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { cn } from "@/lib/utils";
 
 export interface HelpItem {
@@ -34,140 +35,146 @@ export interface HelpGroup {
 /**
  * Contenu de l'aide. Les réponses décrivent le produit tel qu'il est réellement
  * implémenté : la fenêtre de contestation vient de `DISPUTE_OPENING_WINDOW_DAYS`
- * et du seuil de consommation de `src/lib/disputes.ts`, la commission et
- * l'absence d'abonnement formateur de `/tarifs`. La maquette annonce 20 % de
- * consommation et un abonnement formateur : les deux sont faux ici.
+ * et du seuil de consommation de `src/lib/disputes.ts`, le taux de commission
+ * de `lib/commission`.
+ *
+ * L'abonnement formateur, lui, n'est pas une constante : c'est une grille datée
+ * que l'administration modifie. `subscription` porte la phrase construite par
+ * `subscriptionAnnouncement` à partir des tarifs en vigueur — l'aide affirmait
+ * « ni abonnement pour publier » pendant que la facturation prélevait.
  */
-const GROUPS: HelpGroup[] = [
-  {
-    id: "demarrer",
-    title: "Démarrer",
-    hint: "Créer un compte, premiers pas",
-    icon: <Play />,
-    items: [
-      {
-        q: "Comment créer un compte sur NkamVa ?",
-        a: "Cliquez sur « S'inscrire », renseignez votre email et un mot de passe. Un code à six chiffres vous est envoyé pour vérifier l'adresse. La création d'un compte apprenant est gratuite et immédiate : aucun abonnement plateforme n'est requis.",
-      },
-      {
-        q: "NkamVa est-il gratuit ?",
-        a: "Oui pour les apprenants : le compte ne coûte rien et vous ne payez que les ressources que vous achetez à l'unité. Publier ne coûte rien non plus d'avance — NkamVa se rémunère par une commission de 15 % sur chaque vente.",
-      },
-      {
-        q: "Faut-il un ordinateur pour suivre une ressource ?",
-        a: "Non. Le site est pensé pour le mobile d'abord : la lecture, la progression et vos achats vous suivent d'un appareil à l'autre dès que vous êtes connecté au même compte.",
-      },
-    ],
-  },
-  {
-    id: "paiements",
-    title: "Paiements",
-    hint: "Mobile money, FCFA, remboursements",
-    icon: <CreditCard />,
-    items: [
-      {
-        q: "Quels moyens de paiement acceptez-vous ?",
-        a: "Le mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — et la carte bancaire. Les opérateurs proposés dépendent de votre pays. Les prix sont affichés en FCFA et vous payez le montant exact indiqué sur la fiche.",
-      },
-      {
-        q: "Le paiement mobile money est-il sécurisé ?",
-        a: "Oui. Les transactions passent par un prestataire de paiement certifié ; NkamVa ne voit ni ne conserve jamais votre code secret mobile money.",
-      },
-      {
-        q: "Mon paiement est « en attente », que faire ?",
-        a: "En mobile money, la confirmation de l'opérateur prend parfois quelques minutes. L'écran de confirmation se met à jour tout seul, et la ressource apparaît dans votre espace dès que le paiement est validé. Vous pouvez fermer la page sans risque : rien n'est perdu.",
-      },
-      {
-        q: "Combien de temps ai-je accès à une ressource achetée ?",
-        a: "À vie. Une ressource achetée reste dans « Mes ressources », avec votre progression, sur mobile comme sur ordinateur.",
-      },
-      {
-        q: "Puis-je être remboursé ?",
-        a: "Dans les 14 jours suivant l'achat, si vous avez consulté moins de 30 % de la ressource. Une ressource téléchargeable qui a été téléchargée ne peut plus être remboursée : le fichier est chez vous.",
-      },
-      {
-        q: "Comment contester un achat ?",
-        a: "Depuis « Mes achats », le bouton « Contester » sur la ligne concernée. L'écran vous dit immédiatement si l'achat ouvre droit à remboursement, avant même que vous ne rédigiez quoi que ce soit.",
-      },
-      {
-        q: "Que se passe-t-il pendant l'examen d'une contestation ?",
-        a: "Votre accès à la ressource est suspendu le temps de l'instruction, et la part correspondante du formateur est gelée. Si la contestation n'est pas retenue, l'accès vous est rendu.",
-      },
-      {
-        q: "Combien de temps une contestation prend-elle ?",
-        a: "L'équipe examine les dossiers dans leur ordre d'arrivée. Si une précision vous est demandée, vous disposez de 7 jours pour répondre ; sans réponse, le dossier se clôt et votre accès est rétabli.",
-      },
-    ],
-  },
-  {
-    id: "communautes",
-    title: "Communautés",
-    hint: "Rejoindre, participer, résilier",
-    icon: <Users />,
-    items: [
-      {
-        q: "Comment rejoindre une communauté ?",
-        a: "Depuis la fiche d'une communauté, « Rejoindre la communauté », puis réglez le prix d'intégration mensuel fixé par le formateur. Vous accédez alors au forum, aux ressources partagées et aux lives de la communauté.",
-      },
-      {
-        q: "Puis-je annuler mon abonnement à une communauté ?",
-        a: "Oui, à tout moment depuis votre espace. La résiliation prend effet à la fin de la période déjà payée : vous conservez l'accès jusque-là, sans remboursement au prorata.",
-      },
-      {
-        q: "Une communauté remplace-t-elle l'achat des ressources ?",
-        a: "Non, les deux sont indépendants. Une ressource achetée à l'unité reste à vous même si vous quittez la communauté ; les ressources partagées dans une communauté, elles, ne sont accessibles que tant que vous en êtes membre.",
-      },
-    ],
-  },
-  {
-    id: "compte",
-    title: "Mon compte",
-    hint: "Mot de passe, données, suppression",
-    icon: <UserCog />,
-    items: [
-      {
-        q: "Comment changer mon mot de passe ?",
-        a: "Depuis « Profil et paramètres », onglet Sécurité. Le changement déconnecte toutes vos sessions ouvertes, y compris celle en cours : c'est voulu.",
-      },
-      {
-        q: "J'ai oublié mon mot de passe, comment faire ?",
-        a: "Depuis l'écran de connexion, « Mot de passe oublié ». Un lien de réinitialisation vous est envoyé par email ; si l'adresse n'existe pas chez nous, l'écran affiche le même message — nous ne révélons pas quels emails ont un compte.",
-      },
-      {
-        q: "Comment récupérer mes données ?",
-        a: "Onglet « Mes données » de votre profil : un fichier JSON contenant votre profil, vos achats, votre progression et vos notifications est produit à la demande.",
-      },
-      {
-        q: "Comment supprimer mon compte ?",
-        a: "Même onglet. La suppression est différée de 30 jours, pendant lesquels vous pouvez l'annuler vous-même. Vos achats sont ensuite conservés de façon anonymisée : la comptabilité l'impose.",
-      },
-    ],
-  },
-  {
-    id: "formateur",
-    title: "Espace formateur",
-    hint: "Publier, vendre, être payé",
-    icon: <Shield />,
-    items: [
-      {
-        q: "Comment devenir formateur ?",
-        a: "Déposez une candidature depuis « Devenir formateur » : une présentation, une pièce d'identité, un diplôme ou une attestation, et deux minutes de vidéo. Chaque dossier est examiné par notre équipe avant la première publication.",
-      },
-      {
-        q: "Combien NkamVa retient-il ?",
-        a: "15 % du prix de vente. Les 85 % restants vous reviennent et sont crédités à chaque vente confirmée. Il n'y a ni frais d'entrée, ni abonnement pour publier.",
-      },
-      {
-        q: "Comment retirer mes revenus ?",
-        a: "Chaque vente confirmée crédite votre solde, consultable depuis votre tableau de bord. Les retraits vers mobile money ouvriront avec le parcours de vérification d'identité, actuellement en construction.",
-      },
-      {
-        q: "Un acheteur conteste ma ressource, que puis-je faire ?",
-        a: "Depuis « Litiges » dans votre espace formateur, vous pouvez transmettre des éléments à l'équipe de modération. Le motif détaillé rédigé par l'acheteur et son identité ne vous sont pas communiqués.",
-      },
-    ],
-  },
-];
+function buildGroups(subscription: string): HelpGroup[] {
+  return [
+    {
+      id: "demarrer",
+      title: "Démarrer",
+      hint: "Créer un compte, premiers pas",
+      icon: <Play />,
+      items: [
+        {
+          q: "Comment créer un compte sur NkamVa ?",
+          a: "Cliquez sur « S'inscrire », renseignez votre email et un mot de passe. Un code à six chiffres vous est envoyé pour vérifier l'adresse. La création d'un compte apprenant est gratuite et immédiate : aucun abonnement plateforme n'est requis.",
+        },
+        {
+          q: "NkamVa est-il gratuit ?",
+          a: `Oui pour les apprenants : le compte ne coûte rien et vous ne payez que les ressources que vous achetez à l'unité. Côté formateur, NkamVa retient ${COMMISSION_LABEL} sur chaque vente. ${subscription}`,
+        },
+        {
+          q: "Faut-il un ordinateur pour suivre une ressource ?",
+          a: "Non. Le site est pensé pour le mobile d'abord : la lecture, la progression et vos achats vous suivent d'un appareil à l'autre dès que vous êtes connecté au même compte.",
+        },
+      ],
+    },
+    {
+      id: "paiements",
+      title: "Paiements",
+      hint: "Mobile money, FCFA, remboursements",
+      icon: <CreditCard />,
+      items: [
+        {
+          q: "Quels moyens de paiement acceptez-vous ?",
+          a: "Le mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — et la carte bancaire. Les opérateurs proposés dépendent de votre pays. Les prix sont affichés en FCFA et vous payez le montant exact indiqué sur la fiche.",
+        },
+        {
+          q: "Le paiement mobile money est-il sécurisé ?",
+          a: "Oui. Les transactions passent par un prestataire de paiement certifié ; NkamVa ne voit ni ne conserve jamais votre code secret mobile money.",
+        },
+        {
+          q: "Mon paiement est « en attente », que faire ?",
+          a: "En mobile money, la confirmation de l'opérateur prend parfois quelques minutes. L'écran de confirmation se met à jour tout seul, et la ressource apparaît dans votre espace dès que le paiement est validé. Vous pouvez fermer la page sans risque : rien n'est perdu.",
+        },
+        {
+          q: "Combien de temps ai-je accès à une ressource achetée ?",
+          a: "À vie. Une ressource achetée reste dans « Mes ressources », avec votre progression, sur mobile comme sur ordinateur.",
+        },
+        {
+          q: "Puis-je être remboursé ?",
+          a: "Dans les 14 jours suivant l'achat, si vous avez consulté moins de 30 % de la ressource. Une ressource téléchargeable qui a été téléchargée ne peut plus être remboursée : le fichier est chez vous.",
+        },
+        {
+          q: "Comment contester un achat ?",
+          a: "Depuis « Mes achats », le bouton « Contester » sur la ligne concernée. L'écran vous dit immédiatement si l'achat ouvre droit à remboursement, avant même que vous ne rédigiez quoi que ce soit.",
+        },
+        {
+          q: "Que se passe-t-il pendant l'examen d'une contestation ?",
+          a: "Votre accès à la ressource est suspendu le temps de l'instruction, et la part correspondante du formateur est gelée. Si la contestation n'est pas retenue, l'accès vous est rendu.",
+        },
+        {
+          q: "Combien de temps une contestation prend-elle ?",
+          a: "L'équipe examine les dossiers dans leur ordre d'arrivée. Si une précision vous est demandée, vous disposez de 7 jours pour répondre ; sans réponse, le dossier se clôt et votre accès est rétabli.",
+        },
+      ],
+    },
+    {
+      id: "communautes",
+      title: "Communautés",
+      hint: "Rejoindre, participer, résilier",
+      icon: <Users />,
+      items: [
+        {
+          q: "Comment rejoindre une communauté ?",
+          a: "Depuis la fiche d'une communauté, « Rejoindre la communauté », puis réglez le prix d'intégration mensuel fixé par le formateur. Vous accédez alors au forum, aux ressources partagées et aux lives de la communauté.",
+        },
+        {
+          q: "Puis-je annuler mon abonnement à une communauté ?",
+          a: "Oui, à tout moment depuis votre espace. La résiliation prend effet à la fin de la période déjà payée : vous conservez l'accès jusque-là, sans remboursement au prorata.",
+        },
+        {
+          q: "Une communauté remplace-t-elle l'achat des ressources ?",
+          a: "Non, les deux sont indépendants. Une ressource achetée à l'unité reste à vous même si vous quittez la communauté ; les ressources partagées dans une communauté, elles, ne sont accessibles que tant que vous en êtes membre.",
+        },
+      ],
+    },
+    {
+      id: "compte",
+      title: "Mon compte",
+      hint: "Mot de passe, données, suppression",
+      icon: <UserCog />,
+      items: [
+        {
+          q: "Comment changer mon mot de passe ?",
+          a: "Depuis « Profil et paramètres », onglet Sécurité. Le changement déconnecte toutes vos sessions ouvertes, y compris celle en cours : c'est voulu.",
+        },
+        {
+          q: "J'ai oublié mon mot de passe, comment faire ?",
+          a: "Depuis l'écran de connexion, « Mot de passe oublié ». Un lien de réinitialisation vous est envoyé par email ; si l'adresse n'existe pas chez nous, l'écran affiche le même message — nous ne révélons pas quels emails ont un compte.",
+        },
+        {
+          q: "Comment récupérer mes données ?",
+          a: "Onglet « Mes données » de votre profil : un fichier JSON contenant votre profil, vos achats, votre progression et vos notifications est produit à la demande.",
+        },
+        {
+          q: "Comment supprimer mon compte ?",
+          a: "Même onglet. La suppression est différée de 30 jours, pendant lesquels vous pouvez l'annuler vous-même. Vos achats sont ensuite conservés de façon anonymisée : la comptabilité l'impose.",
+        },
+      ],
+    },
+    {
+      id: "formateur",
+      title: "Espace formateur",
+      hint: "Publier, vendre, être payé",
+      icon: <Shield />,
+      items: [
+        {
+          q: "Comment devenir formateur ?",
+          a: "Déposez une candidature depuis « Devenir formateur » : une présentation, une pièce d'identité, un diplôme ou une attestation, et deux minutes de vidéo. Chaque dossier est examiné par notre équipe avant la première publication.",
+        },
+        {
+          q: "Combien NkamVa retient-il ?",
+          a: `${COMMISSION_LABEL} du prix de vente. Les ${TRAINER_SHARE_LABEL} restants vous reviennent et sont crédités à chaque vente confirmée. Il n'y a pas de frais d'entrée. ${subscription}`,
+        },
+        {
+          q: "Comment retirer mes revenus ?",
+          a: "Chaque vente confirmée crédite votre solde, consultable depuis votre tableau de bord. Les retraits vers mobile money ouvriront avec le parcours de vérification d'identité, actuellement en construction.",
+        },
+        {
+          q: "Un acheteur conteste ma ressource, que puis-je faire ?",
+          a: "Depuis « Litiges » dans votre espace formateur, vous pouvez transmettre des éléments à l'équipe de modération. Le motif détaillé rédigé par l'acheteur et son identité ne vous sont pas communiqués.",
+        },
+      ],
+    },
+  ];
+}
 
 const QUICK_TAGS = ["Mobile money", "Remboursement", "Mot de passe", "Devenir formateur"];
 
@@ -179,20 +186,22 @@ function fold(value: string): string {
     .toLowerCase();
 }
 
-export function HelpCenter() {
+export function HelpCenter({ subscription }: { subscription: string }) {
   const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState<string | null>(null);
   // Identifiant littéral plutôt que `useId` : voir `community-directory.tsx`.
   const panelId = "aide-reponse";
 
+  const groups = React.useMemo(() => buildGroups(subscription), [subscription]);
+
   const needle = fold(query.trim());
   const filtered = React.useMemo(() => {
-    if (!needle) return GROUPS;
-    return GROUPS.map((group) => ({
+    if (!needle) return groups;
+    return groups.map((group) => ({
       ...group,
       items: group.items.filter((item) => fold(`${item.q} ${item.a}`).includes(needle)),
     })).filter((group) => group.items.length > 0);
-  }, [needle]);
+  }, [needle, groups]);
 
   const total = filtered.reduce((sum, group) => sum + group.items.length, 0);
 
@@ -245,7 +254,7 @@ export function HelpCenter() {
 
       <nav aria-label="Thèmes de l'aide" className="mt-10">
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <li key={group.id}>
               <button
                 type="button"

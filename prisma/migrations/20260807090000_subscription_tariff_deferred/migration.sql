@@ -1,0 +1,14 @@
+-- Report d'une modification tarifaire au 2e renouvellement.
+--
+-- Un formateur déjà abonné ne doit pas encaisser un nouveau tarif à l'échéance
+-- qui suit immédiatement sa publication : la période qui s'ouvre alors
+-- reconduit le prix de la précédente, et c'est seulement l'échéance d'après qui
+-- applique la grille. `tariffDeferred` marque cette période reconduite.
+--
+-- Sans ce drapeau, la seule comparaison « grille en vigueur ≠ prix de la
+-- période précédente » resterait vraie au tour suivant et reporterait le
+-- changement indéfiniment.
+--
+-- Effet sur l'existant : les périodes déjà facturées prennent `false`, ce qui
+-- est exact — aucune d'elles n'a été ouverte au titre d'un report.
+ALTER TABLE "subscription_charges" ADD COLUMN "tariffDeferred" BOOLEAN NOT NULL DEFAULT false;
