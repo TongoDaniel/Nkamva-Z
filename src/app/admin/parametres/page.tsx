@@ -234,6 +234,11 @@ export default async function ParametresPage() {
                   {rule.note ? (
                     <span className="ml-2 text-[12px] font-normal text-ink-3">{rule.note}</span>
                   ) : null}
+                  {rule.alert ? (
+                    <span className="mt-1 block text-[12px] font-semibold text-danger">
+                      {rule.alert}
+                    </span>
+                  ) : null}
                 </dd>
               </div>
             ))}

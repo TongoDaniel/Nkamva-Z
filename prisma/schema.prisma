@@ -1581,6 +1581,12 @@ model SubscriptionCharge {
   storageTiers   Int                      @default(0)
   storageFcfa    Int                      @default(0)
   amountDueFcfa  Int
+  /// Vrai quand cette période a **reconduit** le prix de la précédente parce
+  /// que la grille avait changé entre-temps : un formateur déjà abonné encaisse
+  /// une modification tarifaire à son 2e renouvellement, pas au 1er. Le drapeau
+  /// est ce qui distingue « report en cours » de « report déjà consommé » —
+  /// sans lui, la comparaison avec la grille reporterait indéfiniment.
+  tariffDeferred Boolean                  @default(false)
   status         SubscriptionChargeStatus @default(DUE)
   settledAt      DateTime?
   invoice        Invoice?

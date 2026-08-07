@@ -14,6 +14,8 @@
 import type { DiscountKind, PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
+import { fmtDate, fmtNumber } from './format'
+import { deliverSideEffects } from './notification'
 
 export const CADENCE_LABELS: Record<PlanCadence, string> = {
   MONTHLY: 'Mensuelle',
@@ -47,6 +49,85 @@ export async function getCurrentTariffs(at = new Date()) {
   return { MONTHLY: monthly, YEARLY: yearly }
 }
 
+/** Période affichée à côté d'un montant : « 9 000 FCFA /mois ». */
+const CADENCE_PERIODS: Record<PlanCadence, string> = {
+  MONTHLY: 'mois',
+  YEARLY: 'an',
+}
+
+export interface PublicPlan {
+  cadence: PlanCadence
+  /** « Mensuelle » / « Annuelle ». */
+  name: string
+  period: string
+  amountFcfa: number
+  /** Vrai quand l'abonnement ne coûte rien — gratuité de lancement comprise. */
+  free: boolean
+  /** Intitulé de la grille en base (« Lancement — gratuit »), s'il est posé. */
+  tariffLabel: string | null
+  /** Économie face à douze mensualités, en %. Nul ou absent si aucune. */
+  savingPercent: number | null
+}
+
+/**
+ * L'offre d'abonnement formateur telle qu'elle doit être **annoncée**.
+ *
+ * Les écrans publics lisaient jusqu'ici des montants écrits en dur, que
+ * `setTariff` ne pouvait pas atteindre : l'administration changeait la grille
+ * et la page d'inscription continuait d'afficher l'ancienne. Tout ce qui
+ * s'affiche vient donc d'ici.
+ *
+ * Une cadence sans tarif en vigueur est annoncée gratuite, parce que c'est
+ * exactement ce qui sera facturé : `quotePrice` retient `0` quand la grille
+ * est muette.
+ */
+export async function publicSubscriptionPlans(at = new Date()): Promise<PublicPlan[]> {
+  const current = await getCurrentTariffs(at)
+  const monthly = current.MONTHLY?.amountFcfa ?? 0
+  const yearly = current.YEARLY?.amountFcfa ?? 0
+
+  // L'économie n'est pas un argument commercial figé : elle se déduit des deux
+  // montants en vigueur, et disparaît d'elle-même si la grille change.
+  const fullYear = monthly * 12
+  const saving =
+    monthly > 0 && yearly > 0 && yearly < fullYear
+      ? Math.round(((fullYear - yearly) / fullYear) * 100)
+      : null
+
+  return (['MONTHLY', 'YEARLY'] as const).map((cadence) => {
+    const amountFcfa = current[cadence]?.amountFcfa ?? 0
+    return {
+      cadence,
+      name: CADENCE_LABELS[cadence],
+      period: CADENCE_PERIODS[cadence],
+      amountFcfa,
+      free: amountFcfa === 0,
+      tariffLabel: current[cadence]?.label ?? null,
+      savingPercent: cadence === 'YEARLY' ? saving : null,
+    }
+  })
+}
+
+/**
+ * La phrase qui annonce l'abonnement formateur au public.
+ *
+ * Elle vit ici, et pas dans chaque écran : `/tarifs` et `/aide` la rédigeaient
+ * chacun de son côté, et l'aide affirmait encore « ni abonnement pour publier »
+ * alors que la grille facturait déjà. Une seule formulation, dérivée des mêmes
+ * montants.
+ */
+export function subscriptionAnnouncement(plans: PublicPlan[]): string {
+  const monthly = plans.find((p) => p.cadence === 'MONTHLY')
+  const yearly = plans.find((p) => p.cadence === 'YEARLY')
+  if (!monthly || !yearly || (monthly.free && yearly.free)) {
+    return "Aucun abonnement à régler pour publier."
+  }
+  return (
+    `Abonnement formateur : ${fmtNumber(monthly.amountFcfa)} FCFA/mois ou ` +
+    `${fmtNumber(yearly.amountFcfa)} FCFA/an, réglé après validation de votre candidature.`
+  )
+}
+
 export async function listTariffs(cadence?: PlanCadence) {
   return db.platformTariff.findMany({
     where: { kind: 'SUBSCRIPTION', ...(cadence ? { cadence } : {}) },
@@ -78,7 +159,7 @@ export async function setTariff(input: {
   // palier ne clôt pas le tarif d'abonnement en vigueur.
   const kind = input.kind ?? 'SUBSCRIPTION'
 
-  return db.$transaction(async (tx) => {
+  const { created, previousAmountFcfa } = await db.$transaction(async (tx) => {
     const current = await tx.platformTariff.findFirst({
       where: {
         kind,
@@ -115,7 +196,73 @@ export async function setTariff(input: {
       },
     })
 
-    return created
+    return { created, previousAmountFcfa: current?.amountFcfa ?? null }
+  })
+
+  // L'annonce. Elle part après le commit, comme toute notification : une panne
+  // d'écriture de notification ne doit pas annuler une grille déjà posée.
+  await deliverSideEffects('PLATFORM_TARIFF_ANNOUNCE', { type: 'PlatformTariff', id: created.id }, () =>
+    announceTariffChange({
+      kind,
+      cadence: input.cadence,
+      amountFcfa: input.amountFcfa,
+      previousAmountFcfa,
+      validFrom: input.validFrom,
+    }),
+  )
+
+  return created
+}
+
+/**
+ * Prévient les formateurs concernés qu'une nouvelle grille est posée.
+ *
+ * Le message annonce **quand** le tarif les atteindra, pas seulement qu'il
+ * change : la règle de report (voir `deferTariffChange`) fait qu'un abonné en
+ * cours n'est touché qu'à sa 2e échéance suivant `validFrom`. Un nouvel
+ * inscrit, lui, souscrit directement au nouveau prix.
+ *
+ * Ne concerne que l'abonnement : un palier de stockage se facture avec lui et
+ * ne mérite pas sa propre alerte. Un tarif reposé à l'identique ne dit rien à
+ * personne — on ne notifie que sur un écart réel.
+ */
+async function announceTariffChange(input: {
+  kind: 'SUBSCRIPTION' | 'STORAGE_TIER'
+  cadence: PlanCadence
+  amountFcfa: number
+  previousAmountFcfa: number | null
+  validFrom: Date
+}): Promise<void> {
+  if (input.kind !== 'SUBSCRIPTION') return
+  if (input.previousAmountFcfa === input.amountFcfa) return
+
+  const trainers = await db.trainerProfile.findMany({
+    where: {
+      subscriptionCadence: input.cadence,
+      subscriptionStatus: { in: ['ACTIVE', 'PAST_DUE'] },
+      subscriptionCanceledAt: null,
+    },
+    select: { userId: true },
+  })
+  if (trainers.length === 0) return
+
+  const period = input.cadence === 'YEARLY' ? 'an' : 'mois'
+  const direction = input.previousAmountFcfa !== null && input.amountFcfa > input.previousAmountFcfa
+    ? 'augmente'
+    : 'change'
+
+  await db.notification.createMany({
+    data: trainers.map(({ userId }) => ({
+      userId,
+      type: 'SUBSCRIPTION_TARIFF_CHANGE_ANNOUNCED',
+      title: `Le tarif de l'abonnement ${input.amountFcfa === 0 ? 'passe à la gratuité' : direction}`,
+      body:
+        `À partir du ${fmtDate(input.validFrom)}, l'abonnement formateur ${CADENCE_LABELS[input.cadence].toLowerCase()} ` +
+        `est fixé à ${fmtNumber(input.amountFcfa)} FCFA par ${period}. ` +
+        `Votre prochaine échéance reste au tarif actuel : le nouveau prix s'appliquera à celle d'après, ` +
+        `et vous recevrez un rappel avec la date exacte.`,
+      link: '/formateur/portefeuille',
+    })),
   })
 }
 

@@ -11,6 +11,7 @@ import { PasswordChecklist } from "@/components/nk/password-checklist";
 import { PlanOptions, type PlanOption } from "@/components/nk/plan-option";
 import { WizardCard, WizardSteps, type WizardStep } from "@/components/nk/wizard";
 import { FormError } from "@/components/layouts/auth-shell";
+import { COMMISSION_LABEL } from "@/lib/commission";
 import { cn } from "@/lib/utils";
 import {
   EMAIL_ERROR,
@@ -28,30 +29,12 @@ const STEPS: WizardStep[] = [
   { id: "formule", label: "Formule" },
 ];
 
-const PLANS: PlanOption[] = [
-  {
-    id: "MONTHLY",
-    name: "Mensuelle",
-    amountFcfa: 15000,
-    period: "mois",
-    description: "Sans engagement, résiliable à tout moment",
-  },
-  {
-    id: "YEARLY",
-    name: "Annuelle",
-    amountFcfa: 144000,
-    period: "an",
-    description: "Soit 12 000 FCFA/mois, facturé une fois par an",
-    badge: "-20%",
-  },
-];
-
 const PLAN_FEATURES = [
   "Publication de ressources en illimité",
   "Une communauté d'apprenants par abonnement mensuel",
   "Sessions live et replays",
   "Invitations d'apprenants par email",
-  "Paiements CB et Mobile Money, retraits de gains (commission 15%)",
+  `Paiements CB et Mobile Money, retraits de gains (commission ${COMMISSION_LABEL})`,
 ];
 
 /**
@@ -61,8 +44,12 @@ const PLAN_FEATURES = [
  * écarts relevés avec le Lot 1 ne sont pas arbitrés (voir le commentaire de
  * `handleSubmit`). Les étapes 1 et 2 correspondent en revanche déjà aux champs
  * de `POST /api/auth/register` et de `TrainerApplication`.
+ *
+ * Les formules, elles, ne sont plus écrites ici : elles descendent de la page
+ * serveur, qui lit la grille en vigueur (`publicSubscriptionPlans`). Un tarif
+ * posé par l'administration ne doit pas laisser cet écran annoncer l'ancien.
  */
-export function TrainerSignupWizard() {
+export function TrainerSignupWizard({ plans }: { plans: PlanOption[] }) {
   const [step, setStep] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
   /** Erreurs rattachées à un champ précis, effacées à la saisie suivante. */
@@ -81,7 +68,7 @@ export function TrainerSignupWizard() {
   const [idDoc, setIdDoc] = React.useState<File | null>(null);
   const [ribDoc, setRibDoc] = React.useState<File | null>(null);
   // Étape 4 — formule
-  const [plan, setPlan] = React.useState(PLANS[0].id);
+  const [plan, setPlan] = React.useState(plans[0]?.id ?? "MONTHLY");
   const [accept, setAccept] = React.useState(false);
 
   const headingRef = React.useRef<HTMLDivElement>(null);
@@ -400,7 +387,7 @@ export function TrainerSignupWizard() {
               <PlanOptions
                 name="trainer-plan"
                 legend="Formule d'abonnement formateur"
-                options={PLANS}
+                options={plans}
                 value={plan}
                 onChange={setPlan}
               />

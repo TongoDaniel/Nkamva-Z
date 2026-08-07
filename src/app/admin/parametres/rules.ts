@@ -13,6 +13,8 @@
 import { PAYOUT_METHOD_CARENCE_HOURS, PAYOUT_METHOD_MAX_REJECTIONS, BUSINESS_DOC_MAX_SIZE_BYTES } from "@/lib/payout-methods";
 import { PAYOUT_MIN_AMOUNT_FCFA, PAYOUT_REVIEW_SLA_HOURS } from "@/lib/payouts";
 import { KYC_THRESHOLD_VERIFIED, KYC_THRESHOLD_TO_VERIFY } from "@/lib/kyc";
+import { COMMISSION_LABEL } from "@/lib/commission";
+import { LEGAL_COMMISSION_LABEL, LEGAL_TERMS_UPDATED_AT } from "@/lib/legal-terms";
 import { fmtFcfa } from "@/lib/format";
 
 export interface PlatformRule {
@@ -20,14 +22,39 @@ export interface PlatformRule {
   value: string;
   source: string;
   note?: string;
+  /**
+   * Écart constaté entre cette règle et une autre source qui devrait dire la
+   * même chose. Rempli, il s'affiche en alerte : c'est une incohérence à
+   * traiter, pas une note de bas de page.
+   */
+  alert?: string;
 }
+
+/**
+ * Le taux inscrit aux conditions d'utilisation ne se recalcule pas : c'est un
+ * engagement contractuel, modifié à la main avec le document. Il peut donc
+ * diverger du taux appliqué — et cette divergence ne se voit nulle part
+ * ailleurs que sur cet écran.
+ */
+const LEGAL_MATCHES_APPLIED = LEGAL_COMMISSION_LABEL === COMMISSION_LABEL;
 
 export const PLATFORM_RULES: PlatformRule[] = [
   {
     label: "Commission sur les ventes",
-    value: "15 %",
-    source: "décision 11",
+    value: COMMISSION_LABEL,
+    source: "décision 11 · lib/commission",
     note: "portée par formateur, snapshotée sur chaque achat",
+  },
+  {
+    label: "Commission inscrite aux conditions d'utilisation",
+    value: LEGAL_COMMISSION_LABEL,
+    source: `document du ${LEGAL_TERMS_UPDATED_AT} · lib/legal-terms`,
+    note: LEGAL_MATCHES_APPLIED
+      ? "conforme au taux appliqué ; se modifie à la main, avec le document"
+      : undefined,
+    alert: LEGAL_MATCHES_APPLIED
+      ? undefined
+      : `Divergence : l'application prélève ${COMMISSION_LABEL}. Le contrat engage sur ${LEGAL_COMMISSION_LABEL} — mettre à jour les conditions et informer les formateurs, ou corriger le taux appliqué.`,
   },
   {
     label: "Retrait minimum",

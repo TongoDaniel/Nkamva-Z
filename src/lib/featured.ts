@@ -1,28 +1,30 @@
 import { searchCourses } from "@/lib/catalog";
-import { DEMO_COURSES } from "@/lib/demo/catalog";
 import type { CourseListItem } from "@/lib/dto";
 
 export interface FeaturedResult {
   courses: CourseListItem[];
-  /** Vrai quand le catalogue affiché vient de `DEMO_COURSES`, pas de la base. */
-  isDemo: boolean;
+  /**
+   * Vrai quand la base n'a pas pu être interrogée — à distinguer d'un catalogue
+   * réellement vide : l'écran ne dit pas la même chose dans les deux cas.
+   */
+  unavailable: boolean;
 }
 
 /**
  * Catalogue mis en avant sur les écrans publics.
  *
- * Une base injoignable ou vide ne doit pas produire une page d'accueil trouée :
- * on retombe sur le catalogue de démonstration de la maquette, en le signalant
- * pour que l'écran puisse afficher le bandeau qui va bien. Le repli n'est
- * jamais silencieux.
+ * Aucun repli sur des données écrites en dur : une vitrine peuplée de
+ * ressources qui n'existent pas en base promet des liens qui mènent à une 404,
+ * et un tunnel d'achat sur un cours introuvable. Une base vide donne une liste
+ * vide, et l'écran l'annonce.
  */
 export async function featuredCourses(limit = 8): Promise<FeaturedResult> {
   try {
     const result = await searchCourses({ sort: "newest", page: 1, pageSize: limit });
-    const items = result.items as unknown as CourseListItem[];
-    if (items.length > 0) return { courses: items, isDemo: false };
+    return { courses: result.items as unknown as CourseListItem[], unavailable: false };
   } catch {
-    // Traité comme un catalogue vide : le repli ci-dessous s'en charge.
+    // Une base injoignable ne doit pas faire tomber toute la page d'accueil,
+    // mais elle ne doit pas non plus se faire passer pour un catalogue vide.
+    return { courses: [], unavailable: true };
   }
-  return { courses: DEMO_COURSES.slice(0, limit), isDemo: true };
 }

@@ -24,7 +24,8 @@
 import type { PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
-import { quotePrice } from './pricing'
+import { quotePrice, type PriceQuote } from './pricing'
+import { fmtDate } from './format'
 import { storageChargeFor } from './storage-tiers'
 import { issueInvoiceForSubscriptionCharge } from './invoices'
 import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
@@ -101,6 +102,8 @@ interface RenewalResult {
   renewed: number
   waived: number
   pastDue: number
+  /** Périodes ouvertes au tarif précédent, en report d'une nouvelle grille. */
+  deferred: number
   /** Profils antérieurs à la facturation, dotés d'une première période. */
   initialized: number
 }
@@ -138,6 +141,59 @@ async function initializeMissingPeriods(now: Date): Promise<number> {
   return orphans.length
 }
 
+/** Devis d'une période, éventuellement ramené au tarif de la période précédente. */
+interface DeferredQuote extends PriceQuote {
+  /** Vrai quand le prix reconduit celui de la période précédente. */
+  deferred: boolean
+  /** Le prix de grille que ce report écarte — celui qui s'appliquera ensuite. */
+  postponedListPriceFcfa: number | null
+}
+
+/**
+ * Applique la règle de report : **une modification tarifaire ne touche un
+ * formateur déjà abonné qu'à son 2e renouvellement.**
+ *
+ * Le 1er renouvellement qui suit la publication d'une nouvelle grille reconduit
+ * le prix de la période qui s'achève, et se marque `tariffDeferred`. Au tour
+ * suivant, ce marqueur dit que le report a été consommé et la grille s'applique.
+ *
+ * Un formateur qui n'a aucune période derrière lui — donc un nouvel inscrit —
+ * ne passe jamais ici : `openFirstPeriod` prend la grille en vigueur, et le
+ * nouveau tarif s'applique immédiatement.
+ *
+ * Seul le **prix de grille** est reporté. Une remise (campagne, remise
+ * nominative, code promo) reste calculée sur la période en cours : elle a sa
+ * propre fenêtre de validité, et la reconduire ferait vivre une remise expirée.
+ */
+async function deferTariffChange(trainerProfileId: string, quote: PriceQuote): Promise<DeferredQuote> {
+  const previous = await db.subscriptionCharge.findFirst({
+    where: { trainerId: trainerProfileId },
+    orderBy: { periodStart: 'desc' },
+    select: { listPriceFcfa: true, tariffDeferred: true },
+  })
+
+  const unchanged = { ...quote, deferred: false, postponedListPriceFcfa: null }
+
+  // Première période, ou grille inchangée : rien à reporter.
+  if (!previous || previous.listPriceFcfa === quote.listPriceFcfa) return unchanged
+  // Le report a déjà eu lieu au tour précédent : c'est ce renouvellement-ci qui
+  // applique la grille. C'est le 2e, celui qu'on avait annoncé.
+  if (previous.tariffDeferred) return unchanged
+
+  // Un plancher à zéro, comme dans `quotePrice` : une remise supérieure au prix
+  // reconduit ne crée pas de créance.
+  const discountFcfa = Math.min(quote.discountFcfa, previous.listPriceFcfa)
+
+  return {
+    ...quote,
+    listPriceFcfa: previous.listPriceFcfa,
+    discountFcfa,
+    payableFcfa: previous.listPriceFcfa - discountFcfa,
+    deferred: true,
+    postponedListPriceFcfa: quote.listPriceFcfa,
+  }
+}
+
 /**
  * Renouvelle les abonnements arrivés à échéance. Idempotent par construction :
  * la contrainte d'unicité `(trainerId, periodStart)` interdit de facturer deux
@@ -159,7 +215,7 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
     },
   })
 
-  const result: RenewalResult = { renewed: 0, waived: 0, pastDue: 0, initialized }
+  const result: RenewalResult = { renewed: 0, waived: 0, pastDue: 0, deferred: 0, initialized }
 
   for (const profile of due) {
     // Décision 52 — la cadence souhaitée ne prend effet qu'ici, au
@@ -167,7 +223,10 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
     const cadence = profile.pendingCadence ?? profile.subscriptionCadence
     const periodStart = profile.subscriptionCurrentPeriodEnd ?? now
     const periodEnd = periodEndFor(periodStart, cadence)
-    const quote = await quotePrice(cadence, { trainerId: profile.id, at: periodStart })
+    const quoted = await quotePrice(cadence, { trainerId: profile.id, at: periodStart })
+    // Un formateur déjà abonné encaisse une modification tarifaire à son 2e
+    // renouvellement : la période qui s'ouvre ici reconduit le prix précédent.
+    const quote = await deferTariffChange(profile.id, quoted)
     // Arbitrage 69 — les paliers sont facturés **avec** l'abonnement, à sa
     // cadence. Ils n'ont donc pas leur propre échéance, et le formateur n'a
     // qu'une ligne à régler.
@@ -186,6 +245,7 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
             listPriceFcfa: quote.listPriceFcfa,
             discountFcfa: quote.discountFcfa,
             discountLabel: quote.discountLabel,
+            tariffDeferred: quote.deferred,
             storageTiers: storage.tiers,
             storageFcfa: storage.amountFcfa,
             amountDueFcfa: dueFcfa,
@@ -239,6 +299,25 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
       await deliverSideEffects('SUBSCRIPTION_INVOICE', { type: 'SubscriptionCharge', id: charge.id }, async () => {
         await issueInvoiceForSubscriptionCharge(charge.id)
       })
+    }
+
+    // Le rappel. L'annonce est partie à la publication du tarif ; ici la
+    // période reportée s'ouvre, et le formateur apprend la date exacte et le
+    // montant exact de l'échéance qui appliquera la nouvelle grille.
+    if (quote.deferred && quote.postponedListPriceFcfa !== null) {
+      result.deferred += 1
+      const postponed = quote.postponedListPriceFcfa
+      await deliverSideEffects('SUBSCRIPTION_TARIFF_REMINDER', { type: 'TrainerProfile', id: profile.id }, () =>
+        notify(profile.userId, {
+          type: 'SUBSCRIPTION_TARIFF_CHANGE_REMINDER',
+          title: 'Votre tarif change à la prochaine échéance',
+          body:
+            `Cette période reste à ${quote.listPriceFcfa} FCFA. À partir du ` +
+            `${fmtDate(periodEnd)}, votre abonnement passera à ${postponed} FCFA ` +
+            `par ${cadence === 'YEARLY' ? 'an' : 'mois'}.`,
+          link: '/formateur/portefeuille',
+        }),
+      )
     }
 
     if (waived) result.waived += 1

@@ -9,6 +9,7 @@ import { Field, CheckOption } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
 import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
+import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { cn } from "@/lib/utils";
 
 export const COMMUNITY_MIN_PRICE_FCFA = 500;
@@ -250,7 +251,7 @@ export function CommunityForm({
         hint={
           mode === "edit"
             ? "Un nouveau prix ne s'applique qu'aux adhésions et renouvellements à venir. Personne n'est débité de la différence en cours de mois."
-            : "NkamVa prélève 15 % sur chaque adhésion ; 85 % vous reviennent."
+            : `NkamVa prélève ${COMMISSION_LABEL} sur chaque adhésion ; ${TRAINER_SHARE_LABEL} vous reviennent.`
         }
         required
       />

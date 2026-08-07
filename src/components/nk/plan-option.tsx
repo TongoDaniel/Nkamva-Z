@@ -62,8 +62,16 @@ export function PlanOptions({
                 {option.badge ? <Chip>{option.badge}</Chip> : null}
               </span>
               <span className="font-display text-[19px] font-extrabold">
-                {fmtNumber(option.amountFcfa)} FCFA
-                <small className="text-xs font-semibold text-ink-3">/{option.period}</small>
+                {/* Un tarif à 0 est un vrai cas de la grille — la gratuité de
+                    lancement. « 0 FCFA /mois » se lirait comme un bug. */}
+                {option.amountFcfa === 0 ? (
+                  "Gratuit"
+                ) : (
+                  <>
+                    {fmtNumber(option.amountFcfa)} FCFA
+                    <small className="text-xs font-semibold text-ink-3">/{option.period}</small>
+                  </>
+                )}
               </span>
             </span>
             <span className="mt-1 block text-[13px] text-ink-3">{option.description}</span>

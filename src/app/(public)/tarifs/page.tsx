@@ -4,7 +4,14 @@ import { Check } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
+import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
+import { fmtNumber } from "@/lib/format";
+import { publicSubscriptionPlans, subscriptionAnnouncement } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+
+// La grille d'abonnement est datée et modifiable depuis l'administration : la
+// page tarifs ne peut pas être figée au build.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Tarifs",
@@ -12,65 +19,84 @@ export const metadata: Metadata = {
     "Payez à l'unité en FCFA, par mobile money. Compte apprenant gratuit, sans abonnement obligatoire.",
 };
 
-const PLANS = [
-  {
-    name: "Apprenant",
-    description: "Un compte gratuit, des ressources à l'unité.",
-    price: "Gratuit",
-    note: "Aucun abonnement, aucune carte à enregistrer.",
-    features: [
-      "Compte gratuit, sans abonnement",
-      "Chaque ressource s'achète à l'unité, en FCFA",
-      "Accès à vie à ce que vous avez acheté",
-      "Paiement mobile money ou carte bancaire",
-      "Contestation possible sous 14 jours",
-    ],
-    cta: { href: "/auth/inscription", label: "Créer mon compte" },
-    variant: "o" as const,
-    featured: false,
-  },
-  {
-    name: "Formateur",
-    description: "Pour publier votre savoir et en vivre.",
-    price: "15 % de commission",
-    note: "Prélevés sur chaque vente. Rien à payer d'avance.",
-    features: [
-      "Publication de ressources illimitée",
-      "Vous fixez librement vos prix, en FCFA",
-      "85 % de chaque vente vous reviennent",
-      "Tableau de bord des ventes et des revenus",
-      "Retraits par mobile money",
-    ],
-    cta: { href: "/devenir-formateur", label: "Devenir formateur" },
-    variant: "p" as const,
-    featured: true,
-  },
-];
+/**
+ * Ce qui est annoncé ici engage : rien de ce qui est chiffré n'est écrit à la
+ * main. Le prix de l'abonnement formateur vient de la grille en vigueur, la
+ * commission de `lib/commission`. Une page tarifs qui contredit ce que la
+ * facturation applique est pire qu'une page absente.
+ */
+export default async function TarifsPage() {
+  const plans = await publicSubscriptionPlans();
+  const [monthly, yearly] = plans;
+  // Tant que la grille est à zéro — la gratuité de lancement en fait partie —
+  // publier ne coûte rien, et la page doit le dire dans ces termes-là.
+  const publishingIsFree = monthly.free && yearly.free;
+  const subscriptionSentence = subscriptionAnnouncement(plans);
 
-const FAQ = [
-  {
-    q: "Y a-t-il un abonnement obligatoire ?",
-    a: "Non. Le compte apprenant est gratuit et chaque ressource s'achète à l'unité, au prix fixé par son formateur. Vous ne payez que ce que vous choisissez.",
-  },
-  {
-    q: "Comment la commission est-elle calculée ?",
-    a: "NkamVa retient 15 % du prix de vente ; 85 % reviennent au formateur. La commission est prélevée à la vente, il n'y a pas de frais d'entrée ni d'abonnement pour publier.",
-  },
-  {
-    q: "Quels moyens de paiement acceptez-vous ?",
-    a: "Mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — et carte bancaire. Les montants sont affichés en FCFA.",
-  },
-  {
-    q: "Puis-je être remboursé ?",
-    a: "Oui, dans les 14 jours suivant l'achat et si vous avez consulté moins de 30 % de la ressource. Un format téléchargeable, une fois récupéré, ne peut plus être remboursé : le fichier est chez vous.",
-  },
-  {
-    q: "Quand un formateur touche-t-il son argent ?",
-    a: "Chaque vente confirmée crédite son solde. Les retraits vers mobile money ouvriront avec le parcours de vérification d'identité, actuellement en construction.",
-  },
-];
+  const PLANS = [
+    {
+      name: "Apprenant",
+      description: "Un compte gratuit, des ressources à l'unité.",
+      price: "Gratuit",
+      note: "Aucun abonnement, aucune carte à enregistrer.",
+      features: [
+        "Compte gratuit, sans abonnement",
+        "Chaque ressource s'achète à l'unité, en FCFA",
+        "Accès à vie à ce que vous avez acheté",
+        "Paiement mobile money ou carte bancaire",
+        "Contestation possible sous 14 jours",
+      ],
+      cta: { href: "/auth/inscription", label: "Créer mon compte" },
+      variant: "o" as const,
+      featured: false,
+    },
+    {
+      name: "Formateur",
+      description: "Pour publier votre savoir et en vivre.",
+      price: publishingIsFree
+        ? `${COMMISSION_LABEL} de commission`
+        : `${fmtNumber(monthly.amountFcfa)} FCFA/mois`,
+      note: publishingIsFree
+        ? `Prélevés sur chaque vente. ${monthly.tariffLabel ?? "Rien à payer d'avance."}`
+        : `Ou ${fmtNumber(yearly.amountFcfa)} FCFA/an${
+            yearly.savingPercent ? ` (−${yearly.savingPercent} %)` : ""
+          }, plus ${COMMISSION_LABEL} de commission sur chaque vente.`,
+      features: [
+        "Publication de ressources illimitée",
+        "Vous fixez librement vos prix, en FCFA",
+        `${TRAINER_SHARE_LABEL} de chaque vente vous reviennent`,
+        "Tableau de bord des ventes et des revenus",
+        "Retraits par mobile money",
+      ],
+      cta: { href: "/devenir-formateur", label: "Devenir formateur" },
+      variant: "p" as const,
+      featured: true,
+    },
+  ];
 
-export default function TarifsPage() {
+  const FAQ = [
+    {
+      q: "Y a-t-il un abonnement obligatoire ?",
+      a: `Pas pour apprendre : le compte apprenant est gratuit et chaque ressource s'achète à l'unité, au prix fixé par son formateur. ${subscriptionSentence}`,
+    },
+    {
+      q: "Comment la commission est-elle calculée ?",
+      a: `NkamVa retient ${COMMISSION_LABEL} du prix de vente ; ${TRAINER_SHARE_LABEL} reviennent au formateur. La commission est prélevée à la vente, il n'y a pas de frais d'entrée. ${subscriptionSentence}`,
+    },
+    {
+      q: "Quels moyens de paiement acceptez-vous ?",
+      a: "Mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — et carte bancaire. Les montants sont affichés en FCFA.",
+    },
+    {
+      q: "Puis-je être remboursé ?",
+      a: "Oui, dans les 14 jours suivant l'achat et si vous avez consulté moins de 30 % de la ressource. Un format téléchargeable, une fois récupéré, ne peut plus être remboursé : le fichier est chez vous.",
+    },
+    {
+      q: "Quand un formateur touche-t-il son argent ?",
+      a: "Chaque vente confirmée crédite son solde. Les retraits vers mobile money ouvriront avec le parcours de vérification d'identité, actuellement en construction.",
+    },
+  ];
+
   return (
     <div className="nk-wrap pb-16">
       <PageHead

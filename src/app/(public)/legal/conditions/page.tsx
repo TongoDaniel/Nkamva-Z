@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage, ToProvide } from "../legal-page";
+import {
+  LEGAL_COMMISSION_LABEL,
+  LEGAL_TERMS_UPDATED_AT,
+  LEGAL_TRAINER_SHARE_LABEL,
+} from "@/lib/legal-terms";
 
 export const metadata: Metadata = {
   title: "Conditions d'utilisation",
@@ -12,7 +17,7 @@ export default function ConditionsPage() {
     <LegalPage
       title="Conditions d'utilisation"
       lead="Ce que vous pouvez attendre de NkamVa, et ce que NkamVa attend de vous."
-      updatedAt="1er août 2026"
+      updatedAt={LEGAL_TERMS_UPDATED_AT}
     >
       <h2>1. Objet</h2>
       <p>
@@ -74,9 +79,11 @@ export default function ConditionsPage() {
         à sa description.
       </p>
       <p>
-        NkamVa retient 15 % du prix de vente ; 85 % reviennent au formateur, crédités à chaque
-        vente confirmée. En cas de remboursement, la part correspondante est débitée de son
-        solde.
+        {/* Valeurs contractuelles : elles ne suivent pas la configuration, elles
+            se modifient avec le document. Voir `lib/legal-terms`. */}
+        NkamVa retient {LEGAL_COMMISSION_LABEL} du prix de vente ; {LEGAL_TRAINER_SHARE_LABEL}{" "}
+        reviennent au formateur, crédités à chaque vente confirmée. En cas de remboursement, la
+        part correspondante est débitée de son solde.
       </p>
 
       <h2>6. Contenus interdits</h2>
