@@ -5,6 +5,7 @@ import { Btn } from '@/components/nk/button'
 import { Chip } from '@/components/nk/chip'
 import { Price, ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
+import { ReportButton } from '@/components/nk/report-button'
 import { Avatar } from '@/components/nk/avatar'
 import { getPublicCommunity } from '@/lib/communities'
 import { getMembership } from '@/lib/memberships'
@@ -179,6 +180,15 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
             <Btn asChild variant="o" className="mt-4 w-full">
               <Link href={routes.trainer(community.trainer.id)}>Voir le formateur</Link>
             </Btn>
+
+            {/* Une issue, pas une proposition : discret, en bas du panneau. */}
+            <div className="mt-4 border-t border-line-2 pt-4">
+              <ReportButton
+                targetType="COMMUNITY"
+                targetId={community.id}
+                name={community.name}
+              />
+            </div>
           </div>
         </aside>
       </div>

@@ -15,6 +15,7 @@ import { Chip } from "@/components/nk/chip";
 import { Cover, formatLabel } from "@/components/nk/cover";
 import { Price, ResourceCard } from "@/components/nk/resource-card";
 import { PageHead } from "@/components/nk/page-head";
+import { ReportButton } from "@/components/nk/report-button";
 import { StatTile } from "@/components/nk/stat-tile";
 import { initials } from "@/components/nk/avatar";
 import { getPublicCourse, searchCourses } from "@/lib/catalog";
@@ -264,6 +265,13 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
             <p className="mt-4 text-xs font-semibold text-ink-3">
               Orange Money · MTN MoMo · Wave · Airtel Money · M-Pesa · carte bancaire
             </p>
+
+            {/* Le signalement est discret et en bas : c'est une issue, pas une
+                proposition. Il ouvre la file /admin/signalements, qui existait
+                sans que rien ne puisse l'alimenter. */}
+            <div className="mt-4 border-t border-line-2 pt-4">
+              <ReportButton targetType="COURSE" targetId={course.id} name={course.title} />
+            </div>
           </div>
         </aside>
       </div>

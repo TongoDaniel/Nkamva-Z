@@ -17,6 +17,7 @@ import { audit, auditStandalone } from './audit'
 import { notifyAdminSubRole } from './notification'
 import { WALLET_NEGATIVE_ALERT_DAYS } from './disputes'
 import { IN_FLIGHT_PAYOUT_STATUSES } from './payouts'
+import { withdrawableBalance } from './wallet'
 
 export interface WalletDiscrepancy {
   walletId: string
@@ -27,7 +28,20 @@ export interface WalletDiscrepancy {
   delta: number
 }
 
-export async function reconcileAllWallets(): Promise<{ checked: number; discrepancies: WalletDiscrepancy[] }> {
+/**
+ * Détection **pure** : elle lit, compare, et n'écrit rien.
+ *
+ * Extraite de `reconcileAllWallets()` pour que l'écran d'administration puisse
+ * afficher les écarts. La version complète journalise un
+ * `WALLET_BALANCE_MISMATCH` par écart et notifie Finances : l'appeler à chaque
+ * affichage remplirait le journal d'audit d'entrées identiques et enverrait une
+ * notification à chaque rafraîchissement. Un écran qui regarde ne doit pas
+ * laisser de trace de sa lecture.
+ */
+export async function listWalletDiscrepancies(): Promise<{
+  checked: number
+  discrepancies: WalletDiscrepancy[]
+}> {
   const wallets = await db.wallet.findMany({
     select: { id: true, trainerId: true, reservedBalance: true, pendingPayoutBalance: true },
   })
@@ -68,6 +82,17 @@ export async function reconcileAllWallets(): Promise<{ checked: number; discrepa
     }
   }
 
+  return { checked: wallets.length, discrepancies }
+}
+
+/**
+ * Le passage planifié : il détecte, journalise et alerte. Aucune écriture
+ * corrective — la correction est un acte explicite, tracé, réservé au
+ * Super-admin (`reconcileWalletField`).
+ */
+export async function reconcileAllWallets(): Promise<{ checked: number; discrepancies: WalletDiscrepancy[] }> {
+  const { checked, discrepancies } = await listWalletDiscrepancies()
+
   for (const d of discrepancies) {
     // Détection uniquement : aucune écriture corrective ici.
     await auditStandalone({
@@ -81,11 +106,13 @@ export async function reconcileAllWallets(): Promise<{ checked: number; discrepa
       type: 'WALLET_BALANCE_MISMATCH',
       title: `${discrepancies.length} écart(s) de solde détecté(s)`,
       body: 'Des portefeuilles présentent un écart entre le solde stocké et le solde recalculé. Aucune correction automatique n\'a été appliquée.',
-      link: '/admin/wallets',
+      // Cette URL pointait `/admin/wallets`, qui n'a jamais existé : l'alerte
+      // menait Finances sur un 404. Les routes du back-office sont en français.
+      link: '/admin/portefeuilles',
     })
   }
 
-  return { checked: wallets.length, discrepancies }
+  return { checked, discrepancies }
 }
 
 /**
@@ -139,6 +166,122 @@ export async function reconcileWalletField(
   return { corrected: true, previousValue, newValue: expected, delta }
 }
 
+export interface WalletOverviewRow {
+  walletId: string
+  trainerId: string
+  trainerName: string
+  balance: number
+  reservedBalance: number
+  pendingPayoutBalance: number
+  /** `balance - reservedBalance - pendingPayoutBalance`, via `withdrawableBalance`. */
+  withdrawable: number
+  negativeSince: Date | null
+  /** Écarts constatés sur ce portefeuille — vide quand tout concorde. */
+  discrepancies: WalletDiscrepancy[]
+}
+
+/**
+ * Vue d'ensemble des portefeuilles pour le back-office : soldes, écarts et
+ * corrections passées, en une seule lecture.
+ *
+ * L'ordre n'est pas cosmétique. Ce qui réclame une décision passe devant : les
+ * portefeuilles en écart, puis les négatifs, puis le reste par solde décroissant.
+ * Trier par nom obligerait à chercher à l'œil le seul portefeuille qui compte.
+ */
+export async function getWalletOverview(): Promise<{
+  rows: WalletOverviewRow[]
+  checked: number
+  discrepancyCount: number
+  reconciliations: Array<{
+    id: string
+    walletId: string
+    trainerName: string
+    field: string
+    previousValue: number
+    newValue: number
+    delta: number
+    reason: string
+    reconciledBy: string | null
+    createdAt: Date
+  }>
+}> {
+  const [wallets, detection, history] = await Promise.all([
+    db.wallet.findMany({
+      select: {
+        id: true, trainerId: true, balance: true, reservedBalance: true,
+        pendingPayoutBalance: true, negativeSince: true,
+        trainerProfile: { select: { user: { select: { fullName: true, email: true } } } },
+      },
+    }),
+    listWalletDiscrepancies(),
+    db.walletReconciliation.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true, walletId: true, field: true, previousValue: true, newValue: true,
+        delta: true, reason: true, reconciledById: true, createdAt: true,
+      },
+    }),
+  ])
+
+  const byWallet = new Map<string, WalletDiscrepancy[]>()
+  for (const d of detection.discrepancies) {
+    const list = byWallet.get(d.walletId)
+    if (list) list.push(d)
+    else byWallet.set(d.walletId, [d])
+  }
+
+  const nameOf = (wallet: (typeof wallets)[number]) =>
+    wallet.trainerProfile?.user?.fullName ||
+    wallet.trainerProfile?.user?.email ||
+    `Formateur ${wallet.trainerId.slice(0, 8)}…`
+
+  const rows: WalletOverviewRow[] = wallets.map((wallet) => ({
+    walletId: wallet.id,
+    trainerId: wallet.trainerId,
+    trainerName: nameOf(wallet),
+    balance: wallet.balance,
+    reservedBalance: wallet.reservedBalance,
+    pendingPayoutBalance: wallet.pendingPayoutBalance,
+    withdrawable: withdrawableBalance(wallet),
+    negativeSince: wallet.negativeSince,
+    discrepancies: byWallet.get(wallet.id) ?? [],
+  }))
+
+  rows.sort((a, b) => {
+    if (a.discrepancies.length !== b.discrepancies.length) {
+      return b.discrepancies.length - a.discrepancies.length
+    }
+    const aNegative = a.withdrawable < 0 ? 1 : 0
+    const bNegative = b.withdrawable < 0 ? 1 : 0
+    if (aNegative !== bNegative) return bNegative - aNegative
+    return b.balance - a.balance
+  })
+
+  // Les auteurs des corrections sont résolus en une requête : l'historique peut
+  // être long et une jointure par ligne le rendrait illisible en base.
+  const actorIds = [...new Set(history.map((h) => h.reconciledById))]
+  const actors = actorIds.length
+    ? await db.user.findMany({
+      where: { id: { in: actorIds } },
+      select: { id: true, fullName: true, email: true },
+    })
+    : []
+  const actorById = new Map(actors.map((a) => [a.id, a.fullName || a.email]))
+  const walletName = new Map(rows.map((r) => [r.walletId, r.trainerName]))
+
+  return {
+    rows,
+    checked: detection.checked,
+    discrepancyCount: detection.discrepancies.length,
+    reconciliations: history.map((h) => ({
+      ...h,
+      trainerName: walletName.get(h.walletId) ?? `Portefeuille ${h.walletId.slice(0, 8)}…`,
+      reconciledBy: actorById.get(h.reconciledById) ?? null,
+    })),
+  }
+}
+
 /**
  * Décision 13 — le solde négatif est autorisé, mais un portefeuille qui reste
  * négatif plus de 60 jours déclenche une alerte Finances.
@@ -181,7 +324,10 @@ export async function alertNegativeWallets(): Promise<{ negative: number; alerte
         type: 'WALLET_NEGATIVE_ALERT',
         title: 'Portefeuille négatif depuis plus de 60 jours',
         body: `Solde retirable : ${withdrawable} FCFA. Le solde n'a pas été apuré par les ventes suivantes.`,
-        link: `/admin/wallets/${wallet.id}`,
+        // Même correction : il n'y a pas de fiche par portefeuille, mais l'écran
+        // de liste met les négatifs en tête. Un lien qui atterrit vaut mieux
+        // qu'un lien précis vers une page absente.
+        link: '/admin/portefeuilles',
       })
     }
   }

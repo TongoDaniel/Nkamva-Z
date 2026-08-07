@@ -8,6 +8,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   Bell,
   ChevronDown,
+  FileText,
   Heart,
   LogOut,
   MessageSquare,
@@ -57,6 +58,9 @@ const ACCOUNT_LINKS = [
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
   { href: "/favoris", label: "Favoris", icon: Heart },
   { href: "/mes-achats", label: "Mes achats", icon: ShoppingBag },
+  // Juste après les achats, parce que c'en est la pièce comptable — et non sous
+  // « Profil et paramètres », où une facture n'est pas un réglage.
+  { href: "/mes-factures", label: "Mes factures", icon: FileText },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/profil", label: "Profil et paramètres", icon: Settings },
 ];

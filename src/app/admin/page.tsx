@@ -198,9 +198,22 @@ export default async function AdminHomePage() {
         </AdminCard>
       ) : null}
 
+      {/* Ce que cette phrase délimite : le tableau de bord ne montre que les
+          **files** — ce qui a un arriéré chiffrable et réclame une décision. Il
+          n'est pas un sommaire de l'espace d'administration.
+
+          Elle disait « les autres rubriques sont des vues de consultation »,
+          ce qui était faux pour le Super-admin : Paramètres, Administrateurs,
+          Utilisateurs et Abonnements écrivent (tarifs et réglages, sous-rôles,
+          sanctions, échéance soldée à la main). Ce n'était exact que sous le
+          filtrage de la décision 7, qui retire ces quatre rubriques à un admin
+          Modération. La distinction juste n'est pas lecture / écriture mais
+          arriéré / pas d'arriéré : une file réclame, les autres écrans
+          autorisent. */}
       <p className="rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
-        Les autres rubriques de votre navigation sont des vues de consultation : elles
-        n&apos;attendent aucune décision de votre part.
+        Cette page ne montre que les files à traiter. Les autres rubriques de votre
+        navigation n&apos;ont pas d&apos;arriéré : rien n&apos;y patiente, même là où vous
+        pouvez agir.
       </p>
     </>
   );
