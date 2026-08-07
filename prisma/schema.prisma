@@ -263,6 +263,17 @@ model User {
   twoFactorSecret            String?
   twoFactorEnabledAt         DateTime?
   recoveryCodes              RecoveryCode[]
+  /// Emails d'information sur l'abonnement formateur : annonce d'un changement
+  /// de grille tarifaire, et rappel à l'échéance qui l'applique. Désactivable
+  /// depuis « Profil & paramètres ».
+  ///
+  /// Ne couvre **pas** les emails dont le compte a besoin pour fonctionner —
+  /// code de vérification, facture, impayé, litige, suppression de compte. Un
+  /// réglage capable de les éteindre transformerait une préférence de confort
+  /// en perte de droits, et le formateur découvrirait sa suspension sans avoir
+  /// jamais été prévenu. La notification in-app, elle, part toujours : c'est la
+  /// trace, l'email n'est que le porte-voix.
+  subscriptionNoticeEmails   Boolean                 @default(true)
   gdprExportRequestedAt      DateTime?
   gdprExportS3Key            String?
   deletionRequestedAt        DateTime?

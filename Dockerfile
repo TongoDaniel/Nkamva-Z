@@ -25,6 +25,13 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
+# Amorçage des Super-admins : une base fraîchement migrée n'a aucun compte, et
+# rien dans l'application ne permet de créer le premier — la création d'un
+# administrateur exige déjà d'en être un. Le script et le binding argon2 dont il
+# dépend voyagent donc dans l'image, pour être lancés depuis le déploiement.
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/node_modules/@node-rs ./node_modules/@node-rs
+
 
 USER nextjs
 EXPOSE 3000
