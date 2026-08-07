@@ -83,6 +83,7 @@
 /* Accent de marque, indirect pour pouvoir être basculé par scope. */
 @theme inline {
   --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
   --color-brand-dark: var(--brand-dark);
   --color-brand-tint: var(--brand-tint);
   --color-brand-tint-2: var(--brand-tint-2);
@@ -137,6 +138,8 @@
   --brand-tint: #e4ecf9;
   --brand-tint-2: #d0dff5;
   --brand-shadow: rgba(28, 94, 208, 0.3);
+  /* Second arrêt des dégradés de marque — l'azur du logo. */
+  --brand-2: #2e7cf6;
 
   --radius: 16px;
   --background: #f6f3ec;
@@ -173,14 +176,43 @@
   --sidebar-ring: var(--brand);
 }
 
-/* Back-office : retour au vert forêt d'origine (`nkamva-admin.css`). Poser
-   cette classe sur la coquille admin suffit à repeindre tout l'accent. */
+/* Back-office : retour au vert forêt d'origine (`nkamva-admin.css`). La classe
+   se pose sur la coquille admin (`AdminShell`).
+
+   Elle ne suffit pas à elle seule : un `var()` est substitué **au point de
+   déclaration**, pas au point de lecture. `:root { --primary: var(--brand) }`
+   vaut donc déjà le bleu produit quand il descend ici, même si `--brand` y est
+   vert. Les utilitaires Tailwind s'en sortent (`@theme inline` recopie la
+   valeur dans la règle, il n'y a pas d'indirection à l'exécution), mais tout ce
+   qui passe par un `var()` écrit à la main reste en arrière — anneau de focus,
+   sélection, primitives shadcn. D'où les redéclarations ci-dessous.
+   Garde-fou : `bun scripts/snapshot-admin.ts`. */
 .nk-admin {
   --brand: #0d6b4d;
   --brand-dark: #0a563e;
   --brand-tint: #e0efe7;
   --brand-tint-2: #cfe6da;
   --brand-shadow: rgba(13, 107, 77, 0.3);
+  /* Second arrêt des dégradés de marque : l'azur repartait vers l'autre
+     accent au milieu d'une coquille verte (avatar `tone="brand"`). */
+  --brand-2: #12a06f;
+
+  /* Copies `@theme inline` lues par le CSS manuel (`:focus-visible`,
+     `::selection`). */
+  --color-brand: #0d6b4d;
+  --color-brand-2: #12a06f;
+  --color-brand-dark: #0a563e;
+  --color-brand-tint: #e0efe7;
+  --color-brand-tint-2: #cfe6da;
+
+  /* Primitives shadcn/ui dérivées de l'accent. */
+  --primary: var(--brand);
+  --accent: var(--brand-tint);
+  --accent-foreground: var(--brand-dark);
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --sidebar-primary: var(--brand);
+  --sidebar-ring: var(--brand);
 }
 
 .dark {
@@ -235,6 +267,14 @@
     z-index: 0;
     background:
       radial-gradient(1100px 500px at 85% -10%, rgba(28, 94, 208, 0.06), transparent 60%),
+      radial-gradient(900px 400px at -10% 110%, rgba(192, 95, 33, 0.05), transparent 60%);
+  }
+
+  /* Le voile est posé sur `body`, donc **au-dessus** de la coquille admin : le
+     scope de tokens ne peut pas l'atteindre, il faut aller le chercher. */
+  body:has(.nk-admin)::before {
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(13, 107, 77, 0.06), transparent 60%),
       radial-gradient(900px 400px at -10% 110%, rgba(192, 95, 33, 0.05), transparent 60%);
   }
 
