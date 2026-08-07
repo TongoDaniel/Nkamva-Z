@@ -239,16 +239,26 @@ async function probeStripe(): Promise<Integration> {
       checks.push({ label: 'Solde lisible', state: 'down', detail: detailFrom(err) })
     }
 
-    // Le webhook Stripe se dégrade en ouvert : sans secret, il parse le corps
-    // sans vérifier la signature, et `payment_intent.succeeded` crédite un
-    // portefeuille. C'est le trou le plus coûteux de cet écran.
+    // Le webhook Stripe échoue désormais fermé, comme Mux : sans secret, la
+    // signature ne peut pas être vérifiée, et la route refuse en 400 plutôt que
+    // de lire le corps. Elle se dégradait en ouvert — n'importe quel POST
+    // anonyme créditait alors un portefeuille par `payment_intent.succeeded`.
+    // C'était le trou le plus coûteux de cet écran ; ce n'en est plus un, mais
+    // l'absence reste une impasse : plus aucun paiement ne se confirme.
+    //
+    // Seule exception, et elle est verrouillée deux fois : sous
+    // `simulationAllowed()` (NODE_ENV hors production ET
+    // ALLOW_PAYMENT_SIMULATION=1), le corps non signé est encore lu.
     const signed = present('STRIPE_WEBHOOK_SECRET')
+    const simulationOpen = process.env.ALLOW_PAYMENT_SIMULATION === '1' && !isProduction()
     checks.push({
       label: 'Signature des webhooks',
-      state: signed ? 'ok' : isProduction() ? 'down' : 'warn',
+      state: signed ? 'ok' : simulationOpen ? 'warn' : 'down',
       detail: signed
-        ? 'Secret posé : /api/webhooks/stripe refuse un corps non signé.'
-        : 'STRIPE_WEBHOOK_SECRET absente : /api/webhooks/stripe accepte un corps NON SIGNÉ et crédite le portefeuille. Toléré en développement, jamais en production.',
+        ? 'Secret posé : /api/webhooks/stripe vérifie la signature et refuse tout corps non signé.'
+        : simulationOpen
+          ? 'STRIPE_WEBHOOK_SECRET absente : /api/webhooks/stripe n\'accepte un corps non signé que sous les deux verrous de simulation, actuellement ouverts. Aucun paiement réel ne peut être confirmé.'
+          : 'STRIPE_WEBHOOK_SECRET absente : /api/webhooks/stripe refuse tout corps non signé (400, journalisé en STRIPE_WEBHOOK_REJECTED). Aucun paiement ne peut être confirmé.',
     })
   }
 
@@ -265,7 +275,7 @@ async function probeStripe(): Promise<Integration> {
           name: 'STRIPE_WEBHOOK_SECRET',
           present: present('STRIPE_WEBHOOK_SECRET'),
           requirement: 'production',
-          note: 'Sans elle, le webhook ne vérifie aucune signature.',
+          note: 'Sans elle, le webhook refuse tout callback : aucun paiement ne se confirme.',
         },
       ],
       checks,
