@@ -26,26 +26,21 @@ export default async function MesLitigesPage() {
   return (
     <div className="nk-wrap pb-16">
       <PageHead
+        // Comme pour les factures : une contestation naît d'un achat, le fil
+        // d'Ariane porte ce lien mieux qu'un bouton « Retour ».
+        crumbs={[{ label: "Mes achats", href: "/mes-achats" }, { label: "Mes contestations" }]}
         title="Mes contestations"
         lead="Le suivi des achats que vous avez contestés, et les échanges avec le support."
-        actions={
-          <Btn asChild variant="o">
-            <Link href="/mes-achats">Retour à mes achats</Link>
-          </Btn>
-        }
       />
 
       {total === 0 ? (
+        // Sans action : le retour aux achats est déjà dans le fil d'Ariane, et
+        // la description dit d'où part une contestation.
         <EmptyState
           className="mt-6"
           icon={<ShieldCheck />}
           title="Aucune contestation"
           description="Si un achat ne correspond pas à ce qui était annoncé, vous pouvez le contester depuis vos achats, dans les 14 jours."
-          action={
-            <Btn asChild>
-              <Link href="/mes-achats">Voir mes achats</Link>
-            </Btn>
-          }
         />
       ) : (
         <ul className="mt-6 flex flex-col gap-3.5">

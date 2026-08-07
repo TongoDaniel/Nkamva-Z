@@ -111,13 +111,12 @@ export default async function MesFacturesPage() {
   return (
     <div className="nk-wrap pb-16">
       <PageHead
+        // Le retour aux achats passe par le fil d'Ariane, pas par un bouton :
+        // les factures sont une pièce de l'achat, la hiérarchie le dit mieux
+        // qu'une action de même poids visuel que le titre.
+        crumbs={[{ label: "Mes achats", href: "/mes-achats" }, { label: "Mes factures" }]}
         title="Mes factures"
         lead="Chaque paiement encaissé émet une facture numérotée. Elle est figée à l'émission : un changement de tarif ne réécrit jamais une pièce déjà émise."
-        actions={
-          <Btn asChild variant="o">
-            <Link href="/mes-achats">Mes achats</Link>
-          </Btn>
-        }
       />
 
       {invoices.length === 0 ? (

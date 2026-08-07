@@ -177,7 +177,7 @@ export default async function FormateurPage() {
               return (
                 <li
                   key={course.id}
-                  className="flex flex-wrap items-center gap-4 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm"
+                  className="group relative flex flex-wrap items-center gap-4 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk focus-within:border-brand focus-within:shadow-nk"
                 >
                   <span
                     className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
@@ -187,9 +187,13 @@ export default async function FormateurPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-[14.5px] font-bold">
+                      {/* Même motif que `ResourceCard` : le lien du titre est
+                          étendu à toute la ligne par `after:inset-0`. Une seule
+                          cible cliquable, et le nom accessible reste le titre —
+                          ce qu'une ligne entière transformée en lien perdrait. */}
                       <Link
                         href={`/formateur/ressources/${course.id}`}
-                        className="text-ink hover:text-brand"
+                        className="text-ink after:absolute after:inset-0 after:content-[''] group-hover:text-brand"
                       >
                         {course.title}
                       </Link>
