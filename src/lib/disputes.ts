@@ -25,6 +25,7 @@ import { sendEmail, renderSimpleEmail } from './email'
 import { assertCanWrite } from './user-sanctions'
 import { presignUpload } from './s3'
 import { syncNegativeSince } from './wallet'
+import { PLATFORM_COMMISSION_RATE, TRAINER_SHARE_RATE } from './commission'
 import { getStripe } from './stripe'
 import { isPawaPayConfigured, requestRefund, PawaPayError } from './pawapay'
 import type { PrismaTransaction } from './types'
@@ -32,8 +33,9 @@ import type { PrismaTransaction } from './types'
 // --- Constantes ---
 
 export const LEARNER_RESPONSE_DEADLINE_DAYS = 7
-export const PLATFORM_COMMISSION_RATE = 0.15
-export const TRAINER_SHARE_RATE = 0.85
+// Réexportés depuis `commission.ts` : les écrans publics ont besoin du taux
+// sans embarquer Prisma ni le fournisseur de paiement que ce module importe.
+export { PLATFORM_COMMISSION_RATE, TRAINER_SHARE_RATE }
 export const WALLET_NEGATIVE_ALERT_DAYS = 60
 // Le remboursement PawaPay est asynchrone : plus de délai d'attente à borner ici,
 // le timeout HTTP vit dans `pawapay.ts` (REQUEST_TIMEOUT_MS).
