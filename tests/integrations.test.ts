@@ -55,17 +55,33 @@ describe('Sondes d\'intégration', () => {
     expect(stripe.checks.find((c) => c.label === 'Solde lisible')?.state).toBe('down')
   })
 
-  it('signale le webhook Stripe non signé, qui crédite un corps non vérifié', async () => {
+  it('signale le webhook Stripe sans secret, qui ne peut plus rien confirmer', async () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_cle_acceptee'
     globalThis.fetch = vi.fn(async () => new Response('{"object":"balance"}', { status: 200 })) as unknown as typeof fetch
 
     const stripe = (await probeIntegrations()).integrations.find((i) => i.key === 'stripe')!
     const signature = stripe.checks.find((c) => c.label === 'Signature des webhooks')!
 
-    // Hors production, c'est le chemin de la simulation de développement : une
-    // réserve, pas une panne. En production, ce serait `down`.
+    // Les verrous de simulation sont ouverts ici (tests/setup.ts pose
+    // ALLOW_PAYMENT_SIMULATION=1, et NODE_ENV vaut 'test') : le corps non signé
+    // est encore lu, mais par ce chemin-là seulement. Une réserve, pas une
+    // panne. Ce n'est plus « la route crédite n'importe quel POST » : ce libellé
+    // décrivait un trou qui est fermé depuis que la route échoue fermé.
     expect(signature.state).toBe('warn')
-    expect(signature.detail).toContain('NON SIGNÉ')
+    expect(signature.detail).toContain('verrous de simulation')
+
+    // Verrous fermés : plus aucune voie n'existe, l'absence devient une panne.
+    const original = process.env.ALLOW_PAYMENT_SIMULATION
+    process.env.ALLOW_PAYMENT_SIMULATION = ''
+    try {
+      const closed = (await probeIntegrations()).integrations
+        .find((i) => i.key === 'stripe')!
+        .checks.find((c) => c.label === 'Signature des webhooks')!
+      expect(closed.state).toBe('down')
+      expect(closed.detail).toContain('STRIPE_WEBHOOK_REJECTED')
+    } finally {
+      process.env.ALLOW_PAYMENT_SIMULATION = original
+    }
 
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_secret_de_test'
     const signed = (await probeIntegrations()).integrations
