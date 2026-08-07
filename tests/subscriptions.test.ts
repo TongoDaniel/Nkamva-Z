@@ -25,6 +25,7 @@ import {
   canTrainerWrite, openFirstPeriod, periodEndFor, SUBSCRIPTION_GRACE_DAYS,
 } from '@/lib/subscriptions'
 import { setTariff } from '@/lib/pricing'
+import { fmtNumber } from '@/lib/format'
 import { createCourse, publishCourse } from '@/lib/courses'
 
 /**
@@ -104,6 +105,86 @@ describe('Abonnement formateur — cycle de vie', () => {
     const after = await prisma.trainerProfile.findUniqueOrThrow({ where: { id: profile.id } })
     expect(after.subscriptionStatus).toBe('PAST_DUE')
     expect(after.subscriptionPastDueAt).not.toBeNull()
+  })
+
+  // -------------------------------------------------------------------------
+  // Une modification tarifaire n'atteint un abonné qu'à sa DEUXIÈME échéance :
+  // celle qui suit immédiatement la publication reconduit le prix en cours.
+  it('un nouveau tarif est reporté au 2e renouvellement, avec annonce et rappel', async () => {
+    const { user, profile, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+
+    // 1re période : aucune période derrière ce formateur, donc rien à reporter.
+    const firstRun = await renewDueSubscriptions()
+    expect(firstRun.deferred).toBe(0)
+    const first = await prisma.subscriptionCharge.findFirstOrThrow({
+      where: { trainerId: profile.id }, orderBy: { periodStart: 'desc' },
+    })
+    expect(first.listPriceFcfa).toBe(5_000)
+    expect(first.tariffDeferred).toBe(false)
+
+    // La grille à 5 000 était déjà une annonce : passer de la gratuité à un
+    // tarif payant est le changement qui mérite le plus d'être annoncé.
+    const announcements = { where: { userId: user.id, type: 'SUBSCRIPTION_TARIFF_CHANGE_ANNOUNCED' } }
+    expect(await prisma.notification.count(announcements)).toBe(1)
+
+    // Le Super-admin pose une nouvelle grille : l'annonce part immédiatement.
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 9_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    const announced = await prisma.notification.findMany({
+      ...announcements, orderBy: { createdAt: 'desc' },
+    })
+    expect(announced).toHaveLength(2)
+    // `fmtNumber` et non « 9 000 » écrit à la main : le séparateur de milliers
+    // fr-FR est une espace insécable étroite, invisible dans un littéral.
+    expect(announced[0].body).toContain(fmtNumber(9_000))
+
+    // 2e échéance — reconduction : le formateur paie encore l'ancien prix, et
+    // reçoit le rappel qui annonce la date exacte de la bascule.
+    const secondRun = await renewDueSubscriptions(new Date(first.periodEnd.getTime() + 1_000))
+    expect(secondRun.deferred).toBe(1)
+    const second = await prisma.subscriptionCharge.findFirstOrThrow({
+      where: { trainerId: profile.id }, orderBy: { periodStart: 'desc' },
+    })
+    expect(second.listPriceFcfa).toBe(5_000)
+    expect(second.tariffDeferred).toBe(true)
+    expect(
+      await prisma.notification.count({
+        where: { userId: user.id, type: 'SUBSCRIPTION_TARIFF_CHANGE_REMINDER' },
+      }),
+    ).toBe(1)
+
+    // 3e échéance — le report est consommé, la grille s'applique.
+    const thirdRun = await renewDueSubscriptions(new Date(second.periodEnd.getTime() + 1_000))
+    expect(thirdRun.deferred).toBe(0)
+    const third = await prisma.subscriptionCharge.findFirstOrThrow({
+      where: { trainerId: profile.id }, orderBy: { periodStart: 'desc' },
+    })
+    expect(third.listPriceFcfa).toBe(9_000)
+    expect(third.tariffDeferred).toBe(false)
+
+    // 4e échéance — grille inchangée depuis : plus aucun report, plus aucun rappel.
+    const fourthRun = await renewDueSubscriptions(new Date(third.periodEnd.getTime() + 1_000))
+    expect(fourthRun.deferred).toBe(0)
+    expect(
+      await prisma.notification.count({
+        where: { userId: user.id, type: 'SUBSCRIPTION_TARIFF_CHANGE_REMINDER' },
+      }),
+    ).toBe(1)
+  })
+
+  // Un formateur qui souscrit APRÈS la publication paie le nouveau tarif tout
+  // de suite : le report protège un engagement en cours, pas une inscription.
+  it('un nouvel abonné souscrit directement au tarif en vigueur', async () => {
+    const { admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 9_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+
+    const newcomer = await prisma.user.create({ data: { email: 'nouveau@test.com', role: 'TRAINER' } })
+    const newProfile = await prisma.trainerProfile.create({ data: { userId: newcomer.id } })
+    await prisma.$transaction((tx) => openFirstPeriod(tx, newProfile.id))
+
+    const charge = await prisma.subscriptionCharge.findFirstOrThrow({ where: { trainerId: newProfile.id } })
+    expect(charge.listPriceFcfa).toBe(9_000)
+    expect(charge.tariffDeferred).toBe(false)
   })
 
   // -------------------------------------------------------------------------

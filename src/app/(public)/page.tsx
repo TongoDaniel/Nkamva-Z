@@ -1,17 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sprout } from "lucide-react";
 import { MiniCard } from "@/components/landing/mini-card";
 import { BrowserFrame } from "@/components/nk/browser-frame";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
-import { DemoNotice } from "@/components/nk/demo-notice";
+import { EmptyState } from "@/components/nk/empty-state";
 import { Faq, ToFill } from "@/components/nk/faq";
 import { PayBand, PayChips, PAY_COUNTRIES } from "@/components/nk/pay-band";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { Reveal } from "@/components/nk/reveal";
 import { ScrollCarousel } from "@/components/nk/scroll-carousel";
 import { Kicker, SectionHead } from "@/components/nk/section-head";
+import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { featuredCourses } from "@/lib/featured";
 
 // Le catalogue mis en avant reflète l'état réel de la base : rendu à la demande.
@@ -130,9 +131,9 @@ const FAQ_ITEMS = [
     question: "Quelle commission pour les formateurs ?",
     answer: (
       <p>
-        Vous fixez votre prix en FCFA ; NkamVa prélève une commission de 15 % sur chaque vente — le
-        formateur est crédité de 85 % du prix payé. Le solde est disponible en retrait mobile money
-        depuis votre espace formateur.
+        Vous fixez votre prix en FCFA ; NkamVa prélève une commission de {COMMISSION_LABEL} sur
+        chaque vente — le formateur est crédité de {TRAINER_SHARE_LABEL} du prix payé. Le solde est
+        disponible en retrait mobile money depuis votre espace formateur.
       </p>
     ),
   },
@@ -152,7 +153,7 @@ const FAQ_ITEMS = [
 ];
 
 export default async function LandingPage() {
-  const { courses, isDemo } = await featuredCourses(8);
+  const { courses, unavailable } = await featuredCourses(8);
 
   return (
     <>
@@ -186,22 +187,26 @@ export default async function LandingPage() {
           </Reveal>
         </div>
 
-        {/* Bande défilante : aperçu du catalogue, purement illustratif. */}
-        <Reveal delay={3.2} className="mt-11">
-          <div
-            className="nk-fade-x nk-marquee-pause overflow-hidden"
-            aria-label="Aperçu du catalogue"
-          >
-            <div className="nk-marquee gap-4 pb-5 pt-3.5">
-              {courses.map((course) => (
-                <MiniCard key={course.id} course={course} />
-              ))}
-              {courses.map((course) => (
-                <MiniCard key={`${course.id}-loop`} course={course} decorative />
-              ))}
+        {/* Bande défilante : aperçu du catalogue, purement illustratif. Sans
+            ressource à faire défiler, elle ne laisse qu'un ruban vide sous le
+            hero : on ne la rend pas. */}
+        {courses.length > 0 ? (
+          <Reveal delay={3.2} className="mt-11">
+            <div
+              className="nk-fade-x nk-marquee-pause overflow-hidden"
+              aria-label="Aperçu du catalogue"
+            >
+              <div className="nk-marquee gap-4 pb-5 pt-3.5">
+                {courses.map((course) => (
+                  <MiniCard key={course.id} course={course} />
+                ))}
+                {courses.map((course) => (
+                  <MiniCard key={`${course.id}-loop`} course={course} decorative />
+                ))}
+              </div>
             </div>
-          </div>
-        </Reveal>
+          </Reveal>
+        ) : null}
       </section>
 
       <PayBand />
@@ -294,43 +299,70 @@ export default async function LandingPage() {
       {/* ---- Carrousel catalogue ---- */}
       <section className="pt-[76px] max-[640px]:pt-14">
         <div className="nk-wrap">
-          {isDemo ? (
-            <DemoNotice className="mb-6">
-              Catalogue de démonstration : aucune ressource publiée n&apos;a encore été trouvée en
-              base.
-            </DemoNotice>
-          ) : null}
-          <ScrollCarousel
-            label="Ressources populaires"
-            head={
+          {courses.length > 0 ? (
+            <>
+              <ScrollCarousel
+                label="Ressources populaires"
+                head={
+                  <SectionHead
+                    className="mb-0"
+                    kicker="Catalogue"
+                    title="Des ressources "
+                    emphasis="concrètes"
+                    lead="Payables à l'unité, en FCFA."
+                    id="catalogue"
+                  />
+                }
+              >
+                {courses.map((course) => (
+                  <ResourceCard
+                    key={course.id}
+                    course={course}
+                    space="public"
+                    className="w-[296px] flex-none snap-start max-[640px]:w-[262px]"
+                  />
+                ))}
+              </ScrollCarousel>
+              <div className="mt-[26px] flex justify-center">
+                <Btn asChild variant="o">
+                  <Link href="/ressources">Voir tout le catalogue</Link>
+                </Btn>
+              </div>
+            </>
+          ) : (
+            /* Catalogue vide : on le dit, plutôt que d'exposer des cartes qui
+               ne mèneraient nulle part. Une base injoignable n'est pas la même
+               chose qu'un catalogue qui n'a pas encore de ressource. */
+            <>
               <SectionHead
-                className="mb-0"
                 kicker="Catalogue"
                 title="Des ressources "
                 emphasis="concrètes"
-                lead={
-                  isDemo
-                    ? "Aperçu du catalogue de démonstration — payables à l'unité, en FCFA."
-                    : "Payables à l'unité, en FCFA."
-                }
+                lead="Payables à l'unité, en FCFA."
                 id="catalogue"
               />
-            }
-          >
-            {courses.map((course) => (
-              <ResourceCard
-                key={course.id}
-                course={course}
-                space="public"
-                className="w-[296px] flex-none snap-start max-[640px]:w-[262px]"
+              <EmptyState
+                icon={<Sprout />}
+                title={
+                  unavailable
+                    ? "Catalogue momentanément indisponible"
+                    : "Les premières ressources arrivent"
+                }
+                description={
+                  unavailable
+                    ? "Nous n'arrivons pas à joindre le catalogue pour le moment. Réessayez dans quelques instants."
+                    : "Aucune ressource n'est encore publiée. Vous êtes formateur ? C'est le moment de proposer la vôtre."
+                }
+                action={
+                  unavailable ? null : (
+                    <Btn asChild>
+                      <Link href="/devenir-formateur">Devenir formateur</Link>
+                    </Btn>
+                  )
+                }
               />
-            ))}
-          </ScrollCarousel>
-          <div className="mt-[26px] flex justify-center">
-            <Btn asChild variant="o">
-              <Link href="/ressources">Voir tout le catalogue</Link>
-            </Btn>
-          </div>
+            </>
+          )}
         </div>
       </section>
 
