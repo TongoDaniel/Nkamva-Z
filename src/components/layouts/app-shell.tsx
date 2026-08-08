@@ -38,11 +38,16 @@ interface NavItem {
 
 const LEARNER_NAV: NavItem[] = [
   { href: "/accueil", label: "Accueil" },
+  // Le catalogue n'a plus d'onglet : on y entre par « Explorer le catalogue »
+  // depuis ses ressources, et son fil d'Ariane y remonte. Il reste rattaché à
+  // cet onglet pour que la barre continue de dire où l'on est.
+  //
   // `/catalogue` et non `/ressources` : la version visiteur du catalogue rend
-  // la coquille publique, avec « Se connecter » — on sortait de son espace en
-  // cliquant sur un onglet de sa propre barre de navigation.
-  { href: "/catalogue", label: "Catalogue" },
-  { href: "/mes-ressources", label: "Mes ressources" },
+  // la coquille publique, avec « Se connecter » — on sortirait de son espace.
+  { href: "/mes-ressources", label: "Mes ressources", related: ["/catalogue"] },
+  // `/catalogue/communautes` est plus précis que le `/catalogue` ci-dessus :
+  // c'est cet onglet-là qui l'emporte, voir `currentIndex()`.
+  { href: "/mes-communautes", label: "Mes communautés", related: ["/catalogue/communautes"] },
   // Factures et contestations pendent des achats : leur fil d'Ariane y remonte,
   // l'onglet le dit aussi.
   { href: "/mes-achats", label: "Mes achats", related: ["/mes-factures", "/mes-litiges"] },
@@ -81,16 +86,41 @@ function isActive(pathname: string, href: string) {
 }
 
 /**
- * Onglet courant, routes rattachées comprises. `listed` porte les href qui ont
- * déjà leur propre entrée dans la même liste — le menu mobile déplie « Mes
- * factures » sous le compte, et deux entrées ne peuvent pas se déclarer
- * « page courante » à la fois.
+ * Le href par lequel cet onglet revendique la route courante, ou `null`.
+ *
+ * On renvoie le href plutôt qu'un booléen parce que deux onglets peuvent
+ * revendiquer la même route : sur `/catalogue/communautes`, « Mes ressources »
+ * matche par `/catalogue` et « Mes communautés » par le chemin entier. La
+ * longueur départage — le plus précis gagne.
+ *
+ * `listed` porte les href qui ont déjà leur propre entrée dans la même liste :
+ * le menu mobile déplie « Mes factures » sous le compte, et un onglet ne doit
+ * pas lui disputer le marqueur de page courante.
  */
-function isCurrent(pathname: string, item: NavItem, listed?: Set<string>) {
-  if (isActive(pathname, item.href)) return true;
-  return (item.related ?? []).some(
-    (href) => !listed?.has(href) && isActive(pathname, href),
-  );
+function claimedHref(pathname: string, item: NavItem, listed?: Set<string>) {
+  const candidates = [
+    item.href,
+    ...(item.related ?? []).filter((href) => !listed?.has(href)),
+  ];
+  let best: string | null = null;
+  for (const href of candidates) {
+    if (isActive(pathname, href) && (!best || href.length > best.length)) best = href;
+  }
+  return best;
+}
+
+/** Index de l'onglet courant dans `items`, ou -1 si aucun ne revendique la route. */
+function currentIndex(pathname: string, items: NavItem[], listed?: Set<string>) {
+  let index = -1;
+  let length = 0;
+  items.forEach((item, i) => {
+    const href = claimedHref(pathname, item, listed);
+    if (href && href.length > length) {
+      index = i;
+      length = href.length;
+    }
+  });
+  return index;
 }
 
 /** Pastille de non-lus, posée à droite d'une entrée du menu. */
@@ -196,6 +226,10 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     (link) => !nav.some((item) => item.href === link.href),
   );
   const burgerHrefs = new Set(burgerLinks.map((link) => link.href));
+  // Le menu du compte ne marque aucune entrée courante : dans la barre du haut,
+  // rien ne dispute à un onglet ses routes rattachées.
+  const barCurrent = currentIndex(pathname, nav);
+  const burgerCurrent = currentIndex(pathname, nav, burgerHrefs);
 
   React.useEffect(() => {
     setOpen(false);
@@ -212,10 +246,8 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           <Logo href="/accueil" compact />
 
           <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 min-[820px]:flex">
-            {nav.map((item) => {
-              // Le menu du compte ne marque aucune entrée courante : rien ne
-              // dispute ici les routes rattachées.
-              const current = isCurrent(pathname, item);
+            {nav.map((item, index) => {
+              const current = index === barCurrent;
               return (
                 <Link
                   key={item.href}
@@ -264,7 +296,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           // `vh` : la barre d'adresse mobile mange la différence.
           className="absolute inset-x-0 top-full z-[120] max-h-[calc(100dvh-62px)] overflow-y-auto overscroll-contain border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk md:max-h-[calc(100dvh-70px)] min-[820px]:hidden"
         >
-          {nav.map((item) => {
+          {nav.map((item, index) => {
             // Les cinq sections de l'espace formateur sont dépliées ici : sous
             // 820px la sous-navigation de `/formateur` n'est atteignable qu'une
             // fois dans l'espace, ce qui coûtait un écran de plus pour ouvrir
@@ -273,7 +305,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             const sections = item.href === "/formateur" ? TRAINER_SECTIONS : [];
             const current = sections.length
               ? pathname === item.href
-              : isCurrent(pathname, item, burgerHrefs);
+              : index === burgerCurrent;
             return (
               <React.Fragment key={item.href}>
                 <Link

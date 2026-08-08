@@ -16,6 +16,12 @@ export type Space = 'public' | 'app'
 export interface SpaceRoutes {
   /** Cible du premier maillon du fil d'Ariane. */
   home: string
+  /**
+   * Parent du catalogue dans le fil d'Ariane. Il diffère d'un espace à l'autre :
+   * le visiteur y arrive depuis l'accueil, le connecté depuis ses ressources —
+   * son onglet, depuis que « Catalogue » a quitté la barre de navigation.
+   */
+  catalogParent: { label: string; href: string }
   /** Catalogue des ressources. */
   catalog: string
   course: (slug: string) => string
@@ -30,6 +36,7 @@ export interface SpaceRoutes {
 export const SPACES: Record<Space, SpaceRoutes> = {
   public: {
     home: '/',
+    catalogParent: { label: 'Accueil', href: '/' },
     catalog: '/ressources',
     course: (slug) => `/ressources/${slug}`,
     catalogCategory: (category) => `/ressources?category=${encodeURIComponent(category)}`,
@@ -40,6 +47,7 @@ export const SPACES: Record<Space, SpaceRoutes> = {
   },
   app: {
     home: '/accueil',
+    catalogParent: { label: 'Mes ressources', href: '/mes-ressources' },
     catalog: '/catalogue',
     // Un segment `ressource` intercalé : sans lui, `/catalogue/communautes`
     // entrerait en collision avec la fiche d'une ressource dont le slug serait

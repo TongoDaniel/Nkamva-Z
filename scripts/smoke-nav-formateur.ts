@@ -1,9 +1,9 @@
-// Smoke test du regroupement des sections formateur.
+// Smoke test de la navigation de l'espace connecté.
 //
-// Vérifie ce qu'un code HTTP ne dit pas : que la barre principale ne porte plus
-// que « Espace formateur », qu'aucune seconde barre n'est revenue, et que les
-// cinq sections restent joignables — par les cartes de `/formateur`, par le fil
-// d'Ariane qui y ramène, et par le menu burger sur mobile.
+// Vérifie ce qu'un code HTTP ne dit pas : quels onglets porte la barre, lequel
+// s'allume sur chaque route — routes rattachées comprises, et une seule à la
+// fois — et que les sections formateur restent joignables par les cartes de
+// `/formateur`, par le fil d'Ariane et par le menu burger sur mobile.
 //
 //   bun scripts/smoke-nav-formateur.ts
 import { config } from 'dotenv'
@@ -33,6 +33,29 @@ const SECTIONS = [
   '/formateur/litiges',
 ]
 
+/** Les onglets de la barre, dans l'ordre, pour un formateur. */
+const TABS = ['Accueil', 'Mes ressources', 'Mes communautés', 'Mes achats', 'Espace formateur']
+
+/**
+ * Route → onglet qui doit s'allumer. Le catalogue et ses fiches pendent de
+ * « Mes ressources », l'annuaire des communautés de « Mes communautés » — plus
+ * précis, il l'emporte sur le `/catalogue` du premier.
+ */
+const CURRENT_TAB: Array<[string, string]> = [
+  ['/accueil', 'Accueil'],
+  ['/mes-ressources', 'Mes ressources'],
+  ['/catalogue', 'Mes ressources'],
+  ['/catalogue/formateurs', 'Mes ressources'],
+  ['/mes-communautes', 'Mes communautés'],
+  ['/catalogue/communautes', 'Mes communautés'],
+  ['/mes-achats', 'Mes achats'],
+  ['/mes-factures', 'Mes achats'],
+  ['/mes-litiges', 'Mes achats'],
+  ['/formateur', 'Espace formateur'],
+  ['/formateur/portefeuille', 'Espace formateur'],
+  ['/formateur/litiges', 'Espace formateur'],
+]
+
 let failures = 0
 
 function check(label: string, ok: boolean, detail = '') {
@@ -57,6 +80,16 @@ function navSlice(html: string, label: string) {
   if (start < 0) return ''
   const end = html.indexOf('</nav>', start)
   return html.slice(start, end < 0 ? html.length : end)
+}
+
+/** Libellés des entrées d'une barre, dans l'ordre du rendu. */
+function navLabels(slice: string) {
+  return [...slice.matchAll(/<a[^>]*>([^<]*)</g)].map((m) => m[1].trim()).filter(Boolean)
+}
+
+/** Libellés des entrées portant `aria-current="page"` — il n'en faut qu'un. */
+function navCurrent(slice: string) {
+  return [...slice.matchAll(/<a[^>]*aria-current="page"[^>]*>([^<]*)</g)].map((m) => m[1].trim())
 }
 
 async function main() {
@@ -98,11 +131,24 @@ async function main() {
   const accueil = await get('/accueil')
   check('/accueil rend la coquille connectée', accueil.status === 200 && accueil.html.includes(APP_NAV), `HTTP ${accueil.status}`)
   const nav = navSlice(accueil.html, APP_NAV)
-  check('« Espace formateur » est resté dans la barre', hrefCount(nav, '/formateur') > 0)
+  check(
+    'la barre porte les cinq onglets attendus',
+    navLabels(nav).join(' · ') === TABS.join(' · '),
+    navLabels(nav).join(' · '),
+  )
   for (const href of SECTIONS) {
     check(`${href} a quitté la barre`, hrefCount(nav, href) === 0)
   }
   check("pas de seconde barre de navigation", !SECOND_BAR.test(accueil.html))
+
+  // Un onglet éteint sur toute une famille de routes, c'est l'utilisateur qui
+  // ne sait plus où il est ; deux allumés, c'est un `aria-current` en double.
+  console.log('\nOnglet courant, route par route')
+  for (const [path, expected] of CURRENT_TAB) {
+    const page = await get(path)
+    const current = navCurrent(navSlice(page.html, APP_NAV))
+    check(`${path} → ${expected}`, current.length === 1 && current[0] === expected, current.join(' + ') || 'aucun')
+  }
 
   // Le menu burger n'a pas la contrainte de place de la barre : les cinq
   // sections y sont dépliées, sinon elles coûteraient un écran de plus.
