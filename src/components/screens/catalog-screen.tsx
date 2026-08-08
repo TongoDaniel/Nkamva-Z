@@ -169,7 +169,7 @@ export function CatalogScreen({
   return (
     <div className="nk-wrap pb-16">
       <PageHead
-        crumbs={[{ label: "Accueil", href: routes.home }, { label: "Ressources" }]}
+        crumbs={[routes.catalogParent, { label: "Le catalogue" }]}
         title="Le catalogue"
         lead="Cours vidéo, guides et modèles créés par des formateurs africains. Payez à l'unité, en FCFA — la ressource reste à vous, à vie."
       />
