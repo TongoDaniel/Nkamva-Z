@@ -172,7 +172,7 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
     const method = await createPayoutMethod(profile.id, user.id, {
       type: 'MOBILE_MONEY', accountNature: 'INDIVIDUAL',
       holderName: 'Marie Formatrice', // identique au verifiedLegalName
-      mobileOperator: 'WAVE', mobilePhone: '+221770000000',
+      mobileOperator: 'ORANGE_MONEY', mobilePhone: '+221770000000',
     })
 
     expect(method.verificationStatus).toBe('PENDING_REVIEW')
@@ -211,7 +211,7 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
 
       const method = await createPayoutMethod(profile.id, user.id, {
         type: 'MOBILE_MONEY', accountNature: 'BUSINESS', businessName: 'Sarr Formation SARL',
-        mobileOperator: 'WAVE', mobilePhone: '+221770000000',
+        mobileOperator: 'ORANGE_MONEY', mobilePhone: '+221770000000',
         businessDocS3Key, legalRepProofS3Key,
       })
 
@@ -235,7 +235,7 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
         type: 'MOBILE_MONEY', accountNature: 'BUSINESS',
         // La « société » porte exactement le nom de la personne.
         businessName: 'MARIE  formatrice',
-        mobileOperator: 'WAVE', mobilePhone: '+221770000000',
+        mobileOperator: 'ORANGE_MONEY', mobilePhone: '+221770000000',
         businessDocS3Key: await presignKey(user.id, 'BUSINESS_DOC'),
         legalRepProofS3Key: await presignKey(user.id, 'LEGAL_REP_PROOF'),
       })
@@ -255,7 +255,7 @@ describe('Lot 3 — KYC, RIB & retraits', () => {
     const BUSINESS_INPUT = {
       type: 'MOBILE_MONEY' as const, accountNature: 'BUSINESS' as const,
       businessName: 'Formatrice SARL',
-      mobileOperator: 'WAVE' as const, mobilePhone: '+221770000000',
+      mobileOperator: 'ORANGE_MONEY' as const, mobilePhone: '+221770000000',
     }
 
     const presign = presignKey

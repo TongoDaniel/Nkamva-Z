@@ -82,7 +82,11 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
   const [clock, setClock] = React.useState<number | null>(null);
 
   const live = room.live;
-  const transport = useLiveRoom(live ? room.serverUrl : null, live ? room.token : null);
+  const transport = useLiveRoom(
+    live ? room.serverUrl : null,
+    live ? room.token : null,
+    live ? room.id : null,
+  );
 
   React.useEffect(() => {
     const tick = () => setClock(Date.now());
@@ -98,6 +102,29 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
     const id = window.setInterval(() => router.refresh(), 10_000);
     return () => window.clearInterval(id);
   }, [live, router]);
+
+  /**
+   * Pourquoi micro et caméra sont éteints — `null` quand ils sont utilisables.
+   *
+   * Ils ne s'activent que sur une salle connectée, et il n'y a pas de salle
+   * tant que la séance n'est pas ouverte : `useLiveRoom` reçoit `null` dans ce
+   * cas et ne tente aucune connexion. C'est voulu ; ce qui ne l'était pas,
+   * c'est que les boutons annoncent « Activer mon micro » sans jamais pouvoir
+   * le faire, ce qui donne l'impression d'une commande cassée.
+   */
+  const controlsReason = !live
+    ? room.status === "ENDED"
+      ? "La séance est terminée : les commandes sont closes."
+      : "Ouvrez la séance pour activer votre micro et votre caméra."
+    : !room.transportConfigured
+      ? "Diffusion non configurée sur cette instance : la modération et le salon restent utilisables."
+      : transport.connecting
+        ? "Connexion à la salle en cours…"
+        : transport.error
+          ? "La connexion au serveur temps réel a échoué. La modération et le salon restent utilisables."
+          : !transport.connected
+            ? "En attente de la salle."
+            : null;
 
   const others = room.participants.filter((p) => !p.isHost);
   const lockedCount = others.filter((p) => p.mutedByHost).length;
@@ -317,7 +344,9 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           <ControlButton
             active={transport.micEnabled}
             disabled={!transport.connected}
-            label={transport.micEnabled ? "Couper mon micro" : "Activer mon micro"}
+            label={
+              controlsReason ?? (transport.micEnabled ? "Couper mon micro" : "Activer mon micro")
+            }
             onClick={() => void transport.setMic(!transport.micEnabled)}
           >
             {transport.micEnabled ? <Mic /> : <MicOff />}
@@ -325,11 +354,19 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           <ControlButton
             active={transport.camEnabled}
             disabled={!transport.connected}
-            label={transport.camEnabled ? "Couper ma caméra" : "Activer ma caméra"}
+            label={
+              controlsReason ?? (transport.camEnabled ? "Couper ma caméra" : "Activer ma caméra")
+            }
             onClick={() => void transport.setCam(!transport.camEnabled)}
           >
             {transport.camEnabled ? <Video /> : <VideoOff />}
           </ControlButton>
+          {/* Un bouton gris sans motif se lit comme une panne. Le dire ici, et
+              pas seulement dans l'infobulle : une infobulle suppose de survoler
+              ce qu'on a déjà pris pour cassé. */}
+          {controlsReason ? (
+            <p className="w-full text-center text-[12.5px] text-[#8fa6c0]">{controlsReason}</p>
+          ) : null}
         </div>
 
         {/* Arbitrage 35 : couper tout le monde, et rouvrir. Le geste sur un seul
@@ -372,6 +409,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
             { value: "participants", label: "Participants", count: room.participants.length },
             { value: "chat", label: "Salon", count: room.messages.length },
           ]}
+          size="sm"
           className="!mb-0 px-2"
         />
 

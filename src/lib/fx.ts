@@ -49,22 +49,25 @@ export function isParWithPlatform(currency: string): boolean {
 }
 
 /**
- * Taux d'une devise **pour l'affichage** : un échec ferme cette devise-là, et
- * elle seule.
+ * Devises encaissables, en **une** requête.
  *
- * `fxRate` lève sur un taux illisible — c'est voulu au moment de payer, où une
- * erreur doit se voir. Mais les écrans qui *listent* les opérateurs itèrent sur
- * toutes les devises du compte : une seule levée y emportait la liste entière
- * dans le repli « ne rien annoncer ». La page d'accueil a perdu sa bande de
- * paiement **et** ses pays de zone franc — qui n'interrogent pourtant jamais la
- * base — parce que la devise congolaise, plus loin dans la boucle, échouait.
+ * Les écrans qui listent parcourent tous les opérateurs de tous les pays : les
+ * interroger devise par devise faisait une trentaine d'allers-retours en base
+ * au rendu de la page d'accueil, pour lire au plus une dizaine de lignes.
+ *
+ * Un taux illisible n'entre pas dans l'ensemble : la devise est simplement
+ * fermée. C'est délibérément plus tolérant que `fxRate`, qui lève — au moment
+ * de payer, une saisie fautive doit se voir ; en vitrine, elle ne doit pas
+ * emporter les autres pays avec elle.
  */
-async function rateForListing(currency: string): Promise<number | null> {
-  try {
-    return await fxRate(currency)
-  } catch {
-    return null
+export async function payableCurrencies(): Promise<ReadonlySet<string>> {
+  const rows = await db.fxRate.findMany({ select: { currency: true, unitsPerXaf: true } })
+  const payable = new Set<string>(PAR_WITH_PLATFORM)
+  for (const row of rows) {
+    const rate = Number(row.unitsPerXaf)
+    if (Number.isFinite(rate) && rate > 0) payable.add(row.currency.toUpperCase())
   }
+  return payable
 }
 
 /**
@@ -151,7 +154,6 @@ export async function settleAmount(
  */
 export async function payableProvidersForUser(userId: string): Promise<PayableProvider[]> {
   if (!isPawaPayConfigured()) return []
-  // Ne jamais élargir ce `try` à la boucle des devises : voir `rateForListing`.
 
   const user = await db.user.findUnique({ where: { id: userId }, select: { countryCode: true } })
   // Sans pays déclaré, on retombe sur le marché d'origine — c'est déjà ce que
@@ -160,14 +162,17 @@ export async function payableProvidersForUser(userId: string): Promise<PayablePr
   const country = user?.countryCode ?? 'CM'
 
   try {
-    const providers = await providersForCountry(country, 'DEPOSIT')
+    const [providers, payable] = await Promise.all([
+      providersForCountry(country, 'DEPOSIT'),
+      payableCurrencies(),
+    ])
     const out: PayableProvider[] = []
     const seen = new Set<string>()
     for (const provider of providers) {
       // Un opérateur qui accepte deux devises (CDF et USD en RDC) ne doit
       // apparaître qu'une fois dans la liste.
       if (seen.has(provider.provider)) continue
-      if ((await rateForListing(provider.currency)) === null) continue
+      if (!payable.has(provider.currency.toUpperCase())) continue
       seen.add(provider.provider)
       out.push({
         provider: provider.provider,

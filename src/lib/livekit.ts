@@ -26,6 +26,7 @@
 import {
   AccessToken, EgressClient, RoomServiceClient, EgressStatus,
   EncodedFileOutput, EncodedFileType, S3Upload, StreamOutput, StreamProtocol,
+  type EgressInfo,
 } from 'livekit-server-sdk'
 import { storageConfig } from './s3'
 
@@ -283,6 +284,23 @@ export type EgressOutcome =
  * l'arbitrage 38 tient à moitié. Voir `reconcileProcessingReplays` dans
  * `lives.ts`, qui appelle ceci depuis un job planifié.
  */
+/**
+ * Le fichier produit par un egress terminé, quelle que soit la façon dont le
+ * serveur le range.
+ *
+ * `EgressInfo` porte **deux** emplacements pour le même résultat : le tableau
+ * `fileResults`, et le `result` typé (`{case: 'file', value}`). Le serveur ne
+ * remplit pas forcément les deux — celui qui sert cette instance ne renseigne
+ * que `result`. Ne lire que `fileResults` faisait conclure « aucun fichier
+ * produit » sur un enregistrement parfaitement réussi : le 8 août 2026, un
+ * replay de 3 Mo déjà déposé dans le seau a été marqué `FAILED`, et le
+ * formateur n'a jamais revu sa séance.
+ */
+function egressFile(info: EgressInfo): { filename: string; size: bigint; duration: bigint } | null {
+  if (info.result?.case === 'file') return info.result.value
+  return info.fileResults[0] ?? null
+}
+
 export async function getEgressOutcome(egressId: string): Promise<EgressOutcome> {
   const client = egress()
   if (!client) return { done: false }
@@ -294,7 +312,7 @@ export async function getEgressOutcome(egressId: string): Promise<EgressOutcome>
     switch (info.status) {
       case EgressStatus.EGRESS_COMPLETE:
       case EgressStatus.EGRESS_LIMIT_REACHED: {
-        const file = info.fileResults[0]
+        const file = egressFile(info)
         if (!file) return { done: true, ok: false, reason: 'aucun fichier produit' }
         return {
           done: true,
