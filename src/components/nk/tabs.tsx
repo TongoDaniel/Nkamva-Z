@@ -19,6 +19,13 @@ export interface TabsProps {
    * `chip` = `.ctabs`, la rangée de catégories des listings publics.
    */
   variant?: "underline" | "pill" | "chip";
+  /**
+   * `sm` resserre la variante `underline` pour les colonnes étroites. La taille
+   * par défaut suppose une pleine largeur : dans un panneau latéral de 358 px,
+   * trois onglets à compteur débordent, et le dernier devient inatteignable —
+   * la barre défile, mais sans barre de défilement visible, rien ne le dit.
+   */
+  size?: "md" | "sm";
   /** Libellé du groupe d'onglets, obligatoire pour les lecteurs d'écran. */
   label: string;
   /** id du conteneur piloté par les onglets. */
@@ -36,6 +43,7 @@ export function Tabs({
   value,
   onValueChange,
   variant = "underline",
+  size = "md",
   label,
   panelId,
   className,
@@ -109,7 +117,7 @@ export function Tabs({
               "relative shrink-0 cursor-pointer whitespace-nowrap font-semibold transition duration-150",
               variant === "underline"
                 ? cn(
-                    "px-4 py-3 text-[15px]",
+                    size === "sm" ? "px-2.5 py-2.5 text-[13.5px]" : "px-4 py-3 text-[15px]",
                     active ? "text-ink" : "text-ink-3 hover:text-ink",
                     active &&
                       "after:absolute after:inset-x-3 after:-bottom-[1.5px] after:h-[3px] after:rounded-sm after:bg-brand after:content-['']",
@@ -132,7 +140,12 @@ export function Tabs({
             )}
           >
             {item.label}
-            {typeof item.count === "number" ? (
+            {/* Une pastille « 0 » n'apprend rien et coûte 24 px : trois onglets
+                à compteur nul débordaient la colonne de modération de la
+                console d'animation, et « Salon » sortait du panneau. Le zéro se
+                lit déjà dans le panneau lui-même, qui dit « Personne ne demande
+                la parole ». */}
+            {typeof item.count === "number" && item.count > 0 ? (
               <span
                 className={cn(
                   "ml-1.5 rounded-full px-2 py-0.5 text-xs font-bold",

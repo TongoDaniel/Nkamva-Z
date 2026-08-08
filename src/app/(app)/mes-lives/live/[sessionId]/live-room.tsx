@@ -127,7 +127,11 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
   const [countdown, setCountdown] = React.useState<string | null>(null);
 
   const live = room.live;
-  const transport = useLiveRoom(live ? room.serverUrl : null, live ? room.token : null);
+  const transport = useLiveRoom(
+    live ? room.serverUrl : null,
+    live ? room.token : null,
+    live ? room.id : null,
+  );
 
   React.useEffect(() => {
     if (live) return;

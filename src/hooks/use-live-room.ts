@@ -46,7 +46,26 @@ export interface LiveRoomState {
  * plutôt que déduit d'un état React — sinon le verrou serait négociable depuis
  * la console du navigateur.
  */
-export function useLiveRoom(serverUrl: string | null, token: string | null): LiveRoomState {
+export function useLiveRoom(
+  serverUrl: string | null,
+  token: string | null,
+  /**
+   * Identité **stable** de la salle — l'identifiant de la session.
+   *
+   * C'est elle qui commande la connexion, et non le jeton : `mintJoinToken`
+   * forge un JWT neuf à chaque rendu serveur (il porte son `iat`), si bien que
+   * la chaîne change à chaque `router.refresh()`. Les deux écrans en
+   * déclenchent un toutes les dix à quinze secondes pour suivre les mains
+   * levées : la salle était donc détruite et reconstruite en boucle, et **le
+   * micro comme la caméra retombaient à chaque fois** — LiveKit ne republie pas
+   * les pistes locales sur une nouvelle instance de `Room`.
+   *
+   * Rien n'est perdu à ignorer le jeton rafraîchi : les droits d'un participant
+   * déjà connecté sont poussés par le serveur (`setParticipantCanPublish`), et
+   * reçus ici par `ParticipantPermissionsChanged`.
+   */
+  roomKey: string | null,
+): LiveRoomState {
   const roomRef = React.useRef<Room | null>(null);
   const [connected, setConnected] = React.useState(false);
   const [connecting, setConnecting] = React.useState(false);
@@ -57,8 +76,17 @@ export function useLiveRoom(serverUrl: string | null, token: string | null): Liv
   const [camEnabled, setCamEnabled] = React.useState(false);
   const [canPublish, setCanPublish] = React.useState(false);
 
+  // Le jeton n'est lu qu'au moment de se connecter. Déclaré **avant** l'effet de
+  // connexion : React exécute les effets dans l'ordre de déclaration, la
+  // référence est donc à jour quand la connexion s'établit.
+  const tokenRef = React.useRef(token);
   React.useEffect(() => {
-    if (!serverUrl || !token) return;
+    tokenRef.current = token;
+  }, [token]);
+
+  React.useEffect(() => {
+    const joinToken = tokenRef.current;
+    if (!serverUrl || !roomKey || !joinToken) return;
 
     const room = new Room({ adaptiveStream: true, dynacast: true });
     roomRef.current = room;
@@ -113,7 +141,7 @@ export function useLiveRoom(serverUrl: string | null, token: string | null): Liv
 
     setConnecting(true);
     room
-      .connect(serverUrl, token)
+      .connect(serverUrl, joinToken)
       .then(() => {
         if (!alive) return;
         setConnected(true);
@@ -131,7 +159,8 @@ export function useLiveRoom(serverUrl: string | null, token: string | null): Liv
       void room.disconnect();
       roomRef.current = null;
     };
-  }, [serverUrl, token]);
+    // `token` est volontairement absent des dépendances — voir `roomKey`.
+  }, [serverUrl, roomKey]);
 
   const setMic = React.useCallback(async (on: boolean) => {
     const room = roomRef.current;

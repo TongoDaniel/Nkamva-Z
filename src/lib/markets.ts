@@ -16,7 +16,7 @@
 // ==========================================================================
 
 import { activeConfiguration, countryFromPawaPay, isPawaPayConfigured } from './pawapay'
-import { fxRate } from './fx'
+import { payableCurrencies } from './fx'
 
 /** Noms français des pays que PawaPay peut servir. Pure traduction de codes. */
 const COUNTRY_NAMES: Record<string, string> = {
@@ -77,6 +77,11 @@ export async function payableMarkets(): Promise<PayableMarkets> {
     return EMPTY
   }
 
+  // Une seule lecture des taux pour toute la boucle : la version précédente
+  // interrogeait la base par devise et par pays, soit une trentaine de requêtes
+  // au rendu de l'accueil.
+  const payable = await payableCurrencies().catch(() => new Set<string>())
+
   const countries = new Map<string, string>()
   const brands = new Set<string>()
 
@@ -86,11 +91,8 @@ export async function payableMarkets(): Promise<PayableMarkets> {
     for (const provider of country.providers ?? []) {
       for (const entry of provider.currencies ?? []) {
         if (!entry.operationTypes?.DEPOSIT) continue
-        // Le filtre qui compte : sans taux, ce pays n'encaisse pas. Les devises
-        // à parité fixe passent sans toucher la base — c'est pourquoi la zone
-        // franc doit survivre à une panne de lecture des taux.
-        const rate = await fxRate(entry.currency).catch(() => null)
-        if (rate === null) continue
+        // Le filtre qui compte : sans taux, ce pays n'encaisse pas.
+        if (!payable.has(entry.currency.toUpperCase())) continue
         countries.set(code, countryName(code))
         brands.add(provider.displayName ?? provider.provider)
       }
