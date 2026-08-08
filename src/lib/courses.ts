@@ -35,9 +35,12 @@ export const STORAGE_TIER_BYTES = 50 * 1024 ** 3
  * automatiquement (arbitrage 38), un formateur peut donc épuiser son quota sans
  * avoir rien téléversé lui-même. Un replay purgé au bout de 24 mois
  * (arbitrage 51) lui rend la place — d'où le filtre sur `purgedAt`.
+ *
+ * **La bannière de communauté aussi** : c'est un objet déposé sur R2 par le
+ * même formateur, il pèse sur le même quota que la couverture d'un cours.
  */
 export async function trainerStorageUsedBytes(trainerId: string): Promise<number> {
-  const [courses, replays] = await Promise.all([
+  const [courses, replays, communities] = await Promise.all([
     db.course.aggregate({
       where: { trainerId },
       _sum: { contentSizeBytes: true, coverSizeBytes: true },
@@ -45,6 +48,10 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
     db.replay.aggregate({
       where: { trainerId, purgedAt: null },
       _sum: { sizeBytes: true },
+    }),
+    db.community.aggregate({
+      where: { trainerId },
+      _sum: { coverSizeBytes: true },
     }),
   ])
   // Colonnes BIGINT — une seule vidéo peut peser 2 Go, soit un octet de plus
@@ -55,7 +62,8 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
   const total =
     (courses._sum.contentSizeBytes ?? BigInt(0)) +
     (courses._sum.coverSizeBytes ?? BigInt(0)) +
-    (replays._sum.sizeBytes ?? BigInt(0))
+    (replays._sum.sizeBytes ?? BigInt(0)) +
+    (communities._sum.coverSizeBytes ?? BigInt(0))
   return Number(total)
 }
 

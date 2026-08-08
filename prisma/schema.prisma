@@ -466,6 +466,9 @@ model Community {
   description      String?
   rules            String?
   coverS3Key       String?
+  /// Arbitrage 54 — la bannière occupe le quota de son formateur, au même titre
+  /// que la couverture d'un cours : `trainerStorageUsedBytes()` l'additionne.
+  coverSizeBytes   BigInt?
   priceFcfa        Int
   commissionRate   Float                   @default(0.15)
   forumEnabled     Boolean                 @default(true)

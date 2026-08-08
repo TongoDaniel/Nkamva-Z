@@ -7,8 +7,10 @@ import { StatTile } from "@/components/nk/stat-tile";
 import { getAuthContext } from "@/lib/api";
 import { getMyCommunity, listCommunityMembers } from "@/lib/communities";
 import { listCommunityInvitations } from "@/lib/invitations";
+import { presignDownload } from "@/lib/s3";
 import { fmtNumber } from "@/lib/format";
 import { CommunityForm, VisibilityToggle, type CommunityFormValues } from "./community-form";
+import { CommunityCoverUploader } from "./cover-uploader";
 import { InvitationsPanel } from "./invitations-panel";
 import { MembersPanel } from "./members-panel";
 
@@ -48,6 +50,10 @@ export default async function MaCommunautePage() {
       </div>
     );
   }
+
+  // L'URL signée expire au bout de cinq minutes : elle est produite à chaque
+  // rendu, jamais mise en cache.
+  const coverUrl = community.coverS3Key ? await presignDownload(community.coverS3Key) : null;
 
   const initial: CommunityFormValues = {
     name: community.name,
@@ -93,6 +99,12 @@ export default async function MaCommunautePage() {
           tone="gold"
         />
       </div>
+
+      <CommunityCoverUploader
+        communityId={community.id}
+        currentKey={community.coverS3Key}
+        previewUrl={coverUrl}
+      />
 
       <VisibilityToggle communityId={community.id} visibility={community.visibility} />
 

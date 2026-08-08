@@ -7,6 +7,7 @@ import { Price } from '@/components/nk/resource-card'
 import { Avatar } from '@/components/nk/avatar'
 import { getAuthContext } from '@/lib/api'
 import { listPublicCommunities } from '@/lib/communities'
+import { presignDownload } from '@/lib/s3'
 import { fmtNumber } from '@/lib/format'
 import { routesOf, type Space } from '@/lib/spaces'
 
@@ -14,6 +15,15 @@ import { routesOf, type Space } from '@/lib/spaces'
 export async function CommunitiesScreen({ space }: { space: Space }) {
   const routes = routesOf(space)
   const [communities, auth] = await Promise.all([listPublicCommunities(), getAuthContext()])
+  // Une URL signée par bannière déposée — produites en parallèle, elles
+  // expirent en cinq minutes et ne survivent donc pas à ce rendu.
+  const covers = new Map(
+    await Promise.all(
+      communities
+        .filter((c) => c.coverS3Key)
+        .map(async (c) => [c.id, await presignDownload(c.coverS3Key!)] as const),
+    ),
+  )
   // Proposer de devenir formateur à quelqu'un qui l'est déjà — et dont une
   // communauté figure peut-être dans la liste juste en dessous. Les deux pages
   // qui rendent cet écran sont `force-dynamic` : lire la session ici ne coûte
@@ -61,7 +71,17 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
               key={community.id}
               className="group relative flex flex-col overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk focus-within:-translate-y-1 focus-within:shadow-nk"
             >
-              <div className="h-[104px] bg-gradient-to-br from-navy to-info" />
+              {covers.get(community.id) ? (
+                // `img` et non `next/image` : l'URL signée expire, le cache
+                // d'images la garderait sous une clé qui lui survivrait.
+                <img
+                  src={covers.get(community.id)}
+                  alt=""
+                  className="h-[104px] w-full object-cover"
+                />
+              ) : (
+                <div className="h-[104px] bg-gradient-to-br from-navy to-info" />
+              )}
               <div className="flex flex-1 flex-col gap-2.5 px-5 pb-5 pt-4">
                 <h2 className="text-[17px] font-extrabold leading-tight">
                   {/* Le lien couvre toute la carte : une seule cible cliquable, un seul

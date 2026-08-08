@@ -135,6 +135,9 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   },
   NEXTAUTH_SECRET_MISSING: { message: 'Configuration incomplète du serveur', status: 500 },
   // --- Communautés (arbitrages 45, 47, 48) ---
+  // Même intitulé et même statut que la branche ad hoc de
+  // `PATCH /api/trainer/communities/[communityId]`, qui la précède.
+  COMMUNITY_CLOSED: { message: 'Cette communauté est close.', status: 409 },
   COURSE_NOT_FOR_SALE: { message: 'Cette ressource est incluse dans une communauté', status: 422 },
   COURSE_ALREADY_SOLD: { message: 'Une ressource déjà vendue ne peut pas être incluse', status: 422 },
   COURSE_ALREADY_LINKED: { message: 'Ressource déjà incluse dans cette communauté', status: 409 },
