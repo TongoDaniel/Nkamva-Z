@@ -9,6 +9,7 @@ import { ReportButton } from '@/components/nk/report-button'
 import { Avatar } from '@/components/nk/avatar'
 import { getPublicCommunity } from '@/lib/communities'
 import { getMembership } from '@/lib/memberships'
+import { presignDownload } from '@/lib/s3'
 import { getAuthContext } from '@/lib/api'
 import { fmtNumber } from '@/lib/format'
 import { routesOf, type Space } from '@/lib/spaces'
@@ -28,6 +29,9 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
   const trainerName = community.trainer.fullName ?? 'Formateur NkamVa'
 
   const membership = auth ? await getMembership(community.id, auth.user.id) : null
+  // Bannière déposée par le formateur, à défaut le dégradé d'origine. L'URL
+  // signée expire en cinq minutes : elle est produite à chaque rendu.
+  const coverUrl = community.coverS3Key ? await presignDownload(community.coverS3Key) : null
   const isOwner = auth?.user.trainerId === community.trainer.id
 
   // Les salons annoncés suivent ce que la communauté a réellement activé.
@@ -51,7 +55,17 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
       <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1fr_320px]">
         <div>
           <div className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm">
-            <div className="h-[140px] bg-gradient-to-br from-navy to-info" />
+            {coverUrl ? (
+              // Une URL signée expire : `img` plutôt que `next/image`, qui la
+              // mettrait en cache sous une clé qui lui survivrait.
+              <img
+                src={coverUrl}
+                alt={`Bannière de ${community.name}`}
+                className="h-[140px] w-full object-cover"
+              />
+            ) : (
+              <div className="h-[140px] bg-gradient-to-br from-navy to-info" />
+            )}
             <div className="px-6 pb-6">
               <div className="-mt-8">
                 <Avatar name={trainerName} size="lg" />
@@ -177,18 +191,28 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
               ) : null}
             </ul>
 
+            {/* Le formateur, sur sa propre communauté, n'a rien à faire de sa
+                fiche publique : on lui donne l'écran depuis lequel il la gère. */}
             <Btn asChild variant="o" className="mt-4 w-full">
-              <Link href={routes.trainer(community.trainer.id)}>Voir le formateur</Link>
+              {isOwner ? (
+                <Link href="/formateur/communaute">Gérer ma communauté</Link>
+              ) : (
+                <Link href={routes.trainer(community.trainer.id)}>Voir le formateur</Link>
+              )}
             </Btn>
 
-            {/* Une issue, pas une proposition : discret, en bas du panneau. */}
-            <div className="mt-4 border-t border-line-2 pt-4">
-              <ReportButton
-                targetType="COMMUNITY"
-                targetId={community.id}
-                name={community.name}
-              />
-            </div>
+            {/* Une issue, pas une proposition : discret, en bas du panneau.
+                Rien à signaler chez soi : le bouton disparaît pour le formateur
+                qui anime cette communauté. */}
+            {isOwner ? null : (
+              <div className="mt-4 border-t border-line-2 pt-4">
+                <ReportButton
+                  targetType="COMMUNITY"
+                  targetId={community.id}
+                  name={community.name}
+                />
+              </div>
+            )}
           </div>
         </aside>
       </div>

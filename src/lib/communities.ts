@@ -22,6 +22,8 @@ import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
 import { canTrainerWrite } from './subscriptions'
+import { trainerStorage } from './courses'
+import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
 import type { CourseListItem } from './dto'
 
 /**
@@ -318,12 +320,121 @@ export async function updateCommunity(
   return updated
 }
 
+// ==========================================================================
+// La bannière d'une communauté
+// ==========================================================================
+// Même chaîne que la couverture d'un cours (`presignCourseUpload` /
+// `confirmCourseUpload`) : une URL présignée, puis une confirmation qui est le
+// seul endroit où la clé entre en base. Sans cette seconde étape, l'objet
+// vivrait sur R2 sans que rien ne le référence.
+//
+// La taille est relue sur l'objet déposé, jamais reprise du client : c'est elle
+// qui alimente le quota de stockage du formateur (arbitrage 54).
+
+/** Miroir de `COURSE_UPLOAD_LIMITS.image` : une bannière est une image. */
+export const COMMUNITY_COVER_LIMITS = {
+  mimes: ['image/png', 'image/jpeg', 'image/webp'],
+  maxSize: 5_242_880,
+} as const
+
+/** Préfixe des clés R2 d'une bannière, vérifié à la confirmation. */
+const coverPrefix = (communityId: string) => `community-assets/${communityId}/`
+
+export async function presignCommunityCover(
+  communityId: string,
+  trainerProfileId: string,
+  params: { mimeType: string; sizeBytes: number },
+) {
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true, status: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+  if (community.status !== 'active') throw new Error('COMMUNITY_CLOSED')
+  // Décision 68 — le téléversement est un chemin d'écriture, il est bloqué.
+  if (!(await canTrainerWrite(trainerProfileId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+
+  if (!(COMMUNITY_COVER_LIMITS.mimes as readonly string[]).includes(params.mimeType)) {
+    throw new Error('MIME_NOT_ALLOWED')
+  }
+  if (params.sizeBytes > COMMUNITY_COVER_LIMITS.maxSize) throw new Error('SIZE_EXCEEDS_LIMIT')
+
+  // La taille annoncée suffit ici : la vérité est reprise à la confirmation,
+  // sur l'objet réellement déposé.
+  const { remainingBytes } = await trainerStorage(trainerProfileId)
+  if (params.sizeBytes > remainingBytes) throw new Error('STORAGE_QUOTA_EXCEEDED')
+
+  const ext = params.mimeType.split('/')[1]
+  const s3Key = `${coverPrefix(communityId)}cover-${crypto.randomUUID()}.${ext}`
+  const { uploadUrl, expiresAt } = await presignUpload(s3Key, params.mimeType, params.sizeBytes)
+
+  return { uploadUrl, s3Key, expiresAt }
+}
+
+export async function confirmCommunityCover(
+  communityId: string,
+  trainerProfileId: string,
+  userId: string,
+  params: { s3Key: string; mimeType: string },
+) {
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true, status: true, coverS3Key: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+  if (community.status !== 'active') throw new Error('COMMUNITY_CLOSED')
+  if (!(await canTrainerWrite(trainerProfileId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+
+  // La clé doit être celle que nous avons émise pour CETTE communauté : sinon
+  // un formateur pourrait rattacher l'objet d'un autre.
+  if (!params.s3Key.startsWith(coverPrefix(communityId))) throw new Error('UPLOAD_NOT_FOUND')
+
+  if (!(COMMUNITY_COVER_LIMITS.mimes as readonly string[]).includes(params.mimeType)) {
+    throw new Error('MIME_NOT_ALLOWED')
+  }
+
+  // Une image renommée est refusée. Sans identifiants R2, `headObject` renvoie
+  // null et la validation est sautée — le mode dev ne dépose rien de réel.
+  const head = await headObject(params.s3Key)
+  if (head) {
+    await validateMagicNumber(params.s3Key, params.mimeType)
+    if (head.contentLength > COMMUNITY_COVER_LIMITS.maxSize) throw new Error('SIZE_EXCEEDS_LIMIT')
+  }
+  const sizeBytes = head?.contentLength ?? 0
+
+  const previousKey = community.coverS3Key
+  const updated = await db.community.update({
+    where: { id: communityId },
+    data: { coverS3Key: params.s3Key, coverSizeBytes: BigInt(sizeBytes) },
+    select: { id: true, coverS3Key: true },
+  })
+
+  // La bannière remplacée ne sert plus personne et occuperait le quota pour
+  // rien : elle est retirée du seau après que la nouvelle clé est en base —
+  // dans cet ordre, un échec de suppression ne laisse jamais la communauté
+  // pointer sur un objet effacé.
+  if (previousKey && previousKey !== params.s3Key) {
+    await deleteObject(previousKey).catch(() => {})
+  }
+
+  await auditStandalone({
+    actorId: userId, actorRole: 'TRAINER',
+    action: 'COMMUNITY_COVER_UPLOADED', targetType: 'Community', targetId: communityId,
+    meta: { s3Key: params.s3Key, sizeBytes, mimeType: params.mimeType, replaced: Boolean(previousKey) },
+  })
+
+  return updated
+}
+
 /** La communauté du formateur, avec de quoi remplir son écran de gestion. */
 export async function getMyCommunity(trainerProfileId: string) {
   return db.community.findFirst({
     where: { trainerId: trainerProfileId, status: 'active' },
     select: {
       id: true, slug: true, name: true, description: true, rules: true,
+      coverS3Key: true,
       priceFcfa: true, visibility: true, membersCount: true, messagesPerDay: true,
       forumEnabled: true, broadcastEnabled: true, messagingEnabled: true,
       resourcesEnabled: true, eventsEnabled: true, createdAt: true,
