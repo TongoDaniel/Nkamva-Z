@@ -12,8 +12,8 @@ export default function MotDePasseOubliePage() {
     <AuthShell
       aside={
         <AuthAside
+          photo="/auth/mot-de-passe-oublie-apprenant.webp"
           photoBrief="apprenant concentré devant son ordinateur"
-
           quote="On reprend là où on s'était arrêté, en deux minutes."
           author="Support NkamVa · disponible 6j/7"
         />
