@@ -167,10 +167,13 @@ export function CourseForm({
   mode,
   courseId,
   initial,
+  aside,
 }: {
   mode: "create" | "edit";
   courseId?: string;
   initial?: CourseFormValues;
+  /** Panneaux propres à l'édition, empilés au-dessus de « Classement et prix ». */
+  aside?: React.ReactNode;
 }) {
   const router = useRouter();
   const [values, setValues] = React.useState<CourseFormValues>(initial ?? EMPTY_COURSE);
@@ -281,113 +284,118 @@ export function CourseForm({
         />
       </div>
 
-      <aside className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm lg:sticky lg:top-[88px]">
-        <h2 className="mb-4 text-[16.5px] font-extrabold">Classement et prix</h2>
+      {/* `self-stretch` : sans lui, `lg:items-start` réduirait cette colonne à la
+          hauteur de son contenu, et le bloc collant n'aurait plus de course. */}
+      <div className="grid content-start gap-6 lg:self-stretch">
+        {aside}
+        <aside className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm lg:sticky lg:top-[88px]">
+          <h2 className="mb-4 text-[16.5px] font-extrabold">Classement et prix</h2>
 
-        <Field
-          label="Catégorie"
-          required
-          list="nk-categories"
-          placeholder="Développement"
-          value={values.category}
-          onChange={(e) => set("category", e.target.value)}
-          error={fieldErrors.category}
-          hint="Choisissez une catégorie existante ou saisissez la vôtre."
-        />
-        <datalist id="nk-categories">
-          {SUGGESTED_CATEGORIES.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-
-        <div className="mb-[18px]">
-          <label htmlFor="nk-format" className="mb-1.5 block text-[13.5px] font-bold text-ink">
-            Format
-          </label>
-          <select
-            id="nk-format"
-            value={values.format}
-            onChange={(e) => set("format", e.target.value)}
-            aria-describedby="nk-format-hint"
-            className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
-          >
-            {COURSE_FORMATS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-          <p id="nk-format-hint" className="mt-1.5 text-[12.5px] text-ink-3">
-            La vidéo est lue en ligne avec suivi de progression ; les autres formats sont
-            téléchargés.
-          </p>
-        </div>
-
-        <div className="mb-[18px]">
-          <label htmlFor="nk-level" className="mb-1.5 block text-[13.5px] font-bold text-ink">
-            Niveau
-          </label>
-          <select
-            id="nk-level"
-            value={values.level}
-            onChange={(e) => set("level", e.target.value)}
-            className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
-          >
-            {COURSE_LEVELS.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <Field
-          label="Prix (FCFA)"
-          type="number"
-          inputMode="numeric"
-          required
-          min={MIN_PRICE_FCFA}
-          step={100}
-          placeholder="49000"
-          value={values.priceFcfa}
-          onChange={(e) => set("priceFcfa", e.target.value)}
-          error={fieldErrors.priceFcfa}
-          hint={`Minimum ${MIN_PRICE_FCFA} FCFA. Vous fixez librement ce montant.`}
-        />
-
-        {values.format === "video" ? (
           <Field
-            label="Durée (minutes)"
+            label="Catégorie"
+            required
+            list="nk-categories"
+            placeholder="Développement"
+            value={values.category}
+            onChange={(e) => set("category", e.target.value)}
+            error={fieldErrors.category}
+            hint="Choisissez une catégorie existante ou saisissez la vôtre."
+          />
+          <datalist id="nk-categories">
+            {SUGGESTED_CATEGORIES.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+
+          <div className="mb-[18px]">
+            <label htmlFor="nk-format" className="mb-1.5 block text-[13.5px] font-bold text-ink">
+              Format
+            </label>
+            <select
+              id="nk-format"
+              value={values.format}
+              onChange={(e) => set("format", e.target.value)}
+              aria-describedby="nk-format-hint"
+              className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
+            >
+              {COURSE_FORMATS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <p id="nk-format-hint" className="mt-1.5 text-[12.5px] text-ink-3">
+              La vidéo est lue en ligne avec suivi de progression ; les autres formats sont
+              téléchargés.
+            </p>
+          </div>
+
+          <div className="mb-[18px]">
+            <label htmlFor="nk-level" className="mb-1.5 block text-[13.5px] font-bold text-ink">
+              Niveau
+            </label>
+            <select
+              id="nk-level"
+              value={values.level}
+              onChange={(e) => set("level", e.target.value)}
+              className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
+            >
+              {COURSE_LEVELS.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <Field
+            label="Prix (FCFA)"
+            type="number"
+            inputMode="numeric"
+            required
+            min={MIN_PRICE_FCFA}
+            step={100}
+            placeholder="49000"
+            value={values.priceFcfa}
+            onChange={(e) => set("priceFcfa", e.target.value)}
+            error={fieldErrors.priceFcfa}
+            hint={`Minimum ${MIN_PRICE_FCFA} FCFA. Vous fixez librement ce montant.`}
+          />
+
+          {values.format === "video" ? (
+            <Field
+              label="Durée (minutes)"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              placeholder="260"
+              value={values.durationMinutes}
+              onChange={(e) => set("durationMinutes", e.target.value)}
+              hint="Sert au calcul de la progression et de la règle de remboursement."
+            />
+          ) : null}
+
+          <Field
+            label={values.format === "video" ? "Nombre de leçons" : "Nombre de sections"}
             type="number"
             inputMode="numeric"
             min={1}
-            placeholder="260"
-            value={values.durationMinutes}
-            onChange={(e) => set("durationMinutes", e.target.value)}
-            hint="Sert au calcul de la progression et de la règle de remboursement."
+            placeholder="24"
+            value={values.lessonsCount}
+            onChange={(e) => set("lessonsCount", e.target.value)}
           />
-        ) : null}
 
-        <Field
-          label={values.format === "video" ? "Nombre de leçons" : "Nombre de sections"}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          placeholder="24"
-          value={values.lessonsCount}
-          onChange={(e) => set("lessonsCount", e.target.value)}
-        />
-
-        <Btn type="submit" block size="lg" loading={pending} className="mt-2">
-          {mode === "create" ? "Créer le brouillon" : "Enregistrer"}
-        </Btn>
-        {mode === "create" ? (
-          <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
-            La ressource est créée en brouillon : rien n&apos;apparaît au catalogue avant que vous
-            ne la publiiez.
-          </p>
-        ) : null}
-      </aside>
+          <Btn type="submit" block size="lg" loading={pending} className="mt-2">
+            {mode === "create" ? "Créer le brouillon" : "Enregistrer"}
+          </Btn>
+          {mode === "create" ? (
+            <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+              La ressource est créée en brouillon : rien n&apos;apparaît au catalogue avant que vous
+              ne la publiiez.
+            </p>
+          ) : null}
+        </aside>
+      </div>
     </form>
   );
 }
