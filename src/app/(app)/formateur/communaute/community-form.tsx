@@ -108,17 +108,35 @@ function TextArea({
   );
 }
 
+/**
+ * Les deux moitiés du formulaire, devenues séparables.
+ *
+ * `identity` est ce qu'un visiteur lit avant de payer ; `salons` est la manière
+ * dont la communauté fonctionne une fois qu'on y est. À l'ouverture d'une
+ * communauté les deux se remplissent d'un coup — il n'y a rien à consulter, on
+ * décrit ce qu'on crée. Une fois ouverte, l'écran les range dans deux onglets
+ * distincts, et chacun s'enregistre seul : `PATCH` accepte les envois partiels,
+ * comme la bascule de visibilité le fait déjà.
+ */
+export type CommunitySection = "identity" | "salons";
+
 export function CommunityForm({
   mode,
   communityId,
   slug,
   initial,
+  sections = ["identity", "salons"],
+  heading,
 }: {
   mode: "create" | "edit";
   communityId?: string;
   /** Slug actuel — sert à prévenir qu'un changement de nom change l'adresse. */
   slug?: string;
   initial?: CommunityFormValues;
+  /** Quelles moitiés rendre — et donc quels champs seront envoyés. */
+  sections?: CommunitySection[];
+  /** Titre du bloc, quand il ne se suffit plus à lui-même dans un onglet. */
+  heading?: { title: string; lead: string };
 }) {
   const router = useRouter();
   const [values, setValues] = React.useState<CommunityFormValues>(initial ?? EMPTY_COMMUNITY);
@@ -129,7 +147,9 @@ export function CommunityForm({
   const set = <K extends keyof CommunityFormValues>(key: K, value: CommunityFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
 
-  const renamed = mode === "edit" && initial != null && values.name.trim() !== initial.name;
+  const shows = (section: CommunitySection) => sections.includes(section);
+  const renamed =
+    shows("identity") && mode === "edit" && initial != null && values.name.trim() !== initial.name;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -137,12 +157,16 @@ export function CommunityForm({
     setFieldErrors({});
 
     // `noValidate` sur le formulaire : les contrôles sont refaits ici, comme
-    // partout ailleurs dans le produit.
+    // partout ailleurs dans le produit. On ne contrôle que ce qui est rendu :
+    // un formulaire de salons n'a pas de nom à valider, et le refuser pour un
+    // prix qu'il n'affiche pas bloquerait sur un champ invisible.
     const issues: Record<string, string> = {};
-    if (values.name.trim().length < 3) issues.name = "Donnez un nom d'au moins 3 caractères.";
     const price = Number.parseInt(values.priceFcfa, 10);
-    if (!Number.isFinite(price) || price < COMMUNITY_MIN_PRICE_FCFA) {
-      issues.priceFcfa = `Le prix d'adhésion minimum est de ${COMMUNITY_MIN_PRICE_FCFA} FCFA.`;
+    if (shows("identity")) {
+      if (values.name.trim().length < 3) issues.name = "Donnez un nom d'au moins 3 caractères.";
+      if (!Number.isFinite(price) || price < COMMUNITY_MIN_PRICE_FCFA) {
+        issues.priceFcfa = `Le prix d'adhésion minimum est de ${COMMUNITY_MIN_PRICE_FCFA} FCFA.`;
+      }
     }
     if (Object.keys(issues).length) {
       setFieldErrors(issues);
@@ -150,15 +174,23 @@ export function CommunityForm({
     }
 
     const payload = {
-      name: values.name.trim(),
-      description: values.description.trim() || null,
-      rules: values.rules.trim() || null,
-      priceFcfa: price,
-      forumEnabled: values.forumEnabled,
-      broadcastEnabled: values.broadcastEnabled,
-      messagingEnabled: values.messagingEnabled,
-      resourcesEnabled: values.resourcesEnabled,
-      eventsEnabled: values.eventsEnabled,
+      ...(shows("identity")
+        ? {
+            name: values.name.trim(),
+            description: values.description.trim() || null,
+            rules: values.rules.trim() || null,
+            priceFcfa: price,
+          }
+        : {}),
+      ...(shows("salons")
+        ? {
+            forumEnabled: values.forumEnabled,
+            broadcastEnabled: values.broadcastEnabled,
+            messagingEnabled: values.messagingEnabled,
+            resourcesEnabled: values.resourcesEnabled,
+            eventsEnabled: values.eventsEnabled,
+          }
+        : {}),
     };
 
     setPending(true);
@@ -198,83 +230,100 @@ export function CommunityForm({
       noValidate
       className="mt-6 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm sm:p-8"
     >
-      <FormError>{error}</FormError>
-
-      <Field
-        label="Nom de la communauté"
-        value={values.name}
-        onChange={(e) => set("name", e.target.value)}
-        placeholder="Ex : L'Atelier du code"
-        error={fieldErrors.name}
-        maxLength={80}
-        required
-      />
-
-      {renamed && slug ? (
-        <p className="mb-[18px] rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
-          Renommer change aussi l&apos;adresse publique du salon. Le lien{" "}
-          <code className="font-mono">/communautes/{slug}</code> cessera de fonctionner, y compris
-          dans les messages où vos membres l&apos;ont déjà recopié.
-        </p>
+      {heading ? (
+        <div className="mb-5">
+          <h2 className="text-[19px] font-extrabold">{heading.title}</h2>
+          <p className="mt-1.5 max-w-[62ch] text-[13.5px] leading-relaxed text-ink-2">
+            {heading.lead}
+          </p>
+        </div>
       ) : null}
 
-      <TextArea
-        label="Présentation"
-        value={values.description}
-        onChange={(v) => set("description", v)}
-        rows={5}
-        maxLength={2000}
-        placeholder="À qui s'adresse ce salon, ce qu'on y fait, à quel rythme."
-        hint="C'est ce que lit un visiteur avant de payer. Dites ce qui s'y passe vraiment, pas ce qu'on y trouvera peut-être."
-      />
+      <FormError>{error}</FormError>
 
-      <TextArea
-        label="Règles du salon"
-        value={values.rules}
-        onChange={(v) => set("rules", v)}
-        rows={4}
-        maxLength={2000}
-        placeholder="Ce qui est attendu, ce qui ne passe pas."
-        hint="Affichées sur la fiche publique. Elles vous servent le jour où vous devez bannir quelqu'un."
-      />
+      {shows("identity") ? (
+        <>
+          <Field
+            label="Nom de la communauté"
+            value={values.name}
+            onChange={(e) => set("name", e.target.value)}
+            placeholder="Ex : L'Atelier du code"
+            error={fieldErrors.name}
+            maxLength={80}
+            required
+          />
 
-      <Field
-        label="Prix d'adhésion mensuel (FCFA)"
-        type="number"
-        inputMode="numeric"
-        min={COMMUNITY_MIN_PRICE_FCFA}
-        step={500}
-        value={values.priceFcfa}
-        onChange={(e) => set("priceFcfa", e.target.value)}
-        placeholder="5000"
-        error={fieldErrors.priceFcfa}
-        hint={
-          mode === "edit"
-            ? "Un nouveau prix ne s'applique qu'aux adhésions et renouvellements à venir. Personne n'est débité de la différence en cours de mois."
-            : `NkamVa prélève ${COMMISSION_LABEL} sur chaque adhésion ; ${TRAINER_SHARE_LABEL} vous reviennent.`
-        }
-        required
-      />
+          {renamed && slug ? (
+            <p className="mb-[18px] rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+              Renommer change aussi l&apos;adresse publique du salon. Le lien{" "}
+              <code className="font-mono">/communautes/{slug}</code> cessera de fonctionner, y
+              compris dans les messages où vos membres l&apos;ont déjà recopié.
+            </p>
+          ) : null}
 
-      <fieldset className="mb-[18px] border-t border-line-2 pt-5">
-        <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Salons ouverts</legend>
-        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-3">
-          Fermer un salon le retire aux membres sans rien effacer : les messages déjà écrits
-          restent, ils cessent seulement d&apos;être alimentés.
-        </p>
-        <ul className="grid gap-1">
-          {SALONS.map((salon) => (
-            <li key={salon.key} className="border-b border-line-2 py-2 last:border-b-0">
-              <CheckOption
-                checked={values[salon.key]}
-                onCheckedChange={(next) => set(salon.key, next)}
-                label={salon.label}
-              />
-              <p className="ml-[30px] text-[12.5px] leading-relaxed text-ink-3">{salon.hint}</p>
-            </li>
-          ))}
-        </ul>
-      </fieldset>
+          <TextArea
+            label="Présentation"
+            value={values.description}
+            onChange={(v) => set("description", v)}
+            rows={5}
+            maxLength={2000}
+            placeholder="À qui s'adresse ce salon, ce qu'on y fait, à quel rythme."
+            hint="C'est ce que lit un visiteur avant de payer. Dites ce qui s'y passe vraiment, pas ce qu'on y trouvera peut-être."
+          />
+
+          <TextArea
+            label="Règles du salon"
+            value={values.rules}
+            onChange={(v) => set("rules", v)}
+            rows={4}
+            maxLength={2000}
+            placeholder="Ce qui est attendu, ce qui ne passe pas."
+            hint="Affichées sur la fiche publique. Elles vous servent le jour où vous devez bannir quelqu'un."
+          />
+
+          <Field
+            label="Prix d'adhésion mensuel (FCFA)"
+            type="number"
+            inputMode="numeric"
+            min={COMMUNITY_MIN_PRICE_FCFA}
+            step={500}
+            value={values.priceFcfa}
+            onChange={(e) => set("priceFcfa", e.target.value)}
+            placeholder="5000"
+            error={fieldErrors.priceFcfa}
+            hint={
+              mode === "edit"
+                ? "Un nouveau prix ne s'applique qu'aux adhésions et renouvellements à venir. Personne n'est débité de la différence en cours de mois."
+                : `NkamVa prélève ${COMMISSION_LABEL} sur chaque adhésion ; ${TRAINER_SHARE_LABEL} vous reviennent.`
+            }
+            required
+          />
+        </>
+      ) : null}
+
+      {shows("salons") ? (
+        <fieldset
+          className={cn("mb-[18px]", shows("identity") && "border-t border-line-2 pt-5")}
+        >
+          <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Salons ouverts</legend>
+          <p className="mb-3 text-[12.5px] leading-relaxed text-ink-3">
+            Fermer un salon le retire aux membres sans rien effacer : les messages déjà écrits
+            restent, ils cessent seulement d&apos;être alimentés.
+          </p>
+          <ul className="grid gap-1">
+            {SALONS.map((salon) => (
+              <li key={salon.key} className="border-b border-line-2 py-2 last:border-b-0">
+                <CheckOption
+                  checked={values[salon.key]}
+                  onCheckedChange={(next) => set(salon.key, next)}
+                  label={salon.label}
+                />
+                <p className="ml-[30px] text-[12.5px] leading-relaxed text-ink-3">{salon.hint}</p>
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line-2 pt-5">
         <Btn type="submit" disabled={pending}>
@@ -284,7 +333,7 @@ export function CommunityForm({
               ? "Ouvrir ma communauté"
               : "Enregistrer les modifications"}
         </Btn>
-        {mode === "edit" && slug ? (
+        {mode === "edit" && slug && shows("identity") ? (
           <Btn asChild variant="o">
             <Link href={`/communautes/${slug}`}>
               Voir la fiche publique

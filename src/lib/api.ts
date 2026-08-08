@@ -15,8 +15,33 @@ const ADMIN_ACT_MESSAGE =
 
 export interface AuthContext { user: { id: string; email: string; role: Role; adminRole: AdminRole | null; trainerId: string | null } }
 
+/**
+ * `NextResponse.json` sérialise avec `JSON.stringify`, qui **jette** sur un
+ * BigInt. Plusieurs modèles en portent un — `coverSizeBytes` d'une communauté,
+ * `sizeBytes` d'un replay : renvoyer un enregistrement Prisma tel quel faisait
+ * échouer la route dès que le champ n'était plus nul.
+ *
+ * Le symptôme trompait : l'écriture avait réussi, c'est la réponse qui
+ * explosait, et le `catch` de la route traduisait ça en « la modification n'a
+ * pas pu être enregistrée ». Enregistrer les réglages d'une communauté a ainsi
+ * cessé de fonctionner le jour où une bannière y a été déposée, sans que rien
+ * ne relie les deux.
+ *
+ * Ces BigInt sont des comptes d'octets : `Number` les représente exactement,
+ * très en deçà de 2^53. Le remplaçant passe après `toJSON()`, donc les dates
+ * restent des chaînes ISO.
+ */
+function stringifySafely(body: unknown): string {
+  return JSON.stringify(body, (_key, value) =>
+    typeof value === 'bigint' ? Number(value) : value,
+  )
+}
+
 export function success<T>(data: T, meta?: Record<string, unknown>, status = 200): NextResponse {
-  return NextResponse.json({ data, ...(meta ? { meta } : {}) }, { status })
+  return new NextResponse(stringifySafely({ data, ...(meta ? { meta } : {}) }), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
 }
 
 export function error(code: string, message: string, status: number, details?: Array<{ field?: string; reason?: string }>): NextResponse {

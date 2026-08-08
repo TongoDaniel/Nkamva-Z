@@ -11,6 +11,7 @@ import { presignDownload } from "@/lib/s3";
 import { fmtNumber } from "@/lib/format";
 import { CommunityForm, VisibilityToggle, type CommunityFormValues } from "./community-form";
 import { CommunityCoverUploader } from "./cover-uploader";
+import { CommunityTabs } from "./community-tabs";
 import { InvitationsPanel } from "./invitations-panel";
 import { MembersPanel } from "./members-panel";
 
@@ -100,41 +101,72 @@ export default async function MaCommunautePage() {
         />
       </div>
 
-      <CommunityCoverUploader
-        communityId={community.id}
-        currentKey={community.coverS3Key}
-        previewUrl={coverUrl}
-      />
+      {/* Les tuiles restent au-dessus des onglets : c'est l'état de santé du
+          salon, pas le contenu d'une rubrique. */}
+      <CommunityTabs
+        membersCount={members.length}
+        publique={
+          <>
+            <CommunityCoverUploader
+              communityId={community.id}
+              currentKey={community.coverS3Key}
+              previewUrl={coverUrl}
+            />
 
-      <VisibilityToggle communityId={community.id} visibility={community.visibility} />
+            <CommunityForm
+              mode="edit"
+              communityId={community.id}
+              slug={community.slug}
+              initial={initial}
+              sections={["identity"]}
+              heading={{
+                title: "Ce que lit un visiteur",
+                lead: "Le nom, la présentation, les règles et le prix tels qu'ils apparaissent sur la fiche publique et dans l'annuaire.",
+              }}
+            />
 
-      <InvitationsPanel
-        communityId={community.id}
-        isPrivate={community.visibility === "PRIVATE"}
-        initial={invitations.map((row) => ({
-          ...row,
-          expiresAt: row.expiresAt.toISOString(),
-        }))}
-      />
+            {/* Après le formulaire, et non avant : on décide de fermer un salon
+                une fois qu'on a vu ce qu'il montre. */}
+            <VisibilityToggle communityId={community.id} visibility={community.visibility} />
+          </>
+        }
+        salons={
+          <CommunityForm
+            mode="edit"
+            communityId={community.id}
+            initial={initial}
+            sections={["salons"]}
+            heading={{
+              title: "Comment le salon fonctionne",
+              lead: "Ce que vos membres peuvent y faire une fois entrés. Chaque salon s'ouvre et se ferme sans rien effacer.",
+            }}
+          />
+        }
+        membres={
+          <>
+            <InvitationsPanel
+              communityId={community.id}
+              isPrivate={community.visibility === "PRIVATE"}
+              initial={invitations.map((row) => ({
+                ...row,
+                expiresAt: row.expiresAt.toISOString(),
+              }))}
+            />
 
-      <MembersPanel
-        communityId={community.id}
-        initial={members.map((row) => ({
-          learnerId: row.learnerId,
-          fullName: row.fullName,
-          status: row.status,
-          periodEnd: row.periodEnd.toISOString(),
-          bannedReason: row.bannedReason,
-          canceledAt: row.canceledAt?.toISOString() ?? null,
-          viaInvitation: row.viaInvitation,
-        }))}
-      />
-
-      <CommunityForm
-        mode="edit"
-        communityId={community.id}
-        slug={community.slug}
-        initial={initial}
+            <MembersPanel
+              communityId={community.id}
+              initial={members.map((row) => ({
+                learnerId: row.learnerId,
+                fullName: row.fullName,
+                status: row.status,
+                periodEnd: row.periodEnd.toISOString(),
+                bannedReason: row.bannedReason,
+                canceledAt: row.canceledAt?.toISOString() ?? null,
+                viaInvitation: row.viaInvitation,
+              }))}
+            />
+          </>
+        }
       />
     </div>
   );
