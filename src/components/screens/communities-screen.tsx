@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/nk/empty-state'
 import { PageHead } from '@/components/nk/page-head'
 import { Price } from '@/components/nk/resource-card'
 import { Avatar } from '@/components/nk/avatar'
+import { getAuthContext } from '@/lib/api'
 import { listPublicCommunities } from '@/lib/communities'
 import { fmtNumber } from '@/lib/format'
 import { routesOf, type Space } from '@/lib/spaces'
@@ -12,27 +13,34 @@ import { routesOf, type Space } from '@/lib/spaces'
 /** Liste des communautés, rendue à l'identique dans les deux espaces. */
 export async function CommunitiesScreen({ space }: { space: Space }) {
   const routes = routesOf(space)
-  const communities = await listPublicCommunities()
+  const [communities, auth] = await Promise.all([listPublicCommunities(), getAuthContext()])
+  // Proposer de devenir formateur à quelqu'un qui l'est déjà — et dont une
+  // communauté figure peut-être dans la liste juste en dessous. Les deux pages
+  // qui rendent cet écran sont `force-dynamic` : lire la session ici ne coûte
+  // aucun rendu statique, et le visiteur sans session voit le bandeau.
+  const isTrainer = Boolean(auth?.user.trainerId)
 
   return (
     <div className="nk-wrap pb-16">
       <PageHead
-        crumbs={[{ label: 'Accueil', href: routes.home }, { label: 'Communautés' }]}
+        crumbs={[routes.communitiesParent, { label: 'Les communautés' }]}
         title="Les communautés"
         lead="Chaque formateur anime une communauté : forum d'entraide, ressources partagées et sessions live. Abonnement mensuel, résiliable à tout moment."
       />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-xl bg-gradient-to-r from-navy to-navy-2 px-7 py-5 text-white">
-        <div>
-          <b className="text-[17px] font-extrabold">Vous formez déjà ?</b>
-          <p className="mt-0.5 text-sm text-[#b9c9dd]">
-            Ouvrez votre communauté et fidélisez vos apprenants au-delà de la vente à l&apos;unité.
-          </p>
+      {isTrainer ? null : (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-xl bg-gradient-to-r from-navy to-navy-2 px-7 py-5 text-white">
+          <div>
+            <b className="text-[17px] font-extrabold">Vous formez déjà ?</b>
+            <p className="mt-0.5 text-sm text-[#b9c9dd]">
+              Ouvrez votre communauté et fidélisez vos apprenants au-delà de la vente à l&apos;unité.
+            </p>
+          </div>
+          <Btn asChild variant="light">
+            <Link href="/devenir-formateur">Devenir formateur</Link>
+          </Btn>
         </div>
-        <Btn asChild variant="light">
-          <Link href="/devenir-formateur">Devenir formateur</Link>
-        </Btn>
-      </div>
+      )}
 
       {communities.length === 0 ? (
         <EmptyState
