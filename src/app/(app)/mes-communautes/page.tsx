@@ -32,6 +32,14 @@ export default async function MesCommunautesPage() {
       <PageHead
         title="Mes communautés"
         lead="Les communautés dont vous êtes membre aujourd'hui. Une adhésion terminée n'y figure plus, mais les ressources reçues pendant votre passage restent dans votre espace."
+        // Même place que « Explorer le catalogue » sur `/mes-ressources` :
+        // l'annuaire s'ouvre d'ici qu'on soit membre de dix communautés ou
+        // d'aucune, pas seulement depuis l'état vide.
+        actions={
+          <Btn asChild variant="o">
+            <Link href={routes.communities}>Parcourir les communautés</Link>
+          </Btn>
+        }
       />
 
       {memberships.length === 0 ? (
@@ -40,11 +48,6 @@ export default async function MesCommunautesPage() {
           icon={<Users />}
           title="Vous n'êtes membre d'aucune communauté"
           description="Chaque formateur anime la sienne : forum d'entraide, ressources incluses et sessions live."
-          action={
-            <Btn asChild size="lg">
-              <Link href={routes.communities}>Parcourir les communautés</Link>
-            </Btn>
-          }
         />
       ) : (
         <ul className="mt-6 grid gap-4">

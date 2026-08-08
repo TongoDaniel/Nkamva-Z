@@ -41,8 +41,8 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
     <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[
-          { label: 'Accueil', href: routes.home },
-          { label: 'Communautés', href: routes.communities },
+          routes.communitiesParent,
+          { label: 'Les communautés', href: routes.communities },
           { label: community.name },
         ]}
         title={community.name}
