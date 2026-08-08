@@ -49,6 +49,25 @@ export function isParWithPlatform(currency: string): boolean {
 }
 
 /**
+ * Taux d'une devise **pour l'affichage** : un échec ferme cette devise-là, et
+ * elle seule.
+ *
+ * `fxRate` lève sur un taux illisible — c'est voulu au moment de payer, où une
+ * erreur doit se voir. Mais les écrans qui *listent* les opérateurs itèrent sur
+ * toutes les devises du compte : une seule levée y emportait la liste entière
+ * dans le repli « ne rien annoncer ». La page d'accueil a perdu sa bande de
+ * paiement **et** ses pays de zone franc — qui n'interrogent pourtant jamais la
+ * base — parce que la devise congolaise, plus loin dans la boucle, échouait.
+ */
+async function rateForListing(currency: string): Promise<number | null> {
+  try {
+    return await fxRate(currency)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Taux administré, ou `null`. Lit le réglage à chaque appel : un taux de change
  * est exactement le genre de valeur qu'on corrige en urgence, et un cache le
  * rendrait effectif « dans dix minutes ».
@@ -132,6 +151,7 @@ export async function settleAmount(
  */
 export async function payableProvidersForUser(userId: string): Promise<PayableProvider[]> {
   if (!isPawaPayConfigured()) return []
+  // Ne jamais élargir ce `try` à la boucle des devises : voir `rateForListing`.
 
   const user = await db.user.findUnique({ where: { id: userId }, select: { countryCode: true } })
   // Sans pays déclaré, on retombe sur le marché d'origine — c'est déjà ce que
@@ -147,7 +167,7 @@ export async function payableProvidersForUser(userId: string): Promise<PayablePr
       // Un opérateur qui accepte deux devises (CDF et USD en RDC) ne doit
       // apparaître qu'une fois dans la liste.
       if (seen.has(provider.provider)) continue
-      if ((await fxRate(provider.currency)) === null) continue
+      if ((await rateForListing(provider.currency)) === null) continue
       seen.add(provider.provider)
       out.push({
         provider: provider.provider,

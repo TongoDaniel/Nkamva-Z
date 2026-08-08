@@ -59,36 +59,48 @@ const EMPTY: PayableMarkets = { countries: [], brands: [] }
  * Ne lève jamais : la page d'accueil est publique et doit s'afficher même si le
  * fournisseur est injoignable. Dans ce cas elle n'annonce **rien** plutôt qu'une
  * liste périmée — c'est le seul repli honnête.
+ *
+ * ⚠️ Le `try` ne couvre que la lecture de la configuration. Il englobait aussi
+ * la boucle des devises, si bien qu'une seule d'entre elles en échec vidait la
+ * page entière : la bande de paiement et les sept pays de la zone franc ont
+ * disparu de l'accueil parce que la devise congolaise, plus loin dans la
+ * boucle, ne pouvait pas être lue. Une devise en échec ferme cette devise, et
+ * elle seule.
  */
 export async function payableMarkets(): Promise<PayableMarkets> {
   if (!isPawaPayConfigured()) return EMPTY
 
+  let conf: Awaited<ReturnType<typeof activeConfiguration>>
   try {
-    const conf = await activeConfiguration()
-    const countries = new Map<string, string>()
-    const brands = new Set<string>()
-
-    for (const country of conf.countries ?? []) {
-      const code = countryFromPawaPay(country.country)
-      if (!code) continue
-      for (const provider of country.providers ?? []) {
-        for (const entry of provider.currencies ?? []) {
-          if (!entry.operationTypes?.DEPOSIT) continue
-          // Le filtre qui compte : sans taux, ce pays n'encaisse pas.
-          if ((await fxRate(entry.currency)) === null) continue
-          countries.set(code, countryName(code))
-          brands.add(provider.displayName ?? provider.provider)
-        }
-      }
-    }
-
-    return {
-      countries: [...countries]
-        .map(([code, name]) => ({ code, name }))
-        .sort((a, b) => a.name.localeCompare(b.name, 'fr')),
-      brands: [...brands].sort((a, b) => a.localeCompare(b, 'fr')),
-    }
+    conf = await activeConfiguration()
   } catch {
     return EMPTY
+  }
+
+  const countries = new Map<string, string>()
+  const brands = new Set<string>()
+
+  for (const country of conf.countries ?? []) {
+    const code = countryFromPawaPay(country.country)
+    if (!code) continue
+    for (const provider of country.providers ?? []) {
+      for (const entry of provider.currencies ?? []) {
+        if (!entry.operationTypes?.DEPOSIT) continue
+        // Le filtre qui compte : sans taux, ce pays n'encaisse pas. Les devises
+        // à parité fixe passent sans toucher la base — c'est pourquoi la zone
+        // franc doit survivre à une panne de lecture des taux.
+        const rate = await fxRate(entry.currency).catch(() => null)
+        if (rate === null) continue
+        countries.set(code, countryName(code))
+        brands.add(provider.displayName ?? provider.provider)
+      }
+    }
+  }
+
+  return {
+    countries: [...countries]
+      .map(([code, name]) => ({ code, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    brands: [...brands].sort((a, b) => a.localeCompare(b, 'fr')),
   }
 }
