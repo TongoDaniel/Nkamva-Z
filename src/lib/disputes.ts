@@ -27,7 +27,7 @@ import { presignUpload } from './s3'
 import { syncNegativeSince } from './wallet'
 import { PLATFORM_COMMISSION_RATE, TRAINER_SHARE_RATE } from './commission'
 import { getStripe } from './stripe'
-import { isPawaPayConfigured, requestRefund, PawaPayError } from './pawapay'
+import { isPawaPayConfigured, refundAmountFromDeposit, requestRefund, PawaPayError } from './pawapay'
 import type { PrismaTransaction } from './types'
 
 // --- Constantes ---
@@ -894,16 +894,29 @@ async function attemptPawaPayRefund(params: {
   disputeId: string
   transactionId: string | null
   amountFcfa: number
+  /** Montant total de l'achat, pour établir la proportion remboursée. */
+  purchaseAmountFcfa: number
 }): Promise<RefundAttempt> {
   if (!isPawaPayConfigured()) return { ok: false, reason: 'PAWAPAY_NOT_CONFIGURED' }
   if (!params.transactionId) return { ok: false, reason: 'MISSING_TRANSACTION_ID' }
   if (!UUID_RE.test(params.transactionId)) return { ok: false, reason: 'LEGACY_TRANSACTION_ID' }
 
   try {
+    // Le montant se dérive du dépôt réellement encaissé, pas d'une nouvelle
+    // conversion : hors zone franc, le taux administré a pu bouger entre l'achat
+    // et le litige, et un remboursement « intégral » recalculé rendrait autre
+    // chose que ce qui a été prélevé.
+    const { amount, currency } = await refundAmountFromDeposit(
+      params.transactionId,
+      params.amountFcfa,
+      params.purchaseAmountFcfa,
+    )
+
     const response = await requestRefund({
       refundId: params.disputeId,
       depositId: params.transactionId,
-      amountFcfa: params.amountFcfa,
+      amount,
+      currency,
       clientReferenceId: params.disputeId,
     })
 
@@ -947,7 +960,12 @@ export async function processRefund(disputeId: string, actorId: string | null): 
   const dispute = await db.dispute.findUnique({
     where: { id: disputeId },
     include: {
-      purchase: { select: { id: true, provider: true, providerTransactionId: true, refundAmountFcfa: true } },
+      purchase: {
+        select: {
+          id: true, provider: true, providerTransactionId: true,
+          refundAmountFcfa: true, amountFcfa: true,
+        },
+      },
     },
   })
   if (!dispute) throw new Error('DISPUTE_NOT_FOUND')
@@ -962,6 +980,7 @@ export async function processRefund(disputeId: string, actorId: string | null): 
       disputeId,
       transactionId: dispute.purchase.providerTransactionId,
       amountFcfa: refundAmountFcfa,
+      purchaseAmountFcfa: dispute.purchase.amountFcfa,
     })
     if (attempt.ok) {
       // Volontairement, rien de plus : le litige reste en cours de

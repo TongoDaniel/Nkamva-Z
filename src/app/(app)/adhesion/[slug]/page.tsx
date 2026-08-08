@@ -4,6 +4,7 @@ import { PageHead } from "@/components/nk/page-head";
 import { getPublicCommunity } from "@/lib/communities";
 import { getMembership } from "@/lib/memberships";
 import { getAuthContext } from "@/lib/api";
+import { payableProvidersForUser } from "@/lib/fx";
 import { AdhesionForm } from "./adhesion-form";
 import { routesOf } from "@/lib/spaces";
 
@@ -62,6 +63,7 @@ export default async function AdhesionPage({
         }
       />
       <AdhesionForm
+        providers={await payableProvidersForUser(auth.user.id)}
         slug={slug}
         name={community.name}
         priceFcfa={community.priceFcfa}

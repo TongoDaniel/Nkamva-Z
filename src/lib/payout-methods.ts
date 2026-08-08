@@ -20,7 +20,7 @@ import type {
 import { db } from './db'
 import { presignUpload, presignDownload, headObject, isS3Configured } from './s3'
 import { compareNames, normalizedLabel, type NameComparison } from './name-match'
-import { lookupAccountName, pawapayProviderCode } from './pawapay'
+import { lookupAccountName, providerForOperator } from './pawapay'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
@@ -84,9 +84,9 @@ async function fetchOperatorAccountName(
   phone: string,
   countryCode = 'CM',
 ): Promise<string | null> {
-  const providerCode = pawapayProviderCode(operator, countryCode)
-  if (!providerCode) return null
-  return lookupAccountName(phone, providerCode).catch(() => null)
+  const provider = await providerForOperator(operator, countryCode, 'PAYOUT').catch(() => null)
+  if (!provider) return null
+  return lookupAccountName(phone, provider.provider).catch(() => null)
 }
 
 /**

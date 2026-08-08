@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  BadgeCheck, BarChart3, CreditCard, FileClock, Gavel, LayoutDashboard,
+  BadgeCheck, BarChart3, Coins, CreditCard, FileClock, Gavel, LayoutDashboard,
   LogOut, Menu, PiggyBank, Plug, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2,
   UserCog, Users, Wallet, X,
 } from "lucide-react";
@@ -52,6 +52,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       // Super-admin corrige, et l'écran n'affiche le bouton qu'à lui.
       { href: "/admin/portefeuilles", label: "Portefeuilles", icon: PiggyBank, roles: ["FINANCES"] },
       { href: "/admin/abonnements", label: "Abonnements", icon: RefreshCw, roles: ["FINANCES"] },
+      // Un taux décide de ce que paie réellement un apprenant hors zone franc :
+      // même porte que la grille tarifaire.
+      { href: "/admin/taux-de-change", label: "Taux de change", icon: Coins, roles: ["FINANCES"] },
     ],
   },
   {

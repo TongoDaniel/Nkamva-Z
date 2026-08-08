@@ -7,13 +7,14 @@ import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Faq, ToFill } from "@/components/nk/faq";
-import { PayBand, PayChips, PAY_COUNTRIES } from "@/components/nk/pay-band";
+import { PayBand, PayChips, countriesLabel } from "@/components/nk/pay-band";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { Reveal } from "@/components/nk/reveal";
 import { ScrollCarousel } from "@/components/nk/scroll-carousel";
 import { Kicker, SectionHead } from "@/components/nk/section-head";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { featuredCourses } from "@/lib/featured";
+import { payableMarkets, type PayableMarkets } from "@/lib/markets";
 
 // Le catalogue mis en avant reflète l'état réel de la base : rendu à la demande.
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ const LEARN_STEPS = [
   {
     lead: "Payez à l'unité",
     rest: ", en FCFA",
-    body: "Par mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — ou carte bancaire. Pas d'abonnement obligatoire.",
+    body: "Par mobile money, avec les opérateurs de votre pays, ou par carte bancaire. Pas d'abonnement obligatoire.",
   },
   {
     lead: "Gardez l'accès à vie",
@@ -105,16 +106,21 @@ const TRAINER_POINTS = [
   ],
 ];
 
-const FAQ_ITEMS = [
+const faqItems = (markets: PayableMarkets) => [
   {
     question: "Quels moyens de paiement sont acceptés ?",
     answer: (
       <>
         <p>
-          Le mobile money — Orange Money, MTN MoMo, Wave, Airtel Money et M-Pesa — ainsi que la carte
-          bancaire. Les opérateurs disponibles dépendent de votre pays.
+          Le mobile money{markets.brands.length ? ` — ${markets.brands.join(", ")} — ` : " "}ainsi
+          que la carte bancaire. Les opérateurs proposés dépendent de votre pays.
         </p>
-        <p>NkamVa est disponible au {PAY_COUNTRIES.replaceAll(" · ", ", ")}.</p>
+        {markets.countries.length ? (
+          <p>
+            NkamVa encaisse aujourd&apos;hui au{" "}
+            {markets.countries.map((c) => c.name).join(", ")}.
+          </p>
+        ) : null}
       </>
     ),
   },
@@ -153,7 +159,12 @@ const FAQ_ITEMS = [
 ];
 
 export default async function LandingPage() {
-  const { courses, unavailable } = await featuredCourses();
+  // Les deux se lisent côté serveur : le catalogue en base, les marchés chez le
+  // fournisseur de paiement (réponse mise en cache dix minutes).
+  const [{ courses, unavailable }, markets] = await Promise.all([
+    featuredCourses(),
+    payableMarkets(),
+  ]);
 
   return (
     <>
@@ -209,7 +220,7 @@ export default async function LandingPage() {
         ) : null}
       </section>
 
-      <PayBand />
+      <PayBand markets={markets} />
 
       {/* ---- Comment ça marche ---- */}
       <section className="pt-[76px] max-[640px]:pt-14">
@@ -428,7 +439,7 @@ export default async function LandingPage() {
             />
           </Reveal>
           <Reveal>
-            <Faq id="accueil-faq" items={FAQ_ITEMS} />
+            <Faq id="accueil-faq" items={faqItems(markets)} />
           </Reveal>
         </div>
       </section>
@@ -455,8 +466,12 @@ export default async function LandingPage() {
               <Link href="/devenir-formateur">Devenir formateur</Link>
             </Btn>
           </div>
-          <PayChips size="lg" className="mt-[34px] justify-center" />
-          <p className="mt-4 text-[12.5px] font-semibold text-[#8ba3c0]">{PAY_COUNTRIES}</p>
+          <PayChips markets={markets} size="lg" className="mt-[34px] justify-center" />
+          {markets.countries.length ? (
+            <p className="mt-4 text-[12.5px] font-semibold text-[#8ba3c0]">
+              {countriesLabel(markets)}
+            </p>
+          ) : null}
         </div>
       </section>
     </>

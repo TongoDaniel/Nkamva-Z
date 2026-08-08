@@ -56,7 +56,6 @@ export const METHOD_STATUS: Record<string, AdminStatusMeta> = {
 };
 
 export const OPERATOR_LABELS: Record<string, string> = {
-  WAVE: "Wave",
   ORANGE_MONEY: "Orange Money",
   MTN_MOMO: "MTN MoMo",
   AIRTEL_MONEY: "Airtel Money",

@@ -15,7 +15,7 @@ const CreateSchema = z.object({
   legalRepProofS3Key: z.string().max(500).optional(),
   iban: z.string().min(15).max(34).optional(),
   bic: z.string().min(8).max(11).optional(),
-  mobileOperator: z.enum(['WAVE', 'ORANGE_MONEY', 'MTN_MOMO', 'AIRTEL_MONEY', 'M_PESA']).optional(),
+  mobileOperator: z.enum(['ORANGE_MONEY', 'MTN_MOMO', 'AIRTEL_MONEY', 'M_PESA']).optional(),
   mobilePhone: z.string().min(6).max(20).optional(),
   /**
    * Second facteur, exigé pour pointer de l'argent vers un nouveau compte.

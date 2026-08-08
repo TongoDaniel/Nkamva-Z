@@ -7,7 +7,7 @@ import { Btn } from "@/components/nk/button";
 import { Cover, formatLabel } from "@/components/nk/cover";
 import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
-import { phoneNumberError } from "@/lib/payment-input";
+import { phoneNumberError, type PayableProvider } from "@/lib/payment-input";
 import { api, ApiError } from "@/lib/client";
 import { fmtDuration, fmtFcfa } from "@/lib/format";
 import type { InitiatePurchaseResult, PaymentProvider } from "@/lib/dto";
@@ -22,9 +22,10 @@ const PROVIDERS: Array<{
   {
     value: "PAWAPAY",
     label: "Mobile money",
-    // Wave n'y figure plus : il n'est pas distribué par PawaPay, et le proposer
-    // ouvrirait un tunnel qui ne peut pas aboutir.
-    detail: "MTN MoMo, Orange Money, Airtel Money, M-Pesa",
+    // Remplacé à l'affichage par les opérateurs réels du pays : cette liste
+    // écrite en dur annonçait quatre marques identiques à tout le monde, du
+    // Cameroun à la Tanzanie.
+    detail: "",
     icon: Smartphone,
   },
   {
@@ -35,6 +36,12 @@ const PROVIDERS: Array<{
   },
 ];
 
+/** « MTN, Orange, Airtel » — ou le motif de l'absence, plutôt qu'une ligne vide. */
+export function operatorsLabel(providers: PayableProvider[]): string {
+  if (!providers.length) return "Indisponible dans votre pays";
+  return providers.map((p) => p.displayName).join(", ");
+}
+
 export function CheckoutForm({
   courseId,
   title,
@@ -43,6 +50,7 @@ export function CheckoutForm({
   priceFcfa,
   durationSeconds,
   trainerName,
+  providers,
 }: {
   courseId: string;
   title: string;
@@ -51,12 +59,14 @@ export function CheckoutForm({
   priceFcfa: number;
   durationSeconds: number | null;
   trainerName: string | null;
+  /** Opérateurs distribués dans le pays de l'apprenant, établis côté serveur. */
+  providers: PayableProvider[];
 }) {
   const router = useRouter();
   const [provider, setProvider] = React.useState<PaymentProvider>("PAWAPAY");
   const [payer, setPayer] = React.useState<MobileMoneyValue>({
     phoneNumber: "",
-    operator: "MTN_MOMO",
+    provider: providers[0]?.provider ?? "",
   });
   const [showPayerErrors, setShowPayerErrors] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -71,6 +81,10 @@ export function CheckoutForm({
     if (provider === "PAWAPAY") {
       setShowPayerErrors(true);
       if (phoneNumberError(payer.phoneNumber)) return;
+      if (!payer.provider) {
+        setError("Choisissez l'opérateur qui recevra la demande de paiement.");
+        return;
+      }
     }
 
     setPending(true);
@@ -125,14 +139,21 @@ export function CheckoutForm({
               <Icon className="size-5 shrink-0 text-brand" aria-hidden="true" />
               <span className="min-w-0">
                 <b className="block text-[15px]">{label}</b>
-                <small className="block text-[12.5px] text-ink-2">{detail}</small>
+                <small className="block text-[12.5px] text-ink-2">
+                  {value === "PAWAPAY" ? operatorsLabel(providers) : detail}
+                </small>
               </span>
             </label>
           ))}
         </div>
 
         {provider === "PAWAPAY" ? (
-          <MobileMoneyFields value={payer} onChange={setPayer} showErrors={showPayerErrors} />
+          <MobileMoneyFields
+            providers={providers}
+            value={payer}
+            onChange={setPayer}
+            showErrors={showPayerErrors}
+          />
         ) : null}
 
         <p className="mt-5 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">

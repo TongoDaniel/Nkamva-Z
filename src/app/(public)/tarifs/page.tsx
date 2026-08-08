@@ -85,7 +85,7 @@ export default async function TarifsPage() {
     },
     {
       q: "Quels moyens de paiement acceptez-vous ?",
-      a: "Mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — et carte bancaire. Les montants sont affichés en FCFA.",
+      a: "Mobile money et carte bancaire. Les opérateurs proposés dépendent de votre pays ; la liste exacte s'affiche à l'écran de paiement. Les montants sont affichés en FCFA.",
     },
     {
       q: "Puis-je être remboursé ?",

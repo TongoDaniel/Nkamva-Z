@@ -262,6 +262,40 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   },
   SUBSCRIPTION_CHARGE_NOT_FOUND: { message: 'Période de facturation introuvable', status: 404 },
   SUBSCRIPTION_CHARGE_NOT_DUE: { message: 'Période déjà réglée ou offerte', status: 409 },
+  // --- Mobile money : opérateur, devise et change ---
+  //
+  // Sans ces entrées, un pays ouvert sans taux de change répondait « Erreur
+  // interne » en 500 : l'apprenant ne pouvait pas comprendre, et l'exploitant
+  // ne pouvait pas distinguer une panne d'une configuration incomplète.
+  PROVIDER_NOT_SUPPORTED: {
+    message: 'Cet opérateur n\'est pas disponible pour votre pays',
+    status: 422,
+  },
+  PROVIDER_TEMPORARILY_UNAVAILABLE: {
+    message: 'Cet opérateur est momentanément indisponible, réessayez plus tard',
+    status: 503,
+  },
+  AMOUNT_BELOW_PROVIDER_MINIMUM: {
+    message: 'Montant inférieur au minimum accepté par cet opérateur',
+    status: 422,
+  },
+  AMOUNT_ABOVE_PROVIDER_MAXIMUM: {
+    message: 'Montant supérieur au maximum accepté par cet opérateur',
+    status: 422,
+  },
+  FX_RATE_MISSING: {
+    message: 'Le paiement dans cette devise n\'est pas encore ouvert',
+    status: 422,
+  },
+  FX_RATE_INVALID: { message: 'Taux de change invalide', status: 422 },
+  FX_RATE_NOT_APPLICABLE: {
+    message: 'Cette devise est à parité fixe avec le FCFA : elle n\'a pas de taux',
+    status: 422,
+  },
+  MOBILE_MONEY_DETAILS_REQUIRED: {
+    message: 'Numéro et opérateur obligatoires pour le paiement mobile',
+    status: 400,
+  },
   // --- Tarification plateforme (Super-admin) ---
   INVALID_AMOUNT: { message: 'Montant invalide', status: 400 },
   TARIFF_DATE_IN_PAST: { message: 'Un tarif ne peut pas prendre effet dans le passé', status: 422 },

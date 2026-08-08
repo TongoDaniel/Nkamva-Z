@@ -25,7 +25,7 @@ export { PageHead } from "./page-head";
 export { Kicker, SectionHead } from "./section-head";
 export { Reveal } from "./reveal";
 export { Faq, ToFill, type FaqItem } from "./faq";
-export { PayBand, PayChips, PAY_COUNTRIES } from "./pay-band";
+export { PayBand, PayChips, countriesLabel } from "./pay-band";
 export { BrowserFrame } from "./browser-frame";
 export { ScrollCarousel } from "./scroll-carousel";
 export { DemoNotice } from "./demo-notice";

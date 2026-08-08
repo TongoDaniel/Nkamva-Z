@@ -6,7 +6,7 @@ import { CreditCard, Library, ShieldCheck, Smartphone, Users } from "lucide-reac
 import { Btn } from "@/components/nk/button";
 import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
-import { phoneNumberError } from "@/lib/payment-input";
+import { phoneNumberError, type PayableProvider } from "@/lib/payment-input";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa, fmtNumber } from "@/lib/format";
 import type { PaymentProvider } from "@/lib/dto";
@@ -52,6 +52,7 @@ export function AdhesionForm({
   trainerName,
   dueAmountFcfa,
   invitation,
+  providers,
 }: {
   slug: string;
   name: string;
@@ -67,12 +68,14 @@ export function AdhesionForm({
    * l'invitation utilisable.
    */
   invitation?: string | null;
+  /** Opérateurs distribués dans le pays de l'apprenant, établis côté serveur. */
+  providers: PayableProvider[];
 }) {
   const router = useRouter();
   const [provider, setProvider] = React.useState<PaymentProvider>("PAWAPAY");
   const [payer, setPayer] = React.useState<MobileMoneyValue>({
     phoneNumber: "",
-    operator: "MTN_MOMO",
+    provider: providers[0]?.provider ?? "",
   });
   const [showPayerErrors, setShowPayerErrors] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -153,7 +156,12 @@ export function AdhesionForm({
         </div>
 
         {provider === "PAWAPAY" ? (
-          <MobileMoneyFields value={payer} onChange={setPayer} showErrors={showPayerErrors} />
+          <MobileMoneyFields
+            providers={providers}
+            value={payer}
+            onChange={setPayer}
+            showErrors={showPayerErrors}
+          />
         ) : null}
 
         <p className="mt-5 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">

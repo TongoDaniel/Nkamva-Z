@@ -16,7 +16,7 @@
 // `simulationAllowed()`.
 // ==========================================================================
 
-import type { MobileMoneyOperator, PaymentProvider, PaymentStatus } from '@prisma/client'
+import type { PaymentProvider, PaymentStatus } from '@prisma/client'
 import { db } from './db'
 import { auditStandalone } from './audit'
 import { assertCanActAsLearner } from './roles'
@@ -24,16 +24,22 @@ import { creditWalletOnPurchase } from './wallet'
 import { issueInvoiceQuietly } from './invoices'
 import { getStripe } from './stripe'
 import {
-  assertOperational, checkDeposit, isPawaPayConfigured, pawapayCountry,
-  pawapayProviderCode, requestDeposit, toMsisdn, PawaPayError,
+  assertWithinBounds, checkDeposit, isPawaPayConfigured,
+  resolveProvider, requestDeposit, toMsisdn, PawaPayError, PLATFORM_CURRENCY,
 } from './pawapay'
+import { settleAmount } from './fx'
 
 /**
- * Devise à zéro décimale, chez Stripe comme chez PawaPay : `amountFcfa` part
- * tel quel, sans multiplication par cent. Multiplier ici facturerait cent fois
- * le prix affiché.
+ * Devise **de la carte**, chez Stripe. À zéro décimale : `amountFcfa` part tel
+ * quel, sans multiplication par cent — multiplier ici facturerait cent fois le
+ * prix affiché.
+ *
+ * Le mobile money, lui, n'a plus de devise fixe : elle suit le pays de
+ * l'opérateur et la conversion passe par `lib/fx`. Stripe reste en FCFA parce
+ * qu'une carte est débitée dans la devise du marchand, pas dans celle du
+ * porteur.
  */
-export const PAYMENT_CURRENCY = 'XAF'
+export const PAYMENT_CURRENCY = PLATFORM_CURRENCY
 
 /**
  * Le raccourci de développement. **Deux verrous, et non un** :
@@ -52,7 +58,12 @@ function simulationAllowed(): boolean {
 export interface MobileMoneyPayer {
   /** Numéro tel que saisi par l'apprenant ; normalisé en MSISDN plus bas. */
   phoneNumber: string
-  operator: MobileMoneyOperator
+  /**
+   * Code opérateur PawaPay — `MTN_MOMO_CMR`, `HALOTEL_TZA`. C'est l'identité qui
+   * fait foi : elle porte déjà le pays, là où une marque générique (« MTN »)
+   * obligeait à recroiser opérateur × pays dans une table écrite à la main.
+   */
+  provider: string
 }
 
 export interface OpenPaymentParams {
@@ -96,26 +107,36 @@ async function openPawaPayDeposit(params: OpenPaymentParams): Promise<OpenPaymen
   }
   if (!params.payer) throw new Error('MOBILE_MONEY_DETAILS_REQUIRED')
 
-  const country = params.countryCode ?? 'CM'
-  const providerCode = pawapayProviderCode(params.payer.operator, country)
-  if (!providerCode) throw new Error('PROVIDER_NOT_SUPPORTED')
+  // Le code opérateur porte son pays : c'est lui qui fait autorité, pas le pays
+  // du profil. Un apprenant qui paie avec un numéro d'un autre pays que celui
+  // qu'il a déclaré n'est pas une anomalie — le profil ne sert qu'à *proposer*
+  // la bonne liste.
+  const candidates = await resolveProvider(params.payer.provider, 'DEPOSIT')
+  if (!candidates.length) throw new Error('PROVIDER_NOT_SUPPORTED')
 
-  // Bornes et disponibilité lues sur `/v2/active-conf` : un montant hors
-  // limites ou un opérateur fermé se refuse ici, avec un motif lisible, plutôt
-  // que de partir se faire rejeter et laisser un achat en attente.
-  const capability = await assertOperational(providerCode, 'DEPOSIT', params.amountFcfa)
+  // La devise suit l'opérateur, et le montant FCFA y est converti au taux
+  // administré. Sans taux pour cette devise, l'achat est refusé ici — jamais
+  // envoyé au fournisseur dans une devise qu'il n'attend pas.
+  const { provider, converted } = await settleAmount(candidates, params.amountFcfa)
+
+  // Bornes et disponibilité lues sur `/v2/active-conf`, dans la devise de
+  // l'opérateur : un montant hors limites ou un opérateur fermé se refuse ici,
+  // avec un motif lisible, plutôt que de partir se faire rejeter et laisser un
+  // achat en attente.
+  assertWithinBounds(provider, converted.amount)
 
   // L'identifiant est le nôtre, et il fait office de clé d'idempotence chez
   // PawaPay : le rejouer est sans effet. Un UUID nu, sans préfixe — le format
   // est contraint.
   const depositId = crypto.randomUUID()
-  const phoneNumber = toMsisdn(params.payer.phoneNumber, capability.prefix)
+  const phoneNumber = toMsisdn(params.payer.phoneNumber, provider.prefix)
 
   const response = await requestDeposit({
     depositId,
     phoneNumber,
-    provider: providerCode,
-    amountFcfa: params.amountFcfa,
+    provider: provider.provider,
+    amount: converted.amount,
+    currency: converted.currency,
     customerMessage: params.label,
     clientReferenceId: params.purchaseId,
     metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
