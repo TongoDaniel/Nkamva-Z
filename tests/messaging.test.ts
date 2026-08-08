@@ -9,8 +9,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
 import {
-  openConversation, listMyConversations, getConversation, sendMessage,
-  markConversationRead, countUnreadMessages,
+  openConversation, openConversationWithMember, listMyConversations, getConversation,
+  sendMessage, markConversationRead, countUnreadMessages,
 } from '@/lib/messaging'
 import { initiatePurchase } from '@/lib/purchases'
 
@@ -268,5 +268,65 @@ describe('Messagerie 1 à 1', () => {
     const theirs = await listMyConversations(trainerUser.id, trainer.id)
     expect(theirs.map((c) => c.id)).toEqual([id])
     expect(theirs[0].peer.fullName).toBe('Koffi N\'Da')
+  })
+
+  // --- Le formateur aborde aussi ---
+  //
+  // Une conversation ne naissait que du membre : le formateur répondait, il
+  // n'abordait pas. La règle a été levée pour les membres de son propre salon,
+  // et ces tests bornent l'ouverture qu'elle laisse.
+
+  it('le formateur ouvre le fil d\'un de ses membres', async () => {
+    const { community, member, trainerUser, trainer } = await setup()
+    await subscribe(community.id, member.id)
+
+    const { id } = await openConversationWithMember(community.id, member.id, trainerUser.id)
+    const theirs = await listMyConversations(trainerUser.id, trainer.id)
+    expect(theirs.map((c) => c.id)).toEqual([id])
+
+    // Idempotente des deux bords : le membre retrouve le même fil.
+    expect((await openConversation(community.slug, member.id)).id).toBe(id)
+  })
+
+  it('arbitrage 40 — il peut écrire à un membre banni, pour s\'en expliquer', async () => {
+    const { community, member, trainerUser } = await setup()
+    await subscribe(community.id, member.id, 'BANNED')
+
+    await expect(
+      openConversationWithMember(community.id, member.id, trainerUser.id),
+    ).resolves.toMatchObject({ id: expect.any(String) })
+    // Le banni, lui, n'ouvre rien : c'est ce que « couper la parole » veut dire.
+    await expect(openConversation(community.slug, member.id)).rejects.toThrow('MEMBER_BANNED')
+  })
+
+  it('arbitrage 33 — pas d\'adhésion ouverte, pas de fil, même à son initiative', async () => {
+    const { community, member, trainerUser } = await setup()
+    await subscribe(community.id, member.id, 'EXPIRED')
+
+    await expect(
+      openConversationWithMember(community.id, member.id, trainerUser.id),
+    ).rejects.toThrow('NOT_MEMBER')
+  })
+
+  it('un salon aux messages fermés n\'ouvre rien, ni d\'un bord ni de l\'autre', async () => {
+    const { community, member, trainerUser } = await setup({ messagingEnabled: false })
+    await subscribe(community.id, member.id)
+
+    await expect(
+      openConversationWithMember(community.id, member.id, trainerUser.id),
+    ).rejects.toThrow('MESSAGING_DISABLED')
+  })
+
+  it('un formateur n\'ouvre pas le fil d\'une communauté qui n\'est pas la sienne', async () => {
+    const { community, member } = await setup()
+    await subscribe(community.id, member.id)
+    const intrus = await prisma.user.create({
+      data: { email: 'intrus@test.com', role: 'TRAINER', fullName: 'Kofi Mensah' },
+    })
+    await prisma.trainerProfile.create({ data: { userId: intrus.id, approvedAt: new Date() } })
+
+    await expect(
+      openConversationWithMember(community.id, member.id, intrus.id),
+    ).rejects.toThrow('NOT_OWNER')
   })
 })

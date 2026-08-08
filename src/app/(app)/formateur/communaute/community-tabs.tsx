@@ -5,7 +5,7 @@ import { Tabs } from "@/components/nk/tabs";
 
 const PANEL_ID = "nk-communaute";
 
-type Panel = "publique" | "salons" | "membres";
+type Panel = "publique" | "salons" | "invitations" | "membres";
 
 /**
  * Les trois rubriques de « Ma communauté ».
@@ -23,19 +23,25 @@ type Panel = "publique" | "salons" | "membres";
 export function CommunityTabs({
   publique,
   salons,
+  invitations,
   membres,
   membersCount,
+  invitationsCount,
 }: {
   publique: React.ReactNode;
   salons: React.ReactNode;
+  invitations: React.ReactNode;
   membres: React.ReactNode;
   membersCount: number;
+  /** Invitations encore en attente — les seules qui appellent une action. */
+  invitationsCount: number;
 }) {
   const [tab, setTab] = React.useState<Panel>("publique");
 
   const panels: Array<{ value: Panel; node: React.ReactNode }> = [
     { value: "publique", node: publique },
     { value: "salons", node: salons },
+    { value: "invitations", node: invitations },
     { value: "membres", node: membres },
   ];
 
@@ -49,9 +55,10 @@ export function CommunityTabs({
         items={[
           { value: "publique", label: "Fiche publique" },
           { value: "salons", label: "Salons" },
-          // Le compteur porte sur les membres, pas sur les invitations : c'est
-          // le chiffre qu'on vient vérifier. Les invitations en attente se
-          // lisent dans l'onglet, où elles ont leur propre pastille.
+          // Les invitations en attente seulement : une invitation acceptée ou
+          // expirée n'appelle plus rien, la compter ferait sonner l'onglet pour
+          // du passé. Les membres, eux, se comptent tous.
+          { value: "invitations", label: "Invitations", count: invitationsCount },
           { value: "membres", label: "Membres", count: membersCount },
         ]}
       />

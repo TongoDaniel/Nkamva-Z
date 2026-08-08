@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Gift, ShieldBan, ShieldCheck, Users } from "lucide-react";
+import { Gift, MessageSquare, Search, ShieldBan, ShieldCheck, Users } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
+import { PillInput } from "@/components/nk/input";
 import { StPill } from "@/components/nk/status-pill";
+import { Tabs } from "@/components/nk/tabs";
 import { Avatar } from "@/components/nk/avatar";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Modal } from "@/components/nk/modal";
@@ -31,20 +33,87 @@ const STATUS: Record<string, { label: string; tone: "ok" | "warn" | "bad" | "mut
   EXPIRED: { label: "Terminée", tone: "muted" },
 };
 
+/**
+ * Les filtres, et les statuts que chacun retient. « Terminées » en réunit deux :
+ * une adhésion résiliée et une adhésion expirée ne se distinguent pas quand on
+ * cherche qui n'est plus là — la ligne, elle, continue de les nommer.
+ */
+const FILTERS: ReadonlyArray<{
+  value: string;
+  label: string;
+  /** `null` = aucun filtre d'état. */
+  statuses: readonly string[] | null;
+}> = [
+  { value: "all", label: "Tous", statuses: null },
+  { value: "active", label: "À jour", statuses: ["ACTIVE"] },
+  { value: "pastDue", label: "Impayés", statuses: ["PAST_DUE"] },
+  { value: "banned", label: "Bannis", statuses: ["BANNED"] },
+  { value: "ended", label: "Terminées", statuses: ["CANCELED", "EXPIRED"] },
+];
+
+/** Les adhésions ouvertes — les seules où un fil privé peut exister. */
+const OPEN_STATUSES = ["ACTIVE", "PAST_DUE", "BANNED"];
+
+/** Sans accents ni casse : « Keïta » doit se trouver en tapant « keita ». */
+function fold(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 export function MembersPanel({
   communityId,
   initial,
+  messagingEnabled,
 }: {
   communityId: string;
   initial: MemberRow[];
+  /** Les messages directs sont-ils ouverts ? Sinon, aucun fil ne peut naître. */
+  messagingEnabled: boolean;
 }) {
   const router = useRouter();
   const [rows, setRows] = React.useState(initial);
   const [target, setTarget] = React.useState<MemberRow | null>(null);
   const [reason, setReason] = React.useState("");
   const [pending, setPending] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const [filter, setFilter] = React.useState("all");
+  const [opening, setOpening] = React.useState<string | null>(null);
 
   React.useEffect(() => setRows(initial), [initial]);
+
+  const countFor = (statuses: readonly string[] | null) =>
+    statuses ? rows.filter((r) => statuses.includes(r.status)).length : rows.length;
+
+  const visible = React.useMemo(() => {
+    const needle = fold(search.trim());
+    const statuses = FILTERS.find((f) => f.value === filter)?.statuses ?? null;
+    return rows.filter((row) => {
+      if (statuses && !statuses.includes(row.status)) return false;
+      if (!needle) return true;
+      return fold(row.fullName ?? "Membre").includes(needle);
+    });
+  }, [rows, search, filter]);
+
+  /**
+   * Ouvre le fil du membre puis y emmène. La conversation vit dans la
+   * messagerie, pas ici : la dupliquer dans une fenêtre priverait le formateur
+   * de l'historique au moment précis où il en a besoin.
+   */
+  async function write(row: MemberRow) {
+    setOpening(row.learnerId);
+    try {
+      const { data } = await api.post<{ id: string }>(
+        `/api/trainer/communities/${communityId}/conversations`,
+        { learnerId: row.learnerId },
+      );
+      router.push(`/messagerie?fil=${data.id}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Le fil n'a pas pu être ouvert.");
+      setOpening(null);
+    }
+  }
 
   async function reload() {
     const { data } = await api.get<MemberRow[]>(
@@ -110,8 +179,51 @@ export function MembersPanel({
           description="Les adhésions apparaîtront ici, avec leur état et leur échéance."
         />
       ) : (
+        <>
+          <div className="mt-6 flex flex-wrap items-center gap-3.5">
+            <div className="min-w-[220px] max-w-[420px] flex-1">
+              <label htmlFor="membres-recherche" className="sr-only">
+                Rechercher un membre par son nom
+              </label>
+              <PillInput
+                id="membres-recherche"
+                type="search"
+                icon={<Search />}
+                placeholder="Rechercher un membre…"
+                autoComplete="off"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <p className="whitespace-nowrap text-sm font-semibold text-ink-2" aria-live="polite">
+              <b className="font-extrabold text-ink">{visible.length}</b> membre
+              {visible.length > 1 ? "s" : ""}
+            </p>
+          </div>
+
+          <Tabs
+            label="Filtrer les membres par état d'adhésion"
+            variant="chip"
+            className="mt-4"
+            value={filter}
+            onValueChange={setFilter}
+            items={FILTERS.map((f) => ({
+              value: f.value,
+              label: f.label,
+              count: countFor(f.statuses),
+            }))}
+          />
+
+          {visible.length === 0 ? (
+            <EmptyState
+              className="mt-6"
+              icon={<Search />}
+              title="Aucun membre ne correspond"
+              description="Essayez un autre nom, ou revenez au filtre « Tous »."
+            />
+          ) : (
         <ul className="mt-6 grid gap-2.5">
-          {rows.map((row) => {
+          {visible.map((row) => {
             const state = STATUS[row.status] ?? { label: row.status, tone: "muted" as const };
             const isBanned = row.status === "BANNED";
             return (
@@ -142,6 +254,23 @@ export function MembersPanel({
 
                 <StPill tone={state.tone}>{state.label}</StPill>
 
+                {/* Le fil suppose une adhésion ouverte et des messages directs
+                    actifs : proposer d'écrire à une adhésion terminée mènerait
+                    à un refus du serveur, que rien n'annonçait au clic. Un
+                    membre banni garde son bouton — c'est souvent là qu'il faut
+                    lui expliquer la sanction. */}
+                {messagingEnabled && OPEN_STATUSES.includes(row.status) ? (
+                  <Btn
+                    variant="t"
+                    size="sm"
+                    onClick={() => write(row)}
+                    disabled={opening === row.learnerId}
+                  >
+                    <MessageSquare className="size-4" aria-hidden="true" />
+                    {opening === row.learnerId ? "Ouverture…" : "Écrire"}
+                  </Btn>
+                ) : null}
+
                 {isBanned ? (
                   <Btn variant="o" size="sm" onClick={() => unban(row)}>
                     <ShieldCheck className="size-4" aria-hidden="true" />
@@ -163,7 +292,9 @@ export function MembersPanel({
               </li>
             );
           })}
-        </ul>
+            </ul>
+          )}
+        </>
       )}
 
       <Modal

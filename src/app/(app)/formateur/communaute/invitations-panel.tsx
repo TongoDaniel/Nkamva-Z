@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Gift, Link2, Mail, Trash2 } from "lucide-react";
+import { Copy, Gift, Link2, Mail, Search, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
-import { Field } from "@/components/nk/input";
+import { Field, PillInput } from "@/components/nk/input";
 import { StPill } from "@/components/nk/status-pill";
+import { Tabs } from "@/components/nk/tabs";
 import { EmptyState } from "@/components/nk/empty-state";
 import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
@@ -45,6 +46,22 @@ const STATUS_LABEL: Record<string, string> = {
   EXHAUSTED: "Épuisée",
 };
 
+/**
+ * « Closes » réunit ce qui ne peut plus servir, par trois chemins différents.
+ * On les distingue rarement quand on cherche, et la ligne les nomme toujours.
+ */
+const FILTERS: ReadonlyArray<{
+  value: string;
+  label: string;
+  /** `null` = aucun filtre d'état. */
+  statuses: readonly string[] | null;
+}> = [
+  { value: "all", label: "Toutes", statuses: null },
+  { value: "pending", label: "En attente", statuses: ["PENDING"] },
+  { value: "accepted", label: "Acceptées", statuses: ["ACCEPTED"] },
+  { value: "closed", label: "Closes", statuses: ["EXPIRED", "REVOKED", "EXHAUSTED"] },
+];
+
 async function copy(value: string, message: string) {
   try {
     await navigator.clipboard.writeText(value);
@@ -71,8 +88,25 @@ export function InvitationsPanel({
   const [grant, setGrant] = React.useState<"PAID" | "GIFT">("PAID");
   const [giftMonths, setGiftMonths] = React.useState("1");
   const [pending, setPending] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const [filter, setFilter] = React.useState("all");
 
   React.useEffect(() => setRows(initial), [initial]);
+
+  const countFor = (statuses: readonly string[] | null) =>
+    statuses ? rows.filter((r) => statuses.includes(r.status)).length : rows.length;
+
+  const visible = React.useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    const statuses = FILTERS.find((f) => f.value === filter)?.statuses ?? null;
+    return rows.filter((row) => {
+      if (statuses && !statuses.includes(row.status)) return false;
+      if (!needle) return true;
+      // Un lien de parrainage n'a pas d'adresse : il se cherche par son préfixe,
+      // le seul morceau du jeton qu'on ait le droit de montrer.
+      return (row.email ?? row.tokenPrefix).toLowerCase().includes(needle);
+    });
+  }, [rows, search, filter]);
 
   async function reload() {
     const { data } = await api.get<InvitationRow[]>(
@@ -228,8 +262,50 @@ export function InvitationsPanel({
             description="Les invitations que vous émettez apparaîtront ici, avec leur état."
           />
         ) : (
+          <>
+            <div className="mb-4 flex flex-wrap items-center gap-3.5">
+              <div className="min-w-[220px] max-w-[420px] flex-1">
+                <label htmlFor="invitations-recherche" className="sr-only">
+                  Rechercher une invitation par adresse
+                </label>
+                <PillInput
+                  id="invitations-recherche"
+                  type="search"
+                  icon={<Search />}
+                  placeholder="Rechercher une adresse…"
+                  autoComplete="off"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <p className="whitespace-nowrap text-sm font-semibold text-ink-2" aria-live="polite">
+                <b className="font-extrabold text-ink">{visible.length}</b> invitation
+                {visible.length > 1 ? "s" : ""}
+              </p>
+            </div>
+
+            <Tabs
+              label="Filtrer les invitations par état"
+              variant="chip"
+              className="mb-4"
+              value={filter}
+              onValueChange={setFilter}
+              items={FILTERS.map((f) => ({
+                value: f.value,
+                label: f.label,
+                count: countFor(f.statuses),
+              }))}
+            />
+
+            {visible.length === 0 ? (
+              <EmptyState
+                icon={<Search />}
+                title="Aucune invitation ne correspond"
+                description="Essayez une autre adresse, ou revenez au filtre « Toutes »."
+              />
+            ) : (
           <ul className="grid gap-2.5">
-            {rows.map((row) => (
+            {visible.map((row) => (
               <li
                 key={row.id}
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-nk border border-line px-4 py-3"
@@ -285,6 +361,8 @@ export function InvitationsPanel({
               </li>
             ))}
           </ul>
+            )}
+          </>
         )}
       </div>
     </section>
