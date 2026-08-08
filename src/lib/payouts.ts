@@ -23,9 +23,10 @@ import { getWithdrawableMethod, getPayoutReviewSlaHours } from './payout-methods
 // Aliasé : ce module exporte déjà `requestPayout`, qui est la demande du
 // formateur — l'homonyme de PawaPay est l'ordre de virement.
 import {
-  assertOperational, isPawaPayConfigured, pawapayProviderCode, toMsisdn,
+  assertWithinBounds, isPawaPayConfigured, providerForOperator, toMsisdn,
   requestPayout as requestPawaPayPayout, PawaPayError,
 } from './pawapay'
+import { settleAmount } from './fx'
 import type { PrismaTransaction } from './types'
 
 export const PAYOUT_MIN_AMOUNT_FCFA = 10_000
@@ -300,8 +301,8 @@ export async function dispatchPayout(payoutId: string): Promise<void> {
   }
 
   const country = payout.trainerProfile.user.countryCode ?? 'CM'
-  const providerCode = pawapayProviderCode(method.mobileOperator, country)
-  if (!providerCode) {
+  const provider = await providerForOperator(method.mobileOperator, country, 'PAYOUT').catch(() => null)
+  if (!provider) {
     await auditStandalone({
       action: 'PAYOUT_DISPATCH_MANUAL', targetType: 'Payout', targetId: payoutId,
       meta: { reason: 'PROVIDER_NOT_SUPPORTED', operator: method.mobileOperator, country },
@@ -310,14 +311,20 @@ export async function dispatchPayout(payoutId: string): Promise<void> {
   }
 
   try {
-    const capability = await assertOperational(providerCode, 'PAYOUT', payout.amountFcfa)
+    // Le solde du formateur est en FCFA ; l'opérateur vire dans sa devise. Sans
+    // taux administré pour celle-ci, `settleAmount` lève et le versement bascule
+    // en traitement manuel plutôt que de partir avec un montant faux.
+    const { converted } = await settleAmount([provider], payout.amountFcfa)
+    assertWithinBounds(provider, converted.amount)
+
     // `payoutId` est l'identifiant PawaPay : c'est déjà un UUID, il vaut clé
     // d'idempotence et évite une colonne de correspondance de plus.
     const response = await requestPawaPayPayout({
       payoutId,
-      phoneNumber: toMsisdn(method.mobilePhone, capability.prefix),
-      provider: providerCode,
-      amountFcfa: payout.amountFcfa,
+      phoneNumber: toMsisdn(method.mobilePhone, provider.prefix),
+      provider: provider.provider,
+      amount: converted.amount,
+      currency: converted.currency,
       customerMessage: 'Retrait NkamVa',
       clientReferenceId: payoutId,
     })
@@ -336,7 +343,14 @@ export async function dispatchPayout(payoutId: string): Promise<void> {
 
     await auditStandalone({
       action: 'PAYOUT_DISPATCHED', targetType: 'Payout', targetId: payoutId,
-      meta: { provider: 'PAWAPAY', providerCode, amountFcfa: payout.amountFcfa, status: response.status },
+      meta: {
+        provider: 'PAWAPAY', providerCode: provider.provider,
+        amountFcfa: payout.amountFcfa,
+        // Ce qui est réellement parti chez l'opérateur : sans la devise, un
+        // rapprochement comptable ne peut pas relire cette ligne.
+        amount: converted.amount, currency: converted.currency, fxRate: converted.rate,
+        status: response.status,
+      },
     })
   } catch (err) {
     // Le retrait reste APPROVED : Finances le voit toujours dans sa file et

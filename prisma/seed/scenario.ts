@@ -383,7 +383,7 @@ export interface PayoutMethodSeed {
   trainerKey: string
   type: 'MOBILE_MONEY' | 'BANK_IBAN'
   accountNature: 'INDIVIDUAL' | 'BUSINESS'
-  mobileOperator?: 'WAVE' | 'ORANGE_MONEY' | 'MTN_MOMO' | 'AIRTEL_MONEY' | 'M_PESA'
+  mobileOperator?: 'ORANGE_MONEY' | 'MTN_MOMO' | 'AIRTEL_MONEY' | 'M_PESA'
   mobilePhone?: string
   iban?: string
   bic?: string
@@ -399,7 +399,7 @@ export const PAYOUT_METHODS: PayoutMethodSeed[] = [
     trainerKey: 'awa',
     type: 'MOBILE_MONEY',
     accountNature: 'INDIVIDUAL',
-    mobileOperator: 'WAVE',
+    mobileOperator: 'ORANGE_MONEY',
     mobilePhone: '+221770000101',
     holderName: 'Awa Sarr',
     outcome: 'VERIFIED',
@@ -458,7 +458,7 @@ export const PAYOUTS: PayoutSeed[] = [
     trainerKey: 'awa',
     amountFcfa: 60000,
     outcome: 'PAID',
-    providerReference: 'WAVE-2026-07-118432',
+    providerReference: 'ORANGE-2026-07-118432',
     note: "Premier retrait — revue obligatoire (décision 25). Pièce et compte concordants.",
   },
   // Second retrait d'Awa : son score KYC est à 100 et ce n'est plus son premier

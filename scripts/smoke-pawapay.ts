@@ -26,7 +26,8 @@
  * Numéros de test : docs.pawapay.io/v2/docs/test_numbers, relevés le 8 août 2026.
  */
 import {
-  activeConfiguration, assertOperational, pawapayConfig,
+  activeConfiguration, assertWithinBounds, pawapayConfig, resolveProvider,
+  formatAmount, refundAmountFromDeposit,
   requestDeposit, checkDeposit,
   requestRefund, checkRefund,
   requestPayout, checkPayout,
@@ -125,9 +126,18 @@ async function main() {
     conf.signatureConfiguration?.signedRequestsOnly ? 'EXIGÉES : les initiations échoueront' : 'non exigées',
   )
 
-  const capability = await assertOperational(PROVIDER, 'DEPOSIT', AMOUNT)
+  // L'opérateur se résout sur la configuration vivante : son code porte déjà son
+  // pays, sa devise et ses bornes. Plus aucune table écrite à la main ici.
+  const [capability] = await resolveProvider(PROVIDER, 'DEPOSIT')
+  check(`${PROVIDER} est distribué par ce compte`, Boolean(capability), capability ? capability.displayName : 'absent de /v2/active-conf')
+  if (!capability) return
+
+  // Le Cameroun encaisse en XAF : le montant FCFA y part tel quel, sans passer
+  // par un taux. C'est ce qui rend ce smoke lisible sans réglage préalable.
+  const amount = formatAmount(AMOUNT, capability.operation.decimalsInAmount)
+  assertWithinBounds(capability, amount)
   check(
-    `${PROVIDER} encaisse ${AMOUNT} XAF`,
+    `${PROVIDER} encaisse ${amount} ${capability.currency}`,
     capability.operation.status === 'OPERATIONAL',
     `${capability.operation.minAmount}–${capability.operation.maxAmount} ${capability.currency}, statut ${capability.operation.status}`,
   )
@@ -139,7 +149,8 @@ async function main() {
     depositId,
     phoneNumber: MSISDN_COMPLETED,
     provider: PROVIDER,
-    amountFcfa: AMOUNT,
+    amount,
+    currency: capability.currency,
     // Volontairement plus long que les 22 caractères admis : on vérifie du même
     // coup que `customerMessage()` tronque au lieu de faire rejeter l'appel.
     customerMessage: 'NkamVa — smoke test de bout en bout',
@@ -157,7 +168,8 @@ async function main() {
     depositId,
     phoneNumber: MSISDN_COMPLETED,
     provider: PROVIDER,
-    amountFcfa: AMOUNT,
+    amount,
+    currency: capability.currency,
     customerMessage: 'NkamVa test',
   })
   check(
@@ -173,7 +185,8 @@ async function main() {
     depositId: refusedId,
     phoneNumber: MSISDN_PAYER_LIMIT,
     provider: PROVIDER,
-    amountFcfa: AMOUNT,
+    amount,
+    currency: capability.currency,
     customerMessage: 'NkamVa test',
   })
   const refused = await waitForFinalStatus('dépôt refusé', () => checkDeposit(refusedId))
@@ -187,7 +200,20 @@ async function main() {
   if (deposit?.status === 'COMPLETED') {
     console.log('\n— Remboursement —————————————————————————————————')
     const refundId = crypto.randomUUID()
-    const refundInit = await requestRefund({ refundId, depositId, amountFcfa: AMOUNT })
+    // Le montant remboursé se dérive du dépôt lui-même : c'est la règle qui
+    // garantit qu'un remboursement total rend exactement ce qui a été prélevé,
+    // même si le taux de change a bougé depuis.
+    const { amount: refundAmount, currency: refundCurrency } = await refundAmountFromDeposit(
+      depositId, AMOUNT, AMOUNT,
+    )
+    check(
+      'le remboursement total reprend le montant du dépôt',
+      refundAmount === amount && refundCurrency === capability.currency,
+      `${refundAmount} ${refundCurrency}`,
+    )
+    const refundInit = await requestRefund({
+      refundId, depositId, amount: refundAmount, currency: refundCurrency,
+    })
     check('le remboursement est accepté', refundInit.status === 'ACCEPTED', `statut ${refundInit.status}`)
     const refund = await waitForFinalStatus('remboursement', () => checkRefund(refundId))
     check('le remboursement atteint COMPLETED', refund?.status === 'COMPLETED', refund?.status ?? 'aucun état final')
@@ -199,7 +225,8 @@ async function main() {
     payoutId,
     phoneNumber: MSISDN_COMPLETED,
     provider: PROVIDER,
-    amountFcfa: AMOUNT,
+    amount,
+    currency: capability.currency,
     customerMessage: 'NkamVa versement',
   })
   check('le versement est accepté', payoutInit.status === 'ACCEPTED', `statut ${payoutInit.status}`)

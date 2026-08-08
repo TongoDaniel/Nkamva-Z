@@ -60,7 +60,7 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
   const [legalRepProof, setLegalRepProof] = React.useState<UploadedDoc>(null);
   const [iban, setIban] = React.useState("");
   const [bic, setBic] = React.useState("");
-  const [operator, setOperator] = React.useState("WAVE");
+  const [operator, setOperator] = React.useState("MTN_MOMO");
   const [phone, setPhone] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});

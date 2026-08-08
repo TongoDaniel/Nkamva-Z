@@ -4,6 +4,7 @@ import { PageHead } from "@/components/nk/page-head";
 import { getPublicCourse } from "@/lib/catalog";
 import { checkCourseAccess } from "@/lib/access";
 import { getAuthContext } from "@/lib/api";
+import { payableProvidersForUser } from "@/lib/fx";
 import type { CourseDetail } from "@/lib/dto";
 import { CheckoutForm } from "./checkout-form";
 import { routesOf } from "@/lib/spaces";
@@ -43,6 +44,7 @@ export default async function AchatPage({ params }: { params: Promise<{ slug: st
         lead="Paiement à l'unité, en FCFA. L'accès est immédiat une fois le paiement confirmé."
       />
       <CheckoutForm
+        providers={await payableProvidersForUser(auth.user.id)}
         courseId={course.id}
         title={course.title}
         category={course.category}

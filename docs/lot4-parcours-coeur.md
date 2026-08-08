@@ -122,7 +122,53 @@ reste refusé partout.
 
 ---
 
-## 5. Audit du 4 août 2026
+## 5. Mobile money : opérateurs, pays et devise (8 août 2026)
+
+**La liste d'opérateurs est une donnée du fournisseur, pas une constante du
+produit.** `src/lib/pawapay.ts` portait une table écrite à la main croisant une
+marque générique (`MTN_MOMO`, `M_PESA`) avec un pays. Sept de ses entrées
+désignaient des opérateurs **inexistants** — `ORANGE_BFA`, `ORANGE_MLI`,
+`AIRTEL_KEN`, `AIRTEL_NGA`, `AIRTEL_UGA`, `AIRTEL_ZMB` (le vrai code est
+`AIRTEL_OAPI_ZMB`) et `MPESA_LSO` — et elle ne pouvait pas exprimer HaloPesa,
+TNM, Moov, Free, Tigo ni Zamtel. Elle est supprimée : tout se résout désormais
+sur `/v2/active-conf`, qui dit ce que **ce compte marchand** distribue.
+
+L'apprenant choisit un **code opérateur** (`MTN_MOMO_CMR`, `HALOTEL_TZA`), qui
+porte déjà son pays. La liste affichée est celle de son pays, filtrée par les
+devises dont le taux est administré : elle ne peut donc pas mener à une impasse.
+
+**La devise suit le pays.** `PAWAPAY_CURRENCY = 'XAF'` était figé : hors zone
+franc, la capacité de l'opérateur était cherchée dans une devise qu'il n'annonce
+pas, et les bornes de montant comparaient des francs CFA à des shillings. La
+conversion vit dans `src/lib/fx.ts` :
+
+- **XAF et XOF sont à parité fixe** (1:1 depuis 1945) — aucun taux à administrer ;
+- les autres devises exigent une ligne dans `fx_rates` (`unitsPerXaf`) ;
+- **aucun repli** : sans taux, l'achat est refusé (`FX_RATE_MISSING`). Un pays
+  fermé vaut mieux qu'un pays ouvert à un taux inventé ;
+- aucun appel externe dans le chemin critique du paiement.
+
+**Un remboursement rend ce qui a été prélevé**, pas ce que le taux du jour
+dirait : `refundAmountFromDeposit` lit le dépôt chez PawaPay et lui applique la
+proportion remboursée. Piège vérifié au bac à sable — PawaPay *rend* `"500.00"`
+pour un dépôt de 500 XAF mais *refuse* un remboursement à décimales sur cette
+devise : les décimales se lisent sur l'opérateur, jamais sur la forme du montant
+reçu.
+
+**Wave est retiré.** Il n'est pas distribué par PawaPay : un moyen de versement
+Wave partait systématiquement en traitement manuel sans que le formateur le
+sache. La migration `20260808130000_drop_wave_operator` archive les moyens
+concernés au lieu de les supprimer — ils portent des pièces et un historique.
+
+**Reste transitoire :** `PayoutMethod.mobileOperator` stocke encore une marque
+générique. `providerForOperator()` fait le pont en **filtrant** les codes que le
+compte distribue — il n'en fabrique aucun — mais un formateur ne peut toujours
+pas enregistrer un compte HaloPesa ou TNM. La colonne doit passer au code
+opérateur.
+
+---
+
+## 6. Audit du 4 août 2026
 
 Les §1.3, §1.4, §5 et §6 de la version précédente décrivaient un Lot 4 qui « ne
 peut pas tourner », faute d'auth, de health check et de front. **Tout cela
@@ -192,7 +238,7 @@ les communautés soient rebranchées à leur tour.
 
 ---
 
-## 6. Fonctionnalités de l'inventaire encore non couvertes
+## 7. Fonctionnalités de l'inventaire encore non couvertes
 
 *Recalé le 4 août 2026 : la moitié de ce tableau était périmée.*
 

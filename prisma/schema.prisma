@@ -129,8 +129,9 @@ enum AccountNature {
   BUSINESS
 }
 
+/// Wave n'y figure pas : il n'est pas distribué par PawaPay, et un moyen de
+/// versement Wave ne pouvait jamais être servi autrement qu'à la main.
 enum MobileMoneyOperator {
-  WAVE
   ORANGE_MONEY
   MTN_MOMO
   AIRTEL_MONEY
@@ -1115,6 +1116,29 @@ model Notification {
 
   @@index([userId, readAt, createdAt])
   @@map("notifications")
+}
+
+// --- FxRate ---
+/// Taux de change du FCFA vers une devise d'encaissement.
+///
+/// Table à part, et non une clé de `Setting` : le registre des réglages est
+/// fermé, borné et entier, avec une valeur de repli assumée. Un taux de change
+/// est décimal, il ne doit avoir **aucun** repli — une devise sans taux refuse
+/// le paiement plutôt que d'en inventer un — et une erreur de saisie mésestime
+/// toutes les ventes du pays concerné. Il mérite donc sa trace propre :
+/// qui l'a posé, et quand.
+model FxRate {
+  id          String   @id @default(uuid())
+  /// ISO 4217 : TZS, KES, GHS, MWK, CDF, RWF, UGX, ZMW, MZN, SLE, USD.
+  /// XAF et XOF n'y figurent jamais : ils sont à parité fixe avec le FCFA.
+  currency    String   @unique
+  /// Unités de `currency` pour **un** FCFA.
+  unitsPerXaf Decimal  @db.Decimal(18, 8)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("fx_rates")
 }
 
 // --- Setting ---

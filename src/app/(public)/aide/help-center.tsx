@@ -73,7 +73,7 @@ function buildGroups(subscription: string): HelpGroup[] {
       items: [
         {
           q: "Quels moyens de paiement acceptez-vous ?",
-          a: "Le mobile money — Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa — et la carte bancaire. Les opérateurs proposés dépendent de votre pays. Les prix sont affichés en FCFA et vous payez le montant exact indiqué sur la fiche.",
+          a: "Le mobile money et la carte bancaire. Les opérateurs proposés dépendent de votre pays : la liste exacte s'affiche à l'écran de paiement, et seuls y figurent ceux qui peuvent réellement encaisser. Les prix sont affichés en FCFA et vous payez le montant exact indiqué sur la fiche.",
         },
         {
           q: "Le paiement mobile money est-il sécurisé ?",

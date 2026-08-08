@@ -7,34 +7,40 @@
 import { z } from 'zod'
 
 /**
- * Opérateurs proposés à la saisie. Volontairement plus restreint que
- * l'énumération Prisma `MobileMoneyOperator` : celle-ci sert aussi aux moyens de
- * versement des formateurs, où WAVE reste possible en circuit manuel. À
- * l'encaissement, seuls les opérateurs distribués par PawaPay ont un sens —
- * proposer Wave ici ouvrirait un tunnel qui ne peut pas aboutir.
+ * L'apprenant choisit un **code opérateur PawaPay** (`MTN_MOMO_CMR`,
+ * `HALOTEL_TZA`), pas une marque générique.
+ *
+ * La liste des marques figée ici auparavant — quatre valeurs — ne pouvait pas
+ * exprimer HaloPesa, TNM, Moov, Free, Tigo ni Zamtel, et obligeait à recroiser
+ * marque × pays dans une table écrite à la main dont sept entrées désignaient
+ * des opérateurs inexistants. La liste proposée à l'écran est désormais celle
+ * que `/v2/active-conf` déclare pour le pays de l'apprenant : elle ne peut pas
+ * annoncer un opérateur que le compte ne distribue pas.
+ *
+ * Le format est validé ici, l'existence l'est côté serveur par `resolveProvider`
+ * — une valeur inventée est refusée avant tout appel au fournisseur.
  */
-export const PAYABLE_OPERATORS = ['MTN_MOMO', 'ORANGE_MONEY', 'AIRTEL_MONEY', 'M_PESA'] as const
+export const PROVIDER_CODE_RE = /^[A-Z0-9]+(?:_[A-Z0-9]+)*$/
 
-export const OPERATOR_LABELS: Record<(typeof PAYABLE_OPERATORS)[number], string> = {
-  MTN_MOMO: 'MTN Mobile Money',
-  ORANGE_MONEY: 'Orange Money',
-  AIRTEL_MONEY: 'Airtel Money',
-  M_PESA: 'M-Pesa',
-}
-
-/**
- * Le numéro est accepté large et normalisé côté serveur (`toMsisdn`) : exiger
- * un format canonique dans le formulaire ferait échouer une saisie parfaitement
- * lisible comme « 6 70 00 00 00 ». On borne seulement la longueur en chiffres.
- */
 export const MobileMoneyPayerSchema = z.object({
+  /**
+   * Le numéro est accepté large et normalisé côté serveur (`toMsisdn`) : exiger
+   * un format canonique dans le formulaire ferait échouer une saisie
+   * parfaitement lisible comme « 6 70 00 00 00 ». On borne seulement la
+   * longueur en chiffres.
+   */
   phoneNumber: z
     .string()
     .trim()
     .min(6, 'Numéro trop court')
     .max(20, 'Numéro trop long')
     .refine((v) => v.replace(/\D/g, '').length >= 8, 'Saisissez un numéro de téléphone valide'),
-  operator: z.enum(PAYABLE_OPERATORS),
+  provider: z
+    .string()
+    .trim()
+    .min(3)
+    .max(40)
+    .regex(PROVIDER_CODE_RE, 'Opérateur invalide'),
 })
 
 export type MobileMoneyPayerInput = z.infer<typeof MobileMoneyPayerSchema>
@@ -46,4 +52,11 @@ export function phoneNumberError(value: string): string | null {
   if (digits.length < 8) return 'Ce numéro semble incomplet.'
   if (digits.length > 15) return 'Ce numéro comporte trop de chiffres.'
   return null
+}
+
+/** Forme minimale d'un opérateur telle que les écrans la consomment. */
+export interface PayableProvider {
+  provider: string
+  displayName: string
+  countryCode: string
 }

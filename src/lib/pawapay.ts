@@ -23,7 +23,6 @@
 // ==========================================================================
 
 import { createHash, createPublicKey, createVerify, verify as cryptoVerify, timingSafeEqual } from 'node:crypto'
-import type { MobileMoneyOperator } from '@prisma/client'
 
 // --- Configuration ---------------------------------------------------------
 
@@ -112,55 +111,176 @@ async function call<T>(
 // --- Montants et opérateurs ------------------------------------------------
 
 /**
- * PawaPay transporte les montants en **chaîne**, et XAF n'admet aucune
- * décimale (`decimalsInAmount: "NONE"` dans `/v2/active-conf`). Comme
- * `amountFcfa` est déjà un entier, la conversion est directe — mais elle passe
- * par ici pour que le jour où une devise à décimales apparaît, un seul endroit
- * change.
+ * PawaPay transporte les montants en **chaîne**, avec exactement le nombre de
+ * décimales que la devise admet (`decimalsInAmount`). XAF et XOF n'en ont
+ * aucune ; MZN et USD en ont deux. Formater ici, et pas chez l'appelant, évite
+ * qu'un `0.1` flottant parte tel quel au fournisseur.
  */
-export function amountToPawaPay(amountFcfa: number): string {
-  if (!Number.isInteger(amountFcfa) || amountFcfa <= 0) throw new Error('INVALID_AMOUNT')
-  return String(amountFcfa)
+export function formatAmount(amount: number, decimals: 'NONE' | 'TWO_PLACES'): string {
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('INVALID_AMOUNT')
+  if (decimals === 'NONE') {
+    const rounded = Math.round(amount)
+    if (rounded <= 0) throw new Error('INVALID_AMOUNT')
+    return String(rounded)
+  }
+  return amount.toFixed(2)
 }
-
-export const PAWAPAY_CURRENCY = 'XAF'
 
 /**
- * Correspondance opérateur × pays → code fournisseur PawaPay.
- *
- * PawaPay nomme ses opérateurs `{OPÉRATEUR}_{SERVICE}_{PAYS}` — `MTN_MOMO_CMR`,
- * `ORANGE_CMR` — là où notre énumération est générique. La table ci-dessous ne
- * fait donc pas foi à elle seule : `assertProviderOperational()` la confronte à
- * `/v2/active-conf`, qui dit ce que **ce compte marchand** peut réellement
- * encaisser aujourd'hui.
- *
- * WAVE n'y figure pas : Wave n'est pas distribué par PawaPay. Un formateur qui
- * a enregistré un compte Wave reste sur le circuit manuel — voir
- * `payouts.ts`.
+ * Devise de référence de la plateforme : les prix sont saisis, stockés et
+ * comptabilisés en FCFA. Ce n'est **pas** la devise d'encaissement — celle-ci
+ * suit le pays du payeur et se lit sur `/v2/active-conf`.
  */
-const PROVIDER_CODES: Partial<Record<MobileMoneyOperator, Record<string, string>>> = {
-  MTN_MOMO: { CM: 'MTN_MOMO_CMR', CI: 'MTN_MOMO_CIV', BJ: 'MTN_MOMO_BEN', CG: 'MTN_MOMO_COG', GH: 'MTN_MOMO_GHA', RW: 'MTN_MOMO_RWA', UG: 'MTN_MOMO_UGA', ZM: 'MTN_MOMO_ZMB' },
-  ORANGE_MONEY: { CM: 'ORANGE_CMR', CI: 'ORANGE_CIV', SN: 'ORANGE_SEN', BF: 'ORANGE_BFA', ML: 'ORANGE_MLI', CD: 'ORANGE_COD' },
-  AIRTEL_MONEY: { CD: 'AIRTEL_COD', KE: 'AIRTEL_KEN', MW: 'AIRTEL_MWI', NG: 'AIRTEL_NGA', RW: 'AIRTEL_RWA', TZ: 'AIRTEL_TZA', UG: 'AIRTEL_UGA', ZM: 'AIRTEL_ZMB' },
-  M_PESA: { KE: 'MPESA_KEN', TZ: 'VODACOM_TZA', LS: 'MPESA_LSO', MZ: 'VODACOM_MOZ' },
-}
+export const PLATFORM_CURRENCY = 'XAF'
 
-/** ISO 3166-1 alpha-2 (le nôtre) → alpha-3 (celui de PawaPay). */
+/**
+ * ISO 3166-1 alpha-2 (le nôtre) → alpha-3 (celui de PawaPay). Pure traduction
+ * de codes : aucune décision produit ici, et rien à maintenir quand PawaPay
+ * ouvre un pays.
+ */
 const ALPHA3: Record<string, string> = {
   CM: 'CMR', CI: 'CIV', SN: 'SEN', BF: 'BFA', ML: 'MLI', BJ: 'BEN', TG: 'TGO',
   CD: 'COD', CG: 'COG', GA: 'GAB', GH: 'GHA', NG: 'NGA', KE: 'KEN', TZ: 'TZA',
   UG: 'UGA', RW: 'RWA', ZM: 'ZMB', MW: 'MWI', MZ: 'MOZ', LS: 'LSO', SL: 'SLE', ET: 'ETH',
 }
 
+const ALPHA2: Record<string, string> = Object.fromEntries(
+  Object.entries(ALPHA3).map(([two, three]) => [three, two]),
+)
+
 export function pawapayCountry(countryCode: string): string | null {
   return ALPHA3[countryCode.toUpperCase()] ?? null
 }
 
-export function pawapayProviderCode(
-  operator: MobileMoneyOperator,
+/** Alpha-3 de PawaPay → alpha-2 du profil. `null` si le pays nous est inconnu. */
+export function countryFromPawaPay(alpha3: string): string | null {
+  return ALPHA2[alpha3.toUpperCase()] ?? null
+}
+
+/**
+ * Un opérateur tel que **ce compte marchand** le distribue réellement, avec
+ * tout ce qu'il faut pour ouvrir une transaction : le code fournisseur, le
+ * préfixe téléphonique, la devise et les bornes de montant.
+ *
+ * Il n'existe plus de table écrite à la main. Celle qui vivait ici portait sept
+ * codes inexistants — `ORANGE_BFA`, `ORANGE_MLI`, `AIRTEL_KEN`, `AIRTEL_NGA`,
+ * `AIRTEL_UGA`, `AIRTEL_ZMB` (le vrai est `AIRTEL_OAPI_ZMB`) et `MPESA_LSO` —
+ * qui échouaient tous en `PROVIDER_NOT_SUPPORTED` au moment de payer. Une liste
+ * d'opérateurs est une donnée du fournisseur, pas une constante du produit.
+ */
+export interface ResolvedProvider {
+  provider: string
+  /** Nom commercial tel que PawaPay l'affiche : « MTN », « Halotel », « TNM ». */
+  displayName: string
+  /** Alpha-2, celui du profil apprenant. */
+  countryCode: string
+  prefix: string
+  currency: string
+  operation: ActiveOperationConfig
+}
+
+function toResolved(
+  countryAlpha3: string,
+  prefix: string,
+  provider: { provider: string; displayName?: string },
+  currency: string,
+  operation: ActiveOperationConfig,
+): ResolvedProvider | null {
+  const countryCode = countryFromPawaPay(countryAlpha3)
+  if (!countryCode) return null
+  return {
+    provider: provider.provider,
+    displayName: provider.displayName ?? provider.provider,
+    countryCode,
+    prefix,
+    currency,
+    operation,
+  }
+}
+
+/**
+ * Tous les opérateurs qu'un pays peut servir pour ce type d'opération. C'est ce
+ * qui alimente la liste proposée à l'apprenant : elle ne peut donc pas annoncer
+ * un opérateur que le compte ne distribue pas.
+ */
+export async function providersForCountry(
   countryCode: string,
-): string | null {
-  return PROVIDER_CODES[operator]?.[countryCode.toUpperCase()] ?? null
+  operationType: 'DEPOSIT' | 'PAYOUT' | 'REFUND',
+): Promise<ResolvedProvider[]> {
+  const alpha3 = pawapayCountry(countryCode)
+  if (!alpha3) return []
+  const conf = await activeConfiguration()
+  const out: ResolvedProvider[] = []
+  for (const country of conf.countries ?? []) {
+    if (country.country !== alpha3) continue
+    for (const provider of country.providers ?? []) {
+      for (const entry of provider.currencies ?? []) {
+        const operation = entry.operationTypes?.[operationType]
+        if (!operation) continue
+        const resolved = toResolved(country.country, country.prefix, provider, entry.currency, operation)
+        if (resolved) out.push(resolved)
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * ⚠️ **Transitoire.** `PayoutMethod.mobileOperator` porte encore une marque
+ * générique (`MTN_MOMO`, `M_PESA`) au lieu d'un code fournisseur. Tant que
+ * cette colonne existe, il faut retrouver le code à partir de la marque et du
+ * pays du formateur.
+ *
+ * La différence avec la table supprimée : on ne *fabrique* aucun code, on
+ * **filtre ceux que le compte distribue vraiment**. Un préfixe qui ne
+ * correspond à rien rend `null` — jamais un `AIRTEL_ZMB` inventé qui échouera
+ * au moment de virer l'argent.
+ *
+ * `MPESA` et `VODACOM` sont la même marque commerciale selon le pays : M-Pesa
+ * s'appelle `MPESA_KEN` au Kenya, `VODACOM_TZA` en Tanzanie et
+ * `VODACOM_MPESA_COD` en RDC.
+ */
+const BRAND_PREFIXES: Record<string, string[]> = {
+  MTN_MOMO: ['MTN_MOMO'],
+  ORANGE_MONEY: ['ORANGE'],
+  AIRTEL_MONEY: ['AIRTEL'],
+  M_PESA: ['MPESA', 'VODACOM'],
+}
+
+export async function providerForOperator(
+  operator: string,
+  countryCode: string,
+  operationType: 'DEPOSIT' | 'PAYOUT' | 'REFUND',
+): Promise<ResolvedProvider | null> {
+  const prefixes = BRAND_PREFIXES[operator]
+  if (!prefixes?.length) return null
+  const providers = await providersForCountry(countryCode, operationType)
+  return providers.find((p) => prefixes.some((prefix) => p.provider.startsWith(prefix))) ?? null
+}
+
+/**
+ * Retrouve un opérateur par son code. Le pays n'est pas demandé : il est déjà
+ * dans le code (`MTN_MOMO_CMR`), et le redemander à l'appelant ouvrait la porte
+ * à des couples incohérents.
+ */
+export async function resolveProvider(
+  providerCode: string,
+  operationType: 'DEPOSIT' | 'PAYOUT' | 'REFUND',
+): Promise<ResolvedProvider[]> {
+  const conf = await activeConfiguration()
+  const out: ResolvedProvider[] = []
+  for (const country of conf.countries ?? []) {
+    for (const provider of country.providers ?? []) {
+      if (provider.provider !== providerCode) continue
+      for (const entry of provider.currencies ?? []) {
+        const operation = entry.operationTypes?.[operationType]
+        if (!operation) continue
+        const resolved = toResolved(country.country, country.prefix, provider, entry.currency, operation)
+        if (resolved) out.push(resolved)
+      }
+    }
+  }
+  return out
 }
 
 /**
@@ -217,57 +337,22 @@ export async function activeConfiguration(force = false): Promise<ActiveConfigur
   return value
 }
 
-export interface ProviderCapability {
-  provider: string
-  country: string
-  prefix: string
-  currency: string
-  operation: ActiveOperationConfig
-}
-
-/**
- * Retrouve la capacité déclarée pour un opérateur et un type d'opération.
- * Rend `null` quand le compte marchand n'est pas configuré pour ce couple —
- * situation qui doit refuser l'achat, jamais le laisser partir en espérant.
- */
-export async function providerCapability(
-  providerCode: string,
-  operationType: 'DEPOSIT' | 'PAYOUT' | 'REFUND',
-  currency = PAWAPAY_CURRENCY,
-): Promise<ProviderCapability | null> {
-  const conf = await activeConfiguration()
-  for (const country of conf.countries ?? []) {
-    for (const provider of country.providers ?? []) {
-      if (provider.provider !== providerCode) continue
-      for (const entry of provider.currencies ?? []) {
-        if (entry.currency !== currency) continue
-        const operation = entry.operationTypes?.[operationType]
-        if (!operation) return null
-        return { provider: providerCode, country: country.country, prefix: country.prefix, currency, operation }
-      }
-    }
-  }
-  return null
-}
-
 /**
  * Refuse tôt et avec un motif lisible plutôt que de laisser le fournisseur
- * rejeter la transaction : un montant hors bornes ou un opérateur en panne se
+ * rejeter la transaction : un opérateur fermé ou un montant hors bornes se
  * savent avant d'ouvrir quoi que ce soit.
+ *
+ * ⚠️ `amount` est exprimé **dans la devise de l'opérateur**, pas en FCFA. La
+ * version précédente comparait des FCFA aux bornes de PawaPay quelle que soit
+ * la devise : hors zone franc, elle confrontait des francs CFA à des shillings.
  */
-export async function assertOperational(
-  providerCode: string,
-  operationType: 'DEPOSIT' | 'PAYOUT' | 'REFUND',
-  amountFcfa: number,
-): Promise<ProviderCapability> {
-  const capability = await providerCapability(providerCode, operationType)
-  if (!capability) throw new Error('PROVIDER_NOT_SUPPORTED')
-  if (capability.operation.status === 'CLOSED') throw new Error('PROVIDER_TEMPORARILY_UNAVAILABLE')
-  const min = Number(capability.operation.minAmount)
-  const max = Number(capability.operation.maxAmount)
-  if (Number.isFinite(min) && amountFcfa < min) throw new Error('AMOUNT_BELOW_PROVIDER_MINIMUM')
-  if (Number.isFinite(max) && amountFcfa > max) throw new Error('AMOUNT_ABOVE_PROVIDER_MAXIMUM')
-  return capability
+export function assertWithinBounds(provider: ResolvedProvider, amount: string): void {
+  if (provider.operation.status === 'CLOSED') throw new Error('PROVIDER_TEMPORARILY_UNAVAILABLE')
+  const value = Number(amount)
+  const min = Number(provider.operation.minAmount)
+  const max = Number(provider.operation.maxAmount)
+  if (Number.isFinite(min) && value < min) throw new Error('AMOUNT_BELOW_PROVIDER_MINIMUM')
+  if (Number.isFinite(max) && value > max) throw new Error('AMOUNT_ABOVE_PROVIDER_MAXIMUM')
 }
 
 // --- Types de transaction --------------------------------------------------
@@ -342,7 +427,9 @@ export interface RequestDepositParams {
   depositId: string
   phoneNumber: string
   provider: string
-  amountFcfa: number
+  /** Déjà formaté dans la devise de l'opérateur — voir `formatAmount`. */
+  amount: string
+  currency: string
   customerMessage: string
   clientReferenceId?: string
   metadata?: Record<string, string>
@@ -361,8 +448,8 @@ export async function requestDeposit(params: RequestDepositParams): Promise<Init
       type: 'MMO',
       accountDetails: { phoneNumber: params.phoneNumber, provider: params.provider },
     },
-    amount: amountToPawaPay(params.amountFcfa),
-    currency: PAWAPAY_CURRENCY,
+    amount: params.amount,
+    currency: params.currency,
     customerMessage: customerMessage(params.customerMessage),
     ...(params.clientReferenceId ? { clientReferenceId: params.clientReferenceId } : {}),
     ...(metadataArray(params.metadata) ? { metadata: metadataArray(params.metadata) } : {}),
@@ -380,7 +467,9 @@ export interface RequestPayoutParams {
   payoutId: string
   phoneNumber: string
   provider: string
-  amountFcfa: number
+  /** Déjà formaté dans la devise de l'opérateur — voir `formatAmount`. */
+  amount: string
+  currency: string
   customerMessage: string
   clientReferenceId?: string
   metadata?: Record<string, string>
@@ -393,8 +482,8 @@ export async function requestPayout(params: RequestPayoutParams): Promise<Initia
       type: 'MMO',
       accountDetails: { phoneNumber: params.phoneNumber, provider: params.provider },
     },
-    amount: amountToPawaPay(params.amountFcfa),
-    currency: PAWAPAY_CURRENCY,
+    amount: params.amount,
+    currency: params.currency,
     customerMessage: customerMessage(params.customerMessage),
     ...(params.clientReferenceId ? { clientReferenceId: params.clientReferenceId } : {}),
     ...(metadataArray(params.metadata) ? { metadata: metadataArray(params.metadata) } : {}),
@@ -412,17 +501,64 @@ export interface RequestRefundParams {
   refundId: string
   /** Le dépôt à rembourser — PawaPay retrouve seul le compte à recréditer. */
   depositId: string
-  amountFcfa: number
+  amount: string
+  currency: string
   clientReferenceId?: string
   metadata?: Record<string, string>
+}
+
+/**
+ * Montant à rembourser, **dérivé du dépôt lui-même** et non recalculé depuis le
+ * FCFA.
+ *
+ * C'est la seule règle qui tienne hors zone franc : entre l'achat et le litige,
+ * le taux administré a pu bouger. Recalculer donnerait un remboursement
+ * « intégral » différent de ce qui a été prélevé — trop, ou trop peu, sur le
+ * compte de l'apprenant. On applique donc au montant réellement encaissé la
+ * proportion remboursée, et un remboursement total rend le dépôt au centime.
+ */
+export async function refundAmountFromDeposit(
+  depositId: string,
+  refundFcfa: number,
+  purchaseFcfa: number,
+): Promise<{ amount: string; currency: string }> {
+  const snapshot = await checkDeposit(depositId)
+  if (!snapshot?.amount || !snapshot.currency) throw new Error('DEPOSIT_NOT_FOUND')
+  if (!(purchaseFcfa > 0) || !(refundFcfa > 0)) throw new Error('INVALID_AMOUNT')
+
+  // Les décimales viennent de l'opérateur, **jamais** de la forme du montant
+  // reçu : PawaPay rend `"500.00"` pour un dépôt de 500 XAF, puis rejette un
+  // remboursement de `"500.00"` parce que le XAF n'admet pas de décimale. Le
+  // smoke test du dépôt l'a pris en flagrant délit.
+  const providerCode = snapshot.payer?.accountDetails?.provider
+  if (!providerCode) throw new Error('DEPOSIT_NOT_FOUND')
+  const capability = (await resolveProvider(providerCode, 'REFUND')).find(
+    (c) => c.currency === snapshot.currency,
+  )
+  if (!capability) throw new Error('PROVIDER_NOT_SUPPORTED')
+  const decimals = capability.operation.decimalsInAmount
+
+  const deposited = Number(snapshot.amount)
+  if (!Number.isFinite(deposited) || deposited <= 0) throw new Error('INVALID_AMOUNT')
+
+  // Le cas total est traité à part : aucune multiplication, donc aucun arrondi
+  // qui pourrait laisser un résidu au fournisseur.
+  if (refundFcfa >= purchaseFcfa) {
+    return { amount: formatAmount(deposited, decimals), currency: snapshot.currency }
+  }
+
+  return {
+    amount: formatAmount((deposited * refundFcfa) / purchaseFcfa, decimals),
+    currency: snapshot.currency,
+  }
 }
 
 export async function requestRefund(params: RequestRefundParams): Promise<InitiationResponse> {
   return call<InitiationResponse>('POST', '/v2/refunds', {
     refundId: params.refundId,
     depositId: params.depositId,
-    amount: amountToPawaPay(params.amountFcfa),
-    currency: PAWAPAY_CURRENCY,
+    amount: params.amount,
+    currency: params.currency,
     ...(params.clientReferenceId ? { clientReferenceId: params.clientReferenceId } : {}),
     ...(metadataArray(params.metadata) ? { metadata: metadataArray(params.metadata) } : {}),
   })
@@ -457,10 +593,10 @@ export async function lookupAccountName(
   _phoneNumber: string,
   providerCode: string,
 ): Promise<string | null> {
-  const capability = await providerCapability(providerCode, 'DEPOSIT').catch(() => null)
+  const capability = await resolveProvider(providerCode, 'DEPOSIT').catch(() => [])
   // On journalise l'écart plutôt que de le taire : si la configuration active
   // annonce NAME_LOOKUP, c'est le signal qu'il est temps de brancher.
-  if (capability) {
+  if (capability.length) {
     const conf = await activeConfiguration().catch(() => null)
     const advertised = conf?.countries
       ?.flatMap((c) => c.providers ?? [])
