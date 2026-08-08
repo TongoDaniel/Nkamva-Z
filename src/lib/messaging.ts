@@ -143,6 +143,59 @@ export async function openConversation(
   }
 }
 
+/**
+ * Ouvre — ou retrouve — le fil d'un de ses membres, à l'initiative du formateur.
+ *
+ * Jusqu'ici une conversation ne pouvait naître que du membre : le formateur
+ * répondait, il n'abordait pas. La règle protégeait d'un démarchage qui n'a pas
+ * lieu d'être ici — on écrit à quelqu'un qui paie déjà pour être dans le salon,
+ * qui peut vous écrire de son côté, et seulement si les messages directs sont
+ * ouverts. Elle coûtait surtout au cas qu'elle prétendait servir : prévenir un
+ * membre d'un impayé, ou lui expliquer un bannissement, supposait d'attendre
+ * qu'il écrive le premier.
+ *
+ * `writeBlockFor` reste le seul juge, et dans le même ordre : messages fermés,
+ * compte restreint, adhésion terminée. Le membre banni fait exception et c'est
+ * voulu — l'arbitrage 40 laisse sa parole au formateur, pour qu'il puisse
+ * justement s'expliquer.
+ */
+export async function openConversationWithMember(
+  communityId: string,
+  learnerId: string,
+  trainerUserId: string,
+): Promise<{ id: string }> {
+  const community = await db.community.findFirst({
+    where: { id: communityId, status: 'active' },
+    select: { id: true, trainerId: true, trainerProfile: { select: { userId: true } } },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerProfile.userId !== trainerUserId) throw new Error('NOT_OWNER')
+  // Un fil « avec soi-même » n'a pas de sens, et l'unicité en base le refuserait.
+  if (learnerId === trainerUserId) throw new Error('NOT_MEMBER')
+
+  const block = await writeBlockFor(community.id, learnerId, trainerUserId)
+  if (block) throw new Error(block === 'MEMBERSHIP_ENDED' ? 'NOT_MEMBER' : block)
+
+  const existing = await db.conversation.findUnique({
+    where: { communityId_learnerId: { communityId: community.id, learnerId } },
+    select: { id: true },
+  })
+  if (existing) return existing
+
+  try {
+    return await db.conversation.create({
+      data: { communityId: community.id, learnerId, trainerId: community.trainerId },
+      select: { id: true },
+    })
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code !== 'P2002') throw err
+    return db.conversation.findUniqueOrThrow({
+      where: { communityId_learnerId: { communityId: community.id, learnerId } },
+      select: { id: true },
+    })
+  }
+}
+
 // --- Lire ---
 
 const CONVERSATION_SELECT = {

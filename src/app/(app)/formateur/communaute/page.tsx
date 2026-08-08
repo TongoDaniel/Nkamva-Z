@@ -142,30 +142,31 @@ export default async function MaCommunautePage() {
             }}
           />
         }
+        invitationsCount={invitations.filter((row) => row.status === "PENDING").length}
+        invitations={
+          <InvitationsPanel
+            communityId={community.id}
+            isPrivate={community.visibility === "PRIVATE"}
+            initial={invitations.map((row) => ({
+              ...row,
+              expiresAt: row.expiresAt.toISOString(),
+            }))}
+          />
+        }
         membres={
-          <>
-            <InvitationsPanel
-              communityId={community.id}
-              isPrivate={community.visibility === "PRIVATE"}
-              initial={invitations.map((row) => ({
-                ...row,
-                expiresAt: row.expiresAt.toISOString(),
-              }))}
-            />
-
-            <MembersPanel
-              communityId={community.id}
-              initial={members.map((row) => ({
-                learnerId: row.learnerId,
-                fullName: row.fullName,
-                status: row.status,
-                periodEnd: row.periodEnd.toISOString(),
-                bannedReason: row.bannedReason,
-                canceledAt: row.canceledAt?.toISOString() ?? null,
-                viaInvitation: row.viaInvitation,
-              }))}
-            />
-          </>
+          <MembersPanel
+            communityId={community.id}
+            messagingEnabled={community.messagingEnabled}
+            initial={members.map((row) => ({
+              learnerId: row.learnerId,
+              fullName: row.fullName,
+              status: row.status,
+              periodEnd: row.periodEnd.toISOString(),
+              bannedReason: row.bannedReason,
+              canceledAt: row.canceledAt?.toISOString() ?? null,
+              viaInvitation: row.viaInvitation,
+            }))}
+          />
         }
       />
     </div>
