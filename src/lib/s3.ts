@@ -106,6 +106,12 @@ export async function deleteObject(s3Key: string): Promise<void> {
   try { await s3.send(new DeleteObjectCommand({ Bucket: getBucket(), Key: s3Key })) } catch (err) { console.error('[S3:DELETE_ERROR]', { s3Key, error: String(err) }) }
 }
 
+/**
+ * Un type **absent de cette table n'est pas contrôlé du tout** : `validateMagicNumber`
+ * sort en silence. C'est délibéré pour les archives, dont le contenu n'est pas
+ * inspecté (voir `confirmCourseUpload`) ; ça devient un trou pour tout genre
+ * qu'on ajouterait ici sans y penser.
+ */
 const MAGIC_NUMBERS: Record<string, { offset: number; bytes: number[] }> = {
   'application/pdf': { offset: 0, bytes: [0x25, 0x50, 0x44, 0x46, 0x2d] },
   'image/png': { offset: 0, bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },

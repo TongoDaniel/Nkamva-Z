@@ -129,4 +129,63 @@ describe('Contenu de ressource et quota', () => {
     })
     expect(ok.s3Key).toContain(`course-assets/${course.id}/`)
   })
+
+  // --- Archives (.zip / .rar) ---
+  //
+  // Trois des cinq formats proposés à la saisie — kit, modèle Notion, tableur —
+  // n'avaient aucun type de fichier acceptable : ni MP4 ni PDF ne les portent.
+  // Ils étaient donc impubliables, `publishCourse` exigeant un contenu.
+
+  it('accepte une archive, et la clé porte l\'extension réelle', async () => {
+    const { profile, course } = await setup()
+
+    const zip = await presignCourseUpload(course.id, profile.id, {
+      mimeType: 'application/zip', sizeBytes: 5 * 1024 ** 2, kind: 'archive',
+    })
+    expect(zip.s3Key).toMatch(/\.zip$/)
+
+    // `mimeType.split('/')[1]` aurait donné `vnd.rar` — c'est bien l'extension
+    // qui doit finir dans la clé, pas le sous-type MIME.
+    const rar = await presignCourseUpload(course.id, profile.id, {
+      mimeType: 'application/vnd.rar', sizeBytes: 5 * 1024 ** 2, kind: 'archive',
+    })
+    expect(rar.s3Key).toMatch(/\.rar$/)
+
+    // Windows annonce les .zip sous ce type-là : le refuser bloquerait la
+    // moitié des formateurs.
+    const windowsZip = await presignCourseUpload(course.id, profile.id, {
+      mimeType: 'application/x-zip-compressed', sizeBytes: 1024 ** 2, kind: 'archive',
+    })
+    expect(windowsZip.s3Key).toMatch(/\.zip$/)
+  })
+
+  it('refuse un type qui n\'est pas une archive sous le genre archive', async () => {
+    const { profile, course } = await setup()
+
+    await expect(
+      presignCourseUpload(course.id, profile.id, {
+        mimeType: 'application/x-msdownload', sizeBytes: 1024, kind: 'archive',
+      }),
+    ).rejects.toThrow('MIME_NOT_ALLOWED')
+  })
+
+  it('une archive suffit à rendre une ressource publiable', async () => {
+    const { user, profile } = await setup()
+    const kit = await createCourse(profile.id, user.id, {
+      title: 'Kit de démarrage produit', blurb: 'Tous les gabarits',
+      description: 'Un dossier complet.', category: 'business', format: 'kit', priceFcfa: 9000,
+    })
+
+    await expect(publishCourse(kit.id, profile.id, user.id)).rejects.toThrow('CONTENT_REQUIRED')
+
+    await confirmCourseUpload(kit.id, profile.id, user.id, {
+      s3Key: `course-assets/${kit.id}/archive-abc.zip`,
+      kind: 'archive',
+      mimeType: 'application/zip',
+    })
+
+    const published = await publishCourse(kit.id, profile.id, user.id)
+    expect(published.status).toBe('published')
+    expect(published.contentMimeType).toBe('application/zip')
+  })
 })

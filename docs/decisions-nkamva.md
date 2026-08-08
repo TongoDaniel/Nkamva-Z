@@ -119,9 +119,14 @@ Liste blanche MIME : mp4, pdf, zip, xlsx, docx, png, jpg, webp.
 Quota par formateur selon son plan SaaS.
 > Statut : ⚠️ Inchangé. `src/lib/s3.ts` implémente `presignUpload` sans proxy (✅).
 > `src/lib/courses.ts` définit `COURSE_UPLOAD_LIMITS` avec mp4 2 Go, pdf 10 Mo, images
-> 5 Mo (✅). La liste blanche MIME ne correspond toujours pas exactement à l'arbitrage :
-> zip, xlsx, docx ne sont pas dans `COURSE_UPLOAD_LIMITS` (⚠️ écart, non traité dans
-> cette session). Le quota par plan SaaS n'est toujours pas implémenté (📋) — sa valeur
+> 5 Mo (✅). Le 8 août 2026, le genre `archive` ajoute **zip et rar** (2 Go), ce qui
+> lève l'écart principal : sans lui, `kit`, `notion` et `tableur` — trois des cinq
+> formats proposés à la saisie — n'avaient aucun type de fichier acceptable et
+> restaient impubliables. **xlsx et docx** restent hors liste (⚠️ écart résiduel ;
+> l'un et l'autre sont des conteneurs zip, un formateur peut donc les livrer
+> compressés). Contenu des archives **non inspecté** : l'extension fait foi
+> (décision du 8 août 2026, voir `confirmCourseUpload`) — un zip authentique peut
+> renfermer n'importe quoi, et un fichier illisible se signale à l'usage. Le quota par plan SaaS n'est toujours pas implémenté (📋) — sa valeur
 > est désormais fixée par l'**arbitrage 54** : 40 Go, blocage en écriture au dépassement.
 
 **11. Commission 15 %** — Sur le prix payé, prélevée au moment de la vente (le wallet
