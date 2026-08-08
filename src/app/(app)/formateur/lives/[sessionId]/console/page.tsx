@@ -37,7 +37,7 @@ export default async function ConsolePage({ params }: { params: Params }) {
   } catch (err) {
     const code = err instanceof Error ? err.message : "";
     if (code === "LIVE_SESSION_NOT_FOUND" || code === "LIVE_CANCELED") notFound();
-    if (code === "NOT_MEMBER") redirect("/formateur/lives");
+    if (code === "NOT_MEMBER") redirect("/mes-lives");
     throw err;
   }
   if (!room.isHost) redirect(`/mes-lives/live/${sessionId}`);
@@ -47,7 +47,7 @@ export default async function ConsolePage({ params }: { params: Params }) {
       <PageHead
         crumbs={[
           { label: "Espace formateur", href: "/formateur" },
-          { label: "Mes sessions", href: "/formateur/lives" },
+          { label: "Mes lives & agenda", href: "/mes-lives" },
           { label: room.title },
         ]}
         title={<span className="sr-only">Animer : {room.title}</span>}

@@ -32,12 +32,15 @@ export const TRAINER_SECTIONS: TrainerSection[] = [
     label: "Ma communauté",
     description: "Le salon d'abonnés, ses membres, ses invitations et ses réglages.",
   },
-  // « Mes sessions » et non « Mes lives » : le menu du compte porte déjà une
-  // entrée « Mes lives » côté apprenant, que le formateur voit aussi.
+  // Seule section qui sort de `/formateur` : l'agenda des directs est commun à
+  // l'animateur et au participant, et il vit du côté apprenant parce qu'un
+  // apprenant doit pouvoir l'ouvrir. La carte le dit, pour que le changement
+  // d'espace ne soit pas une surprise au clic.
   {
-    href: "/formateur/lives",
+    href: "/mes-lives",
     label: "Mes sessions",
-    description: "Les directs que vous animez et les replays qu'ils produisent.",
+    description:
+      "Les directs que vous animez, dans le même agenda que ceux de vos communautés.",
   },
   {
     href: "/formateur/portefeuille",

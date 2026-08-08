@@ -77,7 +77,9 @@ const CHECKS: Check[] = [
   { path: '/formateur/ressources', as: mail('awa'), expect: ['Architecture hexagonale', 'Observabilité'] },
   { path: '/formateur/portefeuille', as: mail('awa'), expect: ['FCFA'] },
   { path: '/formateur/portefeuille/moyen-de-paiement', as: mail('awa'), expect: ['Wave'] },
-  { path: '/formateur/lives', as: mail('awa'), expect: ['migrations'] },
+  // L'agenda est commun depuis la fusion : la formatrice y voit ses propres
+  // séances, marquées, à côté de celles des communautés qu'elle suit.
+  { path: '/mes-lives', as: mail('awa'), expect: ['migrations'] },
   { path: '/formateur/litiges', as: mail('awa'), expect: [''] },
 
   // Formateur en impayé et formatrice neuve

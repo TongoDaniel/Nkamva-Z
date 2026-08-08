@@ -10,7 +10,7 @@ import { prisma, cleanDatabase } from './setup'
 import {
   scheduleLiveSession, cancelLiveSession, startLiveSession, endLiveSession,
   joinLiveSession, toggleHand, setParticipantMuted, muteEveryone,
-  lowerParticipantHand, postLiveMessage, listMyAgenda, listTrainerSessions,
+  lowerParticipantHand, postLiveMessage, listMyAgenda, listTrainerSessions, listAgenda,
   listMyReplays, getReplay, hasReplayAccess, markReplayReady,
   purgeExpiredReplays, alertUpcomingReplayPurges, REPLAY_RETENTION_MONTHS,
 } from '@/lib/lives'
@@ -434,5 +434,79 @@ describe('Lives et replays', () => {
     const mine = await listTrainerSessions(trainer.id)
     expect(mine).toHaveLength(1)
     expect(mine[0].status).toBe('ENDED')
+  })
+
+  // --- Agenda fusionné ---
+
+  /** Une seconde communauté, animée par quelqu'un d'autre. */
+  async function otherSpace(tag: string) {
+    const user = await prisma.user.create({
+      data: { email: `formateur-${tag}@test.com`, role: 'TRAINER', fullName: 'Kofi Mensah' },
+    })
+    const trainer = await prisma.trainerProfile.create({
+      data: { userId: user.id, approvedAt: new Date() },
+    })
+    const community = await prisma.community.create({
+      data: {
+        trainerId: trainer.id, name: `Cercle ${tag}`, slug: `cercle-${tag}`, priceFcfa: 5000,
+      },
+    })
+    return { user, trainer, community }
+  }
+
+  it("l'agenda réunit ce qu'on anime et ce qu'on suit, et dit lequel", async () => {
+    const { community, trainer, trainerUser } = await setup()
+    const other = await otherSpace('agenda')
+
+    // La formatrice anime chez elle, et suit la communauté de l'autre.
+    await schedule(community.id, trainer.id, trainerUser.id, 5)
+    await schedule(other.community.id, other.trainer.id, other.user.id, 2)
+    await subscribe(other.community.id, trainerUser.id)
+
+    const agenda = await listAgenda(trainerUser.id, trainer.id)
+    expect(agenda).toHaveLength(2)
+    expect(agenda.filter((s) => s.mine)).toHaveLength(1)
+    expect(agenda.filter((s) => !s.mine)).toHaveLength(1)
+    // Ordonné par date de début, toutes origines confondues : la séance suivie
+    // est deux heures avant celle qu'elle anime, elle passe donc devant.
+    expect(agenda[0].mine).toBe(false)
+    expect(agenda[1].mine).toBe(true)
+  })
+
+  it("une séance terminée quitte l'agenda et rejoint ses replays", async () => {
+    const { community, trainer, trainerUser } = await setup()
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+    await endLiveSession(session.id, trainerUser.id)
+
+    expect(await listAgenda(trainerUser.id, trainer.id)).toHaveLength(0)
+    expect(await listTrainerSessions(trainer.id)).toHaveLength(1)
+  })
+
+  it('sans profil formateur, tout l\'agenda vient des communautés rejointes', async () => {
+    const { community, trainer, trainerUser, member } = await setup()
+    await schedule(community.id, trainer.id, trainerUser.id)
+    await subscribe(community.id, member.id)
+
+    const agenda = await listAgenda(member.id, null)
+    expect(agenda).toHaveLength(1)
+    expect(agenda[0].mine).toBe(false)
+  })
+
+  it('« mes replays » distingue ceux que j\'ai produits de ceux que je suis', async () => {
+    const { community, trainer, trainerUser, member } = await setup()
+    const else_ = await otherSpace('replays')
+
+    const own = await replayFor(community.id, trainer.id, trainerUser.id, member.id)
+    const other = await replayFor(else_.community.id, else_.trainer.id, else_.user.id, member.id)
+    await subscribe(else_.community.id, trainerUser.id)
+
+    const replays = await listMyReplays(trainerUser.id)
+    const byId = new Map(replays.map((r) => [r.id, r.mine]))
+    expect(byId.get(own.id)).toBe(true)
+    // C'est exactement le chiffre que « replays enregistrés » comptait faux :
+    // l'abonnement d'un formateur ailleurs gonflait sa propre production.
+    expect(byId.get(other.id)).toBe(false)
+    expect(replays.filter((r) => r.mine)).toHaveLength(1)
   })
 })
