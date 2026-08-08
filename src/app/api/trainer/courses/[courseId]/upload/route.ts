@@ -1,5 +1,5 @@
 // Lot 4 — Formateur : upload R2 présigné pour contenu de cours
-import { success, error, requireTrainer, parseBody } from '@/lib/api'
+import { success, error, requireTrainer, parseBody, errorFromException } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { presignCourseUpload } from '@/lib/courses'
 import { z } from 'zod'
@@ -7,7 +7,7 @@ import { z } from 'zod'
 const UploadSchema = z.object({
   mimeType: z.string(),
   sizeBytes: z.number().int().positive(),
-  kind: z.enum(['video', 'pdf', 'image']),
+  kind: z.enum(['video', 'pdf', 'image', 'archive']),
 })
 
 export async function POST(request: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -29,11 +29,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
   try {
     const result = await presignCourseUpload(courseId, ctx.user.trainerId!, parsed.data)
     return success(result, {}, 201)
-  } catch (err: any) {
-    if (err.message === 'COURSE_NOT_FOUND') return error('COURSE_NOT_FOUND', 'Cours introuvable', 404)
-    if (err.message === 'NOT_OWNER') return error('NOT_OWNER', 'Non possédé', 403)
-    if (err.message === 'MIME_NOT_ALLOWED') return error('MIME_NOT_ALLOWED', 'Type MIME non autorisé', 400)
-    if (err.message === 'SIZE_EXCEEDS_LIMIT') return error('SIZE_EXCEEDS_LIMIT', 'Taille dépassée', 400)
-    return error('INTERNAL_ERROR', 'Erreur', 500)
+  } catch (err) {
+    // Cette liste écrite à la main oubliait `STORAGE_QUOTA_EXCEEDED` et
+    // `SUBSCRIPTION_SUSPENDED`, que `presignCourseUpload` lève pourtant : le
+    // formateur à court d'espace lisait « Erreur » en 500 au lieu du motif.
+    // `errorFromException` les tire de la table des erreurs de domaine, avec le
+    // même code et le même statut que partout ailleurs.
+    return errorFromException(err)
   }
 }

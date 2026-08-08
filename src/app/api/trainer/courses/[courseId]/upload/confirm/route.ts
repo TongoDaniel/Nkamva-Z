@@ -8,7 +8,7 @@ import { confirmCourseUpload } from '@/lib/courses'
 
 const ConfirmSchema = z.object({
   s3Key: z.string().min(1).max(500),
-  kind: z.enum(['video', 'pdf', 'image']),
+  kind: z.enum(['video', 'pdf', 'image', 'archive']),
   mimeType: z.string().min(1).max(120),
 })
 

@@ -12,7 +12,40 @@ export const COURSE_UPLOAD_LIMITS = {
   video: { mimes: ['video/mp4'], maxSize: 2_147_483_648 },
   pdf: { mimes: ['application/pdf'], maxSize: 10_485_760 },
   image: { mimes: ['image/png', 'image/jpeg', 'image/webp'], maxSize: 5_242_880 },
+  /**
+   * Archives — sans elles, `kit`, `notion` et `tableur` (trois des cinq formats
+   * proposés à la saisie, tous « téléchargeables ») n'avaient aucun type de
+   * fichier acceptable : ils étaient impubliables.
+   *
+   * Quatre types MIME pour deux formats : Windows annonce les .zip en
+   * `x-zip-compressed` et les .rar en `x-rar-compressed` quand un logiciel est
+   * associé. Le plafond est celui de la vidéo — un kit embarque des médias, et
+   * c'est le quota de stockage qui borne réellement.
+   */
+  archive: {
+    mimes: [
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/vnd.rar',
+      'application/x-rar-compressed',
+    ],
+    maxSize: 2_147_483_648,
+  },
 } as const
+
+export type CourseUploadKind = keyof typeof COURSE_UPLOAD_LIMITS
+
+/**
+ * Extension de la clé R2. `mimeType.split('/')[1]` suffisait tant que le
+ * sous-type *était* l'extension ; il donne `vnd.rar` ou `x-zip-compressed` pour
+ * les archives.
+ */
+const EXT_BY_MIME: Record<string, string> = {
+  'application/zip': 'zip',
+  'application/x-zip-compressed': 'zip',
+  'application/vnd.rar': 'rar',
+  'application/x-rar-compressed': 'rar',
+}
 
 /**
  * Arbitrage 54 — 40 Go inclus par formateur. Le quota porte sur celui qui
@@ -239,7 +272,7 @@ export async function listTrainerCourses(trainerId: string, status?: string) {
 export async function presignCourseUpload(
   courseId: string,
   trainerId: string,
-  params: { mimeType: string; sizeBytes: number; kind: 'video' | 'pdf' | 'image' },
+  params: { mimeType: string; sizeBytes: number; kind: CourseUploadKind },
 ) {
   const course = await db.course.findUnique({ where: { id: courseId } })
   if (!course) throw new Error('COURSE_NOT_FOUND')
@@ -259,7 +292,7 @@ export async function presignCourseUpload(
   const { remainingBytes } = await trainerStorage(trainerId)
   if (params.sizeBytes > remainingBytes) throw new Error('STORAGE_QUOTA_EXCEEDED')
 
-  const ext = params.mimeType.split('/')[1]
+  const ext = EXT_BY_MIME[params.mimeType] ?? params.mimeType.split('/')[1]
   const s3Key = `course-assets/${courseId}/${params.kind}-${crypto.randomUUID()}.${ext}`
   const { uploadUrl, expiresAt } = await presignUpload(s3Key, params.mimeType, params.sizeBytes)
 
@@ -279,7 +312,7 @@ export async function confirmCourseUpload(
   courseId: string,
   trainerId: string,
   userId: string,
-  params: { s3Key: string; kind: 'video' | 'pdf' | 'image'; mimeType: string },
+  params: { s3Key: string; kind: CourseUploadKind; mimeType: string },
 ) {
   const course = await db.course.findUnique({ where: { id: courseId } })
   if (!course) throw new Error('COURSE_NOT_FOUND')
@@ -296,9 +329,20 @@ export async function confirmCourseUpload(
   // Même contrôle de contenu que les pièces justificatives du Lot 1 : un PDF
   // renommé en .mp4 est refusé. Sans identifiants R2, `headObject` renvoie null
   // et la validation est sautée — le mode dev ne dépose rien de réel.
+  //
+  // **Sauf les archives** (arbitrage du 8 août 2026) : l'extension fait foi, le
+  // contenu n'est pas inspecté. Un .zip authentique peut de toute façon
+  // renfermer n'importe quoi — le contrôle établissait « c'est bien un zip »,
+  // jamais « c'est sain ». Et un fichier illisible se voit à l'usage : c'est
+  // l'apprenant qui le signale, par la voie des litiges. Les autres genres le
+  // gardent, eux : une image ou un PDF sont *rendus* par le navigateur, pas
+  // seulement téléchargés, et un contenu déguisé s'y exécute.
   const head = await headObject(params.s3Key)
   if (head) {
-    await validateMagicNumber(params.s3Key, params.mimeType)
+    if (params.kind !== 'archive') await validateMagicNumber(params.s3Key, params.mimeType)
+    // Zéro octet reste refusé pour tout le monde : c'est une vente vide, et le
+    // constat ne coûte rien — la taille vient du `headObject` déjà fait.
+    if (head.contentLength === 0) throw new Error('EMPTY_FILE')
     if (head.contentLength > limits.maxSize) throw new Error('SIZE_EXCEEDS_LIMIT')
   }
   const sizeBytes = head?.contentLength ?? 0

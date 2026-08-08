@@ -97,11 +97,28 @@ Le `ConsumptionSnapshot` (Lot 2 — service `disputes.ts` manquant) figerait la 
 
 ```typescript
 export const COURSE_UPLOAD_LIMITS = {
-  video: { mimes: ['video/mp4'], maxSize: 2_147_483_648 },        // 2 Go
-  pdf:   { mimes: ['application/pdf'], maxSize: 10_485_760 },       // 10 Mo
-  image: { mimes: ['image/png', 'image/jpeg', 'image/webp'], maxSize: 5_242_880 }, // 5 Mo
+  video:   { mimes: ['video/mp4'], maxSize: 2_147_483_648 },        // 2 Go
+  pdf:     { mimes: ['application/pdf'], maxSize: 10_485_760 },       // 10 Mo
+  image:   { mimes: ['image/png', 'image/jpeg', 'image/webp'], maxSize: 5_242_880 }, // 5 Mo
+  archive: { mimes: ['application/zip', 'application/x-zip-compressed',
+                     'application/vnd.rar', 'application/x-rar-compressed'],
+             maxSize: 2_147_483_648 },                              // 2 Go
 };
 ```
+
+`archive` a été ajouté le 8 août 2026 : `kit`, `notion` et `tableur` — trois des
+cinq formats du tableau §3, tous téléchargeables — n'avaient aucun type de
+fichier acceptable, et `publishCourse` exigeant un contenu, ils étaient
+impubliables. Les quatre types MIME couvrent les deux orthographes que les
+navigateurs emploient sur Windows.
+
+Le contenu d'une archive **n'est pas inspecté** : `confirmCourseUpload` saute le
+contrôle de signature pour ce genre-là, l'extension fait foi. Une archive
+authentique peut renfermer n'importe quoi — le contrôle établissait « c'est bien
+un zip », jamais « c'est sain » — et un fichier illisible se constate à l'usage,
+par la voie des litiges. Les autres genres le gardent : une image ou un PDF sont
+*rendus* par le navigateur, pas seulement téléchargés. Le fichier vide, lui,
+reste refusé partout.
 
 ---
 
