@@ -660,6 +660,15 @@ export interface AgendaSession {
   host: ViewHost
   attendees: number
   live: boolean
+  /**
+   * Le spectateur anime-t-il cette séance ?
+   *
+   * C'est ce drapeau qui a permis de fusionner l'agenda apprenant et l'écran
+   * des sessions du formateur : l'origine d'une ligne se lit sur la ligne, elle
+   * n'est plus déduite de la page qui l'affiche. Deux listes tirées de la même
+   * requête ne pouvaient pas dire laquelle des deux vous regardiez.
+   */
+  mine: boolean
 }
 
 const AGENDA_SELECT = {
@@ -682,8 +691,9 @@ function toAgenda(s: {
     trainerProfile: { slogan: string | null; user: { fullName: string | null } }
   }
   _count: { participants: number }
-}): AgendaSession {
+}, mine: boolean): AgendaSession {
   return {
+    mine,
     id: s.id,
     title: s.title,
     description: s.description,
@@ -718,7 +728,7 @@ export async function listMyAgenda(userId: string): Promise<AgendaSession[]> {
     take: 50,
     select: AGENDA_SELECT,
   })
-  return sessions.map(toAgenda)
+  return sessions.map((s) => toAgenda(s, false))
 }
 
 /** Les séances d'un formateur — passées comprises, c'est sa console. */
@@ -729,7 +739,39 @@ export async function listTrainerSessions(trainerProfileId: string): Promise<Age
     take: 60,
     select: AGENDA_SELECT,
   })
-  return sessions.map(toAgenda)
+  return sessions.map((s) => toAgenda(s, true))
+}
+
+/**
+ * L'agenda complet d'une personne : ce qu'elle anime **et** ce qu'elle suit,
+ * dans une seule liste ordonnée par date.
+ *
+ * Les séances animées sont filtrées sur « à venir ou en cours » comme les
+ * autres : une séance terminée appartient à ses replays, pas à un agenda. C'est
+ * la règle que l'écran formateur appliquait déjà avant la fusion.
+ *
+ * `trainerProfileId` nul pour qui n'est pas formateur — l'appelant n'a alors
+ * qu'une seule requête à payer.
+ */
+export async function listAgenda(
+  userId: string,
+  trainerProfileId: string | null,
+): Promise<AgendaSession[]> {
+  const [joined, hosted] = await Promise.all([
+    listMyAgenda(userId),
+    trainerProfileId ? listTrainerSessions(trainerProfileId) : Promise.resolve([]),
+  ])
+
+  // Un formateur abonné à sa propre communauté verrait sa séance deux fois.
+  // L'entrée animée écrase la suivie : quand les deux sont vraies, c'est
+  // « j'anime » qui décide de l'action proposée.
+  const byId = new Map<string, AgendaSession>()
+  for (const session of joined) byId.set(session.id, session)
+  for (const session of hosted) {
+    if (session.status === 'SCHEDULED' || session.status === 'LIVE') byId.set(session.id, session)
+  }
+
+  return [...byId.values()].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
 }
 
 // --- Replays ---
@@ -747,6 +789,15 @@ export interface ReplayView {
   /** Arbitrage 55 — droit uniforme de tout membre, aucune case par séance. */
   downloadable: boolean
   purgeAt: Date
+  /**
+   * Le spectateur est-il le formateur de la communauté qui a produit ce replay ?
+   *
+   * `listMyReplays` réunit délibérément les communautés suivies et celles
+   * animées. Sans ce drapeau, l'écran formateur intitulait « Replays produits »
+   * une liste qui contenait aussi les replays des communautés où il n'est
+   * qu'abonné, et la tuile « replays enregistrés » comptait faux.
+   */
+  mine: boolean
 }
 
 /**
@@ -789,7 +840,8 @@ const REPLAY_SELECT = {
   community: {
     select: {
       name: true, slug: true,
-      trainerProfile: { select: { slogan: true, user: { select: { fullName: true } } } },
+      // `userId` sert à `getReplay` pour renseigner `mine` sans seconde requête.
+      trainerProfile: { select: { userId: true, slogan: true, user: { select: { fullName: true } } } },
     },
   },
 } as const
@@ -800,10 +852,11 @@ function toReplay(r: {
   session: { description: string | null }
   community: {
     name: string; slug: string
-    trainerProfile: { slogan: string | null; user: { fullName: string | null } }
+    trainerProfile: { userId: string; slogan: string | null; user: { fullName: string | null } }
   }
-}): ReplayView {
+}, mine: boolean): ReplayView {
   return {
+    mine,
     id: r.id,
     sessionId: r.sessionId,
     title: r.title,
@@ -863,7 +916,7 @@ export async function listMyReplays(userId: string): Promise<ReplayView[]> {
           r.recordedAt <= s.periodEnd,
       )
     })
-    .map(toReplay)
+    .map((r) => toReplay(r, ownIds.has(r.communityId)))
 }
 
 export async function getReplay(replayId: string, userId: string): Promise<ReplayView> {
@@ -873,7 +926,7 @@ export async function getReplay(replayId: string, userId: string): Promise<Repla
   })
   if (!replay) throw new Error('REPLAY_NOT_FOUND')
   if (!(await hasReplayAccess(userId, replay))) throw new Error('NOT_MEMBER')
-  return toReplay(replay)
+  return toReplay(replay, replay.community.trainerProfile.userId === userId)
 }
 
 /** URL signée de lecture ou de téléchargement. Droit uniforme (arbitrage 55). */
@@ -955,7 +1008,7 @@ export async function alertUpcomingReplayPurges(now = new Date()): Promise<{ ale
         type: 'REPLAY_PURGE_SOON',
         title: `« ${replay.title} » sera supprimé le ${replay.purgeAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })}`,
         body: `Les replays sont conservés ${REPLAY_RETENTION_MONTHS} mois. La suppression vous rendra l'espace de stockage correspondant.`,
-        link: '/formateur/lives',
+        link: '/mes-lives',
       }),
     )
   }

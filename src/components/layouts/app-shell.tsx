@@ -37,7 +37,13 @@ interface NavItem {
 }
 
 const LEARNER_NAV: NavItem[] = [
-  { href: "/accueil", label: "Accueil" },
+  // « Accueil » n'a plus d'onglet : le logo de l'en-tête y mène déjà, sur
+  // toutes les tailles d'écran et sur toutes les routes. Deux entrées pour la
+  // même destination, l'une juste à droite de l'autre, ne servaient qu'à
+  // occuper de la place dans une barre qui en manque.
+  //
+  // La route reste rattachée à rien : aucun onglet ne s'allume sur `/accueil`,
+  // et c'est exact — on n'y est dans aucune des quatre sections.
   // Le catalogue n'a plus d'onglet : on y entre par « Explorer le catalogue »
   // depuis ses ressources, et son fil d'Ariane y remonte. Il reste rattaché à
   // cet onglet pour que la barre continue de dire où l'on est.
@@ -222,8 +228,16 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   // Ce que le menu mobile ajoute sous les onglets : les écrans du menu du
   // compte qui n'ont pas déjà leur entrée. Le calcul sert deux fois — pour les
   // rendre, et pour savoir quelles routes rattachées y ont déjà un titulaire.
+  // Les sections formateur dépliées plus bas revendiquent leurs href au même
+  // titre que les onglets : « Mes sessions » pointe vers `/mes-lives` depuis la
+  // fusion des deux agendas, et le menu du compte porte déjà cette entrée. Sans
+  // cette seconde exclusion, le panneau mobile offrirait deux fois la même page
+  // et y poserait deux `aria-current`.
+  const expandedSections = user.isTrainer ? TRAINER_SECTIONS : [];
   const burgerLinks = ACCOUNT_LINKS.filter(
-    (link) => !nav.some((item) => item.href === link.href),
+    (link) =>
+      !nav.some((item) => item.href === link.href) &&
+      !expandedSections.some((section) => section.href === link.href),
   );
   const burgerHrefs = new Set(burgerLinks.map((link) => link.href));
   // Le menu du compte ne marque aucune entrée courante : dans la barre du haut,

@@ -35,7 +35,7 @@ export const dynamic = "force-dynamic";
 const SECTION_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   "/formateur/ressources": Library,
   "/formateur/communaute": Users,
-  "/formateur/lives": Radio,
+  "/mes-lives": Radio,
   "/formateur/portefeuille": Wallet,
   "/formateur/litiges": Scale,
 };

@@ -28,13 +28,25 @@ const SECOND_BAR = /Navigation de l(&#x27;|')espace formateur/
 const SECTIONS = [
   '/formateur/ressources',
   '/formateur/communaute',
-  '/formateur/lives',
+  // L'agenda des directs a fusionné avec celui de l'apprenant et vit désormais
+  // hors de l'espace : il reste une section — carte, menu burger, une seule
+  // occurrence — mais il n'a pas de fil d'Ariane qui ramène à `/formateur`,
+  // parce qu'il n'en vient pas.
+  '/mes-lives',
   '/formateur/portefeuille',
   '/formateur/litiges',
 ]
 
-/** Les onglets de la barre, dans l'ordre, pour un formateur. */
-const TABS = ['Accueil', 'Mes ressources', 'Mes communautés', 'Mes achats', 'Espace formateur']
+/** Les sections qui vivent bien dans `/formateur`, seules concernées par le fil d'Ariane. */
+const IN_SPACE_SECTIONS = SECTIONS.filter((href) => href.startsWith('/formateur'))
+
+/**
+ * Les onglets de la barre, dans l'ordre, pour un formateur. « Accueil » n'en
+ * fait plus partie : le logo y mène, et la barre n'a pas de place à donner à un
+ * doublon. Aucun onglet ne s'allume donc sur `/accueil` — vérifié à part, la
+ * boucle `CURRENT_TAB` exigeant exactement un onglet courant.
+ */
+const TABS = ['Mes ressources', 'Mes communautés', 'Mes achats', 'Espace formateur']
 
 /**
  * Route → onglet qui doit s'allumer. Le catalogue et ses fiches pendent de
@@ -42,7 +54,6 @@ const TABS = ['Accueil', 'Mes ressources', 'Mes communautés', 'Mes achats', 'Es
  * précis, il l'emporte sur le `/catalogue` du premier.
  */
 const CURRENT_TAB: Array<[string, string]> = [
-  ['/accueil', 'Accueil'],
   ['/mes-ressources', 'Mes ressources'],
   ['/catalogue', 'Mes ressources'],
   ['/catalogue/formateurs', 'Mes ressources'],
@@ -132,7 +143,7 @@ async function main() {
   check('/accueil rend la coquille connectée', accueil.status === 200 && accueil.html.includes(APP_NAV), `HTTP ${accueil.status}`)
   const nav = navSlice(accueil.html, APP_NAV)
   check(
-    'la barre porte les cinq onglets attendus',
+    'la barre porte les quatre onglets attendus',
     navLabels(nav).join(' · ') === TABS.join(' · '),
     navLabels(nav).join(' · '),
   )
@@ -144,6 +155,10 @@ async function main() {
   // Un onglet éteint sur toute une famille de routes, c'est l'utilisateur qui
   // ne sait plus où il est ; deux allumés, c'est un `aria-current` en double.
   console.log('\nOnglet courant, route par route')
+  // `/accueil` n'a plus d'onglet : la barre doit rester éteinte, et surtout le
+  // logo doit continuer d'y mener — c'est devenu le seul chemin.
+  check("aucun onglet ne s'allume sur /accueil", navCurrent(nav).length === 0, navCurrent(nav).join(' + '))
+  check('le logo mène à /accueil', hrefCount(accueil.html, '/accueil') >= 1)
   for (const [path, expected] of CURRENT_TAB) {
     const page = await get(path)
     const current = navCurrent(navSlice(page.html, APP_NAV))
@@ -181,10 +196,27 @@ async function main() {
     const page = await get(href)
     check(`${href} répond`, page.status === 200, `HTTP ${page.status}`)
     check(`${href} n'a pas de seconde barre`, !SECOND_BAR.test(page.html))
-    // Sans sous-navigation, le retour à l'espace passe par le fil d'Ariane.
+    // Sans sous-navigation, le retour à l'espace passe par le fil d'Ariane —
+    // pour les sections qui sont dans l'espace. `/mes-lives` n'en est pas une :
+    // on y arrive aussi par le menu du compte, en apprenant, sans jamais passer
+    // par `/formateur`. Un fil qui y ramènerait mentirait sur la provenance.
+    if (!IN_SPACE_SECTIONS.includes(href)) continue
     const crumbs = navSlice(page.html, CRUMBS)
     check(`${href} ramène à l'espace par le fil d'Ariane`, hrefCount(crumbs, '/formateur') === 1)
   }
+
+  // Ce que la fusion doit garantir, indépendamment des données du jeu d'essai :
+  // le formateur y trouve de quoi séparer ce qu'il anime de ce qu'il suit, et
+  // l'ancienne route ne renvoie personne dans le vide.
+  console.log("\nL'agenda partagé")
+  const agenda = await get('/mes-lives')
+  check("/mes-lives porte le filtre d'origine", agenda.html.includes('aria-label="Filtrer par origine"'))
+  const oldRoute = await get('/formateur/lives')
+  check(
+    "/formateur/lives redirige vers l'agenda",
+    oldRoute.status === 307 || oldRoute.status === 308,
+    `HTTP ${oldRoute.status}`,
+  )
 
   console.log(failures === 0 ? '\nTout est vert.\n' : `\n${failures} échec(s).\n`)
   process.exit(failures === 0 ? 0 : 1)

@@ -247,7 +247,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           ) : null}
 
           <Btn asChild variant="gh" size="sm">
-            <Link href="/formateur/lives">
+            <Link href="/mes-lives">
               <LogOut aria-hidden="true" />
               Quitter
             </Link>
