@@ -33,9 +33,16 @@ export async function POST(request: Request) {
     case 'FAILED': {
       // Seul un achat encore en attente bascule : un achat déjà payé ne se
       // défait pas sur un callback tardif.
+      // Le motif est porté par l'achat, et plus seulement par le journal : sans
+      // lui, l'écran de confirmation ne peut dire que « l'opérateur a refusé »,
+      // là où l'apprenant a besoin de savoir s'il doit recharger son compte ou
+      // approuver la demande sur son téléphone.
       const failed = await db.purchase.updateMany({
         where: { providerTransactionId: depositId, providerStatus: 'PENDING' },
-        data: { providerStatus: 'FAILED' },
+        data: {
+          providerStatus: 'FAILED',
+          failureCode: snapshot.failureReason?.failureCode ?? 'UNSPECIFIED_FAILURE',
+        },
       })
       await auditStandalone({
         action: failed.count > 0 ? 'PURCHASE_FAILED' : 'PAWAPAY_CALLBACK_IGNORED',

@@ -8,6 +8,7 @@ import { Btn } from "@/components/nk/button";
 import { Cover, formatLabel } from "@/components/nk/cover";
 import { api } from "@/lib/client";
 import { fmtDate, fmtFcfa } from "@/lib/format";
+import { paymentFailureMessage } from "@/lib/payment-input";
 import type { PaymentProvider, PaymentStatus } from "@/lib/dto";
 import { routesOf } from "@/lib/spaces";
 
@@ -33,6 +34,7 @@ const PROVIDER_LABEL: Record<PaymentProvider, string> = {
 export function ConfirmationStatus({
   purchaseId,
   initialStatus,
+  initialFailureCode = null,
   amountFcfa,
   provider,
   courseTitle,
@@ -43,6 +45,8 @@ export function ConfirmationStatus({
 }: {
   purchaseId: string;
   initialStatus: PaymentStatus;
+  /** Motif d'échec déjà connu au rendu serveur, avant le premier sondage. */
+  initialFailureCode?: string | null;
   amountFcfa: number;
   provider: PaymentProvider;
   courseTitle: string;
@@ -63,12 +67,14 @@ export function ConfirmationStatus({
   const { data } = useQuery({
     queryKey: ["purchase-reconcile", purchaseId],
     queryFn: async () => {
-      const res = await api.get<{ status: string; credited: boolean }>(
-        `/api/purchases/${purchaseId}/reconcile`,
-      );
+      const res = await api.get<{
+        status: string;
+        credited: boolean;
+        failureCode: string | null;
+      }>(`/api/purchases/${purchaseId}/reconcile`);
       return res.data;
     },
-    initialData: { status: initialStatus, credited: false },
+    initialData: { status: initialStatus, credited: false, failureCode: initialFailureCode },
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status && status !== "PENDING") return false;
@@ -79,6 +85,11 @@ export function ConfirmationStatus({
   const status = data?.status ?? initialStatus;
   const settled = status === "SUCCEEDED";
   const failed = status === "FAILED" || status === "CANCELED";
+  // Le motif du fournisseur, traduit. `null` quand le code est inconnu ou
+  // absent : on retombe alors sur la formulation générique plutôt que
+  // d'affirmer une cause qu'on ignore.
+  const failureCode = data?.failureCode ?? initialFailureCode;
+  const failureMessage = paymentFailureMessage(failureCode);
 
   return (
     <div className="grid items-start gap-8 pt-2 lg:grid-cols-[1fr_360px]">
@@ -134,10 +145,21 @@ export function ConfirmationStatus({
               <XCircle className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement non abouti</h2>
-            <p className="mb-6 max-w-[52ch] text-ink-2">
-              L&apos;opérateur a refusé ou annulé la transaction. Aucun montant n&apos;a été
-              prélevé et aucun accès n&apos;a été ouvert.
+            <p className="mb-2 max-w-[52ch] text-ink-2">
+              {failureMessage ??
+                "L'opérateur a refusé ou annulé la transaction."}
             </p>
+            <p className="mb-6 max-w-[52ch] text-ink-2">
+              Aucun montant n&apos;a été prélevé et aucun accès n&apos;a été ouvert.
+            </p>
+            {/* Le code brut, discrètement : quand aucune traduction n'existe, il
+                reste la seule prise pour le support — et il évite de laisser
+                l'apprenant devant une phrase creuse. */}
+            {failureCode && !failureMessage ? (
+              <p className="mb-6 -mt-4 text-[12.5px] text-ink-3">
+                Motif communiqué : <code>{failureCode}</code>
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-3">
               {courseSlug || community ? (
                 <Btn asChild size="lg">
