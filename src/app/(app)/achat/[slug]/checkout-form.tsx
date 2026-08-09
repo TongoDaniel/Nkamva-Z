@@ -94,9 +94,15 @@ export function CheckoutForm({
         provider,
         ...(provider === "PAWAPAY" ? { payer } : {}),
       });
-      // Plus de page de paiement hébergée : PawaPay pousse la demande sur le
-      // téléphone de l'apprenant. L'écran de confirmation interroge
-      // `/reconcile` jusqu'à ce que le callback ait crédité l'achat.
+      // Deux sorties, selon le moyen choisi. La carte quitte le site :
+      // `window.location` et non `router.push`, qui ne sait naviguer que dans
+      // l'application. Le mobile money, lui, pousse la demande sur le téléphone
+      // et reste ici — l'écran de confirmation interroge `/reconcile` jusqu'à ce
+      // que le callback ait crédité l'achat.
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
       router.push(`/achat/confirmation/${data.purchaseId}`);
     } catch (err) {
       if (err instanceof ApiError && err.code === "ALREADY_PURCHASED") {
@@ -156,10 +162,24 @@ export function CheckoutForm({
           />
         ) : null}
 
+        {/* Le texte suivait le mobile money seul et parlait de « l'opérateur »
+            même carte sélectionnée. Chaque moyen annonce désormais ce qui va
+            réellement se passer — la carte quitte le site, c'est à dire. */}
         <p className="mt-5 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
-          Aucun accès n&apos;est ouvert avant la confirmation du paiement par l&apos;opérateur.
-          Vous pourrez suivre l&apos;état de la transaction sur l&apos;écran suivant.
+          {provider === "PAWAPAY" ? (
+            <>
+              Aucun accès n&apos;est ouvert avant la confirmation du paiement par
+              l&apos;opérateur. Vous pourrez suivre l&apos;état de la transaction sur
+              l&apos;écran suivant.
+            </>
+          ) : (
+            <>
+              Vous allez être dirigé vers Stripe pour régler par carte. Votre numéro
+              n&apos;est jamais saisi sur NkamVa, et aucun accès n&apos;est ouvert avant
+              la confirmation du paiement.
+            </>
+          )}
         </p>
       </fieldset>
 

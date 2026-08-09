@@ -80,10 +80,14 @@ export interface OpenPaymentParams {
 
 export interface OpenPaymentResult {
   providerTransactionId: string
-  /** Stripe : à remettre au composant de paiement côté navigateur. */
-  clientSecret?: string
+  /**
+   * Stripe : la page de paiement hébergée, vers laquelle le navigateur part.
+   * C'est Stripe qui collecte la carte — l'application n'en voit jamais le
+   * numéro, et le 3-D Secure se joue là-bas.
+   */
+  redirectUrl?: string
   /** Ce que l'écran doit demander à l'apprenant ensuite. */
-  nextStep: 'CONFIRM_ON_PHONE' | 'CONFIRM_CARD' | 'ALREADY_SETTLED'
+  nextStep: 'CONFIRM_ON_PHONE' | 'REDIRECT_TO_PROVIDER' | 'ALREADY_SETTLED'
 }
 
 /**
@@ -97,7 +101,7 @@ export interface OpenPaymentResult {
  */
 export async function openProviderPayment(params: OpenPaymentParams): Promise<OpenPaymentResult> {
   if (params.provider === 'PAWAPAY') return openPawaPayDeposit(params)
-  return openStripePaymentIntent(params)
+  return openStripeCheckoutSession(params)
 }
 
 async function openPawaPayDeposit(params: OpenPaymentParams): Promise<OpenPaymentResult> {
@@ -162,37 +166,113 @@ async function openPawaPayDeposit(params: OpenPaymentParams): Promise<OpenPaymen
   return { providerTransactionId: depositId, nextStep: 'CONFIRM_ON_PHONE' }
 }
 
-async function openStripePaymentIntent(params: OpenPaymentParams): Promise<OpenPaymentResult> {
+/**
+ * Ouvre une **session Checkout hébergée** : l'apprenant part chez Stripe, y
+ * saisit sa carte, et revient sur l'écran de confirmation.
+ *
+ * Le choix tient en une phrase : rien de ce dépôt ne touche jamais un numéro de
+ * carte. La version précédente créait un PaymentIntent et rendait son
+ * `client_secret` à un composant de saisie **qui n'a jamais existé** —
+ * `@stripe/stripe-js` n'est pas une dépendance du projet. L'intention était donc
+ * créée puis abandonnée, et l'apprenant attendait devant un écran de
+ * confirmation que personne ne viendrait débloquer.
+ *
+ * ⚠️ **L'identifiant enregistré change en cours de route, et il le faut.**
+ *
+ * Tout l'aval est indexé sur `pi_…` : `charge.dispute.created` lit
+ * `object.payment_intent`, les remboursements aussi. Mais Stripe ne crée le
+ * PaymentIntent **qu'à la validation du paiement** — `session.payment_intent`
+ * est nul à l'ouverture (vérifié le 9 août 2026 ; c'est le piège de cette
+ * migration). On enregistre donc le `cs_…` en attendant, et
+ * `promoteCheckoutSession` le remplace par le `pi_…` dès que la session
+ * aboutit. Une ligne ne porte un `cs_…` que le temps d'un paiement en cours.
+ */
+async function openStripeCheckoutSession(params: OpenPaymentParams): Promise<OpenPaymentResult> {
   const stripe = getStripe()
   if (!stripe) {
     if (simulationAllowed()) return settleWithoutProvider(params, 'STRIPE')
     throw new Error('PAYMENT_PROVIDER_UNAVAILABLE')
   }
 
-  // L'identifiant vient de Stripe, il ne s'invente pas : la version précédente
-  // fabriquait un faux `pi_<uuid>` que Stripe n'a jamais connu, si bien qu'aucun
-  // webhook réel n'aurait pu être rapproché de l'achat.
-  const intent = await stripe.paymentIntents.create(
+  const base = process.env.WEB_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const confirmation = `${base}/achat/confirmation/${params.purchaseId}`
+
+  const session = await stripe.checkout.sessions.create(
     {
-      amount: params.amountFcfa,
-      currency: PAYMENT_CURRENCY.toLowerCase(),
-      automatic_payment_methods: { enabled: true },
+      mode: 'payment',
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: PAYMENT_CURRENCY.toLowerCase(),
+            // XAF est une devise **sans décimale** : le montant part tel quel,
+            // sans multiplication par cent. La multiplier facturerait cent fois
+            // le prix affiché.
+            unit_amount: params.amountFcfa,
+            product_data: { name: params.label },
+          },
+        },
+      ],
+      // L'abandon ramène là où l'apprenant attendait déjà : l'écran de
+      // confirmation lit l'état réel de l'achat et n'affirme aucun succès.
+      success_url: confirmation,
+      cancel_url: confirmation,
       metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
-      description: params.label,
+      payment_intent_data: {
+        description: params.label,
+        metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
+      },
     },
-    { idempotencyKey: `purchase_${params.purchaseId}` },
+    // Une reprise crée une **nouvelle** session : la clé porte donc l'identifiant
+    // de session côté Stripe, pas seulement l'achat. Sans ce sel, rouvrir un
+    // paiement rendrait la session périmée précédente.
+    { idempotencyKey: `purchase_${params.purchaseId}_${Date.now()}` },
   )
+
+  // Sans page à ouvrir, l'apprenant n'a nulle part où payer : mieux vaut
+  // refuser que laisser une ligne en attente que rien ne viendra conclure.
+  if (!session.url) throw new Error('PAYMENT_PROVIDER_UNAVAILABLE')
 
   await db.purchase.update({
     where: { id: params.purchaseId },
-    data: { providerTransactionId: intent.id },
+    data: { providerTransactionId: session.id },
   })
 
   return {
-    providerTransactionId: intent.id,
-    clientSecret: intent.client_secret ?? undefined,
-    nextStep: 'CONFIRM_CARD',
+    providerTransactionId: session.id,
+    redirectUrl: session.url,
+    nextStep: 'REDIRECT_TO_PROVIDER',
   }
+}
+
+/** Une session Checkout, par opposition à un PaymentIntent. */
+export function isCheckoutSession(providerTransactionId: string): boolean {
+  return providerTransactionId.startsWith('cs_')
+}
+
+/**
+ * Remplace le `cs_…` d'un achat par le `pi_…` de son paiement, une fois la
+ * session aboutie. C'est la charnière de tout le dispositif : après cet appel,
+ * l'achat est indexé comme il l'a toujours été, et litiges, remboursements et
+ * webhooks le retrouvent sans rien savoir de Checkout.
+ *
+ * Rend le `pi_…` quand la session est payée, `null` sinon. Idempotent : rejoué,
+ * il ne trouve plus de ligne portant le `cs_…` et ne réécrit rien.
+ */
+export async function promoteCheckoutSession(sessionId: string): Promise<string | null> {
+  const stripe = getStripe()
+  if (!stripe) return null
+  const session = await stripe.checkout.sessions.retrieve(sessionId)
+  if (session.payment_status !== 'paid') return null
+  const intentId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : session.payment_intent?.id
+  if (!intentId) return null
+  await db.purchase.updateMany({
+    where: { providerTransactionId: sessionId },
+    data: { providerTransactionId: intentId },
+  })
+  return intentId
 }
 
 /**
@@ -222,7 +302,8 @@ async function settleWithoutProvider(
 export interface InitiatePurchaseResult {
   purchaseId: string
   providerTransactionId: string
-  clientSecret?: string  // Stripe PaymentIntent client_secret
+  /** Stripe : page hébergée vers laquelle le navigateur doit partir. */
+  redirectUrl?: string
   provider: PaymentProvider
   /** Ce que l'écran doit demander ensuite : le téléphone, la carte, ou rien. */
   nextStep: OpenPaymentResult['nextStep']
@@ -276,11 +357,28 @@ export async function initiatePurchase(
     // après la création de la ligne : on la rouvre plutôt que de laisser
     // l'apprenant bloqué sur un achat qu'aucun callback ne viendra conclure.
     if (existing.providerTransactionId) {
-      return {
-        purchaseId: existing.id,
-        providerTransactionId: existing.providerTransactionId,
-        provider: existing.provider,
-        nextStep: existing.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
+      // Même moyen, et ce moyen se reprend : on rend la transaction en cours.
+      // L'apprenant est revenu finir ce qu'il avait commencé.
+      if (existing.provider === provider && resumableAsIs(provider)) {
+        return {
+          purchaseId: existing.id,
+          providerTransactionId: existing.providerTransactionId,
+          provider: existing.provider,
+          nextStep: 'CONFIRM_ON_PHONE',
+        }
+      }
+      // Sinon : changement d'avis, ou carte — dont la page de paiement ne se
+      // reprend pas. Dans les deux cas on libère l'ancienne transaction.
+      const { freed, outcome } = await freePendingAttempt(
+        { id: existing.id, provider: existing.provider, providerTransactionId: existing.providerTransactionId },
+        provider,
+      )
+      if (!freed) {
+        if (outcome === 'SETTLED') {
+          await reconcilePurchase(existing.providerTransactionId)
+          throw new Error('ALREADY_PURCHASED')
+        }
+        throw new Error('PAYMENT_IN_PROGRESS')
       }
     }
     const reopened = await openProviderPayment({
@@ -292,10 +390,16 @@ export async function initiatePurchase(
       countryCode: learner?.countryCode ?? null,
       payer,
     })
+    // La colonne suit le fournisseur réellement ouvert. La laisser sur l'ancien
+    // ferait interroger Stripe avec un identifiant PawaPay à la réconciliation
+    // — ou l'inverse — et l'achat resterait en attente sans raison lisible.
+    if (existing.provider !== provider) {
+      await db.purchase.update({ where: { id: existing.id }, data: { provider } })
+    }
     return {
       purchaseId: existing.id,
       providerTransactionId: reopened.providerTransactionId,
-      clientSecret: reopened.clientSecret,
+      redirectUrl: reopened.redirectUrl,
       provider,
       nextStep: reopened.nextStep,
     }
@@ -341,11 +445,20 @@ export async function initiatePurchase(
     if (!winner) throw err
     if (winner.providerStatus === 'SUCCEEDED') throw new Error('ALREADY_PURCHASED')
     if (!winner.providerTransactionId) throw new Error('PAYMENT_IN_PROGRESS')
+    // Le perdant n'a aucune page de paiement à rendre : l'URL de la session
+    // appartient à l'onglet gagnant, peut-être déjà chez Stripe. Lui en ouvrir
+    // une autre l'expirerait sous ses pieds. On refuse, et la nouvelle
+    // tentative repassera par la reprise ci-dessus, qui en ouvrira une propre.
+    // Hors session Checkout, l'identifiant ne peut venir que du raccourci de
+    // simulation : il n'y a rien à rouvrir, l'achat est déjà réglé.
+    if (isCheckoutSession(winner.providerTransactionId)) {
+      throw new Error('PAYMENT_IN_PROGRESS')
+    }
     return {
       purchaseId: winner.id,
       providerTransactionId: winner.providerTransactionId,
       provider: winner.provider,
-      nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
+      nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'ALREADY_SETTLED',
     }
   }
 
@@ -385,7 +498,7 @@ export async function initiatePurchase(
   return {
     purchaseId: purchase.id,
     providerTransactionId: opened.providerTransactionId,
-    clientSecret: opened.clientSecret,
+    redirectUrl: opened.redirectUrl,
     provider,
     nextStep: opened.nextStep,
   }
@@ -421,19 +534,127 @@ export async function reconcilePurchase(providerTransactionId: string): Promise<
 
   if (settled !== 'COMPLETED') return { status: purchase.providerStatus, credited: false }
 
+  // Une session payée cède la place à son PaymentIntent avant tout crédit :
+  // c'est sous ce numéro que l'achat devra être retrouvé en cas de litige.
+  const settledId = isCheckoutSession(providerTransactionId)
+    ? await promoteCheckoutSession(providerTransactionId)
+    : providerTransactionId
+  if (!settledId) return { status: purchase.providerStatus, credited: false }
+
   // Même écriture idempotente que le callback : si celui-ci arrive entre-temps,
   // l'un des deux voit `count === 0` et n'écrit rien.
   const credit = await db.$transaction((tx) =>
-    creditWalletOnPurchase(tx, providerTransactionId, purchase.provider),
+    creditWalletOnPurchase(tx, settledId, purchase.provider),
   )
   if (credit.credited && credit.purchaseId) {
     await issueInvoiceQuietly(credit.purchaseId)
     await auditStandalone({
       action: 'PURCHASE_RECONCILED', targetType: 'Purchase', targetId: purchase.id,
-      meta: { provider: purchase.provider, providerTransactionId },
+      // Les deux numéros : celui par lequel on est arrivé, et celui sous lequel
+      // l'achat vit désormais. Sans le second, une recherche par PaymentIntent
+      // ne retrouverait pas l'événement.
+      meta: {
+        provider: purchase.provider,
+        providerTransactionId,
+        ...(settledId !== providerTransactionId ? { settledTransactionId: settledId } : {}),
+      },
     })
   }
   return { status: 'SUCCEEDED', credited: credit.credited }
+}
+
+/**
+ * Sort de la tentative précédente quand l'apprenant **change de moyen de
+ * paiement**. Rendre l'ancienne transaction telle quelle — ce que faisaient les
+ * deux tunnels — ignorait le moyen qu'il venait de choisir : une carte
+ * abandonnée faute de saisie condamnait aussi le mobile money sur la même
+ * ressource, et les deux paraissaient en panne.
+ *
+ * Mais on ne l'abandonne pas à l'aveugle non plus. Une transaction encore
+ * vivante chez l'ancien fournisseur, doublée d'une neuve chez le nouveau,
+ * **débite deux fois**. D'où trois issues, et une seule autorise la bascule.
+ */
+async function releasePreviousAttempt(
+  provider: PaymentProvider,
+  providerTransactionId: string,
+): Promise<'SETTLED' | 'RELEASED' | 'IN_FLIGHT'> {
+  const settled = await providerSaysSettled(provider, providerTransactionId)
+  if (settled === 'COMPLETED') return 'SETTLED'
+  if (settled === 'FAILED') return 'RELEASED'
+
+  // Fournisseur non configuré sous le raccourci de simulation : la transaction
+  // n'existe que dans notre base, il n'y a aucun débit à protéger. Répondre
+  // « en vol » ici bloquait toute reprise en développement et en test — c'est ce
+  // que la suite `memberships` a rattrapé.
+  const configured = provider === 'STRIPE' ? Boolean(getStripe()) : isPawaPayConfigured()
+  if (!configured) return simulationAllowed() ? 'RELEASED' : 'IN_FLIGHT'
+
+  if (provider === 'STRIPE') {
+    const stripe = getStripe()
+    if (!stripe) return 'IN_FLIGHT'
+    try {
+      // Une session ouverte se ferme : l'apprenant qui l'aurait encore sous les
+      // yeux ne pourra plus y payer, ce qui est exactement le but — une seule
+      // page de paiement vivante à la fois.
+      if (isCheckoutSession(providerTransactionId)) {
+        const expired = await stripe.checkout.sessions.expire(providerTransactionId)
+        return expired.status === 'expired' ? 'RELEASED' : 'IN_FLIGHT'
+      }
+      // Un PaymentIntent que personne n'a confirmé s'annule sans conséquence :
+      // rien n'a été présenté à la banque.
+      const canceled = await stripe.paymentIntents.cancel(providerTransactionId)
+      return canceled.status === 'canceled' ? 'RELEASED' : 'IN_FLIGHT'
+    } catch {
+      // `processing`, `requires_action`, session déjà complétée : la main est
+      // ailleurs, on ne coupe pas.
+      return 'IN_FLIGHT'
+    }
+  }
+
+  // PawaPay n'annule pas un dépôt — l'API n'expose rien de tel, et la demande
+  // vit sur le téléphone jusqu'à expiration. L'apprenant peut encore taper son
+  // code : ouvrir une carte par-dessus l'exposerait à payer deux fois.
+  return 'IN_FLIGHT'
+}
+
+/**
+ * Prépare un achat en attente à changer de fournisseur. Rend `false` quand la
+ * bascule est refusée — l'appelant doit alors s'arrêter.
+ *
+ * L'identifiant de l'ancienne transaction est effacé en même temps que le
+ * fournisseur est réécrit : si l'ouverture du nouveau paiement échoue ensuite,
+ * la ligne retombe dans le cas « en attente sans identifiant », que les deux
+ * tunnels savent déjà rouvrir. Sans cet effacement, une ouverture ratée
+ * laisserait un achat qui prétend reprendre une transaction morte.
+ */
+export async function freePendingAttempt(
+  purchase: { id: string; provider: PaymentProvider; providerTransactionId: string },
+  wanted: PaymentProvider,
+): Promise<{ freed: boolean; outcome: 'SETTLED' | 'RELEASED' | 'IN_FLIGHT' }> {
+  const outcome = await releasePreviousAttempt(purchase.provider, purchase.providerTransactionId)
+  if (outcome !== 'RELEASED') return { freed: false, outcome }
+  await db.purchase.update({
+    where: { id: purchase.id },
+    data: { provider: wanted, providerTransactionId: null },
+  })
+  return { freed: true, outcome }
+}
+
+/**
+ * Une transaction en attente peut-elle être rendue telle quelle à l'apprenant
+ * qui revient ?
+ *
+ * **PawaPay : oui.** La demande vit sur son téléphone, il peut encore taper son
+ * code — en rouvrir une seconde lui en enverrait deux.
+ *
+ * **Stripe : non.** Depuis le passage à Checkout, la page de paiement est
+ * portée par une session dont l'URL n'est ni conservée ni reconstructible, et
+ * qui expire de son côté. Il faut donc en ouvrir une nouvelle, après avoir
+ * annulé l'intention précédente — ce que `freePendingAttempt` fait, en refusant
+ * si cette intention peut encore aboutir.
+ */
+export function resumableAsIs(provider: PaymentProvider): boolean {
+  return provider === 'PAWAPAY'
 }
 
 /** Interroge le fournisseur. `null` quand le paiement n'est pas encore tranché. */
@@ -452,6 +673,17 @@ async function providerSaysSettled(
 
     const stripe = getStripe()
     if (!stripe) return null
+
+    // Un achat dont la session Checkout n'a pas encore abouti porte son `cs_…` :
+    // interroger `paymentIntents` avec lui rendrait une erreur, pas un statut.
+    if (isCheckoutSession(providerTransactionId)) {
+      const session = await stripe.checkout.sessions.retrieve(providerTransactionId)
+      if (session.payment_status === 'paid') return 'COMPLETED'
+      // `expired` est le terme de Checkout : la page n'est plus ouvrable, il
+      // faudra en rouvrir une. C'est un échec, pas une attente.
+      return session.status === 'expired' ? 'FAILED' : null
+    }
+
     const intent = await stripe.paymentIntents.retrieve(providerTransactionId)
     if (intent.status === 'succeeded') return 'COMPLETED'
     return intent.status === 'canceled' ? 'FAILED' : null

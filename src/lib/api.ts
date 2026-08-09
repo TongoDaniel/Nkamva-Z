@@ -169,6 +169,13 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   COURSE_NOT_LINKED: { message: 'Ressource non incluse dans cette communauté', status: 404 },
   // --- Adhésion aux communautés (arbitrages 40, 58) ---
   ALREADY_MEMBER: { message: 'Vous êtes déjà membre de cette communauté', status: 409 },
+  // Le refus de changer de moyen de paiement tant que le précédent peut encore
+  // aboutir. Le message dit quoi faire, sinon il se lit comme une panne.
+  PAYMENT_IN_PROGRESS: {
+    message:
+      "Un paiement est déjà en cours sur ce moyen. Terminez-le, ou attendez qu'il expire avant d'en changer.",
+    status: 409,
+  },
   CANNOT_JOIN_OWN_COMMUNITY: { message: 'Vous animez cette communauté', status: 422 },
   MEMBERSHIP_NOT_FOUND: { message: 'Aucune adhésion en cours à cette communauté', status: 404 },
   MEMBERSHIP_ALREADY_CANCELED: { message: 'Adhésion déjà résiliée', status: 409 },

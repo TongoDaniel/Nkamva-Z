@@ -1,10 +1,11 @@
-// Lot 0 §5.1 — Webhook Stripe : payment_intent.succeeded → crédit wallet idempotent
+// Lot 0 §5.1 — Webhook Stripe : le paiement abouti → crédit wallet idempotent
 // Lot 2 — charge.dispute.created / charge.dispute.closed → machine à états litiges
 import { db } from '@/lib/db'
 import { creditWalletOnPurchase } from '@/lib/wallet'
 import { auditStandalone } from '@/lib/audit'
 import { getStripe } from '@/lib/stripe'
 import { issueInvoiceQuietly } from '@/lib/invoices'
+import { promoteCheckoutSession } from '@/lib/purchases'
 import { openDisputeFromChargeback, closeChargeback } from '@/lib/disputes'
 
 type StripeLikeEvent = {
@@ -13,8 +14,9 @@ type StripeLikeEvent = {
   data: {
     object: {
       id: string
-      // Présents sur les événements charge.dispute.*
+      // Présents sur les événements charge.dispute.* et checkout.session.*
       payment_intent?: string | null
+      payment_status?: string | null
       amount?: number | null
       status?: string | null
       reason?: string | null
@@ -51,6 +53,26 @@ export async function POST(request: Request) {
   if (!object?.id) return new Response('Invalid payload', { status: 400 })
 
   switch (event.type) {
+    // Depuis le passage à Checkout, c'est cet événement qui annonce un paiement
+    // par carte abouti. L'achat porte encore son `cs_…` : on le remplace par le
+    // PaymentIntent avant de créditer, sans quoi le litige qui arriverait
+    // ensuite — indexé sur `pi_…` — ne retrouverait aucun achat.
+    case 'checkout.session.completed': {
+      if (object.payment_status !== 'paid') break
+      const intentId = await promoteCheckoutSession(object.id)
+      if (!intentId) break
+      const credit = await db.$transaction(async (tx) => {
+        return creditWalletOnPurchase(tx, intentId, 'STRIPE')
+      })
+      if (credit.credited && credit.purchaseId) {
+        await issueInvoiceQuietly(credit.purchaseId)
+      }
+      break
+    }
+
+    // Conservé : une session déjà promue laisse un achat indexé sur `pi_…`, et
+    // cet événement le retrouve. Si le crédit a déjà eu lieu, l'écriture
+    // idempotente de `creditWalletOnPurchase` n'en refait aucun.
     case 'payment_intent.succeeded': {
       const credit = await db.$transaction(async (tx) => {
         return creditWalletOnPurchase(tx, object.id, 'STRIPE')

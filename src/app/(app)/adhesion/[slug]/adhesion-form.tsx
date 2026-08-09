@@ -41,6 +41,8 @@ const PROVIDERS: Array<{
 
 interface MembershipIntent {
   purchaseId: string;
+  /** Stripe : page de paiement hébergée. Absent pour le mobile money. */
+  redirectUrl?: string;
 }
 
 export function AdhesionForm({
@@ -107,8 +109,13 @@ export function AdhesionForm({
           ...(provider === "PAWAPAY" ? { payer } : {}),
         },
       );
-      // Plus de page de paiement hébergée : PawaPay pousse la demande sur le
-      // téléphone du membre, et l'écran de confirmation attend le callback.
+      // La carte quitte le site pour la page hébergée de Stripe ; le mobile
+      // money reste ici et se confirme sur le téléphone du membre, l'écran de
+      // confirmation attendant le callback.
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
       router.push(`/achat/confirmation/${data.purchaseId}`);
     } catch (err) {
       if (err instanceof ApiError && err.code === "ALREADY_MEMBER") {

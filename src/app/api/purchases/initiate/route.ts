@@ -43,6 +43,13 @@ export async function POST(request: Request) {
     if (err.message === 'COURSE_NOT_FOUND') return error('COURSE_NOT_FOUND', 'Cours introuvable', 404)
     if (err.message === 'COURSE_NOT_AVAILABLE') return error('COURSE_NOT_AVAILABLE', 'Cours non disponible', 403)
     if (err.message === 'ALREADY_PURCHASED') return error('ALREADY_PURCHASED', 'Déjà acheté', 409)
+    if (err.message === 'PAYMENT_IN_PROGRESS') {
+      return error(
+        'PAYMENT_IN_PROGRESS',
+        "Un paiement est déjà en cours sur ce moyen. Terminez-le, ou attendez qu'il expire avant d'en changer.",
+        409,
+      )
+    }
     // Filet : `requireLearner` ci-dessus a normalement déjà refusé. Sans cette
     // ligne, le refus levé par le service tomberait dans le 500 générique et se
     // lirait comme une panne plutôt que comme une règle.

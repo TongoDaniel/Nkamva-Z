@@ -35,7 +35,11 @@ import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
 import { consumeInvitationForPurchase } from './invitations'
 import { assertCanActAsLearner } from './roles'
-import { openProviderPayment, type MobileMoneyPayer, type OpenPaymentResult } from './purchases'
+import {
+  openProviderPayment, reconcilePurchase, freePendingAttempt,
+  resumableAsIs, isCheckoutSession,
+  type MobileMoneyPayer, type OpenPaymentResult,
+} from './purchases'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -196,7 +200,7 @@ export interface MembershipPaymentIntent {
   providerTransactionId: string
   provider: PaymentProvider
   /** Stripe : à remettre au composant de paiement côté navigateur. */
-  clientSecret?: string
+  redirectUrl?: string
   /** Ce que l'écran doit demander ensuite : le téléphone, la carte, ou rien. */
   nextStep: OpenPaymentResult['nextStep']
   amountFcfa: number
@@ -247,8 +251,12 @@ export async function initiateMembershipPayment(
   // privilèges de l'apprenant.
   if (community.trainerProfile.userId === learnerId) throw new Error('CANNOT_JOIN_OWN_COMMUNITY')
 
-  // Un paiement déjà ouvert prime sur tout le reste : le provider choisi n'est
-  // pas rejoué, changer de moyen suppose d'abandonner celui-ci d'abord.
+  // Un paiement déjà ouvert prime sur tout le reste — mais seulement s'il a été
+  // ouvert avec le moyen que l'apprenant vient de choisir. Rendre l'ancien quel
+  // qu'il soit, ce que faisait cette branche, transformait une carte abandonnée
+  // en impasse définitive : le mobile money renvoyait cette même carte morte, et
+  // les deux moyens paraissaient en panne. Constaté le 9 août 2026 sur une
+  // adhésion restée en attente dix-huit heures.
   const pending = await db.purchase.findFirst({
     where: { learnerId, communityId, providerStatus: 'PENDING' },
     select: {
@@ -257,11 +265,59 @@ export async function initiateMembershipPayment(
     },
   })
   if (pending?.providerTransactionId && pending.periodStart && pending.periodEnd) {
+    if (pending.provider === provider && resumableAsIs(provider)) {
+      return {
+        purchaseId: pending.id,
+        providerTransactionId: pending.providerTransactionId,
+        provider: pending.provider,
+        nextStep: 'CONFIRM_ON_PHONE',
+        amountFcfa: pending.amountFcfa,
+        periodStart: pending.periodStart,
+        periodEnd: pending.periodEnd,
+        kind: 'DUE',
+      }
+    }
+    // Changement de moyen : `switchPendingProvider` refuse tant que l'ancienne
+    // transaction peut encore aboutir — deux paiements ouverts sur la même
+    // échéance débiteraient deux fois.
+    const { freed, outcome } = await freePendingAttempt(
+      { id: pending.id, provider: pending.provider, providerTransactionId: pending.providerTransactionId },
+      provider,
+    )
+    if (!freed) {
+      if (outcome === 'SETTLED') {
+        await reconcilePurchase(pending.providerTransactionId)
+        throw new Error('ALREADY_MEMBER')
+      }
+      throw new Error('PAYMENT_IN_PROGRESS')
+    }
+
+    // La ligne d'échéance existe déjà : on rouvre le paiement dessus. Laisser
+    // filer vers le `purchase.create` plus bas buterait sur l'index unique de
+    // l'échéance en cours, et l'apprenant verrait une panne là où il vient
+    // simplement de changer d'avis.
+    const payerCountry = await db.user.findUnique({
+      where: { id: learnerId },
+      select: { countryCode: true },
+    })
+    const reopened = await openProviderPayment({
+      purchaseId: pending.id,
+      provider,
+      amountFcfa: pending.amountFcfa,
+      // Même libellé que l'ouverture nominale plus bas : c'est ce que
+      // l'apprenant lit sur son téléphone, il ne doit pas changer selon le
+      // chemin emprunté.
+      label: 'Adhesion NkamVa',
+      learnerId,
+      countryCode: payerCountry?.countryCode ?? null,
+      payer,
+    })
     return {
       purchaseId: pending.id,
-      providerTransactionId: pending.providerTransactionId,
-      provider: pending.provider,
-      nextStep: pending.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
+      providerTransactionId: reopened.providerTransactionId,
+      redirectUrl: reopened.redirectUrl,
+      provider,
+      nextStep: reopened.nextStep,
       amountFcfa: pending.amountFcfa,
       periodStart: pending.periodStart,
       periodEnd: pending.periodEnd,
@@ -318,11 +374,16 @@ export async function initiateMembershipPayment(
       where: { learnerId, communityId, providerStatus: 'PENDING' },
     })
     if (!winner?.providerTransactionId) throw err
+    // L'URL de la session appartient à l'onglet gagnant, peut-être déjà parti
+    // chez Stripe. Même règle que dans `initiatePurchase`.
+    if (isCheckoutSession(winner.providerTransactionId)) {
+      throw new Error('PAYMENT_IN_PROGRESS')
+    }
     return {
       purchaseId: winner.id,
       providerTransactionId: winner.providerTransactionId,
       provider: winner.provider,
-      nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'CONFIRM_CARD',
+      nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'ALREADY_SETTLED',
       amountFcfa: winner.amountFcfa,
       periodStart: winner.periodStart!,
       periodEnd: winner.periodEnd!,
@@ -364,7 +425,7 @@ export async function initiateMembershipPayment(
   return {
     purchaseId: purchase.id,
     providerTransactionId: opened.providerTransactionId,
-    clientSecret: opened.clientSecret,
+    redirectUrl: opened.redirectUrl,
     nextStep: opened.nextStep,
     provider,
     amountFcfa,
