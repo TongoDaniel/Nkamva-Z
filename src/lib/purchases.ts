@@ -506,14 +506,16 @@ export async function initiatePurchase(
 
 // --- Réconciliation par polling (cas webhook tardif) ---
 
-export async function reconcilePurchase(providerTransactionId: string): Promise<{ status: string; credited: boolean }> {
+export async function reconcilePurchase(
+  providerTransactionId: string,
+): Promise<{ status: string; credited: boolean; failureCode: string | null }> {
   const purchase = await db.purchase.findUnique({
     where: { providerTransactionId },
-    select: { id: true, providerStatus: true, provider: true },
+    select: { id: true, providerStatus: true, provider: true, failureCode: true },
   })
 
-  if (!purchase) return { status: 'NOT_FOUND', credited: false }
-  if (purchase.providerStatus === 'SUCCEEDED') return { status: 'SUCCEEDED', credited: false }
+  if (!purchase) return { status: 'NOT_FOUND', credited: false, failureCode: null }
+  if (purchase.providerStatus === 'SUCCEEDED') return { status: 'SUCCEEDED', credited: false, failureCode: null }
 
   // Cette fonction était une coquille vide : elle décrivait en commentaire ce
   // qu'il aurait fallu faire et rendait toujours « rien à signaler ». La route
@@ -524,22 +526,26 @@ export async function reconcilePurchase(providerTransactionId: string): Promise<
   // déduit jamais du fait que le client soit revenu sur la page.
   const settled = await providerSaysSettled(purchase.provider, providerTransactionId)
 
-  if (settled === 'FAILED') {
+  if (settled.outcome === 'FAILED') {
+    // Le motif est écrit sur l'achat, pas seulement journalisé : c'est lui que
+    // l'écran de confirmation traduira pour l'apprenant.
     await db.purchase.updateMany({
       where: { id: purchase.id, providerStatus: 'PENDING' },
-      data: { providerStatus: 'FAILED' },
+      data: { providerStatus: 'FAILED', failureCode: settled.failureCode },
     })
-    return { status: 'FAILED', credited: false }
+    return { status: 'FAILED', credited: false, failureCode: settled.failureCode }
   }
 
-  if (settled !== 'COMPLETED') return { status: purchase.providerStatus, credited: false }
+  if (settled.outcome !== 'COMPLETED') {
+    return { status: purchase.providerStatus, credited: false, failureCode: purchase.failureCode }
+  }
 
   // Une session payée cède la place à son PaymentIntent avant tout crédit :
   // c'est sous ce numéro que l'achat devra être retrouvé en cas de litige.
   const settledId = isCheckoutSession(providerTransactionId)
     ? await promoteCheckoutSession(providerTransactionId)
     : providerTransactionId
-  if (!settledId) return { status: purchase.providerStatus, credited: false }
+  if (!settledId) return { status: purchase.providerStatus, credited: false, failureCode: null }
 
   // Même écriture idempotente que le callback : si celui-ci arrive entre-temps,
   // l'un des deux voit `count === 0` et n'écrit rien.
@@ -560,7 +566,7 @@ export async function reconcilePurchase(providerTransactionId: string): Promise<
       },
     })
   }
-  return { status: 'SUCCEEDED', credited: credit.credited }
+  return { status: 'SUCCEEDED', credited: credit.credited, failureCode: null }
 }
 
 /**
@@ -579,8 +585,8 @@ async function releasePreviousAttempt(
   providerTransactionId: string,
 ): Promise<'SETTLED' | 'RELEASED' | 'IN_FLIGHT'> {
   const settled = await providerSaysSettled(provider, providerTransactionId)
-  if (settled === 'COMPLETED') return 'SETTLED'
-  if (settled === 'FAILED') return 'RELEASED'
+  if (settled.outcome === 'COMPLETED') return 'SETTLED'
+  if (settled.outcome === 'FAILED') return 'RELEASED'
 
   // Fournisseur non configuré sous le raccourci de simulation : la transaction
   // n'existe que dans notre base, il n'y a aucun débit à protéger. Répondre
@@ -657,36 +663,62 @@ export function resumableAsIs(provider: PaymentProvider): boolean {
   return provider === 'PAWAPAY'
 }
 
+interface ProviderVerdict {
+  outcome: 'COMPLETED' | 'FAILED' | null
+  /**
+   * Le motif tel que le fournisseur le nomme. Il ne se traduit pas ici : la
+   * phrase est affaire d'écran, et le code brut doit rester lisible pour le
+   * support même quand personne ne l'a encore traduit.
+   */
+  failureCode: string | null
+}
+
 /** Interroge le fournisseur. `null` quand le paiement n'est pas encore tranché. */
 async function providerSaysSettled(
   provider: PaymentProvider,
   providerTransactionId: string,
-): Promise<'COMPLETED' | 'FAILED' | null> {
+): Promise<ProviderVerdict> {
   try {
     if (provider === 'PAWAPAY') {
-      if (!isPawaPayConfigured()) return null
+      if (!isPawaPayConfigured()) return { outcome: null, failureCode: null }
       const snapshot = await checkDeposit(providerTransactionId)
-      if (!snapshot) return null
-      if (snapshot.status === 'COMPLETED') return 'COMPLETED'
-      return snapshot.status === 'FAILED' ? 'FAILED' : null
+      if (!snapshot) return { outcome: null, failureCode: null }
+      if (snapshot.status === 'COMPLETED') return { outcome: 'COMPLETED', failureCode: null }
+      if (snapshot.status !== 'FAILED') return { outcome: null, failureCode: null }
+      return {
+        outcome: 'FAILED',
+        failureCode: snapshot.failureReason?.failureCode ?? 'UNSPECIFIED_FAILURE',
+      }
     }
 
     const stripe = getStripe()
-    if (!stripe) return null
+    if (!stripe) return { outcome: null, failureCode: null }
 
     // Un achat dont la session Checkout n'a pas encore abouti porte son `cs_…` :
     // interroger `paymentIntents` avec lui rendrait une erreur, pas un statut.
     if (isCheckoutSession(providerTransactionId)) {
       const session = await stripe.checkout.sessions.retrieve(providerTransactionId)
-      if (session.payment_status === 'paid') return 'COMPLETED'
+      if (session.payment_status === 'paid') return { outcome: 'COMPLETED', failureCode: null }
       // `expired` est le terme de Checkout : la page n'est plus ouvrable, il
       // faudra en rouvrir une. C'est un échec, pas une attente.
-      return session.status === 'expired' ? 'FAILED' : null
+      if (session.status !== 'expired') return { outcome: null, failureCode: null }
+      // Stripe ne nomme pas ce cas : la session a simplement vécu son temps.
+      return { outcome: 'FAILED', failureCode: 'SESSION_EXPIRED' }
     }
 
     const intent = await stripe.paymentIntents.retrieve(providerTransactionId)
-    if (intent.status === 'succeeded') return 'COMPLETED'
-    return intent.status === 'canceled' ? 'FAILED' : null
+    if (intent.status === 'succeeded') return { outcome: 'COMPLETED', failureCode: null }
+    if (intent.status !== 'canceled') return { outcome: null, failureCode: null }
+    // `decline_code` est plus précis que `code` quand la banque s'explique
+    // (`insufficient_funds` plutôt que `card_declined`) : on prend le plus fin.
+    return {
+      outcome: 'FAILED',
+      failureCode:
+        intent.last_payment_error?.decline_code ??
+        intent.last_payment_error?.code ??
+        intent.cancellation_reason ??
+        null,
+    }
   } catch (err) {
     // Une panne de réconciliation n'est pas une panne de paiement : on laisse
     // l'achat en attente, le callback reste la voie normale.
@@ -694,7 +726,7 @@ async function providerSaysSettled(
       provider, providerTransactionId,
       error: err instanceof PawaPayError ? err.message : String(err),
     })
-    return null
+    return { outcome: null, failureCode: null }
   }
 }
 

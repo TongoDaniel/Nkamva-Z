@@ -431,6 +431,13 @@ model Purchase {
   provider              PaymentProvider
   providerTransactionId String?                @unique
   providerStatus        PaymentStatus          @default(PENDING)
+  /// Motif de l'échec, tel que le fournisseur le nomme — `INSUFFICIENT_BALANCE`,
+  /// `PAYMENT_NOT_APPROVED`. Il n'allait jusqu'ici que dans le journal d'audit,
+  /// si bien que l'apprenant lisait « l'opérateur a refusé » sans jamais savoir
+  /// s'il devait recharger son compte ou simplement approuver la demande.
+  /// Le code brut est conservé, pas une phrase : la traduction est affaire
+  /// d'écran, et un code inconnu doit rester lisible pour le support.
+  failureCode           String?
   acquisitionSource     String?
   refundedAt            DateTime?
   refundAmountFcfa      Int?

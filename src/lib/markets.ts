@@ -17,34 +17,13 @@
 
 import { activeConfiguration, countryFromPawaPay, isPawaPayConfigured } from './pawapay'
 import { payableCurrencies } from './fx'
+// La table des noms vit dans `payment-input`, importable par le navigateur :
+// ce module-ci traîne Prisma et ne peut pas franchir la frontière client.
+import { countryName } from './payment-input'
 
-/** Noms français des pays que PawaPay peut servir. Pure traduction de codes. */
-const COUNTRY_NAMES: Record<string, string> = {
-  BJ: 'Bénin',
-  BF: 'Burkina Faso',
-  CM: 'Cameroun',
-  CI: "Côte d'Ivoire",
-  CD: 'RDC',
-  CG: 'Congo',
-  GA: 'Gabon',
-  GH: 'Ghana',
-  KE: 'Kenya',
-  ML: 'Mali',
-  MW: 'Malawi',
-  MZ: 'Mozambique',
-  NG: 'Nigeria',
-  RW: 'Rwanda',
-  SN: 'Sénégal',
-  SL: 'Sierra Leone',
-  TZ: 'Tanzanie',
-  TG: 'Togo',
-  UG: 'Ouganda',
-  ZM: 'Zambie',
-}
+export { countryName }
 
-export function countryName(alpha2: string): string {
-  return COUNTRY_NAMES[alpha2.toUpperCase()] ?? alpha2.toUpperCase()
-}
+
 
 export interface PayableMarkets {
   /** Codes alpha-2, dans l'ordre alphabétique de leur nom français. */

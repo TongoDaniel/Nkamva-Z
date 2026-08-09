@@ -18,8 +18,8 @@
 
 import { db } from './db'
 import {
-  activeConfiguration, formatAmount, isPawaPayConfigured, providersForCountry,
-  PLATFORM_CURRENCY, type ResolvedProvider,
+  activeConfiguration, countryFromPawaPay, formatAmount, isPawaPayConfigured,
+  providersForCountry, PLATFORM_CURRENCY, type ResolvedProvider,
 } from './pawapay'
 import type { PayableProvider } from './payment-input'
 
@@ -142,12 +142,22 @@ export async function settleAmount(
 }
 
 /**
- * Opérateurs réellement payables par un apprenant : ceux que le compte
- * distribue dans son pays **et** dont la devise a un taux administré.
+ * **Tous** les opérateurs encaissables, quel que soit le pays — ceux que le
+ * compte marchand distribue et dont la devise a un taux administré.
  *
- * Le second filtre est ce qui évite l'impasse : proposer un opérateur sans taux
- * mènerait à un `FX_RATE_MISSING` au moment de payer, après la saisie du
- * numéro. Mieux vaut ne pas l'afficher.
+ * ⚠️ Cette liste ne se restreint **pas** au pays du profil, et c'est délibéré.
+ * On paie avec un numéro, pas avec une adresse : un apprenant installé en France
+ * règle très normalement avec son MTN camerounais. La version précédente
+ * n'affichait que les opérateurs du `countryCode` du profil — avec un repli sur
+ * le Cameroun quand il était vide — et rendait ce cas infaisable, alors même que
+ * `openPawaPayDeposit` l'acceptait déjà : le code opérateur porte son pays, et
+ * c'est lui qui fait autorité au moment du dépôt.
+ *
+ * Le pays du profil ne sert donc plus qu'à **ordonner** : ses opérateurs
+ * d'abord, parce que c'est le cas courant.
+ *
+ * Le filtre sur la devise, lui, reste : proposer un opérateur sans taux mènerait
+ * à un `FX_RATE_MISSING` après la saisie du numéro. Mieux vaut ne pas l'afficher.
  *
  * Ne lève jamais : une panne de `/v2/active-conf` doit dégrader l'écran de
  * paiement, pas le faire planter — la carte bancaire reste proposée.
@@ -156,31 +166,37 @@ export async function payableProvidersForUser(userId: string): Promise<PayablePr
   if (!isPawaPayConfigured()) return []
 
   const user = await db.user.findUnique({ where: { id: userId }, select: { countryCode: true } })
-  // Sans pays déclaré, on retombe sur le marché d'origine — c'est déjà ce que
-  // faisait l'ouverture de dépôt, et un profil incomplet ne doit pas priver de
-  // moyen de paiement.
-  const country = user?.countryCode ?? 'CM'
+  const home = user?.countryCode ?? null
 
   try {
-    const [providers, payable] = await Promise.all([
-      providersForCountry(country, 'DEPOSIT'),
-      payableCurrencies(),
-    ])
+    const [conf, payable] = await Promise.all([activeConfiguration(), payableCurrencies()])
     const out: PayableProvider[] = []
     const seen = new Set<string>()
-    for (const provider of providers) {
-      // Un opérateur qui accepte deux devises (CDF et USD en RDC) ne doit
-      // apparaître qu'une fois dans la liste.
-      if (seen.has(provider.provider)) continue
-      if (!payable.has(provider.currency.toUpperCase())) continue
-      seen.add(provider.provider)
-      out.push({
-        provider: provider.provider,
-        displayName: provider.displayName,
-        countryCode: provider.countryCode,
-      })
+
+    for (const country of conf.countries ?? []) {
+      const alpha2 = countryFromPawaPay(country.country)
+      if (!alpha2) continue
+      for (const provider of country.providers ?? []) {
+        for (const entry of provider.currencies ?? []) {
+          if (!entry.operationTypes?.DEPOSIT) continue
+          if (!payable.has(entry.currency.toUpperCase())) continue
+          // Un opérateur qui accepte deux devises (CDF et USD en RDC) ne doit
+          // apparaître qu'une fois dans la liste.
+          if (seen.has(provider.provider)) break
+          seen.add(provider.provider)
+          out.push({
+            provider: provider.provider,
+            displayName: provider.displayName ?? provider.provider,
+            countryCode: alpha2,
+            prefix: country.prefix,
+          })
+          break
+        }
+      }
     }
-    return out
+
+    // Le pays déclaré remonte en tête ; le reste garde l'ordre de PawaPay.
+    return home ? out.sort((a, b) => Number(b.countryCode === home) - Number(a.countryCode === home)) : out
   } catch {
     return []
   }

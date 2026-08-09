@@ -31,6 +31,7 @@ export default async function ConfirmationPage({
       amountFcfa: true,
       provider: true,
       providerStatus: true,
+      failureCode: true,
       createdAt: true,
       periodEnd: true,
       course: { select: { title: true, slug: true, format: true, category: true } },
@@ -51,6 +52,7 @@ export default async function ConfirmationPage({
       <ConfirmationStatus
         purchaseId={purchase.id}
         initialStatus={purchase.providerStatus}
+        initialFailureCode={purchase.failureCode}
         amountFcfa={purchase.amountFcfa}
         provider={purchase.provider}
         courseTitle={purchase.course?.title ?? community?.name ?? "Votre ressource"}
