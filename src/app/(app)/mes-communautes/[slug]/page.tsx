@@ -126,21 +126,39 @@ export default async function EspaceCommunautePage({
               <Lock className="size-4 text-ink-3" aria-hidden="true" />
               Espace réservé
             </h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-              Ce qui se dit ici n&apos;est visible que des membres. Quitter la communauté
-              ferme l&apos;accès au fil, mais vous gardez les ressources reçues pendant
-              votre adhésion.
-            </p>
-            <div className="mt-4 grid gap-2">
-              {/* Le formateur n'ouvre pas de fil avec lui-même : côté animateur,
-                  une conversation naît toujours de celle d'un membre. */}
-              {space.messagingEnabled && !space.isTrainer ? (
-                <OpenConversation slug={slug} />
-              ) : null}
-              <Btn asChild variant="o" size="sm" block>
-                <Link href={routes.community(slug)}>Gérer mon adhésion</Link>
-              </Btn>
-            </div>
+            {/* L'animateur n'adhère pas à sa propre communauté (voir
+                `initiateMembershipPayment`) : lui proposer de gérer une adhésion
+                qu'il n'a pas, ou de quitter un salon qui lui appartient, n'a
+                aucun sens. Sa sortie, c'est la gestion du salon. */}
+            {space.isTrainer ? (
+              <>
+                <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
+                  Ce qui se dit ici n&apos;est visible que de vos membres. Vous animez
+                  cette communauté : elle vous appartient, vous n&apos;y adhérez pas.
+                </p>
+                <div className="mt-4 grid gap-2">
+                  <Btn asChild variant="o" size="sm" block>
+                    <Link href="/formateur/communaute">Gérer ma communauté</Link>
+                  </Btn>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
+                  Ce qui se dit ici n&apos;est visible que des membres. Quitter la
+                  communauté ferme l&apos;accès au fil, mais vous gardez les ressources
+                  reçues pendant votre adhésion.
+                </p>
+                <div className="mt-4 grid gap-2">
+                  {/* Le formateur n'ouvre pas de fil avec lui-même : côté animateur,
+                      une conversation naît toujours de celle d'un membre. */}
+                  {space.messagingEnabled ? <OpenConversation slug={slug} /> : null}
+                  <Btn asChild variant="o" size="sm" block>
+                    <Link href={routes.community(slug)}>Gérer mon adhésion</Link>
+                  </Btn>
+                </div>
+              </>
+            )}
           </section>
         </aside>
       </div>

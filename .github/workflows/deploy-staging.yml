@@ -59,15 +59,27 @@ jobs:
             set -e
             cd /opt/nkamva/staging
             docker compose pull
+
+            # `schema.prisma` déclare `directUrl` : sans DIRECT_URL dans
+            # l'environnement, `migrate deploy` s'arrête sur une P1012 avant même
+            # de toucher la base. Le staging attaque son Postgres en direct, sans
+            # pooler devant — les deux URL y sont donc la même. On lit quand même
+            # DIRECT_URL du .env s'il existe, pour le jour où ce ne sera plus vrai.
+            DB_URL="$(grep '^DATABASE_URL=' .env | cut -d= -f2-)"
+            DIRECT="$(grep '^DIRECT_URL=' .env | cut -d= -f2- || true)"
+            : "${DIRECT:=$DB_URL}"
+
             docker run --rm \
               --network staging_internal \
               -v $(pwd)/prisma:/prisma \
-              -e DATABASE_URL="$(grep '^DATABASE_URL=' .env | cut -d= -f2-)" \
+              -e DATABASE_URL="$DB_URL" \
+              -e DIRECT_URL="$DIRECT" \
               node:22-alpine \
               npx --yes prisma@6 migrate deploy --schema=/prisma/schema.prisma
             docker run --rm \
               --network staging_internal \
-              -e DATABASE_URL="$(grep '^DATABASE_URL=' .env | cut -d= -f2-)" \
+              -e DATABASE_URL="$DB_URL" \
+              -e DIRECT_URL="$DIRECT" \
               -e BOOTSTRAP_ADMIN_PASSWORD="$(grep '^BOOTSTRAP_ADMIN_PASSWORD=' .env | cut -d= -f2-)" \
               ghcr.io/tongodaniel/nkamva:${{ github.sha }} \
               node scripts/bootstrap-admins.mjs
