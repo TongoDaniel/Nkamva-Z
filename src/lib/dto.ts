@@ -110,8 +110,13 @@ export interface InitiatePurchaseResult {
   purchaseId: string;
   providerTransactionId: string;
   provider: PaymentProvider;
-  paymentUrl?: string;
-  clientSecret?: string;
+  /**
+   * Stripe : la page de paiement hébergée. Absent pour le mobile money, qui se
+   * confirme sur le téléphone sans quitter le site. `paymentUrl`, hérité de
+   * CinetPay, n'était plus renseigné par personne depuis la migration.
+   */
+  redirectUrl?: string;
+  nextStep: "CONFIRM_ON_PHONE" | "REDIRECT_TO_PROVIDER" | "ALREADY_SETTLED";
 }
 
 /**
