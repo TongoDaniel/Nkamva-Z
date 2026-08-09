@@ -9,7 +9,13 @@ import { getAuthContext } from "@/lib/api";
 import { getReportDetail } from "@/lib/reports";
 import { fmtDate } from "@/lib/format";
 import { ResolveActions } from "./resolve-actions";
-import { REPORT_STATUS, TARGET_LABELS, REASON_LABELS, HIDEABLE_TARGETS } from "../status";
+import {
+  REPORT_STATUS,
+  TARGET_LABELS,
+  REASON_LABELS,
+  HIDEABLE_TARGETS,
+  REMOVAL_LABELS,
+} from "../status";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +50,10 @@ export default async function SignalementDetailPage({
   const state = REPORT_STATUS[report.status];
   const reporterName = report.reporter.fullName ?? report.reporter.email;
   const hideable = HIDEABLE_TARGETS.includes(report.targetType) && report.target.exists;
-  const alreadyHidden = report.target.courseStatus === "archived";
+  // Deux façons d'être déjà retiré : une ressource archivée, un message effacé
+  // de son fil — par la Modération avant, ou par son auteur pendant.
+  const alreadyHidden = report.target.courseStatus === "archived" || report.target.removed === true;
+  const removal = REMOVAL_LABELS[report.targetType];
 
   return (
     <>
@@ -108,6 +117,14 @@ export default async function SignalementDetailPage({
                     <StPill tone="ok">Publiée</StPill>
                   )}
                 </Row>
+              ) : report.target.removed !== undefined ? (
+                <Row label="État du message">
+                  {report.target.removed ? (
+                    <StPill tone="muted">Déjà retiré du fil</StPill>
+                  ) : (
+                    <StPill tone="ok">Toujours lisible</StPill>
+                  )}
+                </Row>
               ) : null}
               <Row label="Motif">{REASON_LABELS[report.reason] ?? report.reason}</Row>
               {report.detail ? <Row label="Précisions">{report.detail}</Row> : null}
@@ -132,7 +149,7 @@ export default async function SignalementDetailPage({
                     {report.reviewedAt ? ` · ${fmtDate(report.reviewedAt)}` : ""}
                   </Row>
                 ) : null}
-                <Row label="Ressource retirée">{report.targetHidden ? "Oui" : "Non"}</Row>
+                <Row label="Cible retirée">{report.targetHidden ? "Oui" : "Non"}</Row>
                 {report.decisionNote ? <Row label="Motivation">{report.decisionNote}</Row> : null}
               </dl>
             </AdminCard>
@@ -146,7 +163,8 @@ export default async function SignalementDetailPage({
               status={report.status}
               updatedAt={report.updatedAt.toISOString()}
               hideable={hideable && !alreadyHidden}
-              targetLabel={report.target.label}
+              removalAction={removal?.action ?? ""}
+              removalEffect={removal?.effect ?? ""}
             />
           </AdminCard>
         </aside>

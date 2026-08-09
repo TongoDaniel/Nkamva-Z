@@ -5,6 +5,7 @@ import { Clock, Lock } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { StPill } from "@/components/nk/status-pill";
 import { Btn } from "@/components/nk/button";
+import { ReportButton } from "@/components/nk/report-button";
 import { getAuthContext } from "@/lib/api";
 import { getMyDispute, REASON_LABELS } from "@/lib/disputes";
 import { fmtDate, fmtFcfa } from "@/lib/format";
@@ -108,18 +109,32 @@ export default async function DisputeDetailPage({
                         {AUTHOR_LABEL[message.authorRole] ?? message.authorRole} ·{" "}
                         {fmtDate(message.createdAt)}
                       </span>
-                      <p
-                        className={cn(
-                          "max-w-[80%] whitespace-pre-line rounded-nk px-4 py-3 text-[14px] leading-relaxed",
-                          mine
-                            ? "rounded-br-sm bg-ink text-paper"
-                            : message.authorRole === "SYSTEM"
-                              ? "border border-line bg-paper text-ink-2"
-                              : "rounded-bl-sm border border-line bg-paper text-ink",
+                      <div className="flex max-w-[80%] items-end gap-1">
+                        <p
+                          className={cn(
+                            "whitespace-pre-line rounded-nk px-4 py-3 text-[14px] leading-relaxed",
+                            mine
+                              ? "rounded-br-sm bg-ink text-paper"
+                              : message.authorRole === "SYSTEM"
+                                ? "border border-line bg-paper text-ink-2"
+                                : "rounded-bl-sm border border-line bg-paper text-ink",
+                          )}
+                        >
+                          {message.body}
+                        </p>
+                        {/* Le support instruit le dossier, il n'est pas
+                            au-dessus des règles. Rien à signaler sur ses
+                            propres messages, ni sur ceux que la plateforme
+                            écrit elle-même. */}
+                        {mine || message.authorRole === "SYSTEM" ? null : (
+                          <ReportButton
+                            variant="icon"
+                            targetType="DISPUTE_MESSAGE"
+                            targetId={message.id}
+                            className="size-7 text-ink-3/70"
+                          />
                         )}
-                      >
-                        {message.body}
-                      </p>
+                      </div>
                     </li>
                   );
                 })}

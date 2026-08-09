@@ -62,7 +62,7 @@ export default async function SignalementsPage({
     <>
       <AdminHead
         title="Signalements"
-        lead="Les plus anciens en premier. Retenir un signalement retire la ressource du catalogue ; les personnes qui l'ont achetée gardent leur accès."
+        lead="Les plus anciens en premier. Retenir un signalement peut retirer la cible — une ressource sort du catalogue en gardant ses acheteurs, un message sort du fil en gardant sa ligne."
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

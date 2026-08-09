@@ -17,11 +17,19 @@
  * entrée au journal d'audit, elle, reste : le journal est en ajout seul, et
  * c'est très bien ainsi — mieux vaut une trace orpheline qu'un journal qu'on
  * sait retoucher.
+ *
+ * `SMOKE_BASE_URL` pointe ailleurs que sur le port 3000 quand un autre serveur
+ * de développement l'occupe déjà.
+ *
+ * **Deux exécutions rapprochées donnent des 429**, et ce n'est pas une
+ * régression : `RATE_LIMITS.REPORT_CREATE` autorise dix signalements par heure
+ * et par compte, ce contrôle en poste quatre. Le compteur vit en mémoire —
+ * redémarrer le serveur le remet à zéro.
  */
 import { encode } from 'next-auth/jwt'
 import { db } from '../src/lib/db'
 
-const BASE = 'http://localhost:3000'
+const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3000'
 const SECRET = process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production'
 const mail = (key: string) => `tongodanielfo+${key}@gmail.com`
 
@@ -72,6 +80,8 @@ async function main() {
     select: { id: true },
   })
   const created: string[] = []
+  /** Billet retiré par le contrôle 4, à rétablir quoi qu'il arrive. */
+  let restorePostId: string | null = null
 
   try {
     // ---- 1. Le bouton est rendu ----------------------------------------
@@ -97,6 +107,124 @@ async function main() {
         `/communautes/${community.slug} affiche « Signaler cette communauté »`,
         html.includes('Signaler cette communauté'),
       )
+    }
+
+    // La fiche formateur : le compte se signale depuis son profil public, et
+    // seulement quand on n'est pas soi-même.
+    const trainerProfile = await db.trainerProfile.findFirst({
+      where: { approvedAt: { not: null }, suspendedAt: null, courses: { some: { status: 'published' } } },
+      select: { id: true, userId: true, user: { select: { email: true } } },
+    })
+    if (trainerProfile) {
+      const seenByOther = readable(
+        await (await fetch(`${BASE}/formateurs/${trainerProfile.id}`, {
+          headers: { cookie: await cookieFor(mail('aminata')) },
+        })).text(),
+      )
+      check(
+        `/formateurs/${trainerProfile.id} affiche « Signaler ce compte »`,
+        seenByOther.includes('Signaler ce compte'),
+      )
+      const seenBySelf = readable(
+        await (await fetch(`${BASE}/formateurs/${trainerProfile.id}`, {
+          headers: { cookie: await cookieFor(trainerProfile.user.email) },
+        })).text(),
+      )
+      check(
+        'le formateur ne se voit pas proposer de se signaler lui-même',
+        !seenBySelf.includes('Signaler ce compte'),
+      )
+    }
+
+    // ---- 1 bis. Les surfaces conversationnelles ------------------------
+    //
+    // Ce sont celles où le harcèlement se joue, et elles n'avaient aucune
+    // issue : le fil ne portait que l'épingle et la corbeille.
+    // Une **annonce**, et pas n'importe quel billet : le salon des annonces est
+    // celui que l'espace ouvre par défaut, donc le seul dont les billets sont
+    // dans le HTML initial. Viser une discussion rendrait ce contrôle rouge ou
+    // vert selon l'ordre que Postgres rend, ce qui ne vérifie rien.
+    const feedPost = await db.communityPost.findFirst({
+      where: { deletedAt: null, kind: 'ANNOUNCEMENT', community: { broadcastEnabled: true } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true, authorId: true, communityId: true,
+        community: { select: { slug: true } },
+      },
+    })
+    // Le lecteur doit être un **membre** qui n'a pas écrit le billet : on ne se
+    // signale pas soi-même, et un non-membre est renvoyé sur la fiche publique.
+    const feedViewer = feedPost
+      ? await db.communitySubscription.findFirst({
+          where: {
+            communityId: feedPost.communityId,
+            status: 'ACTIVE',
+            learnerId: { not: feedPost.authorId },
+          },
+          select: { learner: { select: { email: true } } },
+        })
+      : null
+    if (feedPost && feedViewer) {
+      const feed = readable(
+        await (await fetch(`${BASE}/mes-communautes/${feedPost.community.slug}`, {
+          headers: { cookie: await cookieFor(feedViewer.learner.email) },
+        })).text(),
+      )
+      check(
+        `/mes-communautes/${feedPost.community.slug} pose le signalement sur les billets`,
+        feed.includes('Signaler ce message') && !feed.includes('Une erreur est survenue'),
+      )
+    } else {
+      console.log('· aucune annonce lisible par un membre tiers : contrôle du fil ignoré')
+    }
+
+    const peerMessage = await db.message.findFirst({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        conversationId: true,
+        conversation: { select: { learner: { select: { email: true } }, trainerProfile: { select: { user: { select: { email: true } } } } } },
+        senderId: true,
+      },
+    })
+    if (peerMessage) {
+      // Ouvrir le fil du côté qui n'a pas écrit le message : c'est là que le
+      // bouton doit apparaître.
+      const learnerEmail = peerMessage.conversation.learner.email
+      const trainerEmail = peerMessage.conversation.trainerProfile.user.email
+      const sender = await db.user.findUniqueOrThrow({
+        where: { id: peerMessage.senderId }, select: { email: true },
+      })
+      const viewerEmail = sender.email === learnerEmail ? trainerEmail : learnerEmail
+      // `?fil=` est indispensable : sans lui la page rend la liste et un
+      // « Choisissez une conversation », donc aucune bulle à signaler.
+      const pane = readable(
+        await (await fetch(`${BASE}/messagerie?fil=${peerMessage.conversationId}`, {
+          headers: { cookie: await cookieFor(viewerEmail) },
+        })).text(),
+      )
+      check(
+        '/messagerie pose le signalement sur les bulles de l\'interlocuteur',
+        pane.includes('Signaler ce message') && !pane.includes('Une erreur est survenue'),
+      )
+    }
+
+    const supportMessage = await db.disputeMessage.findFirst({
+      where: { authorRole: 'SUPPORT' },
+      select: { id: true, dispute: { select: { id: true, purchase: { select: { learner: { select: { email: true } } } } } } },
+    })
+    if (supportMessage) {
+      const page = readable(
+        await (await fetch(`${BASE}/mes-litiges/${supportMessage.dispute.id}`, {
+          headers: { cookie: await cookieFor(supportMessage.dispute.purchase.learner.email) },
+        })).text(),
+      )
+      check(
+        '/mes-litiges/… pose le signalement sur les messages du support',
+        page.includes('Signaler ce message de litige'),
+      )
+    } else {
+      console.log('· aucun message de support en base : contrôle du litige ignoré')
     }
 
     // ---- 2. Un signalement arrive en modération ------------------------
@@ -183,7 +311,80 @@ async function main() {
       badTarget.status === 422 || badTarget.status === 400,
       `reçu ${badTarget.status}`,
     )
+
+    // ---- 4. Retenir un signalement retire vraiment la cible ------------
+    //
+    // Le contrôle qui manquait au précédent : la clôture ne savait qu'archiver
+    // une ressource. Sur un billet de fil, elle rédigeait une note et rien de
+    // plus. On vérifie donc l'effet, pas seulement le statut.
+    if (feedPost) {
+      const reported = await post(
+        {
+          targetType: 'COMMUNITY_POST',
+          targetId: feedPost.id,
+          reason: 'HARASSMENT',
+          detail: 'Contrôle automatique — smoke-signalements (billet).',
+        },
+        learnerCookie,
+      )
+      const body = (await reported.json()) as { data?: { id?: string } }
+      if (body.data?.id) created.push(body.data.id)
+      check(
+        'POST /api/reports accepte un billet de communauté',
+        reported.status === 201,
+        `reçu ${reported.status}`,
+      )
+
+      if (body.data?.id) {
+        restorePostId = feedPost.id
+        const row = await db.report.findUniqueOrThrow({
+          where: { id: body.data.id },
+          select: { updatedAt: true },
+        })
+        const resolve = await fetch(`${BASE}/api/admin/reports/${body.data.id}/resolve`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', cookie: await cookieFor(mail('moderation')) },
+          body: JSON.stringify({
+            status: 'UPHELD',
+            decisionNote: 'Contrôle automatique — retrait du billet signalé.',
+            hideTarget: true,
+            expectedUpdatedAt: row.updatedAt.toISOString(),
+          }),
+        })
+        check(
+          'la Modération peut retenir le signalement en retirant le billet',
+          resolve.status === 200,
+          `reçu ${resolve.status} ${await resolve.clone().text()}`,
+        )
+        const after = await db.communityPost.findUniqueOrThrow({
+          where: { id: feedPost.id },
+          select: { deletedAt: true, deletedById: true },
+        })
+        check(
+          'le billet est retiré du fil, pas supprimé de la base',
+          after.deletedAt !== null && after.deletedById !== null,
+        )
+        const feedAfter = readable(
+          await (await fetch(`${BASE}/mes-communautes/${feedPost.community.slug}`, {
+            headers: { cookie: learnerCookie },
+          })).text(),
+        )
+        check(
+          'le fil affiche « Ce message a été retiré. » à sa place',
+          feedAfter.includes('Ce message a été retiré.'),
+        )
+      }
+    }
   } finally {
+    // Le billet appartient au jeu de démonstration : on le remet en état,
+    // sinon chaque exécution du contrôle amputerait le fil d'un message.
+    if (restorePostId) {
+      await db.communityPost.update({
+        where: { id: restorePostId },
+        data: { deletedAt: null, deletedById: null },
+      })
+      console.log('Billet de démonstration rétabli.')
+    }
     for (const id of created) {
       await db.report.deleteMany({ where: { id } })
     }

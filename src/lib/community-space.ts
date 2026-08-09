@@ -52,6 +52,8 @@ export interface SpaceReply {
   createdAt: Date
   author: SpaceAuthor
   deleted: boolean
+  /** Le lecteur en est-il l'auteur ? On ne se signale pas soi-même. */
+  mine: boolean
 }
 
 export interface SpacePost {
@@ -64,6 +66,8 @@ export interface SpacePost {
   repliesCount: number
   author: SpaceAuthor
   deleted: boolean
+  /** Le lecteur en est-il l'auteur ? On ne se signale pas soi-même. */
+  mine: boolean
   replies: SpaceReply[]
   /** Le lecteur peut-il retirer ce message ? */
   canDelete: boolean
@@ -210,6 +214,7 @@ export async function getCommunitySpace(slug: string, userId: string): Promise<C
     repliesCount: p.repliesCount,
     author: toAuthor(p.author),
     deleted: Boolean(p.deletedAt),
+    mine: p.authorId === userId,
     canDelete: !p.deletedAt && (viewer.isTrainer || p.authorId === userId),
     replies: p.replies.map((r) => ({
       id: r.id,
@@ -217,6 +222,7 @@ export async function getCommunitySpace(slug: string, userId: string): Promise<C
       createdAt: r.createdAt,
       author: toAuthor(r.author),
       deleted: Boolean(r.deletedAt),
+      mine: r.authorId === userId,
     })),
   })
 

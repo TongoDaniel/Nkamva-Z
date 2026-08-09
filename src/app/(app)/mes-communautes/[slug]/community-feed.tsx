@@ -9,6 +9,7 @@ import { Tabs } from "@/components/nk/tabs";
 import { Chip } from "@/components/nk/chip";
 import { Avatar } from "@/components/nk/avatar";
 import { EmptyState } from "@/components/nk/empty-state";
+import { ReportButton } from "@/components/nk/report-button";
 import { api, ApiError } from "@/lib/client";
 import { fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ interface Reply {
   createdAt: string | Date;
   author: Author;
   deleted: boolean;
+  mine: boolean;
 }
 
 export interface FeedPost {
@@ -38,6 +40,7 @@ export interface FeedPost {
   repliesCount: number;
   author: Author;
   deleted: boolean;
+  mine: boolean;
   canDelete: boolean;
   replies: Reply[];
 }
@@ -280,6 +283,17 @@ function PostCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          {/* Une issue pour le lecteur, pas une action sur son propre message :
+              retirer ce qu'on a écrit se fait par la corbeille, pas en
+              saisissant la modération. */}
+          {!post.deleted && !post.mine ? (
+            <ReportButton
+              variant="icon"
+              targetType="COMMUNITY_POST"
+              targetId={post.id}
+              name={post.author.fullName ?? undefined}
+            />
+          ) : null}
           {isTrainer && !post.deleted ? (
             <button
               type="button"
@@ -353,23 +367,34 @@ function PostCard({
                   {r.deleted ? "Réponse retirée." : r.body}
                 </p>
               </div>
-              {!r.deleted && isTrainer ? (
-                <button
-                  type="button"
-                  disabled={pending}
-                  aria-label="Retirer cette réponse"
-                  onClick={() =>
-                    run(
-                      () =>
-                        api.del(`/api/communities/${encodeURIComponent(slug)}/reponses/${r.id}`),
-                      "Le retrait n'a pas abouti.",
-                    )
-                  }
-                  className="grid size-7 shrink-0 place-items-center rounded-full text-ink-3 transition hover:bg-danger-tint hover:text-danger disabled:opacity-50"
-                >
-                  <Trash2 className="size-3.5" aria-hidden="true" />
-                </button>
-              ) : null}
+              <div className="flex shrink-0 items-center gap-0.5">
+                {!r.deleted && !r.mine ? (
+                  <ReportButton
+                    variant="icon"
+                    targetType="COMMUNITY_POST_REPLY"
+                    targetId={r.id}
+                    name={r.author.fullName ?? undefined}
+                    className="size-7"
+                  />
+                ) : null}
+                {!r.deleted && isTrainer ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    aria-label="Retirer cette réponse"
+                    onClick={() =>
+                      run(
+                        () =>
+                          api.del(`/api/communities/${encodeURIComponent(slug)}/reponses/${r.id}`),
+                        "Le retrait n'a pas abouti.",
+                      )
+                    }
+                    className="grid size-7 shrink-0 place-items-center rounded-full text-ink-3 transition hover:bg-danger-tint hover:text-danger disabled:opacity-50"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>

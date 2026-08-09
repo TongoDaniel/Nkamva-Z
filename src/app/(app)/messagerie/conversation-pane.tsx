@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, Lock, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
+import { ReportButton } from "@/components/nk/report-button";
 import { api, ApiError } from "@/lib/client";
 import { fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,12 @@ export interface PaneConversation {
   communitySlug: string;
   communityName: string;
   peer: { id: string; fullName: string | null };
-  lastMessage: { body: string; createdAt: string | Date; mine: boolean } | null;
+  lastMessage: {
+    body: string | null;
+    createdAt: string | Date;
+    mine: boolean;
+    deleted: boolean;
+  } | null;
   unreadCount: number;
   canWrite: boolean;
   readOnlyReason:
@@ -28,10 +34,11 @@ export interface PaneConversation {
 export interface PaneThread extends PaneConversation {
   messages: Array<{
     id: string;
-    body: string;
+    body: string | null;
     createdAt: string | Date;
     mine: boolean;
     readAt: string | Date | null;
+    deleted: boolean;
   }>;
 }
 
@@ -168,7 +175,9 @@ export function ConversationPane({
                     </b>
                     <small className="block truncate text-[13px] text-ink-2">
                       {conversation.lastMessage
-                        ? `${conversation.lastMessage.mine ? "Vous : " : ""}${conversation.lastMessage.body}`
+                        ? conversation.lastMessage.deleted
+                          ? "Message retiré."
+                          : `${conversation.lastMessage.mine ? "Vous : " : ""}${conversation.lastMessage.body}`
                         : conversation.communityName}
                     </small>
                   </span>
@@ -245,26 +254,49 @@ export function ConversationPane({
                           {dayLabel(message.createdAt)}
                         </p>
                       ) : null}
-                      <div className={cn("flex", message.mine ? "justify-end" : "justify-start")}>
+                      <div
+                        className={cn(
+                          "flex items-end gap-1",
+                          message.mine ? "justify-end" : "justify-start",
+                        )}
+                      >
                         <p
                           className={cn(
                             "max-w-[min(78%,460px)] whitespace-pre-line rounded-nk px-4 py-2.5 text-[14.5px] leading-relaxed",
-                            message.mine
-                              ? "rounded-br-sm bg-brand text-white"
-                              : "rounded-bl-sm border border-line bg-card text-ink",
+                            // Un message retiré ne reprend pas la couleur de
+                            // son auteur : la bulle doit se lire comme un vide,
+                            // pas comme un propos.
+                            message.deleted
+                              ? "border border-line bg-paper italic text-ink-3"
+                              : message.mine
+                                ? "rounded-br-sm bg-brand text-white"
+                                : "rounded-bl-sm border border-line bg-card text-ink",
                           )}
                         >
-                          {message.body}
+                          {message.deleted ? "Ce message a été retiré." : message.body}
                           <time
                             className={cn(
                               "mt-1 block text-[11.5px]",
-                              message.mine ? "text-white/70" : "text-ink-3",
+                              message.mine && !message.deleted ? "text-white/70" : "text-ink-3",
                             )}
                             dateTime={new Date(message.createdAt).toISOString()}
                           >
                             {timeLabel(message.createdAt)}
                           </time>
                         </p>
+                        {/* Un fil privé n'a pas de témoin : sans cette issue,
+                            ce qui s'y dit d'inacceptable ne remonte nulle
+                            part. Rien à signaler dans ses propres bulles, ni
+                            dans celles que la Modération a déjà retirées. */}
+                        {message.mine || message.deleted ? null : (
+                          <ReportButton
+                            variant="icon"
+                            targetType="MESSAGE"
+                            targetId={message.id}
+                            name={peerName(thread)}
+                            className="size-7 text-ink-3/70"
+                          />
+                        )}
                       </div>
                     </React.Fragment>
                   );

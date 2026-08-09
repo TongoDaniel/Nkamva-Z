@@ -70,6 +70,12 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
 export interface PublicTrainerDetail extends PublicTrainer {
   websiteUrl: string | null
   approvedAt: Date | null
+  /**
+   * Le compte derrière le profil. `id` est celui du `TrainerProfile` — un
+   * signalement vise le compte, et confondre les deux ferait chercher la
+   * Modération dans la mauvaise table.
+   */
+  userId: string
   courses: PublicTrainerCourse[]
   /** Communauté active du formateur, s'il en anime une. */
   community: { slug: string; name: string; description: string | null; priceFcfa: number; membersCount: number } | null
@@ -117,6 +123,7 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
       ratingCount: true,
       studentsCount: true,
       approvedAt: true,
+      userId: true,
       user: { select: { fullName: true } },
       _count: { select: { courses: { where: { status: 'published' } } } },
       courses: {
@@ -145,6 +152,7 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
 
   return {
     id: trainer.id,
+    userId: trainer.userId,
     fullName: trainer.user.fullName,
     slogan: trainer.slogan,
     description: trainer.description,
