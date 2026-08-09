@@ -42,7 +42,8 @@ export interface ConversationSummary {
   communityName: string
   /** L'autre bout du fil, vu du lecteur. */
   peer: ConversationPeer
-  lastMessage: { body: string; createdAt: Date; mine: boolean } | null
+  /** `body` est nul quand le message a été retiré : le texte ne repart pas. */
+  lastMessage: { body: string | null; createdAt: Date; mine: boolean; deleted: boolean } | null
   unreadCount: number
   /** Faux quand l'adhésion s'est arrêtée : le fil reste lisible (arbitrage 39). */
   canWrite: boolean
@@ -51,7 +52,15 @@ export interface ConversationSummary {
 }
 
 export interface ConversationThread extends ConversationSummary {
-  messages: Array<{ id: string; body: string; createdAt: Date; mine: boolean; readAt: Date | null }>
+  messages: Array<{
+    id: string
+    /** Nul quand le message a été retiré par la Modération. */
+    body: string | null
+    createdAt: Date
+    mine: boolean
+    readAt: Date | null
+    deleted: boolean
+  }>
 }
 
 // --- Droit d'écrire ---
@@ -234,10 +243,12 @@ async function toSummary(row: ConversationRow, userId: string): Promise<Conversa
     db.message.findFirst({
       where: { conversationId: row.id },
       orderBy: { createdAt: 'desc' },
-      select: { body: true, createdAt: true, senderId: true },
+      select: { body: true, createdAt: true, senderId: true, deletedAt: true },
     }),
     db.message.count({
-      where: { conversationId: row.id, readAt: null, senderId: { not: userId } },
+      // Un message retiré ne réclame plus d'être lu : le compter enverrait le
+      // destinataire ouvrir un fil pour y trouver un vide.
+      where: { conversationId: row.id, readAt: null, senderId: { not: userId }, deletedAt: null },
     }),
     writeBlockFor(row.communityId, row.learnerId, userId),
   ])
@@ -249,7 +260,12 @@ async function toSummary(row: ConversationRow, userId: string): Promise<Conversa
     communityName: row.community.name,
     peer: { id: peer.id, fullName: peer.fullName },
     lastMessage: last
-      ? { body: last.body, createdAt: last.createdAt, mine: last.senderId === userId }
+      ? {
+          body: last.deletedAt ? null : last.body,
+          createdAt: last.createdAt,
+          mine: last.senderId === userId,
+          deleted: last.deletedAt !== null,
+        }
       : null,
     unreadCount,
     canWrite: block === null,
@@ -306,18 +322,23 @@ export async function getConversation(
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
       take: 200,
-      select: { id: true, body: true, createdAt: true, senderId: true, readAt: true },
+      select: {
+        id: true, body: true, createdAt: true, senderId: true, readAt: true, deletedAt: true,
+      },
     }),
   ])
 
   return {
     ...summary,
+    // Un message retiré garde sa place et son heure, jamais son texte : le
+    // retrait ne doit pas devenir un moyen de le republier.
     messages: messages.map((m) => ({
       id: m.id,
-      body: m.body,
+      body: m.deletedAt ? null : m.body,
       createdAt: m.createdAt,
       mine: m.senderId === userId,
       readAt: m.readAt,
+      deleted: m.deletedAt !== null,
     })),
   }
 }
@@ -419,6 +440,7 @@ export async function countUnreadMessages(
     where: {
       readAt: null,
       senderId: { not: userId },
+      deletedAt: null,
       conversation: {
         OR: [
           { learnerId: userId },

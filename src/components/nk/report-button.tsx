@@ -21,7 +21,15 @@ import { cn } from "@/lib/utils";
  * « montre-moi tout ce qui est signalé », ce qu'un formulaire par surface
  * rendrait impossible à tenir.
  */
-export type ReportTargetType = "COURSE" | "USER" | "COMMUNITY" | "MESSAGE" | "DISPUTE_MESSAGE";
+export type ReportTargetType =
+  | "COURSE"
+  | "USER"
+  | "COMMUNITY"
+  | "COMMUNITY_POST"
+  | "COMMUNITY_POST_REPLY"
+  | "MESSAGE"
+  | "LIVE_MESSAGE"
+  | "DISPUTE_MESSAGE";
 
 /**
  * Les six motifs de `ReportReason`, dans l'ordre où ils se posent réellement :
@@ -42,7 +50,10 @@ const WHAT: Record<ReportTargetType, string> = {
   COURSE: "cette ressource",
   USER: "ce compte",
   COMMUNITY: "cette communauté",
+  COMMUNITY_POST: "ce message",
+  COMMUNITY_POST_REPLY: "cette réponse",
   MESSAGE: "ce message",
+  LIVE_MESSAGE: "ce message du salon",
   DISPUTE_MESSAGE: "ce message de litige",
 };
 
@@ -51,11 +62,19 @@ export function ReportButton({
   targetId,
   /** Nom de l'objet, pour l'intitulé accessible : « Signaler « Wax et couture » ». */
   name,
+  /**
+   * `link` pour les fiches, où le signalement est une ligne en bas de panneau ;
+   * `icon` pour les fils, où il se range à côté de l'épingle et de la corbeille.
+   * Un libellé en toutes lettres sous chaque message transformerait le fil en
+   * invitation à signaler.
+   */
+  variant = "link",
   className,
 }: {
   targetType: ReportTargetType;
   targetId: string;
   name?: string;
+  variant?: "link" | "icon";
   className?: string;
 }) {
   const [open, setOpen] = React.useState(false);
@@ -102,8 +121,21 @@ export function ReportButton({
     }
   }
 
+  const label = `Signaler ${what}`;
+
   if (sent) {
-    return (
+    // En pied de fiche, l'accusé se lit en toutes lettres. Dans un fil, il ne
+    // reste que le drapeau éteint : une phrase par message signalé afficherait
+    // au voisinage ce que le lecteur a fait.
+    return variant === "icon" ? (
+      <span
+        title="Signalement transmis à la modération."
+        className={cn("grid size-8 shrink-0 place-items-center text-danger", className)}
+      >
+        <Flag className="size-4" aria-hidden="true" />
+        <span className="sr-only">Signalement transmis à la modération.</span>
+      </span>
+    ) : (
       <p className={cn("flex items-center gap-2 text-[12.5px] font-semibold text-ink-3", className)}>
         <Flag className="size-3.5 shrink-0" aria-hidden="true" />
         Signalement transmis à la modération.
@@ -113,17 +145,31 @@ export function ReportButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "inline-flex cursor-pointer items-center gap-1.5 text-[12.5px] font-semibold text-ink-3 hover:text-danger",
-          className,
-        )}
-      >
-        <Flag className="size-3.5 shrink-0" aria-hidden="true" />
-        Signaler {what}
-      </button>
+      {variant === "icon" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={label}
+          className={cn(
+            "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-ink-3 transition hover:bg-danger-tint hover:text-danger",
+            className,
+          )}
+        >
+          <Flag className="size-4" aria-hidden="true" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={cn(
+            "inline-flex cursor-pointer items-center gap-1.5 text-[12.5px] font-semibold text-ink-3 hover:text-danger",
+            className,
+          )}
+        >
+          <Flag className="size-3.5 shrink-0" aria-hidden="true" />
+          {label}
+        </button>
+      )}
 
       <Modal
         open={open}
@@ -172,11 +218,19 @@ export function ReportButton({
             <p className="mt-1 text-right text-[11.5px] text-ink-3">{detail.length}/2000</p>
           </div>
 
-          <p className="mb-4 text-[12.5px] leading-relaxed text-ink-3">
-            Un signalement n&apos;est pas une demande de remboursement : si vous avez acheté
-            cette ressource et qu&apos;elle ne correspond pas, ouvrez un litige depuis
-            « Mes achats ».
-          </p>
+          {/* Le rappel du litige ne vaut que là où il y a eu un paiement :
+              sous un message de fil, il n'aurait aucun sens. */}
+          {targetType === "COURSE" || targetType === "COMMUNITY" ? (
+            <p className="mb-4 text-[12.5px] leading-relaxed text-ink-3">
+              Un signalement n&apos;est pas une demande de remboursement : si vous avez acheté
+              cette ressource et qu&apos;elle ne correspond pas, ouvrez un litige depuis
+              « Mes achats ».
+            </p>
+          ) : (
+            <p className="mb-4 text-[12.5px] leading-relaxed text-ink-3">
+              L&apos;auteur du message n&apos;est pas prévenu de votre signalement.
+            </p>
+          )}
 
           <div className="flex flex-col gap-2.5">
             <Btn type="submit" block loading={pending}>

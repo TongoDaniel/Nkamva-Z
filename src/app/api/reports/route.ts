@@ -5,7 +5,11 @@ import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-
 import { createReport } from '@/lib/reports'
 
 const CreateSchema = z.object({
-  targetType: z.enum(['COURSE', 'USER', 'COMMUNITY', 'MESSAGE', 'DISPUTE_MESSAGE']),
+  targetType: z.enum([
+    'COURSE', 'USER', 'COMMUNITY',
+    'COMMUNITY_POST', 'COMMUNITY_POST_REPLY',
+    'MESSAGE', 'LIVE_MESSAGE', 'DISPUTE_MESSAGE',
+  ]),
   targetId: z.string().uuid(),
   reason: z.enum(['ILLEGAL', 'MISLEADING', 'HARASSMENT', 'SPAM', 'INTELLECTUAL_PROPERTY', 'OTHER']),
   detail: z.string().max(2000).optional(),

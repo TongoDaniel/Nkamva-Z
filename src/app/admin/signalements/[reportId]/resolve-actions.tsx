@@ -9,22 +9,28 @@ import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
 
 /**
- * Deux issues, et une seule sanction disponible : retirer la ressource du
- * catalogue. Suspendre un compte n'a ni route ni règle arbitrée — l'écran le
- * dit plutôt que de proposer un bouton qui échouerait.
+ * Deux issues, et un retrait quand la cible s'y prête : archivage pour une
+ * ressource, retrait du fil pour un message. Suspendre un **compte** ou fermer
+ * une **communauté** n'appartient pas à la Modération — l'écran le dit plutôt
+ * que de proposer un bouton qui échouerait.
+ *
+ * Les mots du retrait viennent de l'appelant : ils changent selon la cible, et
+ * les recopier ici ferait deux vérités pour une seule règle.
  */
 export function ResolveActions({
   reportId,
   status,
   updatedAt,
   hideable,
-  targetLabel,
+  removalAction,
+  removalEffect,
 }: {
   reportId: string;
   status: string;
   updatedAt: string;
   hideable: boolean;
-  targetLabel: string;
+  removalAction: string;
+  removalEffect: string;
 }) {
   const router = useRouter();
   const [dialog, setDialog] = React.useState<null | "uphold" | "dismiss">(null);
@@ -80,9 +86,10 @@ export function ResolveActions({
 
       {!hideable ? (
         <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
-          Aucune sanction automatique n&apos;est disponible sur cet objet : seule une ressource
-          peut être retirée du catalogue. Retenir le signalement le trace et prévient son
-          auteur, sans autre effet.
+          Aucun retrait n&apos;est possible sur cet objet — soit il est déjà retiré, soit il
+          n&apos;appartient pas à la Modération de le faire : suspendre un compte revient au
+          Super-admin, et fermer une communauté coupe des adhésions payées. Retenir le
+          signalement le trace et prévient son auteur, sans autre effet.
         </p>
       ) : null}
 
@@ -116,13 +123,9 @@ export function ResolveActions({
               className="mt-0.5 size-4 accent-brand"
             />
             <span>
-              <b className="block text-[13.5px] font-bold text-ink">
-                Retirer « {targetLabel} » du catalogue
-              </b>
+              <b className="block text-[13.5px] font-bold text-ink">{removalAction}</b>
               <span className="mt-0.5 block text-[12.5px] leading-relaxed text-ink-2">
-                La ressource n&apos;apparaît plus au catalogue. Les personnes qui l&apos;ont
-                achetée gardent leur accès : l&apos;achat est définitif, et un retrait ne
-                rembourse personne.
+                {removalEffect}
               </span>
             </span>
           </label>

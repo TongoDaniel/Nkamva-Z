@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
+import { ReportButton } from "@/components/nk/report-button";
 import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
 import { toast } from "sonner";
@@ -595,16 +596,33 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                   </li>
                 ) : (
                   room.messages.map((line) => (
-                    <li key={line.id} className="flex gap-2.5">
+                    <li key={line.id} className="flex items-start gap-2.5">
                       <Avatar name={line.authorName ?? "Membre"} size="sm" />
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex-1">
                         <b className="block text-[13px] font-bold">
                           {line.authorId === room.viewerId ? "Vous" : (line.authorName ?? "Membre")}
                         </b>
-                        <small className="block text-[13.5px] leading-relaxed text-ink-2">
-                          {line.body}
+                        <small
+                          className={cn(
+                            "block text-[13.5px] leading-relaxed",
+                            line.deleted ? "italic text-ink-3" : "text-ink-2",
+                          )}
+                        >
+                          {line.deleted ? "Ce message a été retiré." : line.body}
                         </small>
                       </span>
+                      {/* Couper le micro d'un participant est du ressort de
+                          l'animateur ; ce qu'il lit et qui relève de la
+                          plateforme se remonte, comme pour un membre. */}
+                      {line.authorId === room.viewerId || line.deleted ? null : (
+                        <ReportButton
+                          variant="icon"
+                          targetType="LIVE_MESSAGE"
+                          targetId={line.id}
+                          name={line.authorName ?? undefined}
+                          className="size-7 text-ink-3/70"
+                        />
+                      )}
                     </li>
                   ))
                 )}

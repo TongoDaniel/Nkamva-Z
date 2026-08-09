@@ -101,6 +101,22 @@ export interface ReportTargetSummary {
   exists: boolean
   /** Renseigné pour COURSE : permet de savoir si elle est déjà retirée. */
   courseStatus?: string
+  /**
+   * La cible est-elle déjà retirée ? Vrai pour un message effacé de son fil.
+   * Distinct de `exists` : la ligne est là, la Modération peut la lire, mais
+   * plus personne d'autre ne la voit — la retirer une seconde fois n'a pas de
+   * sens.
+   */
+  removed?: boolean
+}
+
+/**
+ * Ce que la Modération lit dans la file : assez pour reconnaître le message
+ * signalé, pas assez pour transformer la liste en fil de discussion.
+ */
+function excerpt(body: string, max = 60): string {
+  const flat = body.replace(/\s+/g, ' ').trim()
+  return `« ${flat.slice(0, max)}${flat.length > max ? '…' : ''} »`
 }
 
 /**
@@ -128,8 +144,17 @@ export async function resolveReportTarget(
         where: { id: targetId },
         select: { id: true, email: true, fullName: true },
       })
+      // Pas de lien, et ce n'est pas un oubli : décision 7, la Modération n'a
+      // pas accès à l'annuaire des utilisateurs — `/admin/utilisateurs` la
+      // renverrait sur `/admin`. Le libellé porte donc de quoi identifier le
+      // compte sans le consulter, nom **et** adresse : le Super-admin saisi du
+      // dossier ne doit pas avoir à deviner qui est visé.
       return user
-        ? { label: user.fullName ?? user.email, href: null, exists: true }
+        ? {
+            label: user.fullName ? `${user.fullName} — ${user.email}` : user.email,
+            href: null,
+            exists: true,
+          }
         : { label: 'Compte introuvable', href: null, exists: false }
     }
     case 'COMMUNITY': {
@@ -141,6 +166,58 @@ export async function resolveReportTarget(
         ? { label: community.name, href: `/communautes/${community.slug}`, exists: true }
         : { label: 'Communauté introuvable', href: null, exists: false }
     }
+    case 'COMMUNITY_POST': {
+      const post = await db.communityPost.findUnique({
+        where: { id: targetId },
+        select: { id: true, body: true, deletedAt: true, community: { select: { slug: true, name: true } } },
+      })
+      // Un billet déjà retiré du fil reste instruisible : `exists` dit qu'on
+      // sait de quoi il s'agit, pas qu'il est encore visible des membres.
+      return post
+        ? {
+            label: `Billet de « ${post.community.name} » — ${excerpt(post.body)}`,
+            href: `/communautes/${post.community.slug}`,
+            exists: true,
+            removed: post.deletedAt !== null,
+          }
+        : { label: 'Billet supprimé', href: null, exists: false }
+    }
+    case 'COMMUNITY_POST_REPLY': {
+      const reply = await db.communityPostReply.findUnique({
+        where: { id: targetId },
+        select: {
+          id: true, body: true, deletedAt: true,
+          post: { select: { community: { select: { slug: true, name: true } } } },
+        },
+      })
+      return reply
+        ? {
+            label: `Réponse dans « ${reply.post.community.name} » — ${excerpt(reply.body)}`,
+            href: `/communautes/${reply.post.community.slug}`,
+            exists: true,
+            removed: reply.deletedAt !== null,
+          }
+        : { label: 'Réponse supprimée', href: null, exists: false }
+    }
+    case 'LIVE_MESSAGE': {
+      const message = await db.liveMessage.findUnique({
+        where: { id: targetId },
+        select: {
+          id: true, body: true, deletedAt: true,
+          session: { select: { id: true, title: true } },
+        },
+      })
+      // Pas de lien non plus : le salon vit dans l'écran de la séance, réservé
+      // aux membres de la communauté. Le titre de la séance situe le propos.
+      return message
+        ? {
+            label: `Salon live « ${message.session.title} » — ${excerpt(message.body)}`,
+            href: null,
+            exists: true,
+            removed: message.deletedAt !== null,
+          }
+        : { label: 'Message introuvable', href: null, exists: false }
+    }
     case 'DISPUTE_MESSAGE': {
       const message = await db.disputeMessage.findUnique({
         where: { id: targetId },
@@ -148,17 +225,35 @@ export async function resolveReportTarget(
       })
       return message
         ? {
-            label: `Message de litige — « ${message.body.slice(0, 60)}${message.body.length > 60 ? '…' : ''} »`,
+            label: `Message de litige — ${excerpt(message.body)}`,
             href: `/admin/litiges/${message.disputeId}`,
             exists: true,
           }
         : { label: 'Message introuvable', href: null, exists: false }
     }
-    case 'MESSAGE':
-      // La messagerie n'est pas modélisée (arbitrage 33) : aucun signalement
-      // ne peut encore en produire, mais le type existe pour ne pas avoir à
-      // migrer le jour où elle arrivera.
-      return { label: 'Message de la messagerie (non encore modélisée)', href: null, exists: false }
+    case 'MESSAGE': {
+      // La messagerie existe désormais (arbitrage 33) : le commentaire qui
+      // disait le contraire faisait passer tout signalement de message pour
+      // une cible inexistante, que la Modération n'avait plus qu'à rejeter.
+      const message = await db.message.findUnique({
+        where: { id: targetId },
+        select: {
+          id: true, body: true, deletedAt: true,
+          conversation: { select: { community: { select: { name: true } } } },
+        },
+      })
+      // Aucun `href` : un fil 1 à 1 n'a pas d'écran d'administration, et lui en
+      // ouvrir un donnerait à la Modération la correspondance entière quand
+      // elle n'instruit qu'un message.
+      return message
+        ? {
+            label: `Message privé (${message.conversation.community.name}) — ${excerpt(message.body)}`,
+            href: null,
+            exists: true,
+            removed: message.deletedAt !== null,
+          }
+        : { label: 'Message introuvable', href: null, exists: false }
+    }
   }
 }
 
@@ -196,11 +291,34 @@ export async function getReportStats() {
   }
 }
 
+/**
+ * Les cibles sur lesquelles la clôture peut agir, et ce qu'agir veut dire pour
+ * chacune. Le geste n'est pas le même partout : une ressource sort du
+ * catalogue en gardant ses acheteurs, un message sort du fil en gardant sa
+ * ligne. Aucune ne disparaît.
+ *
+ * Trois cibles restent volontairement absentes :
+ * — `USER`, parce que sanctionner un compte est réservé au Super-admin
+ *   (décision 7 : la Modération n'a pas l'annuaire) ;
+ * — `COMMUNITY`, parce que fermer une communauté coupe des adhésions payées et
+ *   ne se décide pas depuis un signalement ;
+ * — `DISPUTE_MESSAGE`, parce qu'un dossier de litige est une pièce
+ *   d'instruction : en retirer un message trouerait la chronologie que le
+ *   support et l'acheteur doivent pouvoir relire.
+ */
+export const HIDEABLE_TARGET_TYPES: ReportTargetType[] = [
+  'COURSE',
+  'COMMUNITY_POST',
+  'COMMUNITY_POST_REPLY',
+  'MESSAGE',
+  'LIVE_MESSAGE',
+]
+
 export interface ResolveReportInput {
   status: Extract<ReportStatus, 'UPHELD' | 'DISMISSED'>
-  decisionNote: string
-  /** Retirer la ressource du catalogue. Seul `COURSE` le permet. */
+  /** Retirer la cible : archivage pour une ressource, retrait du fil pour un message. */
   hideTarget?: boolean
+  decisionNote: string
   actorId: string
   actorRole: string
   expectedUpdatedAt: string
@@ -212,7 +330,9 @@ export async function resolveReport(reportId: string, input: ResolveReportInput)
   if (report.status !== 'OPEN') throw new Error('REPORT_NOT_OPEN')
 
   const hide = input.hideTarget === true
-  if (hide && report.targetType !== 'COURSE') throw new Error('TARGET_NOT_HIDEABLE')
+  if (hide && !HIDEABLE_TARGET_TYPES.includes(report.targetType)) {
+    throw new Error('TARGET_NOT_HIDEABLE')
+  }
 
   const resolved = await db.$transaction(async (tx) => {
     const guard = await tx.report.updateMany({
@@ -228,9 +348,57 @@ export async function resolveReport(reportId: string, input: ResolveReportInput)
     if (guard.count === 0) throw new Error('STALE_REPORT')
 
     if (hide) {
-      // Retirer du catalogue, pas supprimer : les acheteurs gardent leur
-      // accès, l'achat est définitif.
-      await tx.course.update({ where: { id: report.targetId }, data: { status: 'archived' } })
+      const removal = { deletedAt: new Date(), deletedById: input.actorId }
+      switch (report.targetType) {
+        case 'COURSE':
+          // Retirer du catalogue, pas supprimer : les acheteurs gardent leur
+          // accès, l'achat est définitif.
+          await tx.course.update({ where: { id: report.targetId }, data: { status: 'archived' } })
+          break
+        case 'COMMUNITY_POST':
+          // `updateMany` et non `update` : la cible a pu être retirée par son
+          // auteur pendant l'instruction, et un signalement ne doit pas
+          // échouer parce que quelqu'un a été plus rapide que la Modération.
+          await tx.communityPost.updateMany({
+            where: { id: report.targetId, deletedAt: null },
+            data: removal,
+          })
+          break
+        case 'COMMUNITY_POST_REPLY': {
+          const removed = await tx.communityPostReply.updateMany({
+            where: { id: report.targetId, deletedAt: null },
+            data: removal,
+          })
+          // `repliesCount` compte ce qui est encore lisible — même règle que
+          // le retrait par l'animateur. Rien à décompter si la réponse était
+          // déjà partie.
+          if (removed.count > 0) {
+            const reply = await tx.communityPostReply.findUnique({
+              where: { id: report.targetId },
+              select: { postId: true },
+            })
+            if (reply) {
+              await tx.communityPost.update({
+                where: { id: reply.postId },
+                data: { repliesCount: { decrement: 1 } },
+              })
+            }
+          }
+          break
+        }
+        case 'MESSAGE':
+          await tx.message.updateMany({
+            where: { id: report.targetId, deletedAt: null },
+            data: removal,
+          })
+          break
+        case 'LIVE_MESSAGE':
+          await tx.liveMessage.updateMany({
+            where: { id: report.targetId, deletedAt: null },
+            data: removal,
+          })
+          break
+      }
     }
 
     await audit(tx, {

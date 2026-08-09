@@ -7,6 +7,8 @@ import { Avatar } from '@/components/nk/avatar'
 import { Price, ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
 import { EmptyState } from '@/components/nk/empty-state'
+import { ReportButton } from '@/components/nk/report-button'
+import { getAuthContext } from '@/lib/api'
 import { getPublicTrainer } from '@/lib/trainers'
 import { fmtNumber } from '@/lib/format'
 import { routesOf, type Space } from '@/lib/spaces'
@@ -15,10 +17,11 @@ import type { CourseListItem } from '@/lib/dto'
 /** Fiche formateur, rendue à l'identique dans les deux espaces. */
 export async function TrainerScreen({ trainerId, space }: { trainerId: string; space: Space }) {
   const routes = routesOf(space)
-  const trainer = await getPublicTrainer(trainerId)
+  const [trainer, auth] = await Promise.all([getPublicTrainer(trainerId), getAuthContext()])
   if (!trainer) notFound()
 
   const name = trainer.fullName ?? 'Formateur NkamVa'
+  const isSelf = auth?.user.id === trainer.userId
 
   // Les cartes de ressources sont celles du catalogue : le formateur y est
   // rappelé sur chaque carte, on le reconstruit depuis la fiche courante plutôt
@@ -125,10 +128,10 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
           </section>
         </div>
 
-        {/* Le panneau ne s'affiche que si le formateur anime réellement une
-            communauté active : la maquette en montrait une pour tout le monde. */}
-        {trainer.community ? (
-          <aside className="lg:sticky lg:top-[86px]">
+        <aside className="grid gap-5 lg:sticky lg:top-[86px]">
+          {/* Le panneau ne s'affiche que si le formateur anime réellement une
+              communauté active : la maquette en montrait une pour tout le monde. */}
+          {trainer.community ? (
             <div className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm">
               <div className="h-[88px] bg-gradient-to-br from-navy to-info" />
               <div className="p-5">
@@ -163,8 +166,18 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
                 </div>
               </div>
             </div>
-          </aside>
-        ) : null}
+          ) : null}
+
+          {/* Une issue, pas une proposition : discret, en bas de colonne. Rien
+              à signaler chez soi. Le visiteur non connecté le voit quand
+              même — la modale le renverra vers la connexion, ce qui vaut
+              mieux qu'un recours invisible tant qu'on n'a pas de compte. */}
+          {isSelf ? null : (
+            <div className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
+              <ReportButton targetType="USER" targetId={trainer.userId} name={name} />
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   )

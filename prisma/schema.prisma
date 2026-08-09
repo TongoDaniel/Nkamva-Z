@@ -11,7 +11,11 @@ datasource db {
   // L'application lit par le pooler ; les migrations, elles, ont besoin d'une
   // connexion directe : pgbouncer ne tient pas les verrous d'avis de Prisma.
   url       = env("DATABASE_URL")
-  //directUrl = env("DIRECT_URL")
+  // Commentée, cette ligne ne rendait pas la main : `migrate` repassait par le
+  // pooler de transactions et attendait indéfiniment un verrou d'avis que
+  // pgbouncer ne peut pas tenir. Le symptôme n'est pas une erreur, c'est un
+  // processus qui ne s'arrête jamais — d'où les `migrate deploy` fantômes.
+  directUrl = env("DIRECT_URL")
 }
 
 // --- Enums ---
@@ -733,6 +737,10 @@ model Message {
   body           String
   /// Lu par le destinataire, jamais par l'expéditeur.
   readAt         DateTime?
+  /// Retrait par la Modération à la clôture d'un signalement. Effacer la ligne
+  /// ferait disparaître la preuve de ce qui a été instruit.
+  deletedAt      DateTime?
+  deletedById    String?
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])
@@ -817,13 +825,17 @@ model LiveParticipant {
 /// Salon du live. Conservé après la séance et rattaché au replay (arbitrage 42) :
 /// ce n'est pas un canal éphémère.
 model LiveMessage {
-  id        String      @id @default(uuid())
-  sessionId String
-  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  body      String
-  createdAt DateTime    @default(now())
+  id          String      @id @default(uuid())
+  sessionId   String
+  session     LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body        String
+  /// Retrait par la Modération. Le salon reste attaché au replay (arbitrage
+  /// 42) : sans retrait, un propos instruit resterait lisible indéfiniment.
+  deletedAt   DateTime?
+  deletedById String?
+  createdAt   DateTime    @default(now())
 
   @@index([sessionId, createdAt])
   @@map("live_messages")
@@ -1471,7 +1483,14 @@ enum ReportTargetType {
   COURSE
   USER
   COMMUNITY
+  /// Billet du fil d'une communauté (annonce ou discussion).
+  COMMUNITY_POST
+  /// Réponse sous un billet. Distincte du billet : elle se retire seule.
+  COMMUNITY_POST_REPLY
+  /// Message de la messagerie 1 à 1.
   MESSAGE
+  /// Message du salon d'une séance live. Il survit à la séance (arbitrage 42).
+  LIVE_MESSAGE
   DISPUTE_MESSAGE
 }
 

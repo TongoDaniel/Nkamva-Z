@@ -350,7 +350,15 @@ export interface LiveRoomView {
     handRaisedAt: Date | null
     handPosition: number | null
   }>
-  messages: Array<{ id: string; authorId: string; authorName: string | null; body: string; createdAt: Date }>
+  messages: Array<{
+    id: string
+    authorId: string
+    authorName: string | null
+    /** Nul quand le message a été retiré par la Modération. */
+    body: string | null
+    createdAt: Date
+    deleted: boolean
+  }>
   /** Jeton de salle. Nul quand le transport n'est pas configuré. */
   token: string | null
   serverUrl: string | null
@@ -408,7 +416,10 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       where: { sessionId },
       orderBy: { createdAt: 'asc' },
       take: 200,
-      select: { id: true, authorId: true, body: true, createdAt: true, author: { select: { fullName: true } } },
+      select: {
+        id: true, authorId: true, body: true, createdAt: true, deletedAt: true,
+        author: { select: { fullName: true } },
+      },
     }),
   ])
 
@@ -474,12 +485,14 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       handRaisedAt: p.handRaisedAt,
       handPosition: positionOf(p.userId),
     })),
+    // Un message retiré garde sa place et son auteur, jamais son texte.
     messages: messages.map((m) => ({
       id: m.id,
       authorId: m.authorId,
       authorName: m.author.fullName,
-      body: m.body,
+      body: m.deletedAt ? null : m.body,
       createdAt: m.createdAt,
+      deleted: m.deletedAt !== null,
     })),
     token,
     serverUrl: livekitUrl(),
