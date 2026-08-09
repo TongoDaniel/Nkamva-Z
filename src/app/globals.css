@@ -303,6 +303,14 @@
   [hidden] {
     display: none !important;
   }
+
+  /* Edge pose son propre œil de révélation dans les champs mot de passe, et une
+     croix d'effacement dans les champs de saisie : ils doublonnent la bascule de
+     `PasswordField`, qui est la seule étiquetée et pilotable au clavier. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
 }
 
 @layer utilities {
