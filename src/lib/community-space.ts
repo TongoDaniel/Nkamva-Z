@@ -77,6 +77,8 @@ export interface CommunitySpace {
   communityId: string
   slug: string
   name: string
+  /** Mensualité de l'adhésion, affichée par le pavé d'adhésion du salon. */
+  priceFcfa: number
   forumEnabled: boolean
   broadcastEnabled: boolean
   resourcesEnabled: boolean
@@ -188,7 +190,7 @@ export async function getCommunitySpace(slug: string, userId: string): Promise<C
     db.community.findFirst({
       where: { slug, status: 'active' },
       select: {
-        id: true, slug: true, name: true, trainerId: true,
+        id: true, slug: true, name: true, trainerId: true, priceFcfa: true,
         forumEnabled: true, broadcastEnabled: true, messagingEnabled: true,
         resourcesEnabled: true, eventsEnabled: true,
         trainerProfile: { select: { userId: true, user: { select: { id: true, fullName: true } } } },
@@ -265,6 +267,7 @@ export async function getCommunitySpace(slug: string, userId: string): Promise<C
     communityId: community.id,
     slug: community.slug,
     name: community.name,
+    priceFcfa: community.priceFcfa,
     forumEnabled: community.forumEnabled,
     broadcastEnabled: community.broadcastEnabled,
     resourcesEnabled: community.resourcesEnabled,

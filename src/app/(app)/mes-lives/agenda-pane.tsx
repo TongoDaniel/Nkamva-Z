@@ -4,9 +4,8 @@ import * as React from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, PlayCircle, Radio, X } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { EmptyState } from "@/components/nk/empty-state";
-import { StPill } from "@/components/nk/status-pill";
+import { LiveSessionRow, ReplayRow } from "@/components/nk/live-row";
 import { Tabs } from "@/components/nk/tabs";
-import { fmtDuration, fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AgendaSession, ReplayView } from "@/lib/lives";
 
@@ -26,33 +25,8 @@ function dayKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-function dayNumber(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(date);
-}
-function shortDay(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(date).replace(".", "");
-}
-function shortMonth(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(date).replace(".", "");
-}
-function timeLabel(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(date);
-}
 function longDay(date: Date) {
   return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(date);
-}
-
-/** Bloc de date à gauche de chaque ligne, comme `.live-date` de la maquette. */
-function DateBlock({ top, bottom }: { top: string; bottom: string }) {
-  return (
-    <span
-      className="grid size-[52px] shrink-0 place-items-center rounded-nk-sm border border-line bg-paper leading-none"
-      aria-hidden="true"
-    >
-      <b className="font-display text-[19px] font-extrabold">{top}</b>
-      <small className="text-[11px] font-semibold uppercase text-ink-3">{bottom}</small>
-    </span>
-  );
 }
 
 /** Ce qu'un jour du calendrier porte — un jour peut porter les trois. */
@@ -312,8 +286,6 @@ export function AgendaPane({
     return longDay(new Date(y, m, d));
   }, [activeDay]);
 
-  const rowClass = "flex flex-wrap items-center gap-4 rounded-nk border border-line bg-card px-4 py-3.5";
-
   return (
     <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0">
@@ -384,42 +356,7 @@ export function AgendaPane({
               />
             ) : (
               shown.sessions.map((session) => (
-                <article key={session.id} className={rowClass}>
-                  <DateBlock top={dayNumber(session.startsAt)} bottom={shortDay(session.startsAt)} />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold">
-                      {session.title}
-                      {session.live ? <StPill tone="bad">En direct</StPill> : null}
-                      {session.mine ? <StPill tone="ok">J&apos;anime</StPill> : null}
-                    </h3>
-                    <p className="mt-0.5 truncate text-[13px] text-ink-2">
-                      {session.community.name} ·{" "}
-                      {/* Côté animateur, le chiffre utile est le nombre
-                          d'inscrits ; côté participant, c'est qui anime. */}
-                      {session.mine
-                        ? `${fmtNumber(session.attendees)} inscrit${session.attendees > 1 ? "s" : ""}`
-                        : session.host.name}{" "}
-                      · {timeLabel(session.startsAt)} · {session.durationMinutes} min
-                    </p>
-                  </div>
-                  {session.mine ? (
-                    <BtnLink
-                      href={`/formateur/lives/${session.id}/console`}
-                      variant={session.live ? "p" : "o"}
-                      size="sm"
-                    >
-                      {session.live ? "Ouvrir la console" : "Préparer"}
-                    </BtnLink>
-                  ) : (
-                    <BtnLink
-                      href={`/mes-lives/live/${session.id}`}
-                      variant={session.live ? "p" : "o"}
-                      size="sm"
-                    >
-                      {session.live ? "Rejoindre" : "Voir"}
-                    </BtnLink>
-                  )}
-                </article>
+                <LiveSessionRow key={session.id} session={session} />
               ))
             )
           ) : shown.replays.length === 0 ? (
@@ -435,22 +372,7 @@ export function AgendaPane({
               }
             />
           ) : (
-            shown.replays.map((replay) => (
-              <article key={replay.id} className={rowClass}>
-                <DateBlock top={dayNumber(replay.recordedAt)} bottom={shortMonth(replay.recordedAt)} />
-                <div className="min-w-0 flex-1">
-                  <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold">
-                    {replay.title}
-                    {replay.mine ? <StPill tone="ok">Ma séance</StPill> : null}
-                  </h3>
-                  <p className="mt-0.5 truncate text-[13px] text-ink-2">
-                    {replay.community.name} · {replay.host.name} ·{" "}
-                    {fmtDuration(replay.durationSeconds)}
-                  </p>
-                </div>
-                <BtnLink href={`/mes-lives/replay/${replay.id}`} size="sm">Regarder</BtnLink>
-              </article>
-            ))
+            shown.replays.map((replay) => <ReplayRow key={replay.id} replay={replay} />)
           )}
         </div>
       </div>
