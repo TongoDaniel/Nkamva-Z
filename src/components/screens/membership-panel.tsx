@@ -17,22 +17,34 @@ export interface MembershipState {
 }
 
 /**
- * Le pavé d'adhésion de la fiche publique. Il remplace le renvoi vers le
- * support qui tenait lieu de tunnel : le bouton mène désormais quelque part.
+ * Le pavé d'adhésion. Il remplace le renvoi vers le support qui tenait lieu de
+ * tunnel : le bouton mène désormais quelque part.
  *
  * Trois gestes seulement — rejoindre, résilier, se raviser. Le paiement lui-même
  * vit dans `/adhesion/[slug]`, comme l'achat vit dans `/achat/[slug]`.
+ *
+ * Deux écrans le rendent : la fiche publique, où il sert d'abord à rejoindre, et
+ * le salon du membre, où il ne sert qu'à gérer ce qui est déjà en cours. Le
+ * membre y arrivait auparavant par un lien qui le renvoyait sur la fiche
+ * publique — on quittait son espace, pour aboutir sur la page qui vend
+ * l'adhésion, afin de la résilier.
  */
 export function MembershipPanel({
   slug,
   priceFcfa,
   isOwner,
   membership,
+  inCommunity = false,
 }: {
   slug: string;
   priceFcfa: number;
   isOwner: boolean;
   membership: MembershipState | null;
+  /**
+   * Rendu depuis le salon de la communauté : « Entrer dans la communauté »
+   * disparaît, puisque c'est la page sur laquelle on se trouve.
+   */
+  inCommunity?: boolean;
 }) {
   const action = useKeyedAction();
 
@@ -110,7 +122,11 @@ export function MembershipPanel({
 
   return (
     <div className="mt-4 grid gap-3">
-      <BtnLink href={`/mes-communautes/${slug}`} size="lg" block>Entrer dans la communauté</BtnLink>
+      {inCommunity ? null : (
+        <BtnLink href={`/mes-communautes/${slug}`} size="lg" block>
+          Entrer dans la communauté
+        </BtnLink>
+      )}
       <p className="flex items-start gap-2.5 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
         {membership.status === "BANNED" ? (
           <>

@@ -2,17 +2,20 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CornerDownRight, MessageSquareOff, Pin, Trash2 } from "lucide-react";
+import { CornerDownRight, Library, MessageSquareOff, Pin, Radio, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Tabs } from "@/components/nk/tabs";
 import { Chip } from "@/components/nk/chip";
 import { Avatar } from "@/components/nk/avatar";
 import { EmptyState } from "@/components/nk/empty-state";
+import { LiveSessionRow, ReplayRow } from "@/components/nk/live-row";
 import { ReportButton } from "@/components/nk/report-button";
+import { ScheduleLive } from "@/components/screens/schedule-live";
 import { useAction, useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
 import { fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { AgendaSession, ReplayView } from "@/lib/lives";
 
 const MAX_LENGTH = 5000;
 
@@ -46,10 +49,21 @@ export interface FeedPost {
 }
 
 /**
- * Les deux salons de l'espace membre. Le formateur parle dans les annonces, les
+ * Les salons de l'espace membre. Le formateur parle dans les annonces, les
  * membres se répondent dans le forum — et tout le monde peut réagir sous une
  * annonce, y compris forum fermé : le salon désactivé est celui des discussions
  * entre membres, pas le droit de répondre à l'animateur.
+ *
+ * Les ressources incluses sont le troisième salon, et non un pavé de la colonne
+ * latérale : une communauté peut en réunir autant qu'elle veut, alors que le
+ * panneau n'en montrait que trois et renvoyait le reste vers `/mes-ressources`,
+ * où elles se perdaient parmi tous les achats. Sous forme d'onglet, elles sont
+ * toutes là, comptées comme les annonces.
+ *
+ * Les sessions sont le quatrième. Le panneau latéral qu'elles remplacent
+ * annonçait « pas encore ouvertes » en dur, phrase écrite avant la livraison des
+ * lives et devenue fausse depuis : depuis ce salon, on voit maintenant les
+ * séances de **cette** communauté et ses replays, et non l'agenda de toutes.
  *
  * Rien n'est optimiste ici, à la différence du cœur des favoris : un message
  * qui apparaît puis disparaît parce que le serveur l'a refusé serait pire que
@@ -57,42 +71,79 @@ export interface FeedPost {
  */
 export function CommunityFeed({
   slug,
+  community,
   canSpeak,
   mutedReason,
   isTrainer,
   forumEnabled,
   broadcastEnabled,
+  resourcesEnabled,
+  eventsEnabled,
   announcements,
   discussions,
+  resources,
+  resourcesCount,
+  sessions,
+  replays,
 }: {
   slug: string;
+  /** Identité de la communauté, que le salon des sessions passe au formulaire. */
+  community: { id: string; name: string };
   canSpeak: boolean;
   mutedReason: "BANNED" | "RESTRICTED" | null;
   isTrainer: boolean;
   forumEnabled: boolean;
   broadcastEnabled: boolean;
+  resourcesEnabled: boolean;
+  eventsEnabled: boolean;
   announcements: FeedPost[];
   discussions: FeedPost[];
+  /**
+   * La grille des ressources, rendue par la page. Un nœud et non les données :
+   * `ResourceCard` lit des objets Prisma que la frontière client ne sait pas
+   * sérialiser telle quelle.
+   */
+  resources: React.ReactNode;
+  resourcesCount: number;
+  /** Séances à venir et en cours de cette communauté. Vide si `eventsEnabled` est faux. */
+  sessions: AgendaSession[];
+  replays: ReplayView[];
 }) {
   const router = useRouter();
   const salons = [
     broadcastEnabled && { value: "ANNOUNCEMENT", label: "Annonces", count: announcements.length },
     forumEnabled && { value: "DISCUSSION", label: "Fil de discussion", count: discussions.length },
+    resourcesEnabled && {
+      value: "RESOURCES",
+      label: "Ressources incluses",
+      count: resourcesCount,
+    },
+    // Le compteur ne porte que les séances à venir : un replay n'est pas une
+    // échéance, et le faire gonfler la pastille annoncerait un rendez-vous
+    // là où il n'y a qu'une archive.
+    eventsEnabled && { value: "SESSIONS", label: "Sessions", count: sessions.length },
   ].filter(Boolean) as Array<{ value: string; label: string; count: number }>;
 
   const [salon, setSalon] = React.useState(salons[0]?.value ?? "DISCUSSION");
   const posts = salon === "ANNOUNCEMENT" ? announcements : discussions;
 
   // Écrire un billet n'est ouvert que là où le salon l'autorise : une annonce
-  // appartient à l'animateur, une discussion à tout membre qui a la parole.
-  const canPost = canSpeak && (salon === "ANNOUNCEMENT" ? isTrainer && broadcastEnabled : forumEnabled);
+  // appartient à l'animateur, une discussion à tout membre qui a la parole. Les
+  // ressources ne se composent pas ici : elles se rattachent depuis la console.
+  const canPost =
+    canSpeak &&
+    (salon === "RESOURCES" || salon === "SESSIONS"
+      ? false
+      : salon === "ANNOUNCEMENT"
+        ? isTrainer && broadcastEnabled
+        : forumEnabled);
 
   if (salons.length === 0) {
     return (
       <EmptyState
         icon={<MessageSquareOff />}
         title="Aucun salon ouvert"
-        description="L'animateur de cette communauté n'a activé ni les annonces ni le fil de discussion."
+        description="L'animateur de cette communauté n'a ouvert ni les annonces, ni le fil de discussion, ni les ressources partagées, ni les sessions en direct."
       />
     );
   }
@@ -110,55 +161,151 @@ export function CommunityFeed({
       ) : null}
 
       <div id="salon-panel" className="mt-5 grid gap-4">
-        {mutedReason ? (
-          <p className="flex items-start gap-2.5 rounded-nk border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
-            <MessageSquareOff className="mt-0.5 size-4 shrink-0 text-ink-3" aria-hidden="true" />
-            <span>
-              {mutedReason === "BANNED" ? (
-                <>
-                  <b className="text-ink">Vous ne prenez plus la parole ici.</b> Vous continuez
-                  de lire la communauté et d&apos;accéder à ses ressources.
-                </>
-              ) : (
-                <>
-                  <b className="text-ink">Votre compte est restreint.</b> Vous conservez
-                  l&apos;accès en lecture, l&apos;écriture est suspendue.
-                </>
-              )}
-            </span>
-          </p>
-        ) : null}
-
-        {canPost ? (
-          <Composer
-            slug={slug}
-            kind={salon as "ANNOUNCEMENT" | "DISCUSSION"}
+        {salon === "SESSIONS" ? (
+          <SessionsSalon
+            sessions={sessions}
+            replays={replays}
+            isTrainer={isTrainer}
+            community={community}
           />
-        ) : null}
-
-        {posts.length === 0 ? (
-          <EmptyState
-            icon={<MessageSquareOff />}
-            title={salon === "ANNOUNCEMENT" ? "Aucune annonce" : "Le fil est vide"}
-            description={
-              salon === "ANNOUNCEMENT"
-                ? "L'animateur n'a encore rien annoncé."
-                : "Personne n'a encore lancé de discussion. Ce peut être vous."
-            }
-          />
-        ) : (
-          posts.map((post) => (
-            <PostCard
-              key={post.id}
-              slug={slug}
-              post={post}
-              canSpeak={canSpeak}
-              isTrainer={isTrainer}
+        ) : salon === "RESOURCES" ? (
+          resourcesCount > 0 ? (
+            resources
+          ) : (
+            <EmptyState
+              icon={<Library />}
+              title="Aucune ressource incluse"
+              description={
+                isTrainer
+                  ? "Rattachez vos ressources à cette communauté depuis la console d'animation : vos membres les retrouveront ici."
+                  : "L'animateur n'a encore rattaché aucune ressource à cette communauté."
+              }
             />
-          ))
+          )
+        ) : (
+          <>
+            {mutedReason ? (
+              <p className="flex items-start gap-2.5 rounded-nk border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+                <MessageSquareOff className="mt-0.5 size-4 shrink-0 text-ink-3" aria-hidden="true" />
+                <span>
+                  {mutedReason === "BANNED" ? (
+                    <>
+                      <b className="text-ink">Vous ne prenez plus la parole ici.</b> Vous continuez
+                      de lire la communauté et d&apos;accéder à ses ressources.
+                    </>
+                  ) : (
+                    <>
+                      <b className="text-ink">Votre compte est restreint.</b> Vous conservez
+                      l&apos;accès en lecture, l&apos;écriture est suspendue.
+                    </>
+                  )}
+                </span>
+              </p>
+            ) : null}
+
+            {canPost ? (
+              <Composer
+                slug={slug}
+                kind={salon as "ANNOUNCEMENT" | "DISCUSSION"}
+              />
+            ) : null}
+
+            {posts.length === 0 ? (
+              <EmptyState
+                icon={<MessageSquareOff />}
+                title={salon === "ANNOUNCEMENT" ? "Aucune annonce" : "Le fil est vide"}
+                description={
+                  salon === "ANNOUNCEMENT"
+                    ? "L'animateur n'a encore rien annoncé."
+                    : "Personne n'a encore lancé de discussion. Ce peut être vous."
+                }
+              />
+            ) : (
+              posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  slug={slug}
+                  post={post}
+                  canSpeak={canSpeak}
+                  isTrainer={isTrainer}
+                />
+              ))
+            )}
+          </>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Le salon des sessions : ce qui vient, puis ce qui reste des séances passées.
+ *
+ * Les deux listes cohabitent sans onglet interne, à la différence de
+ * `/mes-lives` : ici elles portent sur une seule communauté, elles tiennent donc
+ * à l'écran — et un onglet dans un onglet aurait caché les replays derrière deux
+ * clics.
+ *
+ * L'animateur programme sur place, avec le formulaire de l'agenda et non une
+ * copie : `ScheduleLive` sait se rendre sans son sélecteur de communauté quand
+ * la page en désigne déjà une. Il rafraîchit le rendu serveur en réussissant —
+ * la séance apparaît donc dans la liste au moment où la modale se ferme, et non
+ * après un aller-retour manuel.
+ */
+function SessionsSalon({
+  sessions,
+  replays,
+  isTrainer,
+  community,
+}: {
+  sessions: AgendaSession[];
+  replays: ReplayView[];
+  isTrainer: boolean;
+  community: { id: string; name: string };
+}) {
+  if (sessions.length === 0 && replays.length === 0) {
+    return (
+      <EmptyState
+        icon={<Radio />}
+        title="Aucune session pour l'instant"
+        description={
+          isTrainer
+            ? "Les séances que vous programmez pour cette communauté s'afficheront ici, et leurs enregistrements à leur suite."
+            : "Quand l'animateur programmera une séance, elle apparaîtra ici — et son replay y restera ensuite."
+        }
+        action={isTrainer ? <ScheduleLive communities={[community]} inCommunity /> : null}
+      />
+    );
+  }
+
+  const heading = "text-[13px] font-extrabold uppercase tracking-wide text-ink-3";
+
+  return (
+    <>
+      {isTrainer ? (
+        <div className="flex justify-end">
+          <ScheduleLive communities={[community]} inCommunity />
+        </div>
+      ) : null}
+
+      {sessions.length > 0 ? (
+        <section className="grid gap-2.5">
+          <h3 className={heading}>À venir</h3>
+          {sessions.map((session) => (
+            <LiveSessionRow key={session.id} session={session} showCommunity={false} />
+          ))}
+        </section>
+      ) : null}
+
+      {replays.length > 0 ? (
+        <section className="grid gap-2.5">
+          <h3 className={heading}>Replays</h3>
+          {replays.map((replay) => (
+            <ReplayRow key={replay.id} replay={replay} showCommunity={false} />
+          ))}
+        </section>
+      ) : null}
+    </>
   );
 }
 

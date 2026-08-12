@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Library, Lock, Radio } from "lucide-react";
+import { CreditCard, Lock } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { getAuthContext } from "@/lib/api";
 import { getCommunitySpace } from "@/lib/community-space";
 import { getPublicCommunity } from "@/lib/communities";
+import { listCommunityLives } from "@/lib/lives";
+import { getMembership } from "@/lib/memberships";
+import { MembershipPanel } from "@/components/screens/membership-panel";
+import { fmtFcfa } from "@/lib/format";
 import { CommunityFeed } from "./community-feed";
 import { OpenConversation } from "./open-conversation";
 import { routesOf } from "@/lib/spaces";
@@ -56,6 +60,21 @@ export default async function EspaceCommunautePage({
   const included = space.resourcesEnabled
     ? await getPublicCommunity(slug, auth.user.id)
     : null;
+  const includedCourses = included?.courses ?? [];
+
+  // Les séances de cette communauté-là. `/mes-lives` continue de les réunir
+  // toutes : ce salon ne remplace pas l'agenda, il évite d'y renvoyer pour
+  // savoir si l'animateur a programmé quelque chose.
+  const lives = space.eventsEnabled
+    ? await listCommunityLives(space.communityId, space.isTrainer)
+    : { sessions: [], replays: [] };
+
+  // L'adhésion du lecteur, gérée sur place. L'animateur n'en a pas : il n'adhère
+  // pas à sa propre communauté (voir `initiateMembershipPayment`), et la lecture
+  // lui rendrait `null` de toute façon.
+  const membership = space.isTrainer
+    ? null
+    : await getMembership(space.communityId, auth.user.id);
 
   return (
     <div className="nk-wrap pb-16">
@@ -75,46 +94,63 @@ export default async function EspaceCommunautePage({
       <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1fr_320px]">
         <CommunityFeed
           slug={slug}
+          community={{ id: space.communityId, name: space.name }}
           canSpeak={space.canSpeak}
           mutedReason={space.mutedReason}
           isTrainer={space.isTrainer}
           forumEnabled={space.forumEnabled}
           broadcastEnabled={space.broadcastEnabled}
+          resourcesEnabled={space.resourcesEnabled}
+          eventsEnabled={space.eventsEnabled}
           announcements={space.announcements}
           discussions={space.discussions}
+          sessions={lives.sessions}
+          replays={lives.replays}
+          resourcesCount={includedCourses.length}
+          // La grille part d'ici : `ResourceCard` reste un composant serveur, et
+          // les objets qu'il lit ne franchiraient pas la frontière client.
+          resources={
+            <div className="grid gap-[18px] sm:grid-cols-2">
+              {includedCourses.map((course) => (
+                <ResourceCard key={course.id} course={course} space="app" />
+              ))}
+            </div>
+          }
         />
 
         <aside className="grid gap-5 lg:sticky lg:top-[86px]">
-          {included && included.courses.length > 0 ? (
-            <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
-              <h2 className="flex items-center gap-2 text-[15px] font-extrabold">
-                <Library className="size-4 text-brand" aria-hidden="true" />
-                Ressources incluses
-              </h2>
-              <div className="mt-4 grid gap-4">
-                {included.courses.slice(0, 3).map((course) => (
-                  <ResourceCard key={course.id} course={course} space="app" />
-                ))}
-              </div>
-              {included.courses.length > 3 ? (
-                <BtnLink href="/mes-ressources" variant="o" size="sm" block className="mt-4">
-                    Voir les {included.courses.length} ressources
-                </BtnLink>
-              ) : null}
-            </section>
-          ) : null}
+          {/* Le pavé « Sessions live » vivait ici, avec une phrase en dur qui
+              annonçait des directs « pas encore ouverts ». Le transport temps
+              réel est livré depuis : les séances sont un salon du fil, à côté des
+              annonces, et non une note dans la marge. */}
 
-          {space.eventsEnabled ? (
+          {/* Résilier, se raviser, régler une échéance : sur place. Le bouton
+              « Gérer mon adhésion » qui vivait plus bas renvoyait sur la fiche
+              publique — on quittait son espace pour aboutir sur la page qui vend
+              l'adhésion, afin de la résilier. Le formateur n'a pas ce pavé : il
+              n'adhère pas à sa propre communauté. */}
+          {membership ? (
             <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
               <h2 className="flex items-center gap-2 text-[15px] font-extrabold">
-                <Radio className="size-4 text-brand" aria-hidden="true" />
-                Sessions live
+                <CreditCard className="size-4 text-brand" aria-hidden="true" />
+                Mon adhésion
               </h2>
-              {/* Les lives attendent le choix d'un transport temps réel : mieux
-                  vaut le dire que d'afficher un agenda qui ne se remplira pas. */}
-              <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-                Les sessions en direct de cette communauté ne sont pas encore ouvertes.
+              <p className="mt-1 text-[13px] text-ink-3">
+                {fmtFcfa(space.priceFcfa)} / mois · résiliable à tout moment
               </p>
+              <MembershipPanel
+                slug={slug}
+                priceFcfa={space.priceFcfa}
+                isOwner={false}
+                inCommunity
+                membership={{
+                  status: membership.status,
+                  periodEnd: membership.periodEnd.toISOString(),
+                  canceledAt: membership.canceledAt?.toISOString() ?? null,
+                  dueAmountFcfa: membership.dueAmountFcfa,
+                  gracePeriodEndsAt: membership.gracePeriodEndsAt?.toISOString() ?? null,
+                }}
+              />
             </section>
           ) : null}
 
@@ -150,8 +186,11 @@ export default async function EspaceCommunautePage({
                   {/* Le formateur n'ouvre pas de fil avec lui-même : côté animateur,
                       une conversation naît toujours de celle d'un membre. */}
                   {space.messagingEnabled ? <OpenConversation slug={slug} /> : null}
-                  <BtnLink href={routes.community(slug)} variant="o" size="sm" block>
-                    Gérer mon adhésion
+                  {/* La fiche publique reste atteignable — elle porte la
+                      présentation, les règles et le formateur — mais elle n'est
+                      plus le passage obligé pour résilier. */}
+                  <BtnLink href={routes.community(slug)} variant="t" size="sm" block>
+                    Voir la fiche publique
                   </BtnLink>
                 </div>
               </>

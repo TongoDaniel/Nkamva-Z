@@ -8,7 +8,9 @@ import { db } from "@/lib/db";
 import { listAgenda, listMyReplays, REPLAY_RETENTION_MONTHS } from "@/lib/lives";
 import { fmtNumber } from "@/lib/format";
 import { AgendaPane } from "./agenda-pane";
-import { ScheduleLive } from "./schedule-live";
+// Partagé avec le salon « Sessions » d'une communauté, d'où sa place hors de
+// cette route.
+import { ScheduleLive } from "@/components/screens/schedule-live";
 import { routesOf } from "@/lib/spaces";
 
 /** Espace connecté : les liens de navigation restent dans la coquille applicative. */

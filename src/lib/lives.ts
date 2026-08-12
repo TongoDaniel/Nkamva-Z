@@ -932,6 +932,46 @@ export async function listMyReplays(userId: string): Promise<ReplayView[]> {
     .map((r) => toReplay(r, ownIds.has(r.communityId)))
 }
 
+/**
+ * L'agenda d'une seule communauté — le salon « Sessions » de son espace membre.
+ *
+ * Aucun filtre d'accès sur les replays, et c'est délibéré : l'appelant est
+ * `getCommunitySpace`, qui a déjà refusé l'entrée à qui n'est ni membre ni
+ * animateur. Or `hasReplayAccess` accorde tout à un membre en cours — y compris
+ * `PAST_DUE` et `BANNED`, les trois statuts ouverts. Qui voit cette page a donc
+ * droit à tous ses replays, sans exception à filtrer ici. Le filtre par période
+ * d'adhésion (arbitrages 34 et 44) ne concerne que les **anciens** membres, qui
+ * passent par `/mes-lives` puisque ce salon leur est fermé.
+ *
+ * `isHost` porte le drapeau `mine` des deux listes : dans une communauté, on
+ * anime tout ou on ne suit que — il n'y a pas de cas mixte à distinguer ligne
+ * par ligne comme dans l'agenda global.
+ */
+export async function listCommunityLives(
+  communityId: string,
+  isHost: boolean,
+): Promise<{ sessions: AgendaSession[]; replays: ReplayView[] }> {
+  const [sessions, replays] = await Promise.all([
+    db.liveSession.findMany({
+      where: { communityId, status: { in: ['SCHEDULED', 'LIVE'] } },
+      orderBy: { scheduledStartAt: 'asc' },
+      take: 50,
+      select: AGENDA_SELECT,
+    }),
+    db.replay.findMany({
+      where: { communityId, purgedAt: null },
+      orderBy: { recordedAt: 'desc' },
+      take: 50,
+      select: REPLAY_SELECT,
+    }),
+  ])
+
+  return {
+    sessions: sessions.map((s) => toAgenda(s, isHost)),
+    replays: replays.map((r) => toReplay(r, isHost)),
+  }
+}
+
 export async function getReplay(replayId: string, userId: string): Promise<ReplayView> {
   const replay = await db.replay.findFirst({
     where: { id: replayId, purgedAt: null },
