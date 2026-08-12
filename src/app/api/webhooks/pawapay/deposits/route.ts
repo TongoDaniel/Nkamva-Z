@@ -9,6 +9,7 @@ import { creditWalletOnPurchase } from '@/lib/wallet'
 import { issueInvoiceQuietly } from '@/lib/invoices'
 import { acknowledge, readSignedCallback } from '@/lib/pawapay-callbacks'
 import { failActivationPayment, settleActivationPayment } from '@/lib/trainer-activation'
+import { failSubscriptionPayment, settleSubscriptionPayment } from '@/lib/subscription-payment'
 
 export async function POST(request: Request) {
   const read = await readSignedCallback(request, 'DEPOSIT')
@@ -29,6 +30,11 @@ export async function POST(request: Request) {
       // chemin ne reconnaît que ses propres lignes et laisse passer les autres.
       const activation = await settleActivationPayment(depositId, 'PAWAPAY')
       if (activation.settled) break
+
+      // Troisième sujet depuis l'arbitrage 11 : le règlement d'une échéance
+      // d'abonnement par un formateur déjà installé.
+      const subscription = await settleSubscriptionPayment(depositId, 'PAWAPAY')
+      if (subscription.settled) break
 
       const credit = await db.$transaction((tx) => creditWalletOnPurchase(tx, depositId, 'PAWAPAY'))
       // La facture s'émet après le commit, et son échec ne remonte pas au
@@ -61,6 +67,12 @@ export async function POST(request: Request) {
         })
         break
       }
+
+      // Même raison pour l'échéance d'abonnement : sans ce chemin, la tentative
+      // resterait PENDING et le garde-fou « une seule tentative en cours »
+      // interdirait au formateur de réessayer. Un refus d'opérateur le
+      // laisserait en impayé jusqu'à la suspension, sans recours.
+      if (await failSubscriptionPayment(depositId, failureCode)) break
 
       const failed = await db.purchase.updateMany({
         where: { providerTransactionId: depositId, providerStatus: 'PENDING' },

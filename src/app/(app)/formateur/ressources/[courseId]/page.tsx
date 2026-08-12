@@ -130,6 +130,7 @@ export default async function EditCoursePage({
                 currentKey={course.contentS3Key}
                 currentSizeBytes={course.contentSizeBytes === null ? null : Number(course.contentSizeBytes)}
                 remainingBytes={storage.remainingBytes}
+                sold={course.obligationAt !== null}
               />
             </div>
           </section>

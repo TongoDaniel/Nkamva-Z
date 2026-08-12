@@ -78,7 +78,7 @@ export interface MobileMoneyPayer {
  */
 export interface PaymentSubject {
   /** Sert au journal d'audit et aux métadonnées transmises au fournisseur. */
-  kind: 'PURCHASE' | 'TRAINER_ACTIVATION'
+  kind: 'PURCHASE' | 'TRAINER_ACTIVATION' | 'SUBSCRIPTION_CHARGE'
   /** Identifiant de la ligne à régler, côté NkamVa. */
   id: string
   /** Où Stripe ramène le payeur — succès comme abandon. */
@@ -129,7 +129,9 @@ export interface OpenPaymentParams {
 
 /** Le `targetType` du journal, selon ce qui est payé. */
 function subjectTargetType(kind: PaymentSubject['kind']): string {
-  return kind === 'PURCHASE' ? 'Purchase' : 'TrainerActivationPayment'
+  if (kind === 'PURCHASE') return 'Purchase'
+  if (kind === 'SUBSCRIPTION_CHARGE') return 'SubscriptionPayment'
+  return 'TrainerActivationPayment'
 }
 
 /**
@@ -138,7 +140,9 @@ function subjectTargetType(kind: PaymentSubject['kind']): string {
  * bord du support, et le renommer les aveuglerait sur l'historique.
  */
 function subjectMetadataKey(kind: PaymentSubject['kind']): string {
-  return kind === 'PURCHASE' ? 'purchaseId' : 'activationPaymentId'
+  if (kind === 'PURCHASE') return 'purchaseId'
+  if (kind === 'SUBSCRIPTION_CHARGE') return 'subscriptionPaymentId'
+  return 'activationPaymentId'
 }
 
 export interface OpenPaymentResult {

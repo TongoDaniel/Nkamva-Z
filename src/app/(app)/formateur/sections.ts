@@ -18,7 +18,7 @@ export interface TrainerSection {
 }
 
 /**
- * Les cinq écrans qui ont quitté la barre de navigation principale. La racine
+ * Les six écrans qui ont quitté la barre de navigation principale. La racine
  * `/formateur` n'y figure pas : elle est le point d'entrée, pas une section.
  */
 export const TRAINER_SECTIONS: TrainerSection[] = [
@@ -46,6 +46,11 @@ export const TRAINER_SECTIONS: TrainerSection[] = [
     href: "/formateur/portefeuille",
     label: "Portefeuille",
     description: "Votre solde, vos retraits, votre stockage et votre score de confiance.",
+  },
+  {
+    href: "/formateur/abonnement",
+    label: "Mon abonnement",
+    description: "Votre formule, vos échéances, vos règlements et votre résiliation.",
   },
   {
     href: "/formateur/litiges",

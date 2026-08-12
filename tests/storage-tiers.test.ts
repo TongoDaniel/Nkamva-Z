@@ -187,4 +187,103 @@ describe('Extension de stockage', () => {
     await expect(setTrainerStorageTiers(trainer.id, user.id, -1)).rejects.toThrow('INVALID_AMOUNT')
     await expect(setTrainerStorageTiers(trainer.id, user.id, 1.5)).rejects.toThrow('INVALID_AMOUNT')
   })
+
+  // =========================================================================
+  // Ce que le quota ne compte plus — arbitrages 13 et 17
+  // =========================================================================
+  // Ce qu'un formateur ne peut pas effacer ne lui est pas compté. C'est ce qui
+  // dénoue le verrou du test « réduire en dessous de ce qui est stocké est
+  // refusé » plus haut : il restait vrai même quand l'espace était occupé par
+  // du contenu vendu, que le formateur n'avait pas le droit de supprimer.
+
+  /** Un replay, avec sa communauté — payante ou gratuite. */
+  async function replay(
+    trainerId: string,
+    opts: { bytes: number | null; priceFcfa: number; slug: string; purged?: boolean },
+  ) {
+    const community = await prisma.community.create({
+      data: {
+        trainerId, name: 'Salon', slug: opts.slug,
+        priceFcfa: opts.priceFcfa, commissionRate: 0.15,
+      },
+    })
+    const session = await prisma.liveSession.create({
+      data: {
+        communityId: community.id, trainerId, title: 'Direct',
+        scheduledStartAt: new Date(), status: 'ENDED',
+        roomName: `room-${opts.slug}`,
+      },
+    })
+    const recordedAt = new Date()
+    return prisma.replay.create({
+      data: {
+        sessionId: session.id, communityId: community.id, trainerId,
+        title: 'Direct', recordedAt,
+        // Arbitrage 51 — 24 mois après la date du live, pas après la mise en
+        // ligne de l'enregistrement.
+        purgeAt: new Date(recordedAt.getTime() + 730 * 86_400_000),
+        sizeBytes: opts.bytes === null ? null : BigInt(opts.bytes),
+        purgedAt: opts.purged ? new Date() : null,
+      },
+    })
+  }
+
+  it('une ressource vendue ne compte plus dans le quota', async () => {
+    const { trainer } = await setup()
+    const c = await fill(trainer.id, 60 * GB)
+    expect(await trainerStorage(trainer.id).then((s) => s.usedBytes)).toBe(60 * GB)
+
+    await prisma.course.update({
+      where: { id: c.id }, data: { obligationAt: new Date() },
+    })
+
+    expect(await trainerStorage(trainer.id).then((s) => s.usedBytes)).toBe(0)
+  })
+
+  it('le palier redevient réductible une fois la ressource vendue', async () => {
+    const { trainer, user } = await setup()
+    await setTrainerStorageTiers(trainer.id, user.id, 1)
+    const c = await fill(trainer.id, 60 * GB)
+    // Le verrou, tel qu'il se présentait avant l'arbitrage 13.
+    await expect(setTrainerStorageTiers(trainer.id, user.id, 0)).rejects.toThrow('STORAGE_IN_USE')
+
+    await prisma.course.update({
+      where: { id: c.id }, data: { obligationAt: new Date() },
+    })
+
+    // Il n'a toujours pas le droit d'effacer cette ressource — mais il ne la
+    // paie plus, et il peut redescendre.
+    expect((await setTrainerStorageTiers(trainer.id, user.id, 0)).tiers).toBe(0)
+    expect((await getTrainerStorage(trainer.id)).minimumTiers).toBe(0)
+  })
+
+  it("le replay d'une communauté payante ne compte pas, celui d'une gratuite si", async () => {
+    const { trainer } = await setup()
+    await replay(trainer.id, { bytes: 10 * GB, priceFcfa: 2_000, slug: 'payante' })
+    await replay(trainer.id, { bytes: 3 * GB, priceFcfa: 0, slug: 'gratuite' })
+
+    expect(await trainerStorage(trainer.id).then((s) => s.usedBytes)).toBe(3 * GB)
+  })
+
+  it('un replay purgé ou hébergé chez Mux ne compte pas davantage', async () => {
+    const { trainer } = await setup()
+    await replay(trainer.id, { bytes: 8 * GB, priceFcfa: 0, slug: 'purgee', purged: true })
+    // Chez Mux, `sizeBytes` est nul à dessein : l'octet n'est pas chez nous.
+    await replay(trainer.id, { bytes: null, priceFcfa: 0, slug: 'mux' })
+
+    expect(await trainerStorage(trainer.id).then((s) => s.usedBytes)).toBe(0)
+  })
+
+  it('la bannière de communauté reste comptée, payante ou non', async () => {
+    const { trainer } = await setup()
+    await prisma.community.create({
+      data: {
+        trainerId: trainer.id, name: 'Salon', slug: 'banniere',
+        priceFcfa: 5_000, commissionRate: 0.15, coverSizeBytes: BigInt(2 * GB),
+      },
+    })
+
+    // Elle, il peut la remplacer : rien ne l'oblige à la conserver.
+    expect(await trainerStorage(trainer.id).then((s) => s.usedBytes)).toBe(2 * GB)
+  })
 })

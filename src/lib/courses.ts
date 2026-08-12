@@ -4,7 +4,7 @@
 
 import { db } from './db'
 import { auditStandalone } from './audit'
-import { presignUpload, headObject, validateMagicNumber } from './s3'
+import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
 import { canTrainerWrite } from './subscriptions'
 import type { PrismaTransaction } from './types'
 
@@ -64,10 +64,24 @@ export const STORAGE_TIER_BYTES = 50 * 1024 ** 3
  * Octets déjà occupés par un formateur. Somme les tailles réellement
  * enregistrées à la confirmation, jamais celles annoncées par le client.
  *
- * **Les replays y entrent** (arbitrage 54) : un live en produit un
- * automatiquement (arbitrage 38), un formateur peut donc épuiser son quota sans
- * avoir rien téléversé lui-même. Un replay purgé au bout de 24 mois
- * (arbitrage 51) lui rend la place — d'où le filtre sur `purgedAt`.
+ * **Ce qu'il ne peut pas effacer ne lui est pas compté** (arbitrage 13). Deux
+ * catégories en sortent, pour la même raison :
+ *
+ * - les ressources **sous obligation**, c'est-à-dire déjà achetées par
+ *   quelqu'un : les supprimer couperait l'accès d'un acheteur, ce que l'achat
+ *   définitif interdit. Sans cette exclusion, un formateur restait enfermé dans
+ *   un palier payant qu'aucune action de sa part ne pouvait libérer ;
+ * - les replays d'une **communauté payante** (arbitrage 17) : des membres ont
+ *   payé pour y accéder, et la décision 51 le promet sur 24 mois. Le replay
+ *   d'une communauté gratuite, lui, reste compté — personne n'a rien payé pour
+ *   celui-là.
+ *
+ * **Les replays comptent donc encore**, mais plus tous (arbitrage 54 amendé) :
+ * un live en produit un automatiquement (arbitrage 38), et un formateur peut
+ * toujours épuiser son quota sans avoir rien téléversé lui-même. Un replay purgé
+ * au bout de 24 mois (arbitrage 51) lui rend la place — d'où le filtre sur
+ * `purgedAt`. Ceux hébergés chez Mux n'ont jamais compté : leur `sizeBytes` est
+ * nul à dessein.
  *
  * **La bannière de communauté aussi** : c'est un objet déposé sur R2 par le
  * même formateur, il pèse sur le même quota que la couverture d'un cours.
@@ -75,11 +89,20 @@ export const STORAGE_TIER_BYTES = 50 * 1024 ** 3
 export async function trainerStorageUsedBytes(trainerId: string): Promise<number> {
   const [courses, replays, communities] = await Promise.all([
     db.course.aggregate({
-      where: { trainerId },
+      where: { trainerId, obligationAt: null },
       _sum: { contentSizeBytes: true, coverSizeBytes: true },
     }),
     db.replay.aggregate({
-      where: { trainerId, purgedAt: null },
+      where: {
+        trainerId,
+        purgedAt: null,
+        // `priceFcfa: 0` et non `{ gt: 0 }` inversé : une communauté gratuite
+        // n'engage rien envers personne, son replay reste à la charge du
+        // formateur. La condition porte sur le prix **actuel** de la
+        // communauté — une communauté qui devient payante fait sortir ses
+        // replays du quota au renouvellement suivant, comme le reste.
+        community: { priceFcfa: 0 },
+      },
       _sum: { sizeBytes: true },
     }),
     db.community.aggregate({
@@ -258,6 +281,64 @@ export async function archiveCourse(courseId: string, trainerId: string, userId:
     where: { id: courseId },
     data: { status: 'archived' },
   })
+}
+
+/**
+ * Supprime le **contenu** d'une ressource — arbitrage 18.
+ *
+ * Ce geste n'existait pas, et son absence était un défaut : `archiveCourse` ne
+ * change qu'une chaîne de caractères, les octets restent sur R2 et continuent
+ * de peser sur le quota. Le quota d'un formateur ne pouvait donc que **croître**
+ * depuis son inscription — seule la purge des replays à 24 mois lui rendait de
+ * la place. Le commentaire de `setTrainerStorageTiers` lui conseillait de
+ * « libérer de l'espace d'abord » ; il n'avait aucun moyen de le faire.
+ *
+ * **Ce qui part** : l'objet sur R2 et les trois champs qui le décrivent.
+ * **Ce qui reste** : la fiche, son historique, ses statistiques, ses liens. Rien
+ * en aval ne casse — ni les vues, ni les favoris, ni le rattachement à une
+ * communauté.
+ *
+ * **Ce qu'on refuse** : supprimer le contenu d'une ressource **vendue**. Elle
+ * est sous obligation (arbitrage 13) et doit continuer d'être servie à ses
+ * acheteurs ; c'est d'ailleurs pour cela qu'elle ne lui est plus comptée.
+ *
+ * La ressource repasse en brouillon : publiée sans contenu, elle serait
+ * achetable et livrerait du vide — c'est exactement ce que `publishCourse`
+ * refuse déjà à l'entrée.
+ */
+export async function deleteCourseContent(courseId: string, trainerId: string, userId: string) {
+  const course = await db.course.findUnique({ where: { id: courseId } })
+  if (!course) throw new Error('COURSE_NOT_FOUND')
+  if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
+  if (course.obligationAt) throw new Error('COURSE_SOLD')
+  if (!course.contentS3Key) throw new Error('NO_CONTENT')
+
+  // L'objet part **avant** la base. Dans l'autre sens, un échec de suppression
+  // laisserait un octet payé par le formateur sans plus aucune trace pour le
+  // retrouver — le pire des deux mondes.
+  await deleteObject(course.contentS3Key)
+
+  const updated = await db.course.update({
+    where: { id: courseId },
+    data: {
+      contentS3Key: null,
+      contentSizeBytes: null,
+      contentMimeType: null,
+      status: 'draft',
+    },
+  })
+
+  await auditStandalone({
+    actorId: userId, actorRole: 'TRAINER',
+    action: 'COURSE_CONTENT_DELETED', targetType: 'Course', targetId: courseId,
+    meta: {
+      s3Key: course.contentS3Key,
+      freedBytes: Number(course.contentSizeBytes ?? BigInt(0)),
+      previousStatus: course.status,
+    },
+  })
+
+  return updated
 }
 
 export async function listTrainerCourses(trainerId: string, status?: string) {

@@ -321,6 +321,123 @@ export async function updateCommunity(
 }
 
 // ==========================================================================
+// Fermer une communauté — arbitrage 2
+// ==========================================================================
+// `Community.status` était testé partout en lecture — `updateCommunity`,
+// `presignCommunityCover`, l'adhésion — et le renouvellement savait déjà clore
+// les adhésions d'une communauté qui n'est plus `active` (`COMMUNITY_CLOSED`).
+// Mais **rien n'écrivait jamais autre chose que `active`** : la porte existait,
+// personne ne pouvait la pousser.
+//
+// C'est ce qui bloquait la résiliation d'abonnement : l'arbitrage 2 refuse le
+// départ d'un formateur qui a des membres payants actifs, et lui demande de
+// fermer sa communauté d'abord. Sans ce geste, la règle était un cul-de-sac.
+
+/**
+ * Ferme une communauté : plus aucune adhésion nouvelle, et celles en cours
+ * s'éteignent **à leur terme**.
+ *
+ * Rien n'est coupé sur-le-champ : un membre qui vient de payer son mois le
+ * consomme entièrement. C'est `renewDueMemberships` qui referme chaque adhésion
+ * à son échéance, avec le motif `COMMUNITY_CLOSED` — il sait déjà le faire.
+ *
+ * Conséquence à assumer, et que l'écran doit annoncer : le départ complet d'un
+ * formateur peut donc prendre jusqu'à un mois.
+ */
+export async function closeCommunity(
+  communityId: string,
+  trainerProfileId: string,
+  userId: string,
+) {
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true, status: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+  if (community.status !== 'active') throw new Error('COMMUNITY_ALREADY_CLOSED')
+
+  // Combien de membres payants courent encore : c'est ce délai que le formateur
+  // doit attendre avant de pouvoir résilier son abonnement.
+  const remaining = await db.communitySubscription.count({
+    where: {
+      communityId,
+      status: { in: ['ACTIVE', 'PAST_DUE'] },
+      provider: { not: null },
+    },
+  })
+
+  const updated = await db.$transaction(async (tx) => {
+    const result = await tx.community.update({
+      where: { id: communityId },
+      data: { status: 'closed' },
+    })
+    await audit(tx, {
+      actorId: userId, actorRole: 'TRAINER',
+      action: 'COMMUNITY_CLOSED', targetType: 'Community', targetId: communityId,
+      meta: { remainingPaidMembers: remaining },
+    })
+    return result
+  })
+
+  return { community: updated, remainingPaidMembers: remaining }
+}
+
+/**
+ * Rouvre une communauté fermée. Les adhésions déjà éteintes ne reviennent pas —
+ * on ne ressuscite pas une relation payante à laquelle personne n'a consenti —
+ * mais les nouvelles redeviennent possibles.
+ */
+export async function reopenCommunity(
+  communityId: string,
+  trainerProfileId: string,
+  userId: string,
+) {
+  const community = await db.community.findUnique({
+    where: { id: communityId },
+    select: { id: true, trainerId: true, status: true },
+  })
+  if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+  if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
+  if (community.status === 'active') throw new Error('COMMUNITY_NOT_CLOSED')
+  // Un abonnement suspendu ne rouvre rien : c'est la même logique que le
+  // blocage de publication (décision 68).
+  if (!(await canTrainerWrite(trainerProfileId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+
+  return db.$transaction(async (tx) => {
+    const result = await tx.community.update({
+      where: { id: communityId },
+      data: { status: 'active' },
+    })
+    await audit(tx, {
+      actorId: userId, actorRole: 'TRAINER',
+      action: 'COMMUNITY_REOPENED', targetType: 'Community', targetId: communityId,
+    })
+    return result
+  })
+}
+
+/**
+ * Les adhésions payantes qui courent encore chez un formateur, toutes
+ * communautés confondues. C'est ce que l'arbitrage 2 oppose à une demande de
+ * résiliation.
+ *
+ * **Une adhésion offerte ne compte pas** (`provider` nul) : personne n'y a
+ * jamais attaché de moyen de paiement, elle ne représente aucun argent en
+ * cours. **Un membre banni non plus** : il n'est déjà plus reconduit.
+ */
+export async function countActivePaidMembers(trainerProfileId: string): Promise<number> {
+  return db.communitySubscription.count({
+    where: {
+      community: { trainerId: trainerProfileId },
+      // `PAST_DUE` compte : l'adhésion court encore, en sursis de règlement.
+      status: { in: ['ACTIVE', 'PAST_DUE'] },
+      provider: { not: null },
+    },
+  })
+}
+
+// ==========================================================================
 // La bannière d'une communauté
 // ==========================================================================
 // Même chaîne que la couverture d'un cours (`presignCourseUpload` /
