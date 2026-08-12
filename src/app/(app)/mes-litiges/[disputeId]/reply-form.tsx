@@ -1,38 +1,41 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { AttachmentPicker, type Attachment } from "@/components/nk/attachment-picker";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 export function ReplyForm({ disputeId }: { disputeId: string }) {
-  const router = useRouter();
   const [body, setBody] = React.useState("");
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
-  const [pending, setPending] = React.useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  const send = useAction(
+    (text: string) =>
+      api.post(`/api/me/disputes/${disputeId}/messages`, {
+        body: text,
+        ...(attachments.length ? { attachments: attachments.map((a) => a.s3Key) } : {}),
+      }),
+    {
+      // Le message apparaît dans le fil rafraîchi : l'annoncer en plus ferait
+      // doublon avec ce que l'écran montre déjà.
+      success: null,
+      error: "L'envoi a échoué.",
+      // Vidés dans la transition : le champ ne se libère qu'au moment où le
+      // message apparaît dans le fil.
+      onSuccess: () => {
+        setBody("");
+        setAttachments([]);
+      },
+    },
+  );
+
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
     if (!text) return;
-
-    setPending(true);
-    try {
-      await api.post(`/api/me/disputes/${disputeId}/messages`, {
-        body: text,
-        ...(attachments.length ? { attachments: attachments.map((a) => a.s3Key) } : {}),
-      });
-      setBody("");
-      setAttachments([]);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'envoi a échoué.");
-    } finally {
-      setPending(false);
-    }
+    void send.run(text);
   }
 
   return (
@@ -55,7 +58,7 @@ export function ReplyForm({ disputeId }: { disputeId: string }) {
       <AttachmentPicker value={attachments} onChange={setAttachments} disputeId={disputeId} />
 
       <div className="flex justify-end">
-        <Btn type="submit" loading={pending} disabled={!body.trim()}>
+        <Btn type="submit" loading={send.pending} disabled={!body.trim()}>
           <Send aria-hidden="true" />
           Envoyer
         </Btn>

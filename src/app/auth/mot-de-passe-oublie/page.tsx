@@ -1,5 +1,5 @@
-﻿import type { Metadata } from "next";
-import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import type { Metadata } from "next";
+import { AuthShell, AuthIllustration } from "@/components/layouts/auth-shell";
 import { ForgotForm } from "./forgot-form";
 
 export const metadata: Metadata = {
@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 export default function MotDePasseOubliePage() {
   return (
     <AuthShell
-      aside={
-        <AuthAside
+      illustration={
+        <AuthIllustration
           photo="/auth/mot-de-passe-oublie-apprenant.webp"
-          photoBrief="apprenant concentré devant son ordinateur"
+          focus="11%"
           quote="On reprend là où on s'était arrêté, en deux minutes."
           author="Support NkamVa · disponible 6j/7"
         />

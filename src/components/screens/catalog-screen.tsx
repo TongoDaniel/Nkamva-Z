@@ -5,9 +5,16 @@ import { PageHead } from "@/components/nk/page-head";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { ResourceCardSkeleton } from "@/components/nk/skeleton";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { formatLabel } from "@/components/nk/cover";
-import { CatalogFilters, CatalogToolbar, type Facet } from "./catalog-controls";
+import {
+  CatalogFilters,
+  CatalogNavProvider,
+  CatalogResults,
+  CatalogToolbar,
+  type Facet,
+} from "./catalog-controls";
+import { LinkPending } from "@/components/nk/nav-link";
 import { searchCourses, getCategories, getFormats } from "@/lib/catalog";
 import { favoritedCourseIds } from "@/lib/favorites";
 import { getAuthContext } from "@/lib/api";
@@ -90,58 +97,59 @@ async function CatalogBody({
           total={result.total}
         />
 
-        {items.length === 0 ? (
-          <EmptyState
-            icon={<SearchX />}
-            title="Aucune ressource trouvée"
-            description="Essayez d'élargir votre recherche ou de retirer un filtre."
-            action={
-              <Btn asChild variant="o">
-                <Link href={routes.catalog}>Réinitialiser les filtres</Link>
-              </Btn>
-            }
-          />
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {items.map((course) => (
-              <ResourceCard
-                key={course.id}
-                course={course}
-                space={space}
-                favoritable={Boolean(auth)}
-                favorited={favorited.has(course.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        {pages > 1 ? (
-          <nav aria-label="Pagination du catalogue" className="mt-9 flex justify-center gap-2">
-            {Array.from({ length: pages }, (_, i) => i + 1)
-              .filter((p) => p === 1 || p === pages || Math.abs(p - page) <= 1)
-              .map((p, i, arr) => (
-                <span key={p} className="flex items-center gap-2">
-                  {i > 0 && p - arr[i - 1] > 1 ? (
-                    <span className="text-ink-3" aria-hidden="true">
-                      …
-                    </span>
-                  ) : null}
-                  <Link
-                    href={pageHref(p)}
-                    aria-current={p === page ? "page" : undefined}
-                    aria-label={`Page ${p}`}
-                    className={
-                      p === page
-                        ? "nk-tap relative grid size-10 place-items-center rounded-full bg-ink text-sm font-bold text-paper"
-                        : "nk-tap relative grid size-10 place-items-center rounded-full border border-line bg-card text-sm font-bold text-ink-2 hover:border-ink-3"
-                    }
-                  >
-                    {p}
-                  </Link>
-                </span>
+        <CatalogResults>
+          {items.length === 0 ? (
+            <EmptyState
+              icon={<SearchX />}
+              title="Aucune ressource trouvée"
+              description="Essayez d'élargir votre recherche ou de retirer un filtre."
+              action={
+                <BtnLink href={routes.catalog} variant="o">Réinitialiser les filtres</BtnLink>
+              }
+            />
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {items.map((course) => (
+                <ResourceCard
+                  key={course.id}
+                  course={course}
+                  space={space}
+                  favoritable={Boolean(auth)}
+                  favorited={favorited.has(course.id)}
+                />
               ))}
-          </nav>
-        ) : null}
+            </div>
+          )}
+
+          {pages > 1 ? (
+            <nav aria-label="Pagination du catalogue" className="mt-9 flex justify-center gap-2">
+              {Array.from({ length: pages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === pages || Math.abs(p - page) <= 1)
+                .map((p, i, arr) => (
+                  <span key={p} className="flex items-center gap-2">
+                    {i > 0 && p - arr[i - 1] > 1 ? (
+                      <span className="text-ink-3" aria-hidden="true">
+                        …
+                      </span>
+                    ) : null}
+                    <Link
+                      href={pageHref(p)}
+                      aria-current={p === page ? "page" : undefined}
+                      aria-label={`Page ${p}`}
+                      className={
+                        p === page
+                          ? "nk-tap relative grid size-10 place-items-center rounded-full bg-ink text-sm font-bold text-paper"
+                          : "nk-tap relative grid size-10 place-items-center rounded-full border border-line bg-card text-sm font-bold text-ink-2 hover:border-ink-3"
+                      }
+                    >
+                      {p}
+                      <LinkPending className="inset-x-2 bottom-1" />
+                    </Link>
+                  </span>
+                ))}
+            </nav>
+          ) : null}
+        </CatalogResults>
       </section>
     </div>
   );
@@ -173,9 +181,11 @@ export function CatalogScreen({
         title="Le catalogue"
         lead="Cours vidéo, guides et modèles créés par des formateurs africains. Payez à l'unité, en FCFA — la ressource reste à vous, à vie."
       />
-      <Suspense fallback={<CatalogFallback />}>
-        <CatalogBody searchParams={searchParams} space={space} />
-      </Suspense>
+      <CatalogNavProvider>
+        <Suspense fallback={<CatalogFallback />}>
+          <CatalogBody searchParams={searchParams} space={space} />
+        </Suspense>
+      </CatalogNavProvider>
     </div>
   );
 }

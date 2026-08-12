@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Copy, Gift, Link2, Mail, Search, Trash2 } from "lucide-react";
+import { Copy, Gift, Link2, Loader2, Mail, Search, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
 import { Field, PillInput } from "@/components/nk/input";
@@ -10,7 +9,8 @@ import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
 import { EmptyState } from "@/components/nk/empty-state";
 import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
 
 export interface InvitationRow {
@@ -82,12 +82,13 @@ export function InvitationsPanel({
   isPrivate: boolean;
   initial: InvitationRow[];
 }) {
-  const router = useRouter();
   const [rows, setRows] = React.useState(initial);
   const [email, setEmail] = React.useState("");
   const [grant, setGrant] = React.useState<"PAID" | "GIFT">("PAID");
   const [giftMonths, setGiftMonths] = React.useState("1");
-  const [pending, setPending] = React.useState(false);
+  // Clés portant l'identifiant de l'invitation pour la révocation : l'état
+  // occupé se pose sur la seule ligne cliquée.
+  const action = useKeyedAction();
   const [search, setSearch] = React.useState("");
   const [filter, setFilter] = React.useState("all");
 
@@ -108,67 +109,85 @@ export function InvitationsPanel({
     });
   }, [rows, search, filter]);
 
-  async function reload() {
+  /**
+   * Relit la liste. Appelée *dans* l'action, elle est couverte par l'état
+   * occupé : le bouton cesse de tourner quand les lignes fraîches sont là.
+   */
+  async function fetchRows() {
     const { data } = await api.get<InvitationRow[]>(
       `/api/trainer/communities/${communityId}/invitations`,
     );
-    setRows(data);
-    router.refresh();
+    return data;
   }
 
-  async function issueNominative(e: React.FormEvent) {
+  function issueNominative(e: React.FormEvent) {
     e.preventDefault();
-    setPending(true);
-    try {
-      const { data } = await api.post<{ url: string; emailed: boolean }>(
-        `/api/trainer/communities/${communityId}/invitations`,
-        {
-          kind: "NOMINATIVE",
-          grant,
-          email: email.trim().toLowerCase(),
-          ...(grant === "GIFT" ? { giftMonths: Number.parseInt(giftMonths, 10) } : {}),
+    void action.run(
+      "nominative",
+      async () => {
+        const { data } = await api.post<{ url: string; emailed: boolean }>(
+          `/api/trainer/communities/${communityId}/invitations`,
+          {
+            kind: "NOMINATIVE",
+            grant,
+            email: email.trim().toLowerCase(),
+            ...(grant === "GIFT" ? { giftMonths: Number.parseInt(giftMonths, 10) } : {}),
+          },
+        );
+        // Le jeton nominatif reste haché : c'est la seule fois où il s'affiche.
+        await copy(
+          data.url,
+          data.emailed
+            ? "Invitation envoyée, et son lien copié — il ne sera plus affiché."
+            : "Invitation créée, lien copié. L'e-mail n'est pas parti : transmettez-le vous-même.",
+        );
+        return fetchRows();
+      },
+      {
+        // `copy` a déjà dit ce qui s'est passé, et le détail de son message
+        // dépend de l'envoi de l'e-mail : un second toast ferait doublon.
+        success: null,
+        error: "L'invitation n'a pas pu être émise.",
+        onSuccess: (fresh) => {
+          setRows(fresh);
+          setEmail("");
         },
-      );
-      // Le jeton nominatif reste haché : c'est la seule fois où il s'affiche.
-      await copy(
-        data.url,
-        data.emailed
-          ? "Invitation envoyée, et son lien copié — il ne sera plus affiché."
-          : "Invitation créée, lien copié. L'e-mail n'est pas parti : transmettez-le vous-même.",
-      );
-      setEmail("");
-      await reload();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'invitation n'a pas pu être émise.");
-    } finally {
-      setPending(false);
-    }
+      },
+    );
   }
 
-  async function issueShareLink() {
-    setPending(true);
-    try {
-      const { data } = await api.post<{ url: string }>(
-        `/api/trainer/communities/${communityId}/invitations`,
-        { kind: "SHARE_LINK" },
-      );
-      await copy(data.url, "Lien de parrainage copié.");
-      await reload();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Le lien n'a pas pu être créé.");
-    } finally {
-      setPending(false);
-    }
+  function issueShareLink() {
+    void action.run(
+      "share",
+      async () => {
+        const { data } = await api.post<{ url: string }>(
+          `/api/trainer/communities/${communityId}/invitations`,
+          { kind: "SHARE_LINK" },
+        );
+        await copy(data.url, "Lien de parrainage copié.");
+        return fetchRows();
+      },
+      {
+        success: null,
+        error: "Le lien n'a pas pu être créé.",
+        onSuccess: (fresh) => setRows(fresh),
+      },
+    );
   }
 
-  async function revoke(id: string) {
-    try {
-      await api.del(`/api/trainer/communities/${communityId}/invitations/${id}`);
-      toast.success("Invitation retirée.");
-      await reload();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La révocation a échoué.");
-    }
+  function revoke(id: string) {
+    void action.run(
+      `revoke:${id}`,
+      async () => {
+        await api.del(`/api/trainer/communities/${communityId}/invitations/${id}`);
+        return fetchRows();
+      },
+      {
+        success: "Invitation retirée.",
+        error: "La révocation a échoué.",
+        onSuccess: (fresh) => setRows(fresh),
+      },
+    );
   }
 
   return (
@@ -230,11 +249,11 @@ export function InvitationsPanel({
         ) : null}
 
         <div className="flex flex-wrap gap-3">
-          <Btn type="submit" disabled={pending || !email.trim()}>
+          <Btn type="submit" loading={action.isRunning("nominative")} disabled={!email.trim()}>
             <Mail className="size-4" aria-hidden="true" />
             Envoyer l&apos;invitation
           </Btn>
-          <Btn type="button" variant="o" onClick={issueShareLink} disabled={pending || isPrivate}>
+          <Btn type="button" variant="o" onClick={issueShareLink} loading={action.isRunning("share")} disabled={isPrivate}>
             <Link2 className="size-4" aria-hidden="true" />
             Lien de parrainage
           </Btn>
@@ -352,10 +371,16 @@ export function InvitationsPanel({
                   <button
                     type="button"
                     onClick={() => revoke(row.id)}
+                    disabled={action.isRunning(`revoke:${row.id}`)}
+                    aria-busy={action.isRunning(`revoke:${row.id}`) || undefined}
                     aria-label={`Retirer l'invitation ${row.email ?? row.tokenPrefix}`}
-                    className="grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-danger hover:text-danger"
+                    className="grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-danger hover:text-danger disabled:opacity-50"
                   >
-                    <Trash2 className="size-4" aria-hidden="true" />
+                    {action.isRunning(`revoke:${row.id}`) ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    )}
                   </button>
                 ) : null}
               </li>

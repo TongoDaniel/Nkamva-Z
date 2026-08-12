@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { Check, Copy, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { StPill } from "@/components/nk/status-pill";
-import { api, ApiError } from "@/lib/client";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 interface Status {
   enabled: boolean;
@@ -69,17 +70,25 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
   const [setup, setSetup] = React.useState<{ qr: string; secret: string } | null>(null);
   const [codes, setCodes] = React.useState<string[] | null>(null);
   const [code, setCode] = React.useState("");
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
 
-  async function run<T>(fn: () => Promise<T>, onOk: (value: T) => void) {
-    setPending(true);
-    try {
-      onOk(await fn());
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'opération n'a pas abouti.");
-    } finally {
-      setPending(false);
-    }
+  /**
+   * `refresh` reste faux par défaut : trois de ces quatre gestes ne font
+   * qu'avancer l'assistant sans rien changer au rendu serveur — c'est la sortie
+   * des codes de secours qui, elle, relit la page.
+   */
+  function run<T>(
+    key: string,
+    fn: () => Promise<T>,
+    onOk: (value: T) => void,
+    options: { success?: string; refresh?: boolean } = {},
+  ) {
+    void action.run(key, fn, {
+      success: options.success ?? null,
+      error: "L'opération n'a pas abouti.",
+      refresh: options.refresh ?? false,
+      onSuccess: onOk,
+    });
   }
 
   if (codes) {
@@ -156,10 +165,11 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
           <div className="flex flex-wrap gap-2">
             <Btn
               variant="o"
-              loading={pending}
+              loading={action.isRunning("regenerate")}
               disabled={!code.trim()}
               onClick={() =>
                 run(
+                  "regenerate",
                   () =>
                     api.post<{ recoveryCodes: string[] }>("/api/me/2fa", {
                       action: "regenerate",
@@ -173,17 +183,17 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
             </Btn>
             <Btn
               variant="danger"
-              loading={pending}
+              loading={action.isRunning("disable")}
               disabled={!code.trim()}
               onClick={() =>
                 run(
+                  "disable",
                   () => api.del("/api/me/2fa", { body: JSON.stringify({ code: code.trim() }) }),
                   () => {
-                    toast.success("Double authentification désactivée.");
                     setCode("");
                     setStatus((s) => ({ ...s, enabled: false, remainingRecoveryCodes: 0 }));
-                    router.refresh();
                   },
+                  { success: "Double authentification désactivée.", refresh: true },
                 )
               }
             >
@@ -235,10 +245,11 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
 
           <div className="flex flex-wrap gap-2">
             <Btn
-              loading={pending}
+              loading={action.isRunning("enable")}
               disabled={code.trim().length < 6}
               onClick={() =>
                 run(
+                  "enable",
                   () =>
                     api.post<{ recoveryCodes: string[] }>("/api/me/2fa", {
                       action: "enable",
@@ -257,10 +268,14 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
         </div>
       ) : (
         <Btn
-          loading={pending}
+          loading={action.isRunning("setup")}
           onClick={() =>
             run(
-              () => api.post<{ qr: string; secret: string; uri: string }>("/api/me/2fa", { action: "setup" }),
+              "setup",
+              () =>
+                api.post<{ qr: string; secret: string; uri: string }>("/api/me/2fa", {
+                  action: "setup",
+                }),
               ({ data }) => setSetup({ qr: data.qr, secret: data.secret }),
             )
           }

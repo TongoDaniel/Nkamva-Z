@@ -5,7 +5,7 @@ import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { StPill } from "@/components/nk/status-pill";
 import { StatTile } from "@/components/nk/stat-tile";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { listTrainerDisputes, getFrozenTotal } from "@/lib/trainer-disputes";
 import { fmtDate, fmtFcfa, fmtNumber } from "@/lib/format";
@@ -83,9 +83,9 @@ export default async function FormateurLitigesPage() {
                       {fmtFcfa(active.reservedAmountFcfa)} gelés
                     </span>
                   ) : null}
-                  <Btn asChild variant="o" size="sm">
-                    <Link href={`/formateur/litiges/${dispute.id}`}>Voir le dossier</Link>
-                  </Btn>
+                  <BtnLink href={`/formateur/litiges/${dispute.id}`} variant="o" size="sm">
+                    Voir le dossier
+                  </BtnLink>
                 </li>
               );
             })}

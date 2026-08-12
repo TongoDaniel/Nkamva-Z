@@ -18,6 +18,9 @@ function loginErrorMessage(code?: string | null): string | null {
   if (code === "TOO_MANY_ATTEMPTS") {
     return "Trop de tentatives de connexion. Patientez une minute avant de réessayer.";
   }
+  if (code === "SESSION_ENDED") {
+    return "Votre session n'est plus valide. Reconnectez-vous pour continuer.";
+  }
   if (code === "CredentialsSignin") {
     return "Adresse e-mail ou mot de passe incorrect.";
   }

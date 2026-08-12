@@ -1,0 +1,69 @@
+{
+  "tache": "Genere une image a partir de ce brief. Respecte le format, la composition et les interdits : ce sont des contraintes techniques, pas des preferences. N'ecris aucun texte dans l'image.",
+  "fichier_a_produire": "nouveau-mot-de-passe.webp",
+  "destination": "public/auth/nouveau-mot-de-passe.webp — page /auth/nouveau-mot-de-passe du site NkamVa",
+  "remplace": "un fichier de depannage, copie de la photo d'une autre page",
+  "format": {
+    "orientation": "portrait",
+    "dimensions": "1024 x 1536 pixels",
+    "ratio": "2:3",
+    "style": "photographie editoriale realiste, pas d'illustration, pas de rendu 3D, pas de retouche visible"
+  },
+  "prompt": "Photographie editoriale verticale au format 2:3. Un jeune adulte africain, entre 25 et 35 ans, termine de saisir un mot de passe sur un ordinateur portable. Vu de trois quarts, buste droit, epaules basses, mains sur le clavier, le visage reste visible et detendu. Expression attentive et posee, sans tension ni sourire commercial. Tenue neutre unie, sans motif. Bureau epure sur lequel sont poses a plat un carnet ferme et un petit cadenas metallique. Mur creme uni en arriere-plan. Lumiere du jour diffuse et froide, venant d'une fenetre orientee nord, contraste bas. La lueur bleu cobalt de l'ecran teinte le visage et les mains, sans qu'aucun contenu d'ecran ne soit lisible. Ambiance sobre et maitrisee. Le sujet est centre horizontalement et son visage se situe au tiers superieur du cadre. Le bas de l'image est un plateau de bureau uni, sans reflet et sans detail. Aucun texte, aucun logo.",
+  "prompt_en": "Vertical editorial photograph, 2:3 aspect ratio. A young African adult, 25 to 35 years old, finishing typing a password on a laptop. Three-quarter view, upright posture, shoulders relaxed, hands on the keyboard, face clearly visible and at ease. Attentive, composed expression, no tension and no commercial smile. Plain unpatterned clothing. Uncluttered desk with a closed notebook and a small metal padlock lying flat. Plain cream wall in the background. Diffuse cool daylight from a north-facing window, low contrast. Cobalt blue screen glow tints the face and hands, with no readable screen content. Sober, controlled mood. The subject is horizontally centred and the face sits in the upper third of the frame. The bottom of the image is a plain desk surface, free of reflections and detail. No text, no logos.",
+  "intention": "Sobriete et maitrise. Le lecteur est en train de reprendre la main sur son compte. L'image doit evoquer le soin apporte a un geste, pas une menace dont il faudrait se proteger.",
+  "composition": {
+    "pourquoi_ces_regles": "Sur le site, cette image est rognee automatiquement et differemment selon la taille de l'ecran. Un sujet mal place est coupe. Les valeurs ci-dessous sont mesurees sur le rendu reel.",
+    "cadrages_appliques": [
+      "Grand ecran : colonne de 300 x 456 pixels a droite du formulaire. Toute la hauteur est visible, mais l'image est rognee sur les cotes — seuls 1% a 99% de la largeur restent.",
+      "Tablette : bandeau de 478 x 172 pixels. Seule la tranche situee entre 27% et 51% de la hauteur est visible.",
+      "Mobile : bandeau de 333 x 150 pixels. Seule la tranche entre 24% et 55% de la hauteur est visible."
+    ],
+    "zone_sure": "Le visage doit tomber entierement entre 27% et 51% de la hauteur, et entre 1% et 99% de la largeur.",
+    "placement": "Plan taille, l'ecran de l'ordinateur coupe par le bord bas du cadre. Visage entre 30% et 48% de la hauteur. Attention : c'est la seule des trois images ou le rognage se fait sur la largeur — le sujet doit donc etre franchement centre, pas decale sur un cote.",
+    "bas_de_cadre": "Les 29% inferieurs sont recouverts par une citation en texte blanc sur un degrade noir. Cette zone doit rester la plus calme des trois images : plateau de bureau uni, gris clair ou bois blanchi, sans reflet, sans detail essentiel, sans zone surexposee."
+  },
+  "texte_qui_sera_superpose": {
+    "citation": "Securisez votre compte en quelques secondes.",
+    "signature": "Securite NkamVa",
+    "rendu": "blanc, en bas de l'image, sur un degrade noir remontant",
+    "consequence": "Ne pas ecrire ce texte dans l'image. Il est ajoute par le site."
+  },
+  "palette": {
+    "bleu_accent": "#1c5ed0",
+    "navy": "#022342",
+    "fond_creme": "#f6f3ec",
+    "usage": "Le bleu accent arrive ici par la lueur de l'ecran, pas par un objet colore. La lumiere generale est plus froide que sur les autres pages : c'est le registre sobre demande pour cette page."
+  },
+  "signaux_de_marque": {
+    "principe": "Des objets reellement presents dans la scene, reconnaissables sans etre annonces. Pas de logo.",
+    "a_inclure": [
+      "La lueur de l'ecran, hors focus, teinte le visage et les mains de bleu accent (#1c5ed0). Aucun contenu d'ecran lisible.",
+      "Un petit cadenas metallique ou un trousseau de cles pose a plat sur le bureau, rappel discret du pictogramme de la page. A garder dans le tiers inferieur."
+    ],
+    "dosage": "Ces deux signaux suffisent. En ajouter davantage transforme la photo en publicite et lui fait perdre sa sobriete."
+  },
+  "interdits": [
+    "Aucun texte incruste : il serait rogne differemment sur chaque ecran et resterait en une seule langue.",
+    "Aucun logo de marque tierce, aucune interface d'application reconnaissable, aucun ecran lisible.",
+    "Pas de vert foret : cette couleur est reservee a l'espace d'administration du site.",
+    "Pas d'imagerie de menace : ni cadenas geant, ni bouclier, ni silhouette de pirate, ni code binaire.",
+    "Pas de profil strict ni de visage cache par l'ecran : le visage doit rester lisible.",
+    "Pas de motif charge sur les vetements : dans une colonne de 300 pixels, cela devient du bruit.",
+    "Pas de sujet decale sur un bord : le rognage lateral le couperait."
+  ],
+  "variante_si_pas_de_modele": "Nature morte : ordinateur entrouvert vu de trois quarts, lueur bleue, cadenas et cles au premier plan, meme lumiere froide et diffuse. Le registre sobre de cette page s'en accommode mieux que les deux autres.",
+  "verification_avant_integration": [
+    "Sortie en 1024 x 1536 exactement : toute autre taille change les rognages calcules ci-dessus.",
+    "Le visage tient entre 27% et 51% de la hauteur et reste dans les 98% centraux de la largeur.",
+    "Le bas de l'image est assez calme pour qu'un texte blanc y reste lisible.",
+    "Convertir en WebP, viser moins de 110 Ko.",
+    "Le fichier doit differer des cinq autres images de public/auth/."
+  ],
+  "point_de_visee_en_vigueur": {
+    "valeur": "25%",
+    "ou": "prop focus de AuthIllustration, posee dans la page correspondante",
+    "sert_a_quoi": "Regle la hauteur visee dans la source par le cadrage en bandeau (sous 1024px). La colonne, elle, n'a besoin d'aucun reglage.",
+    "a_refaire_si_l_image_change": "Oui. Extraire la tranche que le bandeau conserve, la regarder, et ajuster. Un calcul de zone sure ne suffit pas : la premiere version de nouveau-mot-de-passe.webp passait le calcul mais ne montrait qu'un torse sans visage."
+  }
+}

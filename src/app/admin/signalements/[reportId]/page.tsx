@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getReportDetail } from "@/lib/reports";
 import { fmtDate } from "@/lib/format";
@@ -63,12 +63,10 @@ export default async function SignalementDetailPage({
         }`}
         lead={<>Signalé le {fmtDate(report.createdAt)} par {reporterName}</>}
         actions={
-          <Btn asChild variant="o" size="sm">
-            <Link href="/admin/signalements">
+          <BtnLink href="/admin/signalements" variant="o" size="sm">
               <ArrowLeft aria-hidden="true" />
               Retour à la file
-            </Link>
-          </Btn>
+          </BtnLink>
         }
       />
 

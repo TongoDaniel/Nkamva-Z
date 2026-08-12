@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock, Lock } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { StPill } from "@/components/nk/status-pill";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { ReportButton } from "@/components/nk/report-button";
 import { getAuthContext } from "@/lib/api";
 import { getMyDispute, REASON_LABELS } from "@/lib/disputes";
@@ -195,9 +194,9 @@ export default async function DisputeDetailPage({
           </p>
 
           {course ? (
-            <Btn asChild variant="o" size="sm" block className="mt-4">
-              <Link href={routes.course(course.slug)}>Voir la ressource</Link>
-            </Btn>
+            <BtnLink href={routes.course(course.slug)} variant="o" size="sm" block className="mt-4">
+              Voir la ressource
+            </BtnLink>
           ) : null}
         </aside>
       </div>

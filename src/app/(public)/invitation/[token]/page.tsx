@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Gift, Users } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Price } from "@/components/nk/resource-card";
@@ -55,9 +55,7 @@ export default async function InvitationPage({
           title="Cette invitation n'est plus valable"
           description="Elle a peut-être expiré, été retirée, ou déjà servi. Demandez-en une nouvelle à la personne qui vous l'a transmise."
           action={
-            <Btn asChild variant="o">
-              <Link href="/communautes">Voir les communautés ouvertes</Link>
-            </Btn>
+            <BtnLink href="/communautes" variant="o">Voir les communautés ouvertes</BtnLink>
           }
         />
       </div>
@@ -116,16 +114,19 @@ export default async function InvitationPage({
                   ici.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <Btn asChild size="lg">
-                    <Link href={`/auth/inscription?callbackUrl=${encodeURIComponent(here)}`}>
-                      Créer mon compte
-                    </Link>
-                  </Btn>
-                  <Btn asChild variant="o" size="lg">
-                    <Link href={`/auth/connexion?callbackUrl=${encodeURIComponent(here)}`}>
-                      J&apos;ai déjà un compte
-                    </Link>
-                  </Btn>
+                  <BtnLink
+                    href={`/auth/inscription?callbackUrl=${encodeURIComponent(here)}`}
+                    size="lg"
+                  >
+                    Créer mon compte
+                  </BtnLink>
+                  <BtnLink
+                    href={`/auth/connexion?callbackUrl=${encodeURIComponent(here)}`}
+                    variant="o"
+                    size="lg"
+                  >
+                    J&apos;ai déjà un compte
+                  </BtnLink>
                 </div>
               </>
             ) : blocker ? (
@@ -136,24 +137,23 @@ export default async function InvitationPage({
                 >
                   {BLOCKERS[blocker]}
                 </p>
-                <Btn asChild variant="o">
-                  <Link href={`/communautes/${community.slug}`}>Voir la communauté</Link>
-                </Btn>
+                <BtnLink href={`/communautes/${community.slug}`} variant="o">
+                  Voir la communauté
+                </BtnLink>
               </>
             ) : isGift ? (
               <AcceptGift token={token} communityName={community.name} />
             ) : (
               <>
-                <Btn asChild size="lg">
-                  {/* Le jeton suit dans le tunnel : c'est lui qui attribuera
-                      l'adhésion à cette invitation, et qui la consommera au
-                      moment du paiement confirmé — pas avant. */}
-                  <Link
-                    href={`/adhesion/${community.slug}?invitation=${encodeURIComponent(token)}`}
-                  >
-                    Rejoindre la communauté
-                  </Link>
-                </Btn>
+                {/* Le jeton suit dans le tunnel : c'est lui qui attribuera
+                    l'adhésion à cette invitation, et qui la consommera au
+                    moment du paiement confirmé — pas avant. */}
+                <BtnLink
+                  href={`/adhesion/${community.slug}?invitation=${encodeURIComponent(token)}`}
+                  size="lg"
+                >
+                  Rejoindre la communauté
+                </BtnLink>
                 <p className="mt-3 text-[12.5px] text-ink-3">
                   Vous serez redirigé vers le paiement. Rien n&apos;est prélevé avant votre
                   confirmation.

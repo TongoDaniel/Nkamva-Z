@@ -12,7 +12,7 @@
 //   - décision 3 : aucun RIB ici, il n'est collecté qu'avant le premier retrait
 // ==========================================================================
 
-import type { Prisma, TrainerApplicationStatus, TrainerDocumentType, TrainerDocumentStatus } from '@prisma/client'
+import type { Prisma, PlanCadence, TrainerApplicationStatus, TrainerDocumentType, TrainerDocumentStatus } from '@prisma/client'
 import { db } from './db'
 import { canActAsLearner, ADMIN_CANNOT_ACT_AS_LEARNER } from './roles'
 import { audit, auditStandalone } from './audit'
@@ -104,6 +104,8 @@ export interface CreateApplicationInput {
   websiteUrl?: string | null
   domains?: string[]
   experienceYears?: number | null
+  /** Cadence souhaitée, quand le parcours d'entrée la fait choisir. */
+  desiredCadence?: PlanCadence | null
 }
 
 export async function createApplication(userId: string, input: CreateApplicationInput) {
@@ -134,6 +136,7 @@ export async function createApplication(userId: string, input: CreateApplication
       websiteUrl: input.websiteUrl ?? null,
       domains: input.domains ?? [],
       experienceYears: input.experienceYears ?? null,
+      desiredCadence: input.desiredCadence ?? null,
     },
   })
 
@@ -144,6 +147,51 @@ export async function createApplication(userId: string, input: CreateApplication
   })
 
   return application
+}
+
+/** Statuts pendant lesquels le candidat peut encore corriger son dossier. */
+const EDITABLE_APPLICATION_STATUSES: TrainerApplicationStatus[] = ['DRAFT', 'RESUBMISSION_PENDING']
+
+export type UpdateApplicationInput = CreateApplicationInput
+
+/**
+ * Correction de la présentation par le candidat lui-même, avant instruction.
+ *
+ * Chaque champ est facultatif et seul ce qui est fourni est écrit : le parcours
+ * public pose la cadence à la dernière étape, longtemps après la présentation,
+ * et ne doit pas effacer au passage ce qu'il n'a pas rechargé.
+ *
+ * La fenêtre s'arrête à SUBMITTED : une fois le dossier parti, le retoucher
+ * ferait instruire à la modération un texte qu'elle n'a pas lu.
+ */
+export async function updateApplication(userId: string, input: UpdateApplicationInput) {
+  const application = await db.trainerApplication.findFirst({
+    where: { userId, status: { not: 'REJECTED' } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, status: true },
+  })
+  if (!application) throw new Error('APPLICATION_NOT_FOUND')
+  if (!EDITABLE_APPLICATION_STATUSES.includes(application.status)) {
+    throw new Error('APPLICATION_NOT_EDITABLE')
+  }
+
+  const data: Prisma.TrainerApplicationUpdateInput = {}
+  if (input.slogan !== undefined) data.slogan = input.slogan ?? null
+  if (input.description !== undefined) data.description = input.description ?? null
+  if (input.websiteUrl !== undefined) data.websiteUrl = input.websiteUrl ?? null
+  if (input.domains !== undefined) data.domains = input.domains
+  if (input.experienceYears !== undefined) data.experienceYears = input.experienceYears ?? null
+  if (input.desiredCadence !== undefined) data.desiredCadence = input.desiredCadence ?? null
+
+  const updated = await db.trainerApplication.update({ where: { id: application.id }, data })
+
+  await auditStandalone({
+    actorId: userId, actorRole: 'PENDING_TRAINER',
+    action: 'TRAINER_APPLICATION_UPDATED', targetType: 'TrainerApplication', targetId: application.id,
+    meta: { fields: Object.keys(data) },
+  })
+
+  return updated
 }
 
 export async function getMyApplication(userId: string) {
@@ -252,6 +300,12 @@ export async function approveApplication(applicationId: string, input: ApproveIn
 
     // Le profil et le portefeuille naissent dans la MÊME transaction que la
     // bascule de rôle : un formateur TRAINER sans wallet serait incohérent.
+    // La cadence demandée à la candidature est honorée ici, et nulle part
+    // ailleurs : c'est le seul moment où le profil naît. Sans dossier qui la
+    // porte — parcours `/candidature`, qui ne pose pas la question — on retombe
+    // sur le défaut mensuel du schéma.
+    const subscriptionCadence: PlanCadence = application.desiredCadence ?? 'MONTHLY'
+
     const profile = await tx.trainerProfile.create({
       data: {
         userId: application.userId,
@@ -261,6 +315,7 @@ export async function approveApplication(applicationId: string, input: ApproveIn
         websiteUrl: application.websiteUrl,
         domains: application.domains,
         experienceYears: application.experienceYears,
+        subscriptionCadence,
         approvedAt: new Date(),
       },
     })
@@ -269,7 +324,9 @@ export async function approveApplication(applicationId: string, input: ApproveIn
     // La première période d'abonnement naît ici aussi : un formateur sans
     // période serait invisible du renouvellement, donc jamais facturé.
     // Au tarif de lancement (0), elle est ouverte comme offerte, pas comme due.
-    await openFirstPeriod(tx, profile.id)
+    // Elle suit la cadence du profil : ouvrir douze mois de couverture pour un
+    // abonnement annuel facturé au mois serait un cadeau silencieux.
+    await openFirstPeriod(tx, profile.id, subscriptionCadence)
 
     await setUserRole(tx, application.userId, 'TRAINER', 'TRAINER_APPLICATION_APPROVED')
     await recordTransition(tx, {

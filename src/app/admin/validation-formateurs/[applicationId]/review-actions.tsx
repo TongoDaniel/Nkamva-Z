@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { BadgeCheck, RotateCcw, ThumbsDown, Undo2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
-import { toast } from "@/components/nk/toast";
+import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { cn } from "@/lib/utils";
 import { DOCUMENT_LABELS } from "../status";
@@ -40,8 +39,7 @@ export function ReviewActions({
   isSuperAdmin: boolean;
   maxResubmissions: number;
 }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState<string | null>(null);
+  const action = useKeyedAction();
   const [openDialog, setOpenDialog] = React.useState<null | "approve" | "documents" | "final">(null);
 
   const [legalName, setLegalName] = React.useState(candidateName);
@@ -52,29 +50,20 @@ export function ReviewActions({
   const rejectable = status === "SUBMITTED" || status === "RESUBMISSION_PENDING";
   const reopenable = status === "REJECTED" && isSuperAdmin;
 
-  function handleError(err: unknown, fallback: string) {
-    if (err instanceof ApiError) {
-      toast.error(err.message);
-      // Le dossier a changé sous nos yeux : la seule issue est de relire.
-      if (err.code === "STALE_APPLICATION") router.refresh();
-      return;
-    }
-    toast.error(fallback);
-  }
-
-  async function call(action: string, body: unknown, label: string, done: () => void) {
-    setPending(action);
-    try {
-      await api.post(`/api/admin/trainer-applications/${applicationId}/${action}`, body);
-      toast.success(label);
-      setOpenDialog(null);
-      done();
-      router.refresh();
-    } catch (err) {
-      handleError(err, "L'action a échoué. Réessayez.");
-    } finally {
-      setPending(null);
-    }
+  function call(path: string, body: unknown, label: string, done: () => void) {
+    void action.run(
+      path,
+      () => api.post(`/api/admin/trainer-applications/${applicationId}/${path}`, body),
+      {
+        success: label,
+        onSuccess: () => {
+          setOpenDialog(null);
+          done();
+        },
+        // Le dossier a changé sous nos yeux : la seule issue est de relire.
+        refreshOnError: (err) => err instanceof ApiError && err.code === "STALE_APPLICATION",
+      },
+    );
   }
 
   const selectedRejections = Object.entries(rejections)
@@ -105,7 +94,7 @@ export function ReviewActions({
         {reopenable ? (
           <Btn
             variant="o"
-            loading={pending === "reopen"}
+            loading={action.isRunning("reopen")}
             onClick={() => call("reopen", {}, "Dossier rouvert.", () => undefined)}
           >
             <Undo2 aria-hidden="true" />
@@ -123,7 +112,7 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "approve"}
+              loading={action.isRunning("approve")}
               disabled={legalName.trim().length < 2}
               onClick={() =>
                 call(
@@ -160,7 +149,7 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "reject-documents"}
+              loading={action.isRunning("reject-documents")}
               disabled={selectedRejections.length === 0}
               onClick={() =>
                 call(
@@ -245,7 +234,7 @@ export function ReviewActions({
           <>
             <Btn
               variant="danger"
-              loading={pending === "reject-final"}
+              loading={action.isRunning("reject-final")}
               disabled={finalReason.trim().length < 10}
               onClick={() =>
                 call(

@@ -1,8 +1,8 @@
 ﻿import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AuthShell, AuthAside, AuthHeading } from "@/components/layouts/auth-shell";
-import { Btn } from "@/components/nk/button";
+import { AuthShell, AuthHeading, AuthIllustration } from "@/components/layouts/auth-shell";
+import { BtnLink } from "@/components/nk/button-link";
 
 export const metadata: Metadata = {
   title: "Connexion impossible",
@@ -25,9 +25,7 @@ async function ErrorBody({ searchParams }: { searchParams: Promise<{ error?: str
   return (
     <>
       <AuthHeading title="Connexion impossible" subtitle={message} />
-      <Btn asChild size="lg" block>
-        <Link href="/auth/connexion">Retour à la connexion</Link>
-      </Btn>
+      <BtnLink href="/auth/connexion" size="lg" block>Retour à la connexion</BtnLink>
       <p className="mt-5 text-center text-sm text-ink-2">
         Besoin d&apos;aide ?{" "}
         <Link href="/contact" className="font-bold text-brand">
@@ -45,7 +43,14 @@ export default function AuthErrorPage({
 }) {
   return (
     <AuthShell
-      aside={<AuthAside photoBrief="support NkamVa au téléphone" quote="Un souci d'accès ? On le règle vite." author="Support NkamVa" />}
+      illustration={
+        <AuthIllustration
+          photo="/auth/erreur.webp"
+          focus="15%"
+          quote="Un souci d'accès ? On le règle vite."
+          author="Support NkamVa"
+        />
+      }
     >
       <Suspense fallback={<div className="h-64" aria-hidden="true" />}>
         <ErrorBody searchParams={searchParams} />

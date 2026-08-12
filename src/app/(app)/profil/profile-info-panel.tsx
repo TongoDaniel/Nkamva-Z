@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { Avatar } from "@/components/nk/avatar";
-import { toast } from "@/components/nk/toast";
+import { useAction } from "@/hooks/use-action";
 import { FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
@@ -31,50 +30,52 @@ function toDraft(profile: ProfileView): Draft {
 }
 
 export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
-  const router = useRouter();
   const initial = React.useMemo(() => toDraft(profile), [profile]);
   const [draft, setDraft] = React.useState<Draft>(initial);
   const [error, setError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
-  const [pending, setPending] = React.useState(false);
 
   const dirty = (Object.keys(initial) as Array<keyof Draft>).some((k) => draft[k] !== initial[k]);
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setFieldErrors({});
-    setPending(true);
-    try {
-      await api.patch("/api/me/profile", {
+  const save = useAction(
+    () =>
+      api.patch("/api/me/profile", {
         fullName: draft.fullName.trim(),
         preferredName: draft.preferredName.trim() || null,
         phone: draft.phone.trim() || null,
         countryCode: draft.countryCode.trim().toUpperCase() || null,
         bio: draft.bio.trim() || null,
-      });
-      toast.success("Profil mis à jour.");
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.details?.length) {
-          setFieldErrors(
-            Object.fromEntries(
-              err.details
-                .filter((d) => d.field && d.reason)
-                .map((d) => [d.field as string, d.reason as string]),
-            ),
-          );
+      }),
+    {
+      success: "Profil mis à jour.",
+      // Les erreurs se posent sur les champs fautifs : pas de toast.
+      error: null,
+      onError: (err) => {
+        if (err instanceof ApiError) {
+          if (err.details?.length) {
+            setFieldErrors(
+              Object.fromEntries(
+                err.details
+                  .filter((d) => d.field && d.reason)
+                  .map((d) => [d.field as string, d.reason as string]),
+              ),
+            );
+          }
+          setError(err.message);
+        } else {
+          setError("L'enregistrement a échoué. Réessayez.");
         }
-        setError(err.message);
-      } else {
-        setError("L'enregistrement a échoué. Réessayez.");
-      }
-    } finally {
-      setPending(false);
-    }
+      },
+    },
+  );
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setFieldErrors({});
+    void save.run();
   }
 
   return (
@@ -84,10 +85,10 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
         subtitle="Votre nom apparaît sur votre profil public et auprès des formateurs dont vous achetez les ressources."
         footer={
           <>
-            <Btn variant="o" disabled={!dirty || pending} onClick={() => setDraft(initial)}>
+            <Btn variant="o" disabled={!dirty || save.pending} onClick={() => setDraft(initial)}>
               Annuler
             </Btn>
-            <Btn type="submit" loading={pending} disabled={!dirty}>
+            <Btn type="submit" loading={save.pending} disabled={!dirty}>
               Enregistrer
             </Btn>
           </>

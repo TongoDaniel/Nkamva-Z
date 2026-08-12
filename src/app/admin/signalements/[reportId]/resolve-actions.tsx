@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { EyeOff, ThumbsDown } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
+import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 
 /**
@@ -32,11 +31,10 @@ export function ResolveActions({
   removalAction: string;
   removalEffect: string;
 }) {
-  const router = useRouter();
+  const action = useKeyedAction();
   const [dialog, setDialog] = React.useState<null | "uphold" | "dismiss">(null);
   const [note, setNote] = React.useState("");
   const [hide, setHide] = React.useState(true);
-  const [pending, setPending] = React.useState(false);
 
   if (status !== "OPEN") {
     return (
@@ -46,29 +44,27 @@ export function ResolveActions({
     );
   }
 
-  async function resolve(nextStatus: "UPHELD" | "DISMISSED") {
-    setPending(true);
-    try {
-      await api.post(`/api/admin/reports/${reportId}/resolve`, {
-        status: nextStatus,
-        decisionNote: note.trim(),
-        hideTarget: nextStatus === "UPHELD" && hideable && hide,
-        expectedUpdatedAt: updatedAt,
-      });
-      toast.success(nextStatus === "UPHELD" ? "Signalement retenu." : "Signalement rejeté.");
-      setDialog(null);
-      setNote("");
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message);
-        if (err.code === "STALE_REPORT") router.refresh();
-        return;
-      }
-      toast.error("L'action a échoué. Réessayez.");
-    } finally {
-      setPending(false);
-    }
+  // La clé est l'issue choisie : les deux boutons partageaient un même booléen
+  // et tournaient donc ensemble, sans dire lequel avait été cliqué.
+  function resolve(nextStatus: "UPHELD" | "DISMISSED") {
+    void action.run(
+      nextStatus,
+      () =>
+        api.post(`/api/admin/reports/${reportId}/resolve`, {
+          status: nextStatus,
+          decisionNote: note.trim(),
+          hideTarget: nextStatus === "UPHELD" && hideable && hide,
+          expectedUpdatedAt: updatedAt,
+        }),
+      {
+        success: nextStatus === "UPHELD" ? "Signalement retenu." : "Signalement rejeté.",
+        onSuccess: () => {
+          setDialog(null);
+          setNote("");
+        },
+        refreshOnError: (err) => err instanceof ApiError && err.code === "STALE_REPORT",
+      },
+    );
   }
 
   return (
@@ -102,7 +98,7 @@ export function ResolveActions({
           <>
             <Btn
               variant="danger"
-              loading={pending}
+              loading={action.isRunning("UPHELD")}
               disabled={note.trim().length < 10}
               onClick={() => resolve("UPHELD")}
             >
@@ -152,7 +148,7 @@ export function ResolveActions({
         description="Rien ne change pour l'objet visé. L'auteur du signalement est prévenu."
         footer={
           <>
-            <Btn loading={pending} disabled={note.trim().length < 10} onClick={() => resolve("DISMISSED")}>
+            <Btn loading={action.isRunning("DISMISSED")} disabled={note.trim().length < 10} onClick={() => resolve("DISMISSED")}>
               Rejeter
             </Btn>
             <Btn variant="o" onClick={() => setDialog(null)}>

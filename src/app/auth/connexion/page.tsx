@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import { AuthShell, AuthIllustration } from "@/components/layouts/auth-shell";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 export default function ConnexionPage() {
   return (
     <AuthShell
-      aside={
-        <AuthAside
+      illustration={
+        <AuthIllustration
           photo="/auth/connexion-apprenante.webp"
-          photoBrief="apprenant souriant, mobile en main"
+          focus="11%"
           quote="Une plateforme simple, rapide et efficace."
           author="Un apprenant NkamVa"
         />

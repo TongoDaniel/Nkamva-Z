@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getDisputeForReview } from "@/lib/dispute-review";
 import { fmtDate, fmtFcfa } from "@/lib/format";
@@ -62,12 +61,10 @@ export default async function DisputeReviewPage({
 
   return (
     <>
-      <Btn asChild variant="t" size="sm" className="mb-4">
-        <Link href="/admin/litiges">
+      <BtnLink href="/admin/litiges" variant="t" size="sm" className="mb-4">
           <ArrowLeft aria-hidden="true" />
           Retour à la file
-        </Link>
-      </Btn>
+      </BtnLink>
 
       <AdminHead
         title={dispute.purchase.course?.title ?? "Ressource retirée"}

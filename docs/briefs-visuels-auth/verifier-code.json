@@ -1,0 +1,69 @@
+{
+  "tache": "Genere une image a partir de ce brief. Respecte le format, la composition et les interdits : ce sont des contraintes techniques, pas des preferences. N'ecris aucun texte dans l'image.",
+  "fichier_a_produire": "verifier-code.webp",
+  "destination": "public/auth/verifier-code.webp — page /auth/verifier-code du site NkamVa",
+  "remplace": "un fichier de depannage, copie de la photo d'une autre page",
+  "format": {
+    "orientation": "portrait",
+    "dimensions": "1024 x 1536 pixels",
+    "ratio": "2:3",
+    "style": "photographie editoriale realiste, pas d'illustration, pas de rendu 3D, pas de retouche visible"
+  },
+  "prompt": "Photographie editoriale verticale au format 2:3. Une jeune femme africaine, entre 20 et 30 ans, consulte son telephone tenu a deux mains a hauteur de poitrine. Leger sourire de satisfaction : ce qu'elle attendait vient d'arriver. Regard porte vers l'ecran, telephone tenu bas pour ne pas masquer le menton. Vue de face ou de trois quarts. Tenue coloree mais unie, sans motif charge. Elle se tient pres d'une fenetre, dans un interieur lumineux et vivant, l'arriere-plan tres flou. Un detail bleu marine dans le vetement ou une bandouliere, en bas de cadre. Lumiere naturelle chaude venant de face ou de trois quarts avant. La lueur bleu cobalt de l'ecran effleure le menton et les mains, sans qu'aucun chiffre ni aucune interface ne soit lisible. Ambiance quotidienne et detendue. Les yeux se situent au tiers superieur du cadre, le sujet est centre horizontalement. Le bas de l'image est sombre et uni. Aucun texte, aucun logo.",
+  "prompt_en": "Vertical editorial photograph, 2:3 aspect ratio. A young African woman, 20 to 30 years old, checking her phone held in both hands at chest height. A slight satisfied smile: what she was waiting for has just arrived. Gaze directed at the screen, phone held low so it does not cover her chin. Front or three-quarter view. Colourful but unpatterned clothing. She stands near a window in a bright, lived-in interior, background heavily blurred. A navy blue detail in her clothing or a shoulder strap, in the lower part of the frame. Warm natural light from the front or front three-quarters. Cobalt blue screen glow grazes her chin and hands, with no readable digits or interface. Everyday, relaxed mood. Eyes in the upper third of the frame, subject horizontally centred. The bottom of the image is dark and plain. No text, no logos.",
+  "intention": "Le geste du quotidien. Le lecteur bascule entre sa boite mail et le formulaire pour recopier un code a 6 chiffres. L'image doit montrer exactement ce qu'il est en train de faire, sans dramatiser la securite.",
+  "composition": {
+    "pourquoi_ces_regles": "Sur le site, cette image est rognee automatiquement et differemment selon la taille de l'ecran. Un sujet mal place est coupe. Les valeurs ci-dessous sont mesurees sur le rendu reel.",
+    "cadrages_appliques": [
+      "Grand ecran : colonne de 300 x 443 pixels a droite du formulaire. Les 98% superieurs de l'image sont visibles — c'est la plus haute des trois colonnes.",
+      "Tablette : bandeau de 478 x 172 pixels. Seule la tranche situee entre 27% et 51% de la hauteur est visible.",
+      "Mobile : bandeau de 333 x 150 pixels. Seule la tranche entre 24% et 55% de la hauteur est visible."
+    ],
+    "zone_sure": "Le visage doit tomber entierement entre 27% et 51% de la hauteur de l'image, sur toute la largeur.",
+    "placement": "Plan poitrine serre. Yeux a environ 35% de la hauteur. Le telephone entierement au-dessus de 51%, sinon il disparait du cadrage en bandeau et le geste ne se lit plus. Sujet centre horizontalement.",
+    "bas_de_cadre": "Les 35% inferieurs sont recouverts par une citation en texte blanc sur un degrade noir. Cette zone doit rester calme : vetement uni et sombre, ou arriere-plan flou. Surtout pas de mains en pleine lumiere, elles capteraient l'oeil sous le texte."
+  },
+  "texte_qui_sera_superpose": {
+    "citation": "La double verification protege votre compte a chaque connexion.",
+    "signature": "Securite NkamVa",
+    "rendu": "blanc, en bas de l'image, sur un degrade noir remontant",
+    "consequence": "Ne pas ecrire ce texte dans l'image. Il est ajoute par le site. En particulier, ne faire apparaitre aucun code a 6 chiffres."
+  },
+  "palette": {
+    "bleu_accent": "#1c5ed0",
+    "navy": "#022342",
+    "fond_creme": "#f6f3ec",
+    "usage": "Le bleu accent arrive par la lueur du telephone. Le navy habille un detail du vetement. La lumiere generale est chaude : c'est la plus solaire des trois images."
+  },
+  "signaux_de_marque": {
+    "principe": "Des objets reellement presents dans la scene, reconnaissables sans etre annonces. Pas de logo.",
+    "a_inclure": [
+      "L'ecran du telephone, hors focus, diffuse le bleu accent (#1c5ed0) sur le menton et les mains. Aucun chiffre, aucune interface lisible.",
+      "Un detail navy (#022342) dans le vetement ou une bandouliere, en bas de cadre."
+    ],
+    "dosage": "Ces deux signaux suffisent. En ajouter davantage transforme la photo en publicite."
+  },
+  "interdits": [
+    "Aucun texte incruste : il serait rogne differemment sur chaque ecran et resterait en une seule langue.",
+    "Aucun code a 6 chiffres visible, meme flou : le vrai code appartient au lecteur.",
+    "Aucun logo de marque tierce, aucune interface d'application reconnaissable, aucun ecran lisible.",
+    "Pas de vert foret : cette couleur est reservee a l'espace d'administration du site.",
+    "Pas de telephone tenu haut devant le visage : il masquerait le menton, deja proche de la limite basse de la zone sure.",
+    "Pas d'expression inquiete : la double verification est une routine, pas une alerte.",
+    "Pas de motif charge sur les vetements : dans une colonne de 300 pixels, cela devient du bruit."
+  ],
+  "variante_si_pas_de_modele": "Cadrage serre sur des mains tenant un telephone, lueur bleue, arriere-plan de fenetre tres flou. Fonctionne bien ici, car le geste porte a lui seul le propos.",
+  "verification_avant_integration": [
+    "Sortie en 1024 x 1536 exactement : toute autre taille change les rognages calcules ci-dessus.",
+    "Le visage et le telephone tiennent entre 27% et 51% de la hauteur.",
+    "Le bas de l'image est assez sombre et calme pour qu'un texte blanc y reste lisible.",
+    "Convertir en WebP, viser moins de 110 Ko.",
+    "Le fichier doit differer des cinq autres images de public/auth/."
+  ],
+  "point_de_visee_en_vigueur": {
+    "valeur": "36%",
+    "ou": "prop focus de AuthIllustration, posee dans la page correspondante",
+    "sert_a_quoi": "Regle la hauteur visee dans la source par le cadrage en bandeau (sous 1024px). La colonne, elle, n'a besoin d'aucun reglage.",
+    "a_refaire_si_l_image_change": "Oui. Extraire la tranche que le bandeau conserve, la regarder, et ajuster. Un calcul de zone sure ne suffit pas : la premiere version de verifier-code.webp passait le calcul mais ne montrait qu'un torse sans visage."
+  }
+}

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Download, FileText } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { DataTable, type Column } from "@/components/nk/data-table";
 import { getAuthContext } from "@/lib/api";
@@ -126,9 +126,7 @@ export default async function MesFacturesPage() {
           title="Aucune facture"
           description="Vos factures apparaîtront ici dès votre premier paiement encaissé."
           action={
-            <Btn asChild>
-              <Link href={routes.catalog}>Découvrir le catalogue</Link>
-            </Btn>
+            <BtnLink href={routes.catalog}>Découvrir le catalogue</BtnLink>
           }
         />
       ) : (

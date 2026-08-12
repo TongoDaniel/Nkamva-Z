@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { ImageUp } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { toast } from "@/components/nk/toast";
+import { UploadBar } from "@/components/nk/upload-bar";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
+import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
 
 /** Miroir de COMMUNITY_COVER_LIMITS dans src/lib/communities.ts. */
 const IMAGE_MIMES = ["image/png", "image/jpeg", "image/webp"];
@@ -29,11 +31,55 @@ export function CommunityCoverUploader({
   /** URL signée de la bannière déjà en place, pour l'aperçu. */
   previewUrl: string | null;
 }) {
-  const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [pending, setPending] = React.useState(false);
+  const [progress, setProgress] = React.useState<UploadProgress | null>(null);
 
-  async function onFile(file: File) {
+  const send = useAction(
+    async (file: File) => {
+      const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
+        `/api/trainer/communities/${communityId}/cover`,
+        { mimeType: file.type, sizeBytes: file.size },
+      );
+
+      // Sans identifiants R2, le backend renvoie une URL factice. Enregistrer
+      // la clé donnerait une bannière qui n'existe pas : mieux vaut le dire.
+      // Levé plutôt que retourné — un retour vaudrait réussite.
+      if (data.uploadUrl.startsWith(PLACEHOLDER_PREFIX)) {
+        throw new ApiError(
+          "STORAGE_NOT_CONFIGURED",
+          "Stockage des fichiers non configuré : l'image n'a pas pu être envoyée.",
+          0,
+        );
+      }
+
+      // Dépôt direct sur R2, hors de `api` : pas de délai d'abandon, un gros
+      // fichier sur un réseau lent ne doit pas être coupé à vingt secondes.
+      await putToPresignedUrl(data.uploadUrl, file, { onProgress: setProgress });
+
+      // Le fichier est parti ; le serveur relit encore l'objet pour en
+      // mesurer la taille réelle. La barre redevient indéterminée.
+      setProgress(null);
+
+      await api.post(`/api/trainer/communities/${communityId}/cover/confirm`, {
+        s3Key: data.s3Key,
+        mimeType: file.type,
+      });
+    },
+    {
+      success: "Bannière mise à jour.",
+      error: "L'envoi de l'image a échoué. Réessayez.",
+    },
+  );
+
+  // Le champ se vide une fois l'envoi retombé : sans cela, redéposer deux fois
+  // le même fichier n'émettrait pas de second `change`.
+  React.useEffect(() => {
+    if (send.pending) return;
+    setProgress(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }, [send.pending]);
+
+  function onFile(file: File) {
     if (!IMAGE_MIMES.includes(file.type)) {
       toast.error("Formats acceptés : PNG, JPEG, WebP.");
       return;
@@ -42,42 +88,7 @@ export function CommunityCoverUploader({
       toast.error("L'image ne doit pas dépasser 5 Mo.");
       return;
     }
-
-    setPending(true);
-    try {
-      const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
-        `/api/trainer/communities/${communityId}/cover`,
-        { mimeType: file.type, sizeBytes: file.size },
-      );
-
-      // Sans identifiants R2, le backend renvoie une URL factice. Enregistrer
-      // la clé donnerait une bannière qui n'existe pas : mieux vaut le dire.
-      if (data.uploadUrl.startsWith(PLACEHOLDER_PREFIX)) {
-        toast.error("Stockage des fichiers non configuré : l'image n'a pas pu être envoyée.");
-        return;
-      }
-
-      const upload = await fetch(data.uploadUrl, {
-        method: "PUT",
-        headers: { "content-type": file.type },
-        body: file,
-      });
-      if (!upload.ok) throw new Error("UPLOAD_FAILED");
-
-      await api.post(`/api/trainer/communities/${communityId}/cover/confirm`, {
-        s3Key: data.s3Key,
-        mimeType: file.type,
-      });
-      toast.success("Bannière mise à jour.");
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : "L'envoi de l'image a échoué. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
+    void send.run(file);
   }
 
   return (
@@ -117,20 +128,23 @@ export function CommunityCoverUploader({
         className="sr-only"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) void onFile(file);
+          if (file) onFile(file);
         }}
       />
       <Btn
         variant="o"
         size="sm"
         className="mt-4"
-        loading={pending}
+        loading={send.pending}
         onClick={() => inputRef.current?.click()}
         aria-controls="nk-banniere-fichier"
       >
         <ImageUp aria-hidden="true" />
         {currentKey ? "Remplacer la bannière" : "Ajouter une bannière"}
       </Btn>
+      {send.pending ? (
+        <UploadBar progress={progress} label="Envoi de la bannière…" />
+      ) : null}
       <p className="mt-2 text-[12.5px] text-ink-3">
         PNG, JPEG ou WebP, 5 Mo maximum. Elle compte dans votre stockage. À défaut, un dégradé
         est affiché.

@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ExternalLink, Eye, EyeOff } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Field, CheckOption } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
-import { toast } from "@/components/nk/toast";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { cn } from "@/lib/utils";
@@ -142,7 +142,40 @@ export function CommunityForm({
   const [values, setValues] = React.useState<CommunityFormValues>(initial ?? EMPTY_COMMUNITY);
   const [error, setError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
-  const [pending, setPending] = React.useState(false);
+
+  const save = useAction(
+    (payload: unknown) =>
+      mode === "create"
+        ? api.post("/api/trainer/communities", payload)
+        : api.patch(`/api/trainer/communities/${communityId}`, payload),
+    {
+      success:
+        mode === "create"
+          ? "Votre communauté est ouverte. Elle apparaît dès maintenant dans l'annuaire."
+          : "Communauté mise à jour.",
+      // Les erreurs se posent sur les champs fautifs : pas de toast.
+      error: null,
+      // Le retour à la liste est joué dans la transition, donc le bouton reste
+      // occupé jusqu'à ce que la liste rafraîchie soit à l'écran.
+      onSuccess: () => router.push("/formateur/communaute"),
+      onError: (err) => {
+        if (err instanceof ApiError) {
+          if (err.details?.length) {
+            setFieldErrors(
+              Object.fromEntries(
+                err.details
+                  .filter((d) => d.field && d.reason)
+                  .map((d) => [d.field as string, d.reason as string]),
+              ),
+            );
+          }
+          setError(err.message);
+        } else {
+          setError("L'enregistrement a échoué. Réessayez dans un instant.");
+        }
+      },
+    },
+  );
 
   const set = <K extends keyof CommunityFormValues>(key: K, value: CommunityFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
@@ -193,35 +226,7 @@ export function CommunityForm({
         : {}),
     };
 
-    setPending(true);
-    try {
-      if (mode === "create") {
-        await api.post("/api/trainer/communities", payload);
-        toast.success("Votre communauté est ouverte. Elle apparaît dès maintenant dans l'annuaire.");
-      } else {
-        await api.patch(`/api/trainer/communities/${communityId}`, payload);
-        toast.success("Communauté mise à jour.");
-      }
-      router.push("/formateur/communaute");
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.details?.length) {
-          setFieldErrors(
-            Object.fromEntries(
-              err.details
-                .filter((d) => d.field && d.reason)
-                .map((d) => [d.field as string, d.reason as string]),
-            ),
-          );
-        }
-        setError(err.message);
-      } else {
-        setError("L'enregistrement a échoué. Réessayez dans un instant.");
-      }
-    } finally {
-      setPending(false);
-    }
+    void save.run(payload);
   }
 
   return (
@@ -326,20 +331,14 @@ export function CommunityForm({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line-2 pt-5">
-        <Btn type="submit" disabled={pending}>
-          {pending
-            ? "Enregistrement…"
-            : mode === "create"
-              ? "Ouvrir ma communauté"
-              : "Enregistrer les modifications"}
+        <Btn type="submit" loading={save.pending}>
+          {mode === "create" ? "Ouvrir ma communauté" : "Enregistrer les modifications"}
         </Btn>
         {mode === "edit" && slug && shows("identity") ? (
-          <Btn asChild variant="o">
-            <Link href={`/communautes/${slug}`}>
+          <BtnLink href={`/communautes/${slug}`} variant="o">
               Voir la fiche publique
               <ExternalLink className="size-4" aria-hidden="true" />
-            </Link>
-          </Btn>
+          </BtnLink>
         ) : null}
       </div>
     </form>
@@ -362,32 +361,29 @@ export function VisibilityToggle({
   communityId: string;
   visibility: "PUBLIC" | "PRIVATE";
 }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState(false);
   const isPublic = visibility === "PUBLIC";
 
-  async function toggle() {
-    const next = isPublic ? "PRIVATE" : "PUBLIC";
-    setPending(true);
-    try {
+  // Le nombre de liens révoqués n'est connu qu'au retour : l'appel le rend
+  // pour que le message de réussite puisse le citer.
+  const toggle = useAction(
+    async () => {
+      const next = isPublic ? "PRIVATE" : "PUBLIC";
       const { data } = await api.patch<{ revokedShareLinks: number }>(
         `/api/trainer/communities/${communityId}`,
         { visibility: next },
       );
-      toast.success(
+      return { next, revoked: data.revokedShareLinks };
+    },
+    {
+      success: ({ next, revoked }) =>
         next === "PRIVATE"
-          ? data.revokedShareLinks > 0
-            ? `Salon fermé. ${data.revokedShareLinks} lien${data.revokedShareLinks > 1 ? "s" : ""} de parrainage révoqué${data.revokedShareLinks > 1 ? "s" : ""}.`
+          ? revoked > 0
+            ? `Salon fermé. ${revoked} lien${revoked > 1 ? "s" : ""} de parrainage révoqué${revoked > 1 ? "s" : ""}.`
             : "Salon fermé. Il sort de l'annuaire et de la recherche."
           : "Salon ouvert. Il réapparaît dans l'annuaire et la recherche.",
-      );
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La bascule a échoué.");
-    } finally {
-      setPending(false);
-    }
-  }
+      error: "La bascule a échoué.",
+    },
+  );
 
   return (
     <section className="mt-6 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
@@ -413,8 +409,8 @@ export function VisibilityToggle({
             </p>
           ) : null}
         </div>
-        <Btn variant="o" onClick={toggle} disabled={pending}>
-          {pending ? "…" : isPublic ? "Fermer le salon" : "Rouvrir le salon"}
+        <Btn variant="o" onClick={() => void toggle.run()} loading={toggle.pending}>
+          {isPublic ? "Fermer le salon" : "Rouvrir le salon"}
         </Btn>
       </div>
     </section>

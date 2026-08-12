@@ -1,0 +1,68 @@
+{
+  "tache": "Genere une image a partir de ce brief. Respecte le format, la composition et les interdits : ce sont des contraintes techniques, pas des preferences. N'ecris aucun texte dans l'image.",
+  "fichier_a_produire": "erreur.webp",
+  "destination": "public/auth/erreur.webp — page /auth/erreur du site NkamVa",
+  "remplace": "un fichier de depannage, copie de la photo d'une autre page",
+  "format": {
+    "orientation": "portrait",
+    "dimensions": "1024 x 1536 pixels",
+    "ratio": "2:3",
+    "style": "photographie editoriale realiste, pas d'illustration, pas de rendu 3D, pas de retouche visible"
+  },
+  "prompt": "Photographie editoriale verticale au format 2:3. Un conseiller du support client africain, entre 28 et 40 ans, portant un casque-micro fin, en pleine conversation telephonique. Il sourit avec bienveillance, la main ouverte dans un geste d'explication. Vu de trois quarts face, le regard porte legerement hors champ vers son interlocuteur, jamais vers l'objectif. Chemise unie sans cravate. Il est assis a un bureau ordonne en bois clair. Au premier plan bas, un mug bleu cobalt hors focus. Sur le bord droit du cadre, le dossier d'un siege en tissu bleu marine. En arriere-plan, une plante verte tres floue. Lumiere naturelle laterale venant de la gauche, fin d'apres-midi, contraste doux, ambiance chaleureuse et rassurante. Faible profondeur de champ. Palette creme, bois clair et bleu cobalt. Les yeux du sujet se situent au tiers superieur du cadre. Le bas de l'image est sombre, uni et sans detail. Aucun texte, aucun logo, aucun ecran lisible.",
+  "prompt_en": "Vertical editorial photograph, 2:3 aspect ratio. An African customer support agent, 28 to 40 years old, wearing a slim headset, mid-conversation. Warm, genuine smile, one hand open in an explanatory gesture. Three-quarter view, gaze slightly off-camera toward the person they are helping, never at the lens. Plain shirt, no tie. Seated at a tidy light-wood desk. A cobalt blue mug sits out of focus in the lower foreground. A navy blue upholstered chair back is visible at the right edge. A heavily blurred green plant in the background. Natural side light from the left, late afternoon, soft contrast, warm and reassuring mood. Shallow depth of field. Cream, light wood and cobalt blue palette. The subject's eyes fall in the upper third of the frame. The bottom of the image is dark, plain and free of detail. No text, no logos, no readable screens.",
+  "intention": "Rassurer. Le lecteur arrive sur cette page parce que sa connexion vient d'echouer : il est deja contrarie. L'image doit dire qu'une personne existe de l'autre cote, pas que quelque chose est casse. Aucune mise en scene anxiogene.",
+  "composition": {
+    "pourquoi_ces_regles": "Sur le site, cette image est rognee automatiquement et differemment selon la taille de l'ecran. Un sujet mal place est coupe. Les valeurs ci-dessous sont mesurees sur le rendu reel.",
+    "cadrages_appliques": [
+      "Grand ecran : colonne de 300 x 328 pixels a droite du formulaire. Seuls les 73% superieurs de l'image sont visibles.",
+      "Tablette : bandeau de 478 x 172 pixels. Seule la tranche situee entre 27% et 51% de la hauteur est visible.",
+      "Mobile : bandeau de 333 x 150 pixels. Seule la tranche entre 24% et 55% de la hauteur est visible."
+    ],
+    "zone_sure": "Le visage doit tomber entierement entre 27% et 51% de la hauteur de l'image, sur toute la largeur. C'est la seule region visible sur tous les ecrans.",
+    "placement": "Plan poitrine. Yeux a environ 38% de la hauteur. Sujet centre horizontalement a plus ou moins 10%. Le casque-micro entierement au-dessus de 51%.",
+    "bas_de_cadre": "Les 41% inferieurs sont recouverts par une citation en texte blanc sur un degrade noir. Cette zone doit rester calme : plan de bureau en bois clair, legerement dans l'ombre, faible contraste, aucun detail essentiel, aucune zone surexposee."
+  },
+  "texte_qui_sera_superpose": {
+    "citation": "Un souci d'acces ? On le regle vite.",
+    "signature": "Support NkamVa",
+    "rendu": "blanc, en bas de l'image, sur un degrade noir remontant",
+    "consequence": "Ne pas ecrire ce texte dans l'image. Il est ajoute par le site."
+  },
+  "palette": {
+    "bleu_accent": "#1c5ed0",
+    "navy": "#022342",
+    "fond_creme": "#f6f3ec",
+    "usage": "Le bleu accent est la couleur de marque : il doit apparaitre une fois, sur un objet. Le navy habille le mobilier et les vetements. La lumiere generale est chaude, murs creme et bois clair."
+  },
+  "signaux_de_marque": {
+    "principe": "Des objets reellement presents dans la scene, reconnaissables sans etre annonces. Pas de logo.",
+    "a_inclure": [
+      "Un mug bleu accent (#1c5ed0) pose sur le bureau, dans le tiers inferieur, hors focus.",
+      "Le dossier du siege en tissu navy (#022342), sur le bord droit du cadre."
+    ],
+    "dosage": "Ces deux signaux suffisent. En ajouter davantage transforme la photo en publicite et lui fait perdre sa fonction rassurante."
+  },
+  "interdits": [
+    "Aucun texte incruste : il serait rogne differemment sur chaque ecran et resterait en une seule langue.",
+    "Aucun logo de marque tierce, aucune interface d'application reconnaissable, aucun ecran lisible.",
+    "Pas de vert foret : cette couleur est reservee a l'espace d'administration du site.",
+    "Pas de visage tourne vers le bas ou hors cadre : la colonne est etroite, un regard fuyant y devient une nuque.",
+    "Pas d'expression inquiete, tendue ou soucieuse.",
+    "Pas de motif charge sur les vetements : dans une colonne de 300 pixels, cela devient du bruit."
+  ],
+  "variante_si_pas_de_modele": "Deux mains posees sur un clavier, casque-micro pose a cote, meme lumiere laterale chaude, meme mug bleu au premier plan. Moins fort, mais tient le meme propos.",
+  "verification_avant_integration": [
+    "Sortie en 1024 x 1536 exactement : toute autre taille change les rognages calcules ci-dessus.",
+    "Le visage tient entre 27% et 51% de la hauteur.",
+    "Le bas de l'image est assez sombre et calme pour qu'un texte blanc y reste lisible.",
+    "Convertir en WebP, viser moins de 110 Ko.",
+    "Le fichier doit differer des cinq autres images de public/auth/."
+  ],
+  "point_de_visee_en_vigueur": {
+    "valeur": "15%",
+    "ou": "prop focus de AuthIllustration, posee dans la page correspondante",
+    "sert_a_quoi": "Regle la hauteur visee dans la source par le cadrage en bandeau (sous 1024px). La colonne, elle, n'a besoin d'aucun reglage.",
+    "a_refaire_si_l_image_change": "Oui. Extraire la tranche que le bandeau conserve, la regarder, et ajuster. Un calcul de zone sure ne suffit pas : la premiere version de erreur.webp passait le calcul mais ne montrait qu'un torse sans visage."
+  }
+}

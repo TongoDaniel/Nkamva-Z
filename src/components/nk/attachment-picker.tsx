@@ -4,7 +4,13 @@ import * as React from "react";
 import { FileCheck2, Paperclip, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { api, ApiError } from "@/lib/client";
-import { sha256Hex, putToPresignedUrl, PLACEHOLDER_UPLOAD_PREFIX } from "@/lib/upload";
+import {
+  sha256Hex,
+  putToPresignedUrl,
+  PLACEHOLDER_UPLOAD_PREFIX,
+  type UploadProgress,
+} from "@/lib/upload";
+import { UploadBar } from "@/components/nk/upload-bar";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,6 +68,9 @@ export function AttachmentPicker({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  // Le lot part pièce par pièce : on dit laquelle monte, et où elle en est.
+  const [progress, setProgress] = React.useState<UploadProgress | null>(null);
+  const [current, setCurrent] = React.useState("");
   const inputId = React.useId();
 
   const remaining = MAX_ATTACHMENTS - value.length;
@@ -93,7 +102,10 @@ export function AttachmentPicker({
     setPending(true);
     const added: Attachment[] = [];
     try {
-      for (const file of files) {
+      for (const [index, file] of files.entries()) {
+        const rang = files.length > 1 ? ` (${index + 1} sur ${files.length})` : "";
+        setCurrent(`${file.name}${rang}`);
+        setProgress(null);
         const sha256 = await sha256Hex(file);
         const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
           "/api/me/disputes/attachments/upload",
@@ -114,7 +126,8 @@ export function AttachmentPicker({
           return;
         }
 
-        await putToPresignedUrl(data.uploadUrl, file);
+        await putToPresignedUrl(data.uploadUrl, file, { onProgress: setProgress });
+        setProgress(null);
         added.push({ s3Key: data.s3Key, fileName: file.name, sizeBytes: file.size });
       }
       onChange([...value, ...added]);
@@ -131,6 +144,8 @@ export function AttachmentPicker({
       );
     } finally {
       setPending(false);
+      setProgress(null);
+      setCurrent("");
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -195,6 +210,8 @@ export function AttachmentPicker({
           {value.length === 0 ? "Joindre un fichier" : "Ajouter"}
         </Btn>
       ) : null}
+
+      {pending ? <UploadBar progress={progress} label={current || "Envoi…"} /> : null}
 
       <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
         PNG, JPEG, WebP ou PDF · 5 Mo par fichier · {MAX_ATTACHMENTS} au maximum. Elles ne sont

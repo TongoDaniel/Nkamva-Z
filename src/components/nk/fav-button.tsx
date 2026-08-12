@@ -4,6 +4,7 @@ import * as React from "react";
 import { Heart } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 
 /**
@@ -32,33 +33,37 @@ export function FavButton({
   className?: string;
 }) {
   const [pressed, setPressed] = React.useState(defaultPressed);
-  const [pending, setPending] = React.useState(false);
 
   const target = courseId ? { courseId } : communityId ? { communityId } : null;
 
-  async function persist(next: boolean) {
-    if (!target) return;
-    setPending(true);
-    try {
-      await api.post("/api/me/favorites", target);
-    } catch (err) {
-      setPressed(!next);
-      onToggle?.(!next);
+  const save = useAction(() => api.post("/api/me/favorites", target), {
+    // Le cœur a déjà changé d'état sous le doigt : rien à annoncer, et rien à
+    // rafraîchir puisque la liste n'est pas à l'écran.
+    success: null,
+    error: null,
+    refresh: false,
+    onError: (err) => {
+      // Le cœur n'a bougé que d'un cran : le remettre, c'est l'inverser.
+      setPressed((v) => !v);
+      onToggle?.(!pressed);
       toast.error(
         err instanceof ApiError && err.status === 401
           ? "Connectez-vous pour mettre cette ressource de côté."
           : "La mise en favori n'a pas été enregistrée. Réessayez.",
       );
-    } finally {
-      setPending(false);
-    }
+    },
+  });
+
+  function persist() {
+    if (!target) return;
+    void save.run();
   }
 
   return (
     <button
       type="button"
       aria-pressed={pressed}
-      disabled={pending}
+      disabled={save.pending}
       aria-label={
         pressed ? `Retirer « ${courseTitle} » des favoris` : `Ajouter « ${courseTitle} » aux favoris`
       }
@@ -69,7 +74,7 @@ export function FavButton({
         const next = !pressed;
         setPressed(next);
         onToggle?.(next);
-        void persist(next);
+        persist();
       }}
       className={cn(
         "nk-tap absolute right-3 top-3 z-[3] grid size-[38px] cursor-pointer place-items-center rounded-full",

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Users, Library } from 'lucide-react'
-import { Btn } from '@/components/nk/button'
+import { BtnLink } from '@/components/nk/button-link'
 import { EmptyState } from '@/components/nk/empty-state'
 import { PageHead } from '@/components/nk/page-head'
 import { Price } from '@/components/nk/resource-card'
@@ -46,9 +46,7 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
               Ouvrez votre communauté et fidélisez vos apprenants au-delà de la vente à l&apos;unité.
             </p>
           </div>
-          <Btn asChild variant="light">
-            <Link href="/devenir-formateur">Devenir formateur</Link>
-          </Btn>
+          <BtnLink href="/devenir-formateur" variant="light">Devenir formateur</BtnLink>
         </div>
       )}
 
@@ -59,9 +57,7 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
           title="Aucune communauté ouverte"
           description="Les formateurs n'ont pas encore ouvert leur communauté. Revenez bientôt."
           action={
-            <Btn asChild variant="o">
-              <Link href={routes.catalog}>Parcourir le catalogue</Link>
-            </Btn>
+            <BtnLink href={routes.catalog} variant="o">Parcourir le catalogue</BtnLink>
           }
         />
       ) : (

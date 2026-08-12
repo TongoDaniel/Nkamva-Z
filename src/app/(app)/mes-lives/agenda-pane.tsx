@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, PlayCircle, Radio, X } from "lucide-react";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { EmptyState } from "@/components/nk/empty-state";
 import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
@@ -379,9 +378,7 @@ export function AgendaPane({
                 }
                 action={
                   !activeDay && origin !== "mine" ? (
-                    <Btn asChild variant="o">
-                      <Link href={exploreHref}>Explorer les communautés</Link>
-                    </Btn>
+                    <BtnLink href={exploreHref} variant="o">Explorer les communautés</BtnLink>
                   ) : null
                 }
               />
@@ -406,17 +403,21 @@ export function AgendaPane({
                     </p>
                   </div>
                   {session.mine ? (
-                    <Btn asChild variant={session.live ? "p" : "o"} size="sm">
-                      <Link href={`/formateur/lives/${session.id}/console`}>
-                        {session.live ? "Ouvrir la console" : "Préparer"}
-                      </Link>
-                    </Btn>
+                    <BtnLink
+                      href={`/formateur/lives/${session.id}/console`}
+                      variant={session.live ? "p" : "o"}
+                      size="sm"
+                    >
+                      {session.live ? "Ouvrir la console" : "Préparer"}
+                    </BtnLink>
                   ) : (
-                    <Btn asChild variant={session.live ? "p" : "o"} size="sm">
-                      <Link href={`/mes-lives/live/${session.id}`}>
-                        {session.live ? "Rejoindre" : "Voir"}
-                      </Link>
-                    </Btn>
+                    <BtnLink
+                      href={`/mes-lives/live/${session.id}`}
+                      variant={session.live ? "p" : "o"}
+                      size="sm"
+                    >
+                      {session.live ? "Rejoindre" : "Voir"}
+                    </BtnLink>
                   )}
                 </article>
               ))
@@ -447,9 +448,7 @@ export function AgendaPane({
                     {fmtDuration(replay.durationSeconds)}
                   </p>
                 </div>
-                <Btn asChild size="sm">
-                  <Link href={`/mes-lives/replay/${replay.id}`}>Regarder</Link>
-                </Btn>
+                <BtnLink href={`/mes-lives/replay/${replay.id}`} size="sm">Regarder</BtnLink>
               </article>
             ))
           )}

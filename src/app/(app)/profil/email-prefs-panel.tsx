@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { CheckOption } from "@/components/nk/input";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import type { ProfileView } from "@/lib/profile";
 import { SettingCard } from "@/components/nk/setting-card";
 
@@ -17,30 +16,28 @@ import { SettingCard } from "@/components/nk/setting-card";
  * l'écran ne doit jamais afficher une préférence que la base ne porte pas.
  */
 export function EmailPrefsPanel({ profile }: { profile: ProfileView }) {
-  const router = useRouter();
   const [enabled, setEnabled] = React.useState(profile.subscriptionNoticeEmails);
-  const [pending, setPending] = React.useState(false);
 
-  async function toggle(next: boolean) {
-    const previous = enabled;
-    setEnabled(next);
-    setPending(true);
-    try {
+  // Bascule optimiste : la case suit le doigt, et retombe si le serveur refuse.
+  const save = useAction(
+    async (next: boolean) => {
       await api.patch("/api/me/profile", { subscriptionNoticeEmails: next });
-      toast.success(
+      return next;
+    },
+    {
+      success: (next) =>
         next
           ? "Vous recevrez les emails d'information sur votre abonnement."
           : "Ces emails sont désactivés. Les avis restent dans vos notifications.",
-      );
-      router.refresh();
-    } catch (err) {
-      setEnabled(previous);
-      toast.error(
-        err instanceof ApiError ? err.message : "Le réglage n'a pas pu être enregistré.",
-      );
-    } finally {
-      setPending(false);
-    }
+      error: "Le réglage n'a pas pu être enregistré.",
+      // La case n'a bougé que d'un cran : la remettre, c'est l'inverser.
+      onError: () => setEnabled((v) => !v),
+    },
+  );
+
+  function toggle(next: boolean) {
+    setEnabled(next);
+    void save.run(next);
   }
 
   return (
@@ -48,7 +45,7 @@ export function EmailPrefsPanel({ profile }: { profile: ProfileView }) {
       title="Emails d'information"
       subtitle="Ce que NkamVa vous envoie en plus de vos notifications. Les messages liés à vos factures, à un impayé, à un litige ou à la sécurité de votre compte ne sont pas concernés : ils partent toujours."
     >
-      <fieldset disabled={pending} className="disabled:opacity-60">
+      <fieldset disabled={save.pending} className="disabled:opacity-60">
         <legend className="sr-only">Préférences d&apos;email</legend>
         <CheckOption
           checked={enabled}

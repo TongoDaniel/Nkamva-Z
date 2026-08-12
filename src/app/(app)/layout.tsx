@@ -7,8 +7,14 @@ import { countUnreadMessages } from "@/lib/messaging";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Doublon volontaire du middleware : si la garde de navigation est un jour
   // désactivée, aucune page de l'espace connecté ne doit rester accessible.
+  //
+  // Vers `/auth/deconnexion` et non `/auth/connexion` : arriver ici avec une
+  // session vide veut dire que le middleware a jugé le cookie bon alors qu'il ne
+  // l'est plus (compte suspendu ou supprimé en cours de session). L'envoyer vers
+  // la connexion le ferait renvoyer ici par le middleware, en boucle. Il faut
+  // d'abord retirer le cookie — cf. `src/app/auth/deconnexion/route.ts`.
   const auth = await getAuthContext();
-  if (!auth) redirect("/auth/connexion");
+  if (!auth) redirect("/auth/deconnexion");
 
   // Même raison que le doublon ci-dessus, appliquée au cloisonnement de
   // l'administration : le middleware travaille sur une liste de préfixes, qui

@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Minus, Plus } from "lucide-react";
 import { Btn } from "@/components/nk/button";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtBytes, fmtFcfa } from "@/lib/format";
 
 export interface StorageView {
@@ -25,31 +24,22 @@ export interface StorageView {
  * fiche d'une ressource, sans jamais pouvoir en acheter davantage.
  */
 export function StoragePanel({ storage }: { storage: StorageView }) {
-  const router = useRouter();
   const [tiers, setTiers] = React.useState(storage.tiers);
-  const [pending, setPending] = React.useState(false);
 
   const percent = Math.min(100, Math.round((storage.usedBytes / storage.quotaBytes) * 100) || 0);
   const dirty = tiers !== storage.tiers;
   const monthly = tiers * storage.tierPriceFcfa;
 
-  async function save() {
-    setPending(true);
-    try {
-      await api.patch("/api/trainer/storage", { tiers });
-      toast.success(
-        tiers > storage.tiers
-          ? `Palier ajouté. ${fmtFcfa(monthly)} par ${storage.tierPriceFcfa === monthly ? "mois" : "échéance"} à partir de votre prochain renouvellement.`
-          : "Paliers réduits, effectif à votre prochain renouvellement.",
-      );
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La mise à jour a échoué.");
-      setTiers(storage.tiers);
-    } finally {
-      setPending(false);
-    }
-  }
+  const save = useAction(() => api.patch("/api/trainer/storage", { tiers }), {
+    success:
+      tiers > storage.tiers
+        ? `Palier ajouté. ${fmtFcfa(monthly)} par ${storage.tierPriceFcfa === monthly ? "mois" : "échéance"} à partir de votre prochain renouvellement.`
+        : "Paliers réduits, effectif à votre prochain renouvellement.",
+    error: "La mise à jour a échoué.",
+    // Le curseur retombe sur la valeur du serveur : le laisser sur un palier
+    // qui n'a pas été enregistré ferait croire au contraire.
+    onError: () => setTiers(storage.tiers),
+  });
 
   return (
     <section
@@ -121,7 +111,7 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
       ) : null}
 
       {dirty ? (
-        <Btn size="sm" onClick={save} loading={pending} className="mt-4">
+        <Btn size="sm" onClick={() => void save.run()} loading={save.pending} className="mt-4">
           Enregistrer
         </Btn>
       ) : null}

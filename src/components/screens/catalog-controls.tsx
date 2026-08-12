@@ -21,11 +21,28 @@ const SORTS = [
   { value: "price_desc", label: "Prix décroissant" },
 ];
 
+interface CatalogNav {
+  push: (patch: Record<string, string | null>) => void;
+  pending: boolean;
+  search: string;
+  category: string;
+  format: string;
+  sort: string;
+}
+
+const CatalogNavContext = React.createContext<CatalogNav | null>(null);
+
 /**
  * L'état du catalogue vit dans l'URL : la liste est rendue côté serveur
  * (indexable, partageable) et ces composants ne font que réécrire la query.
+ *
+ * La transition est **unique et partagée**. Chaque composant appelait
+ * auparavant son propre `useTransition` : changer une case dans la colonne de
+ * filtres laissait donc le `pending` de la barre d'outils à faux, et celui des
+ * résultats n'existait pas du tout. Le retour n'était pas seulement discret, il
+ * se posait ailleurs que là où l'on regardait.
  */
-function useCatalogParams() {
+export function CatalogNavProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -46,14 +63,25 @@ function useCatalogParams() {
     [params, pathname, router],
   );
 
-  return {
-    push,
-    pending,
-    search: params.get("search") ?? "",
-    category: params.get("category") ?? "",
-    format: params.get("format") ?? "",
-    sort: params.get("sort") ?? "newest",
-  };
+  const value = React.useMemo<CatalogNav>(
+    () => ({
+      push,
+      pending,
+      search: params.get("search") ?? "",
+      category: params.get("category") ?? "",
+      format: params.get("format") ?? "",
+      sort: params.get("sort") ?? "newest",
+    }),
+    [push, pending, params],
+  );
+
+  return <CatalogNavContext.Provider value={value}>{children}</CatalogNavContext.Provider>;
+}
+
+function useCatalogParams(): CatalogNav {
+  const ctx = React.useContext(CatalogNavContext);
+  if (!ctx) throw new Error("CatalogNavProvider manquant au-dessus de ce composant.");
+  return ctx;
 }
 
 function FiltersPanel({
@@ -290,5 +318,30 @@ export function CatalogToolbar({
         </Btn>
       </aside>
     </>
+  );
+}
+
+/**
+ * Enveloppe les résultats pendant qu'une nouvelle requête est en vol.
+ *
+ * On garde volontairement la liste précédente à l'écran plutôt que de la
+ * remplacer par un squelette : on vient de la lire, elle reste utile, et la
+ * faire disparaître à chaque case cochée produirait un clignotement. Elle est
+ * en revanche marquée périmée — estompée, `aria-busy`, et rendue inerte pour
+ * qu'un clic ne parte pas sur une carte qui va être remplacée.
+ */
+export function CatalogResults({ children }: { children: React.ReactNode }) {
+  const { pending } = useCatalogParams();
+  return (
+    <div
+      aria-busy={pending || undefined}
+      // Sans transition, à dessein : le filtrage dure environ un quart de
+      // seconde, et un fondu de 200 ms n'aurait pas le temps de se dérouler —
+      // l'estompage resterait invisible, ce qui était exactement le défaut
+      // qu'on corrige. L'état doit tomber d'un coup.
+      className={cn(pending && "pointer-events-none opacity-45")}
+    >
+      {children}
+    </div>
   );
 }

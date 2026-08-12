@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Library } from 'lucide-react'
-import { Btn } from '@/components/nk/button'
+import { BtnLink } from '@/components/nk/button-link'
 import { Chip } from '@/components/nk/chip'
 import { Avatar } from '@/components/nk/avatar'
 import { Price, ResourceCard } from '@/components/nk/resource-card'
@@ -160,9 +160,9 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
                     <Price amountFcfa={trainer.community.priceFcfa} className="text-[17px]" />
                     <small className="ml-1 text-xs font-semibold text-ink-3">/ mois</small>
                   </span>
-                  <Btn asChild size="sm">
-                    <Link href={routes.community(trainer.community.slug)}>Rejoindre</Link>
-                  </Btn>
+                  <BtnLink href={routes.community(trainer.community.slug)} size="sm">
+                    Rejoindre
+                  </BtnLink>
                 </div>
               </div>
             </div>

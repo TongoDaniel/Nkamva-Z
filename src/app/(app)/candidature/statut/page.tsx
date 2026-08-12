@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Clock, FileSearch, XCircle } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { getAuthContext } from "@/lib/api";
 import { getMyApplication } from "@/lib/trainer-applications";
 import { fmtDate } from "@/lib/format";
-import { DOCUMENT_SLOTS, DOCUMENT_STATUS } from "../documents";
+import { DOCUMENT_SLOTS, DOCUMENT_STATUS } from "@/lib/trainer-document-slots";
 
 export const dynamic = "force-dynamic";
 
@@ -99,9 +98,9 @@ export default async function StatutCandidaturePage() {
           ) : null}
 
           {application.status === "APPROVED" ? (
-            <Btn asChild size="lg" className="mt-6">
-              <Link href="/formateur">Ouvrir mon espace formateur</Link>
-            </Btn>
+            <BtnLink href="/formateur" size="lg" className="mt-6">
+              Ouvrir mon espace formateur
+            </BtnLink>
           ) : null}
         </section>
 

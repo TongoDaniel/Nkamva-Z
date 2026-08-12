@@ -6,7 +6,7 @@ import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Avatar } from "@/components/nk/avatar";
 import { getAuthContext } from "@/lib/api";
 import { listDisputes, getDisputeStats } from "@/lib/dispute-review";
@@ -127,12 +127,10 @@ export default async function AdminLitigesPage({
                   <span className="whitespace-nowrap text-[12.5px] text-ink-3">
                     {fmtDate(dispute.lastActivityAt)}
                   </span>
-                  <Btn asChild variant="o" size="sm">
-                    <Link href={`/admin/litiges/${dispute.id}`}>
+                  <BtnLink href={`/admin/litiges/${dispute.id}`} variant="o" size="sm">
                       <Gavel aria-hidden="true" />
                       Examiner
-                    </Link>
-                  </Btn>
+                  </BtnLink>
                 </li>
               );
             })}

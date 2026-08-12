@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { BadgeCheck, Banknote, RotateCcw, ThumbsDown, TriangleAlert } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
-import { toast } from "@/components/nk/toast";
+import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
 
@@ -38,36 +37,29 @@ export function ReviewActions({
   withdrawableFcfa: number;
   minimumFcfa: number;
 }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState<string | null>(null);
   const [dialog, setDialog] = React.useState<Dialog | null>(null);
   const [note, setNote] = React.useState("");
   const [reason, setReason] = React.useState("");
   const [failureReason, setFailureReason] = React.useState("");
   const [reference, setReference] = React.useState("");
 
+  const action = useKeyedAction();
+
   const instructible = status === "IN_REVIEW";
   const wireable = status === "APPROVED" || status === "AUTO_APPROVED";
   const failed = status === "FAILED";
 
-  async function call(path: string, body: unknown, label: string, after?: () => void) {
-    setPending(path);
-    try {
-      await api.post(`/api/admin/payouts/${payoutId}/${path}`, body);
-      toast.success(label);
-      setDialog(null);
-      after?.();
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message);
-        if (err.code === "STALE_PAYOUT") router.refresh();
-        return;
-      }
-      toast.error("L'action a échoué. Réessayez.");
-    } finally {
-      setPending(null);
-    }
+  function call(path: string, body: unknown, label: string, after?: () => void) {
+    void action.run(path, () => api.post(`/api/admin/payouts/${payoutId}/${path}`, body), {
+      success: label,
+      onSuccess: () => {
+        setDialog(null);
+        after?.();
+      },
+      // Un pair a tranché entre l'affichage et le clic : l'écran ment tant
+      // qu'il n'est pas relu, et le bouton reste occupé le temps de la relecture.
+      refreshOnError: (err) => err instanceof ApiError && err.code === "STALE_PAYOUT",
+    });
   }
 
   if (!instructible && !wireable && !failed) {
@@ -138,7 +130,7 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "approve"}
+              loading={action.isRunning("approve")}
               onClick={() =>
                 call(
                   "approve",
@@ -150,7 +142,7 @@ export function ReviewActions({
             >
               Approuver
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>
               Annuler
             </Btn>
           </>
@@ -187,7 +179,7 @@ export function ReviewActions({
           <>
             <Btn
               variant="danger"
-              loading={pending === "reject"}
+              loading={action.isRunning("reject")}
               disabled={reason.trim().length < 10}
               onClick={() =>
                 call(
@@ -200,7 +192,7 @@ export function ReviewActions({
             >
               Rejeter
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>
               Annuler
             </Btn>
           </>
@@ -229,7 +221,7 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "mark-paid"}
+              loading={action.isRunning("mark-paid")}
               onClick={() =>
                 call(
                   "mark-paid",
@@ -241,7 +233,7 @@ export function ReviewActions({
             >
               Constater
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>
               Annuler
             </Btn>
           </>
@@ -266,7 +258,7 @@ export function ReviewActions({
           <>
             <Btn
               variant="danger"
-              loading={pending === "mark-failed"}
+              loading={action.isRunning("mark-failed")}
               disabled={failureReason.trim().length < 10}
               onClick={() =>
                 call(
@@ -279,7 +271,7 @@ export function ReviewActions({
             >
               Enregistrer l&apos;échec
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>
               Annuler
             </Btn>
           </>
@@ -312,12 +304,12 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "reopen"}
+              loading={action.isRunning("reopen")}
               onClick={() => call("reopen", {}, "Demande reprise.")}
             >
               Reprendre
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>
               Annuler
             </Btn>
           </>

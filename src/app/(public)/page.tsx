@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Sprout } from "lucide-react";
 import { MiniCard } from "@/components/landing/mini-card";
 import { BrowserFrame } from "@/components/nk/browser-frame";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Faq, ToFill } from "@/components/nk/faq";
@@ -188,12 +188,8 @@ export default async function LandingPage() {
           </Reveal>
           <Reveal delay={2.4}>
             <div className="flex flex-wrap justify-center gap-3">
-              <Btn asChild size="lg">
-                <Link href="/ressources">Explorer les ressources</Link>
-              </Btn>
-              <Btn asChild variant="o" size="lg">
-                <Link href="/devenir-formateur">Devenir formateur</Link>
-              </Btn>
+              <BtnLink href="/ressources" size="lg">Explorer les ressources</BtnLink>
+              <BtnLink href="/devenir-formateur" variant="o" size="lg">Devenir formateur</BtnLink>
             </div>
           </Reveal>
         </div>
@@ -335,9 +331,7 @@ export default async function LandingPage() {
                 ))}
               </ScrollCarousel>
               <div className="mt-[26px] flex justify-center">
-                <Btn asChild variant="o">
-                  <Link href="/ressources">Voir tout le catalogue</Link>
-                </Btn>
+                <BtnLink href="/ressources" variant="o">Voir tout le catalogue</BtnLink>
               </div>
             </>
           ) : (
@@ -366,9 +360,7 @@ export default async function LandingPage() {
                 }
                 action={
                   unavailable ? null : (
-                    <Btn asChild>
-                      <Link href="/devenir-formateur">Devenir formateur</Link>
-                    </Btn>
+                    <BtnLink href="/devenir-formateur">Devenir formateur</BtnLink>
                   )
                 }
               />
@@ -413,9 +405,9 @@ export default async function LandingPage() {
                   ))}
                 </dl>
                 <div className="mt-[22px] flex flex-wrap gap-3">
-                  <Btn asChild className="max-[640px]:flex-1">
-                    <Link href="/devenir-formateur">Devenir formateur</Link>
-                  </Btn>
+                  <BtnLink href="/devenir-formateur" className="max-[640px]:flex-1">
+                    Devenir formateur
+                  </BtnLink>
                 </div>
                 <p className="mt-3.5 text-[13px] text-ink-3">
                   Chaque candidature est examinée avant publication.
@@ -459,12 +451,8 @@ export default async function LandingPage() {
             ressource.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Btn asChild variant="light" size="lg">
-              <Link href="/auth/inscription">Créer un compte</Link>
-            </Btn>
-            <Btn asChild variant="gh" size="lg">
-              <Link href="/devenir-formateur">Devenir formateur</Link>
-            </Btn>
+            <BtnLink href="/auth/inscription" variant="light" size="lg">Créer un compte</BtnLink>
+            <BtnLink href="/devenir-formateur" variant="gh" size="lg">Devenir formateur</BtnLink>
           </div>
           <PayChips markets={markets} size="lg" className="mt-[34px] justify-center" />
           {markets.countries.length ? (

@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
-import { toast } from "@/components/nk/toast";
+import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
 import { DELETION_GRACE_DAYS } from "@/lib/dto";
@@ -16,73 +15,64 @@ import { SettingCard, SettingRow } from "@/components/nk/setting-card";
 const CONFIRM_WORD = "SUPPRIMER";
 
 export function DataPanel({ profile }: { profile: ProfileView }) {
-  const router = useRouter();
-  const [exporting, setExporting] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmWord, setConfirmWord] = React.useState("");
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
 
-  async function onExport() {
-    setExporting(true);
-    try {
-      const res = await fetch("/api/me/gdpr-export");
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new ApiError(
-          body?.error?.code ?? "EXPORT_FAILED",
-          body?.error?.message ?? "L'export a échoué.",
-          res.status,
-        );
-      }
-      // Le corps est le fichier lui-même : on déclenche le téléchargement sans
-      // quitter la page, puis on libère l'URL objet.
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `nkamva-donnees-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Export téléchargé.");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'export a échoué. Réessayez.");
-    } finally {
-      setExporting(false);
-    }
-  }
+  const onExport = () =>
+    void action.run(
+      "export",
+      async () => {
+        // Hors de `api` : la réponse est un fichier, pas l'enveloppe JSON.
+        const res = await fetch("/api/me/gdpr-export");
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new ApiError(
+            body?.error?.code ?? "EXPORT_FAILED",
+            body?.error?.message ?? "L'export a échoué.",
+            res.status,
+          );
+        }
+        // Le corps est le fichier lui-même : on déclenche le téléchargement sans
+        // quitter la page, puis on libère l'URL objet.
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `nkamva-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      },
+      { success: "Export téléchargé.", error: "L'export a échoué. Réessayez." },
+    );
 
-  async function onRequestDeletion() {
-    setPending(true);
-    try {
-      await api.post("/api/me/deletion");
-      setConfirmOpen(false);
-      setConfirmWord("");
-      toast.success("Suppression programmée. Vous pouvez encore l'annuler.");
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : "La demande a échoué. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-    }
-  }
+  const onRequestDeletion = () =>
+    void action.run("request", () => api.post("/api/me/deletion"), {
+      success: "Suppression programmée. Vous pouvez encore l'annuler.",
+      error: "La demande a échoué. Réessayez.",
+      onSuccess: () => {
+        setConfirmOpen(false);
+        setConfirmWord("");
+      },
+    });
 
-  async function onCancelDeletion() {
-    setPending(true);
-    try {
-      await fetch("/api/me/deletion", { method: "DELETE" });
-      toast.success("Suppression annulée. Votre compte est conservé.");
-      router.refresh();
-    } catch {
-      toast.error("L'annulation a échoué. Réessayez.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const onCancelDeletion = () =>
+    void action.run(
+      "cancel",
+      async () => {
+        const res = await fetch("/api/me/deletion", { method: "DELETE" });
+        // `fetch` ne lève pas sur un 4xx/5xx : sans ce contrôle, un refus du
+        // serveur affichait « Suppression annulée » alors qu'elle courait
+        // toujours.
+        if (!res.ok) throw new Error("CANCEL_FAILED");
+      },
+      {
+        success: "Suppression annulée. Votre compte est conservé.",
+        error: "L'annulation a échoué. Réessayez.",
+      },
+    );
 
   return (
     <>
@@ -94,7 +84,7 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
           title="Copie de vos données"
           description="Fichier JSON : profil, achats, progression, abonnements, notifications et journal de vos actions."
           action={
-            <Btn variant="o" size="sm" loading={exporting} onClick={onExport}>
+            <Btn variant="o" size="sm" loading={action.isRunning("export")} onClick={onExport}>
               <Download aria-hidden="true" />
               Télécharger
             </Btn>
@@ -118,7 +108,7 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
               le {fmtDate(profile.deletionScheduledAt)}. D&apos;ici là, votre compte reste
               pleinement utilisable.
             </p>
-            <Btn loading={pending} onClick={onCancelDeletion}>
+            <Btn loading={action.isRunning("cancel")} onClick={onCancelDeletion}>
               Annuler la suppression
             </Btn>
           </>
@@ -151,7 +141,7 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
           <>
             <Btn
               variant="danger"
-              loading={pending}
+              loading={action.isRunning("request")}
               disabled={confirmWord.trim().toUpperCase() !== CONFIRM_WORD}
               onClick={onRequestDeletion}
             >

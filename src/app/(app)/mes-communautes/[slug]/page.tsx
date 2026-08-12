@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Library, Lock, Radio } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { getAuthContext } from "@/lib/api";
 import { getCommunitySpace } from "@/lib/community-space";
@@ -35,7 +34,7 @@ export default async function EspaceCommunautePage({
   const { slug } = await params;
   const auth = await getAuthContext();
   if (!auth) {
-    redirect(`/auth/connexion?callbackUrl=${encodeURIComponent(`/mes-communautes/${slug}`)}`);
+    redirect(`/auth/deconnexion?callbackUrl=${encodeURIComponent(`/mes-communautes/${slug}`)}`);
   }
 
   let space;
@@ -98,11 +97,9 @@ export default async function EspaceCommunautePage({
                 ))}
               </div>
               {included.courses.length > 3 ? (
-                <Btn asChild variant="o" size="sm" block className="mt-4">
-                  <Link href="/mes-ressources">
+                <BtnLink href="/mes-ressources" variant="o" size="sm" block className="mt-4">
                     Voir les {included.courses.length} ressources
-                  </Link>
-                </Btn>
+                </BtnLink>
               ) : null}
             </section>
           ) : null}
@@ -137,9 +134,9 @@ export default async function EspaceCommunautePage({
                   cette communauté : elle vous appartient, vous n&apos;y adhérez pas.
                 </p>
                 <div className="mt-4 grid gap-2">
-                  <Btn asChild variant="o" size="sm" block>
-                    <Link href="/formateur/communaute">Gérer ma communauté</Link>
-                  </Btn>
+                  <BtnLink href="/formateur/communaute" variant="o" size="sm" block>
+                    Gérer ma communauté
+                  </BtnLink>
                 </div>
               </>
             ) : (
@@ -153,9 +150,9 @@ export default async function EspaceCommunautePage({
                   {/* Le formateur n'ouvre pas de fil avec lui-même : côté animateur,
                       une conversation naît toujours de celle d'un membre. */}
                   {space.messagingEnabled ? <OpenConversation slug={slug} /> : null}
-                  <Btn asChild variant="o" size="sm" block>
-                    <Link href={routes.community(slug)}>Gérer mon adhésion</Link>
-                  </Btn>
+                  <BtnLink href={routes.community(slug)} variant="o" size="sm" block>
+                    Gérer mon adhésion
+                  </BtnLink>
                 </div>
               </>
             )}

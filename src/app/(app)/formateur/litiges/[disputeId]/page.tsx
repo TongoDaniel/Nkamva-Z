@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Info } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { StPill } from "@/components/nk/status-pill";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getTrainerDispute } from "@/lib/trainer-disputes";
 import { fmtDate, fmtFcfa } from "@/lib/format";
@@ -177,9 +176,9 @@ export default async function TrainerDisputePage({
           </p>
 
           {dispute.purchase.course ? (
-            <Btn asChild variant="o" size="sm" block className="mt-4">
-              <Link href={`/formateur/ressources`}>Mes publications</Link>
-            </Btn>
+            <BtnLink href={`/formateur/ressources`} variant="o" size="sm" block className="mt-4">
+              Mes publications
+            </BtnLink>
           ) : null}
         </aside>
       </div>

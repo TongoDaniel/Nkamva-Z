@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { PlayCircle, Radio, Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StatTile } from "@/components/nk/stat-tile";
 import { getAuthContext } from "@/lib/api";
 import { db } from "@/lib/db";
@@ -75,9 +74,7 @@ export default async function MesLivesPage() {
           trainerId ? (
             <ScheduleLive communities={communities} />
           ) : (
-            <Btn asChild variant="o">
-              <Link href={routes.communities}>Explorer les communautés</Link>
-            </Btn>
+            <BtnLink href={routes.communities} variant="o">Explorer les communautés</BtnLink>
           )
         }
       />

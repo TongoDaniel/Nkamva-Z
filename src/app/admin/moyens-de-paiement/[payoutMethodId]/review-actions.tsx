@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { BadgeCheck, Landmark, ShieldCheck, ThumbsDown, Undo2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
+import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 
 type Dialog = "manual" | "microDeposit" | "reject" | "escalation";
@@ -38,8 +37,7 @@ export function ReviewActions({
   rejectionCount: number;
   maxRejections: number;
 }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState<string | null>(null);
+  const action = useKeyedAction();
   const [dialog, setDialog] = React.useState<Dialog | null>(null);
   const [note, setNote] = React.useState("");
   const [reason, setReason] = React.useState("");
@@ -57,25 +55,16 @@ export function ReviewActions({
   const microDepositable = instructible && type === "BANK_IBAN" && !microDepositIssued;
   const lastChance = rejectionCount + 1 >= maxRejections;
 
-  async function call(path: string, body: unknown, label: string, after?: () => void) {
-    setPending(path);
-    try {
-      await api.post(`/api/admin/payout-methods/${payoutMethodId}/${path}`, body);
-      toast.success(label);
-      setDialog(null);
-      after?.();
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message);
-        // Le dossier a bougé sous nos yeux : la seule issue est de relire.
-        if (err.code === "STALE_PAYOUT_METHOD") router.refresh();
-        return;
-      }
-      toast.error("L'action a échoué. Réessayez.");
-    } finally {
-      setPending(null);
-    }
+  function call(path: string, body: unknown, label: string, after?: () => void) {
+    void action.run(path, () => api.post(`/api/admin/payout-methods/${payoutMethodId}/${path}`, body), {
+      success: label,
+      onSuccess: () => {
+        setDialog(null);
+        after?.();
+      },
+      // Le dossier a bougé sous nos yeux : la seule issue est de relire.
+      refreshOnError: (err) => err instanceof ApiError && err.code === "STALE_PAYOUT_METHOD",
+    });
   }
 
   if (!hasVerifiedLegalName) {
@@ -160,7 +149,7 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "verify"}
+              loading={action.isRunning("verify")}
               onClick={() =>
                 call(
                   "verify",
@@ -205,7 +194,7 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "verify"}
+              loading={action.isRunning("verify")}
               onClick={() =>
                 call(
                   "verify",
@@ -243,7 +232,7 @@ export function ReviewActions({
           <>
             <Btn
               variant="danger"
-              loading={pending === "reject"}
+              loading={action.isRunning("reject")}
               disabled={reason.trim().length < 10}
               onClick={() =>
                 call(
@@ -289,7 +278,7 @@ export function ReviewActions({
         footer={
           <>
             <Btn
-              loading={pending === "escalation-resolve"}
+              loading={action.isRunning("escalation-resolve")}
               disabled={justification.trim().length < 10}
               onClick={() =>
                 call(

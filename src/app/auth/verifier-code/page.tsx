@@ -1,6 +1,6 @@
-﻿import { Suspense } from "react";
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import { AuthShell, AuthIllustration } from "@/components/layouts/auth-shell";
 import { VerifyCodeForm } from "./verify-form";
 
 export const metadata: Metadata = {
@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 export default function VerifierCodePage() {
   return (
     <AuthShell
-      aside={
-        <AuthAside
-          photoBrief="apprenante consultant son e-mail sur mobile"
-
+      illustration={
+        <AuthIllustration
+          photo="/auth/verifier-code.webp"
+          focus="36%"
           quote="La double vérification protège votre compte à chaque connexion."
           author="Sécurité NkamVa"
         />

@@ -11,7 +11,7 @@ const MODERATION_ROLES = ["MODERATION", "SUPER_ADMIN"];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuthContext();
-  if (!auth) redirect("/auth/connexion");
+  if (!auth) redirect("/auth/deconnexion");
   if (auth.user.role !== "ADMIN") redirect("/accueil");
 
   const profile = await db.user.findUnique({

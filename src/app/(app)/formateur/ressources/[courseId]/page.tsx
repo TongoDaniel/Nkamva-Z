@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { StatTile } from "@/components/nk/stat-tile";
 import { Cover, formatLabel } from "@/components/nk/cover";
@@ -13,7 +12,7 @@ import { getSalesByCourse } from "@/lib/trainer-stats";
 import { trainerStorage } from "@/lib/courses";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import { CourseForm, type CourseFormValues } from "../course-form";
-import { CourseActionsBar } from "./course-actions-bar";
+import { CourseActions } from "../course-list";
 import { CoverUploader } from "./cover-uploader";
 import { ContentUploader } from "./content-uploader";
 import { COURSE_STATUS } from "../course-status";
@@ -79,14 +78,12 @@ export default async function EditCoursePage({
         actions={
           <>
             {course.status === "published" ? (
-              <Btn asChild variant="o">
-                <Link href={`/ressources/${course.slug}`}>
-                  <ExternalLink aria-hidden="true" />
-                  Voir la fiche publique
-                </Link>
-              </Btn>
+              <BtnLink href={`/ressources/${course.slug}`} variant="o">
+                <ExternalLink aria-hidden="true" />
+                Voir la fiche publique
+              </BtnLink>
             ) : null}
-            <CourseActionsBar
+            <CourseActions
               course={{
                 id: course.id,
                 title: course.title,

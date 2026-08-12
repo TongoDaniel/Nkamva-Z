@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 const MIN = 1;
 const MAX = 99;
@@ -23,38 +22,36 @@ export function MicroDepositForm({
   payoutMethodId: string;
   reference: string | null;
 }) {
-  const router = useRouter();
   const [amount1, setAmount1] = React.useState("");
   const [amount2, setAmount2] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState(false);
+  // Erreur de saisie et erreur d'API partagent le même bandeau : le hook n'en
+  // fait pas de toast (`error: null`) et `localError` couvre le contrôle local.
+  const [localError, setLocalError] = React.useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+  const confirm = useAction(
+    (a1: number, a2: number) =>
+      api.post(`/api/trainer/payout-methods/${payoutMethodId}/micro-deposit/confirm`, {
+        amount1: a1,
+        amount2: a2,
+      }),
+    {
+      success: "Compte confirmé. Le délai de sécurité de 72 h démarre.",
+      error: null,
+    },
+  );
+
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setLocalError(null);
 
     const a1 = Number.parseInt(amount1, 10);
     const a2 = Number.parseInt(amount2, 10);
     if (![a1, a2].every((v) => Number.isFinite(v) && v >= MIN && v <= MAX)) {
-      setError(`Les deux montants sont des nombres entiers entre ${MIN} et ${MAX} FCFA.`);
+      setLocalError(`Les deux montants sont des nombres entiers entre ${MIN} et ${MAX} FCFA.`);
       return;
     }
 
-    setPending(true);
-    try {
-      await api.post(`/api/trainer/payout-methods/${payoutMethodId}/micro-deposit/confirm`, {
-        amount1: a1,
-        amount2: a2,
-      });
-      toast.success("Compte confirmé. Le délai de sécurité de 72 h démarre.");
-      router.refresh();
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "La confirmation a échoué. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-    }
+    void confirm.run(a1, a2);
   }
 
   return (
@@ -72,7 +69,7 @@ export function MicroDepositForm({
         n&apos;a pas d&apos;importance.
       </p>
 
-      <FormError>{error}</FormError>
+      <FormError>{localError ?? confirm.error}</FormError>
 
       <div className="grid gap-x-4 sm:grid-cols-2">
         <Field
@@ -97,7 +94,7 @@ export function MicroDepositForm({
         />
       </div>
 
-      <Btn type="submit" loading={pending}>
+      <Btn type="submit" loading={confirm.pending}>
         Confirmer le compte
       </Btn>
       <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { CornerDownRight, MessageSquareOff, Pin, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Tabs } from "@/components/nk/tabs";
@@ -10,7 +9,8 @@ import { Chip } from "@/components/nk/chip";
 import { Avatar } from "@/components/nk/avatar";
 import { EmptyState } from "@/components/nk/empty-state";
 import { ReportButton } from "@/components/nk/report-button";
-import { api, ApiError } from "@/lib/client";
+import { useAction, useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -133,7 +133,6 @@ export function CommunityFeed({
           <Composer
             slug={slug}
             kind={salon as "ANNOUNCEMENT" | "DISCUSSION"}
-            onDone={() => router.refresh()}
           />
         ) : null}
 
@@ -155,7 +154,6 @@ export function CommunityFeed({
               post={post}
               canSpeak={canSpeak}
               isTrainer={isTrainer}
-              onDone={() => router.refresh()}
             />
           ))
         )}
@@ -167,30 +165,28 @@ export function CommunityFeed({
 function Composer({
   slug,
   kind,
-  onDone,
 }: {
   slug: string;
   kind: "ANNOUNCEMENT" | "DISCUSSION";
-  onDone: () => void;
 }) {
   const [body, setBody] = React.useState("");
-  const [pending, setPending] = React.useState(false);
 
-  async function submit(e: React.FormEvent) {
+  const publish = useAction(
+    () => api.post(`/api/communities/${encodeURIComponent(slug)}/posts`, { kind, body }),
+    {
+      // Le message apparaît dans le fil rafraîchi : l'annoncer ferait doublon.
+      success: null,
+      error: "Votre message n'a pas été publié. Réessayez.",
+      // Le champ ne se vide qu'à l'arrivée du fil : le vider plus tôt donnerait
+      // l'impression d'avoir perdu le texte sans rien voir apparaître.
+      onSuccess: () => setBody(""),
+    },
+  );
+
+  function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!body.trim()) return;
-    setPending(true);
-    try {
-      await api.post(`/api/communities/${encodeURIComponent(slug)}/posts`, { kind, body });
-      setBody("");
-      onDone();
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : "Votre message n'a pas été publié. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-    }
+    void publish.run();
   }
 
   return (
@@ -219,7 +215,7 @@ function Composer({
         <span className="text-[12px] text-ink-3">
           {body.length > MAX_LENGTH - 500 ? `${body.length} / ${MAX_LENGTH}` : ""}
         </span>
-        <Btn type="submit" size="sm" loading={pending} disabled={!body.trim()}>
+        <Btn type="submit" size="sm" loading={publish.pending} disabled={!body.trim()}>
           {kind === "ANNOUNCEMENT" ? "Publier l'annonce" : "Publier"}
         </Btn>
       </div>
@@ -232,28 +228,20 @@ function PostCard({
   post,
   canSpeak,
   isTrainer,
-  onDone,
 }: {
   slug: string;
   post: FeedPost;
   canSpeak: boolean;
   isTrainer: boolean;
-  onDone: () => void;
 }) {
   const [replying, setReplying] = React.useState(false);
   const [reply, setReply] = React.useState("");
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
 
-  async function run(action: () => Promise<unknown>, failure: string) {
-    setPending(true);
-    try {
-      await action();
-      onDone();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : failure);
-    } finally {
-      setPending(false);
-    }
+  // La clé désigne le bouton cliqué : sans elle, épingler faisait tourner le
+  // retrait et la réponse en même temps.
+  function run(key: string, fn: () => Promise<unknown>, failure: string, after?: () => void) {
+    void action.run(key, fn, { success: null, error: failure, onSuccess: after });
   }
 
   return (
@@ -297,10 +285,11 @@ function PostCard({
           {isTrainer && !post.deleted ? (
             <button
               type="button"
-              disabled={pending}
+              disabled={action.busy}
               aria-label={post.pinned ? "Détacher ce message" : "Épingler ce message"}
               onClick={() =>
                 run(
+                  "pin",
                   () => api.patch(`/api/communities/${encodeURIComponent(slug)}/posts/${post.id}`),
                   "L'épinglage n'a pas abouti.",
                 )
@@ -313,10 +302,11 @@ function PostCard({
           {post.canDelete ? (
             <button
               type="button"
-              disabled={pending}
+              disabled={action.busy}
               aria-label="Retirer ce message"
               onClick={() =>
                 run(
+                  "delete",
                   () => api.del(`/api/communities/${encodeURIComponent(slug)}/posts/${post.id}`),
                   "Le retrait n'a pas abouti.",
                 )
@@ -380,10 +370,11 @@ function PostCard({
                 {!r.deleted && isTrainer ? (
                   <button
                     type="button"
-                    disabled={pending}
+                    disabled={action.busy}
                     aria-label="Retirer cette réponse"
                     onClick={() =>
                       run(
+                        `delete-reply:${r.id}`,
                         () =>
                           api.del(`/api/communities/${encodeURIComponent(slug)}/reponses/${r.id}`),
                         "Le retrait n'a pas abouti.",
@@ -407,14 +398,20 @@ function PostCard({
             onSubmit={(e) => {
               e.preventDefault();
               if (!reply.trim()) return;
-              void run(async () => {
-                await api.post(
-                  `/api/communities/${encodeURIComponent(slug)}/posts/${post.id}`,
-                  { body: reply },
-                );
-                setReply("");
-                setReplying(false);
-              }, "Votre réponse n'a pas été publiée.");
+              run(
+                "reply",
+                () =>
+                  api.post(`/api/communities/${encodeURIComponent(slug)}/posts/${post.id}`, {
+                    body: reply,
+                  }),
+                "Votre réponse n'a pas été publiée.",
+                // Refermés à l'arrivée du fil, pas avant : la réponse et son
+                // apparition dans la liste doivent tomber ensemble.
+                () => {
+                  setReply("");
+                  setReplying(false);
+                },
+              );
             }}
             className="mt-4 border-t border-line-2 pt-4"
           >
@@ -435,7 +432,7 @@ function PostCard({
               <Btn type="button" variant="t" size="sm" onClick={() => setReplying(false)}>
                 Annuler
               </Btn>
-              <Btn type="submit" size="sm" loading={pending} disabled={!reply.trim()}>
+              <Btn type="submit" size="sm" loading={action.isRunning("reply")} disabled={!reply.trim()}>
                 Répondre
               </Btn>
             </div>

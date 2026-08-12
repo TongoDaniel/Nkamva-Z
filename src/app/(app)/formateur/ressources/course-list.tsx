@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Archive, ExternalLink, Filter, Send, SquarePen } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Tabs } from "@/components/nk/tabs";
 import { StPill } from "@/components/nk/status-pill";
 import { Modal } from "@/components/nk/modal";
 import { EmptyState } from "@/components/nk/empty-state";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtDate, fmtDuration, fmtFcfa, fmtNumber } from "@/lib/format";
 import { COURSE_STATUS } from "./course-status";
 
@@ -29,39 +30,35 @@ export interface TrainerCourseRow {
   netRevenueFcfa: number;
 }
 
-/** Publication et archivage — les deux transitions exposées par le Lot 4. */
+/**
+ * Publication et archivage — les deux transitions exposées par le Lot 4.
+ *
+ * Les deux actions rafraîchissent le rendu serveur : `useAction` s'en charge,
+ * ce qui rend inutile l'ancienne prop `onDone`, que les deux appelants
+ * remplissaient de la même façon.
+ */
 export function CourseActions({
   course,
-  onDone,
 }: {
   course: Pick<TrainerCourseRow, "id" | "title" | "status" | "salesCount">;
-  onDone: () => void;
 }) {
-  const [pending, setPending] = React.useState<null | "publish" | "archive">(null);
   const [confirmArchive, setConfirmArchive] = React.useState(false);
 
-  const run = async (action: "publish" | "archive") => {
-    setPending(action);
-    try {
-      await api.post(`/api/trainer/courses/${course.id}/${action}`);
-      toast.success(
-        action === "publish"
-          ? "Ressource publiée. Elle est visible au catalogue."
-          : "Ressource archivée. Elle quitte le catalogue.",
-      );
-      setConfirmArchive(false);
-      onDone();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action a échoué. Réessayez.");
-    } finally {
-      setPending(null);
-    }
-  };
+  const publish = useAction(() => api.post(`/api/trainer/courses/${course.id}/publish`), {
+    success: "Ressource publiée. Elle est visible au catalogue.",
+  });
+
+  const archive = useAction(() => api.post(`/api/trainer/courses/${course.id}/archive`), {
+    success: "Ressource archivée. Elle quitte le catalogue.",
+    // Fermée dans la transition : la modale disparaît au moment où la liste
+    // rafraîchie arrive, et non sur une ligne encore marquée « Publiée ».
+    onSuccess: () => setConfirmArchive(false),
+  });
 
   return (
     <>
       {course.status !== "published" ? (
-        <Btn size="sm" loading={pending === "publish"} onClick={() => void run("publish")}>
+        <Btn size="sm" loading={publish.pending} onClick={() => void publish.run()}>
           <Send aria-hidden="true" />
           Publier
         </Btn>
@@ -90,10 +87,12 @@ export function CourseActions({
         }
         footer={
           <>
-            <Btn variant="danger" loading={pending === "archive"} onClick={() => void run("archive")}>
+            <Btn variant="danger" loading={archive.pending} onClick={() => void archive.run()}>
               Archiver
             </Btn>
-            <Btn variant="o" onClick={() => setConfirmArchive(false)}>
+            {/* Neutralisé pendant l'archivage : refermer la modale en cours de
+                route laisserait l'action se terminer sans rien à l'écran. */}
+            <Btn variant="o" disabled={archive.pending} onClick={() => setConfirmArchive(false)}>
               Annuler
             </Btn>
           </>
@@ -193,22 +192,18 @@ export function TrainerCourseList({
                 </dl>
 
                 <div className="flex flex-wrap gap-2">
-                  <Btn asChild variant="o" size="sm">
-                    <Link href={`/formateur/ressources/${course.id}`}>
+                  <BtnLink href={`/formateur/ressources/${course.id}`} variant="o" size="sm">
                       <SquarePen aria-hidden="true" />
                       Modifier
-                    </Link>
-                  </Btn>
+                  </BtnLink>
                   {course.status === "published" ? (
-                    <Btn asChild variant="t" size="sm">
-                      <Link href={`/ressources/${course.slug}`}>
+                    <BtnLink href={`/ressources/${course.slug}`} variant="t" size="sm">
                         <ExternalLink aria-hidden="true" />
                         <span className="sr-only">Voir la fiche publique de </span>
                         Voir
-                      </Link>
-                    </Btn>
+                    </BtnLink>
                   ) : null}
-                  <CourseActions course={course} onDone={() => router.refresh()} />
+                  <CourseActions course={course} />
                 </div>
               </article>
             );

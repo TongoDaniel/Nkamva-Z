@@ -3,8 +3,15 @@
 import * as React from "react";
 import { Check, Paperclip, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { UploadBar } from "@/components/nk/upload-bar";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
-import { sha256Hex, putToPresignedUrl, PLACEHOLDER_UPLOAD_PREFIX } from "@/lib/upload";
+import {
+  sha256Hex,
+  putToPresignedUrl,
+  PLACEHOLDER_UPLOAD_PREFIX,
+  type UploadProgress,
+} from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 /** Miroir de BUSINESS_DOC_ALLOWED_MIMES / BUSINESS_DOC_MAX_SIZE_BYTES. */
@@ -35,11 +42,59 @@ export function DocumentField({
   error?: string;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [pending, setPending] = React.useState(false);
   const [localError, setLocalError] = React.useState<string | null>(null);
+  const [progress, setProgress] = React.useState<UploadProgress | null>(null);
   const id = React.useId();
 
-  async function onFile(file: File) {
+  const send = useAction(
+    async (file: File) => {
+      const sha256 = await sha256Hex(file);
+      const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
+        "/api/trainer/payout-methods/documents/upload",
+        { kind, mimeType: file.type, sizeBytes: file.size, sha256 },
+      );
+
+      // Sans identifiants R2, le backend renvoie une URL factice. Garder la clé
+      // donnerait un dossier qui paraît complet et ne l'est pas. Levé plutôt
+      // que retourné : un retour vaudrait réussite.
+      if (data.uploadUrl.startsWith(PLACEHOLDER_UPLOAD_PREFIX)) {
+        throw new ApiError(
+          "STORAGE_NOT_CONFIGURED",
+          "Stockage des fichiers non configuré : le document n'a pas pu être envoyé.",
+          0,
+        );
+      }
+
+      await putToPresignedUrl(data.uploadUrl, file, { onProgress: setProgress });
+      return { s3Key: data.s3Key, fileName: file.name };
+    },
+    {
+      // Le document n'est pas encore enregistré : il remonte au formulaire, qui
+      // l'enverra avec le reste. Rien à rafraîchir, rien à annoncer.
+      success: null,
+      error: null,
+      refresh: false,
+      onSuccess: (doc) => onChange(doc),
+      onError: (err) =>
+        setLocalError(
+          err instanceof ApiError
+            ? err.message
+            : err instanceof Error && err.message === "SUBTLE_CRYPTO_UNAVAILABLE"
+              ? "Votre navigateur ne peut pas signer le fichier sur une connexion non sécurisée."
+              : "L'envoi du document a échoué. Réessayez.",
+        ),
+    },
+  );
+
+  // Le champ se vide une fois l'envoi retombé : sans cela, redéposer deux fois
+  // le même fichier n'émettrait pas de second `change`.
+  React.useEffect(() => {
+    if (send.pending) return;
+    setProgress(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }, [send.pending]);
+
+  function onFile(file: File) {
     setLocalError(null);
 
     if (!ALLOWED_MIMES.includes(file.type)) {
@@ -50,36 +105,7 @@ export function DocumentField({
       setLocalError("Le document ne doit pas dépasser 10 Mo.");
       return;
     }
-
-    setPending(true);
-    try {
-      const sha256 = await sha256Hex(file);
-      const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
-        "/api/trainer/payout-methods/documents/upload",
-        { kind, mimeType: file.type, sizeBytes: file.size, sha256 },
-      );
-
-      // Sans identifiants R2, le backend renvoie une URL factice. Garder la clé
-      // donnerait un dossier qui paraît complet et ne l'est pas.
-      if (data.uploadUrl.startsWith(PLACEHOLDER_UPLOAD_PREFIX)) {
-        setLocalError("Stockage des fichiers non configuré : le document n'a pas pu être envoyé.");
-        return;
-      }
-
-      await putToPresignedUrl(data.uploadUrl, file);
-      onChange({ s3Key: data.s3Key, fileName: file.name });
-    } catch (err) {
-      setLocalError(
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error && err.message === "SUBTLE_CRYPTO_UNAVAILABLE"
-            ? "Votre navigateur ne peut pas signer le fichier sur une connexion non sécurisée."
-            : "L'envoi du document a échoué. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
+    void send.run(file);
   }
 
   // L'erreur du champ passe devant celle du formulaire : elle est toujours plus
@@ -122,7 +148,7 @@ export function DocumentField({
         <Btn
           variant="o"
           size="sm"
-          loading={pending}
+          loading={send.pending}
           onClick={() => inputRef.current?.click()}
           aria-controls={id}
           className={cn(shown && "border-danger text-danger")}
@@ -132,6 +158,9 @@ export function DocumentField({
         </Btn>
       )}
 
+      {send.pending ? (
+        <UploadBar progress={progress} label="Envoi du document…" />
+      ) : null}
       <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">{hint}</p>
       {shown ? <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{shown}</p> : null}
     </div>

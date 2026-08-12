@@ -6,11 +6,12 @@ import { hashPassword } from '@/lib/password'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { consumeOtp } from '@/lib/otp'
 import { otpFailureResponse } from '../otp-errors'
+import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
 
 const schema = z.object({
   email: z.string().email('Adresse email invalide').max(254),
   code: z.string().regex(/^\d{6}$/, 'Code à 6 chiffres attendu'),
-  password: z.string().min(10, 'Le mot de passe doit contenir au moins 10 caractères').max(128),
+  password: z.string().min(MIN_PASSWORD_LENGTH, `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères`).max(128),
 })
 
 export async function POST(request: Request) {

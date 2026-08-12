@@ -1,6 +1,15 @@
-// Description des trois pièces attendues, partagée par le wizard et le suivi.
+// Description des trois pièces attendues d'un candidat formateur, partagée par
+// le parcours connecté (`/candidature`), le parcours visiteur
+// (`/devenir-formateur`) et le suivi.
+//
 // Module neutre : importé par un composant serveur comme par un composant
-// client, sans entraîner l'un dans le paquet de l'autre.
+// client, sans entraîner l'un dans le paquet de l'autre. Il vit dans `lib/` et
+// non dans un dossier de route parce que les deux parcours en dépendent — une
+// page publique n'a pas à aller lire dans `(app)/`.
+//
+// Les valeurs reflètent `DOCUMENT_LIMITS` de `trainer-documents.ts`, qui reste
+// l'autorité : le serveur refuse ce qui les dépasse. Ce qui est décrit ici sert
+// à le dire avant l'envoi plutôt qu'après.
 
 export interface DocumentSlot {
   type: "ID_CARD" | "DIPLOMA" | "VIDEO";
@@ -8,6 +17,8 @@ export interface DocumentSlot {
   help: string;
   accept: string;
   maxLabel: string;
+  /** Plafond côté serveur, repris pour refuser le fichier sans aller-retour. */
+  maxBytes: number;
 }
 
 export const DOCUMENT_SLOTS: DocumentSlot[] = [
@@ -17,6 +28,7 @@ export const DOCUMENT_SLOTS: DocumentSlot[] = [
     help: "Carte nationale, passeport ou titre de séjour en cours de validité.",
     accept: "application/pdf,image/png,image/jpeg,image/webp",
     maxLabel: "PDF, PNG, JPEG ou WebP · 10 Mo max.",
+    maxBytes: 10_485_760,
   },
   {
     type: "DIPLOMA",
@@ -24,6 +36,7 @@ export const DOCUMENT_SLOTS: DocumentSlot[] = [
     help: "Un document qui atteste de votre expertise sur le domaine enseigné.",
     accept: "application/pdf,image/png,image/jpeg,image/webp",
     maxLabel: "PDF, PNG, JPEG ou WebP · 10 Mo max.",
+    maxBytes: 10_485_760,
   },
   {
     type: "VIDEO",
@@ -31,6 +44,7 @@ export const DOCUMENT_SLOTS: DocumentSlot[] = [
     help: "Deux minutes pour vous présenter et expliquer ce que vous voulez enseigner.",
     accept: "video/mp4",
     maxLabel: "MP4 · 2 Go max.",
+    maxBytes: 2_147_483_648,
   },
 ];
 

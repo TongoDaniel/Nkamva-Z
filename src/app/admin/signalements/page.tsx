@@ -6,7 +6,7 @@ import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Avatar } from "@/components/nk/avatar";
 import { getAuthContext } from "@/lib/api";
 import { listReports, getReportStats } from "@/lib/reports";
@@ -126,12 +126,10 @@ export default async function SignalementsPage({
                   </div>
                   <StPill tone={state.tone}>{state.label}</StPill>
                   <span className="text-[12.5px] text-ink-2">{fmtDate(report.createdAt)}</span>
-                  <Btn asChild variant="o" size="sm">
-                    <Link href={`/admin/signalements/${report.id}`}>
+                  <BtnLink href={`/admin/signalements/${report.id}`} variant="o" size="sm">
                       <ScanSearch aria-hidden="true" />
                       Instruire
-                    </Link>
-                  </Btn>
+                  </BtnLink>
                 </li>
               );
             })}

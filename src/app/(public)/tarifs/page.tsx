@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Check } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { fmtNumber } from "@/lib/format";
@@ -138,9 +137,9 @@ export default async function TarifsPage() {
               ))}
             </ul>
 
-            <Btn asChild variant={plan.variant} block className="mt-auto">
-              <Link href={plan.cta.href}>{plan.cta.label}</Link>
-            </Btn>
+            <BtnLink href={plan.cta.href} variant={plan.variant} block className="mt-auto">
+              {plan.cta.label}
+            </BtnLink>
           </section>
         ))}
       </div>

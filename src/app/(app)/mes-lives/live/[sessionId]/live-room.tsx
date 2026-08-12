@@ -20,8 +20,8 @@ import { Btn } from "@/components/nk/button";
 import { ReportButton } from "@/components/nk/report-button";
 import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
-import { toast } from "sonner";
-import { api, ApiError } from "@/lib/client";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { useLiveRoom } from "@/hooks/use-live-room";
 import { cn } from "@/lib/utils";
 import type { LiveRoomView } from "@/lib/lives";
@@ -122,7 +122,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
   const [messages, setMessages] = React.useState(room.messages);
   const [draft, setDraft] = React.useState("");
   const [notes, setNotes] = React.useState("");
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
   // Le décompte dépend de l'horloge : le calculer au rendu serveur produirait
   // une valeur différente à l'hydratation. On n'affiche qu'après le montage.
   const [countdown, setCountdown] = React.useState<string | null>(null);
@@ -154,32 +154,33 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
   React.useEffect(() => setMessages(room.messages), [room.messages]);
   React.useEffect(() => setHandRaisedAt(room.handRaisedAt), [room.handRaisedAt]);
 
-  async function act(body: unknown, onOk?: () => void) {
-    setPending(true);
-    try {
-      await api.post(`/api/lives/${room.id}`, body);
-      onOk?.();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action n'a pas abouti.");
-    } finally {
-      setPending(false);
-    }
+  /**
+   * `key` désigne le geste en cours : la main levée et l'envoi d'un message
+   * partageaient un seul booléen, si bien qu'écrire figeait aussi la main.
+   */
+  function act(key: string, body: unknown, message: string | null, after?: () => void) {
+    void action.run(key, () => api.post(`/api/lives/${room.id}`, body), {
+      success: message,
+      error: "L'action n'a pas abouti.",
+      onSuccess: after,
+    });
   }
 
-  async function sendChat(event: React.FormEvent) {
+  function sendChat(event: React.FormEvent) {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    setPending(true);
-    try {
-      await api.post(`/api/lives/${room.id}`, { action: "message", body: text });
-      setDraft("");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Le message n'est pas parti.");
-    } finally {
-      setPending(false);
-    }
+    void action.run(
+      "message",
+      () => api.post(`/api/lives/${room.id}`, { action: "message", body: text }),
+      {
+        // Le message apparaît dans le salon relu : l'annoncer ferait doublon.
+        success: null,
+        error: "Le message n'est pas parti.",
+        // Le champ ne se vide qu'à l'arrivée du message.
+        onSuccess: () => setDraft(""),
+      },
+    );
   }
 
   const dateLabel = new Intl.DateTimeFormat("fr-FR", {
@@ -218,10 +219,11 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
           <Btn
             variant="gh"
             size="sm"
+            loading={action.isRunning("leave")}
             onClick={() =>
-              act({ action: "leave" }, () => {
-                router.push("/mes-lives");
-              })
+              // La navigation est jouée dans la transition : le bouton reste
+              // occupé jusqu'à ce que l'agenda soit à l'écran.
+              act("leave", { action: "leave" }, null, () => router.push("/mes-lives"))
             }
           >
             <LogOut aria-hidden="true" />
@@ -330,7 +332,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
               </ControlButton>
               <ControlButton
                 active={handRaisedAt !== null}
-                disabled={pending || !room.canSpeak}
+                disabled={action.busy || !room.canSpeak}
                 label={handRaisedAt !== null ? "Baisser la main" : "Lever la main"}
                 onClick={() => {
                   // La parole n'est pas conditionnée à la main levée : chacun
@@ -338,11 +340,12 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                   // souhaite la prendre, et la file dit dans quel ordre les
                   // demandes sont arrivées (arbitrage 36).
                   const raising = handRaisedAt === null;
-                  void act({ action: "hand", raised: raising }, () => {
-                    setHandRaisedAt(raising ? new Date() : null);
-                    toast.success(raising ? "Main levée." : "Main baissée.");
-                    router.refresh();
-                  });
+                  act(
+                    "hand",
+                    { action: "hand", raised: raising },
+                    raising ? "Main levée." : "Main baissée.",
+                    () => setHandRaisedAt(raising ? new Date() : null),
+                  );
                 }}
               >
                 <Hand />
@@ -441,7 +444,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                   <Btn
                     type="submit"
                     size="sm"
-                    disabled={!draft.trim() || pending}
+                    disabled={!draft.trim() || action.busy}
                     aria-label="Envoyer"
                   >
                     <Send aria-hidden="true" />

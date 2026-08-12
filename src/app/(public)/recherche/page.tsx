@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SearchX, Users, GraduationCap } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
 import { PageHead } from "@/components/nk/page-head";
@@ -68,9 +69,7 @@ export default async function RecherchePage({
           title="Aucun résultat"
           description="Essayez un autre terme, ou parcourez le catalogue."
           action={
-            <Btn asChild variant="o">
-              <Link href="/ressources">Voir le catalogue</Link>
-            </Btn>
+            <BtnLink href="/ressources" variant="o">Voir le catalogue</BtnLink>
           }
         />
       ) : (

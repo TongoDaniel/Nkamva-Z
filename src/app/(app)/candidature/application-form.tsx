@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
-import { toast } from "@/components/nk/toast";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { isValidUrl, MIN_TRAINER_DESCRIPTION, URL_ERROR } from "@/lib/validation";
 import { cn } from "@/lib/utils";
@@ -42,11 +41,45 @@ export function ApplicationForm({
   initial?: ApplicationDraft;
   onSaved?: () => void;
 }) {
-  const router = useRouter();
   const [draft, setDraft] = React.useState<ApplicationDraft>(initial ?? EMPTY_DRAFT);
   const [error, setError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
-  const [pending, setPending] = React.useState(false);
+
+  const save = useAction(
+    async (payload: unknown) => {
+      if (mode === "create") {
+        await api.post("/api/trainer-applications", payload);
+        return "create" as const;
+      }
+      await api.patch("/api/trainer-applications/me", payload);
+      return "edit" as const;
+    },
+    {
+      success: (kind) =>
+        kind === "create"
+          ? "Candidature créée. Déposez maintenant vos pièces."
+          : "Présentation enregistrée.",
+      // Les erreurs se posent sur les champs fautifs : pas de toast.
+      error: null,
+      onSuccess: () => onSaved?.(),
+      onError: (err) => {
+        if (err instanceof ApiError) {
+          if (err.details?.length) {
+            setFieldErrors(
+              Object.fromEntries(
+                err.details
+                  .filter((d) => d.field && d.reason)
+                  .map((d) => [d.field as string, d.reason as string]),
+              ),
+            );
+          }
+          setError(err.message);
+        } else {
+          setError("L'enregistrement a échoué. Réessayez.");
+        }
+      },
+    },
+  );
 
   const set = <K extends keyof ApplicationDraft>(key: K, value: ApplicationDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -59,7 +92,7 @@ export function ApplicationForm({
         : [...d.domains, domain].slice(0, 5),
     }));
 
-  async function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -78,45 +111,15 @@ export function ApplicationForm({
       return;
     }
     setFieldErrors({});
-    setPending(true);
 
     const years = Number.parseInt(draft.experienceYears, 10);
-    const payload = {
+    void save.run({
       slogan: draft.slogan.trim() || undefined,
       description: draft.description.trim(),
       websiteUrl: draft.websiteUrl.trim() || undefined,
       domains: draft.domains,
       ...(Number.isFinite(years) ? { experienceYears: years } : {}),
-    };
-
-    try {
-      if (mode === "create") {
-        await api.post("/api/trainer-applications", payload);
-        toast.success("Candidature créée. Déposez maintenant vos pièces.");
-      } else {
-        await api.patch("/api/trainer-applications/me", payload);
-        toast.success("Présentation enregistrée.");
-      }
-      onSaved?.();
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.details?.length) {
-          setFieldErrors(
-            Object.fromEntries(
-              err.details
-                .filter((d) => d.field && d.reason)
-                .map((d) => [d.field as string, d.reason as string]),
-            ),
-          );
-        }
-        setError(err.message);
-      } else {
-        setError("L'enregistrement a échoué. Réessayez.");
-      }
-    } finally {
-      setPending(false);
-    }
+    });
   }
 
   const remaining = MIN_DESCRIPTION - draft.description.trim().length;
@@ -220,7 +223,7 @@ export function ApplicationForm({
         />
       </div>
 
-      <Btn type="submit" size="lg" block loading={pending} className="mt-2">
+      <Btn type="submit" size="lg" block loading={save.pending} className="mt-2">
         {mode === "create" ? "Créer ma candidature" : "Enregistrer la présentation"}
       </Btn>
     </form>

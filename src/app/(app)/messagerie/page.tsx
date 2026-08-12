@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { MessageSquare } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { listMyConversations, getConversation } from "@/lib/messaging";
 import { ConversationPane } from "./conversation-pane";
@@ -56,9 +55,7 @@ export default async function MessageriePage({
           title="Aucune conversation"
           description="Échanger avec un formateur suppose d'être membre de sa communauté : l'achat d'une ressource à l'unité n'ouvre pas de fil."
           action={
-            <Btn asChild size="lg">
-              <Link href={routes.communities}>Voir les communautés</Link>
-            </Btn>
+            <BtnLink href={routes.communities} size="lg">Voir les communautés</BtnLink>
           }
         />
       ) : (

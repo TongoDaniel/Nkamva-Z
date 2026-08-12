@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 type AdminRole = "SUPER_ADMIN" | "FINANCES" | "MODERATION";
 
@@ -21,37 +20,35 @@ const ROLE_OPTIONS: Array<{ value: AdminRole; label: string; hint: string }> = [
 ];
 
 export function CreateAdminForm() {
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [fullName, setFullName] = React.useState("");
   const [adminRole, setAdminRole] = React.useState<AdminRole>("MODERATION");
-  const [error, setError] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setPending(true);
-    try {
-      await api.post("/api/admin/admins", {
+  const create = useAction(
+    () =>
+      api.post("/api/admin/admins", {
         email: email.trim().toLowerCase(),
         fullName: fullName.trim(),
         adminRole,
-      });
-      toast.success(
-        `Compte ${ROLE_OPTIONS.find((r) => r.value === adminRole)?.label} créé. Un e-mail invite ${fullName.trim()} à choisir son mot de passe.`,
-      );
-      setOpen(false);
-      setEmail("");
-      setFullName("");
-      setAdminRole("MODERATION");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "La création a échoué.");
-    } finally {
-      setPending(false);
-    }
+      }),
+    {
+      success: `Compte ${ROLE_OPTIONS.find((r) => r.value === adminRole)?.label} créé. Un e-mail invite ${fullName.trim()} à choisir son mot de passe.`,
+      // L'échec s'affiche au fil du formulaire, à côté des champs fautifs,
+      // plutôt qu'en pastille au bas de l'écran.
+      error: null,
+      onSuccess: () => {
+        setOpen(false);
+        setEmail("");
+        setFullName("");
+        setAdminRole("MODERATION");
+      },
+    },
+  );
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void create.run();
   }
 
   return (
@@ -63,19 +60,19 @@ export function CreateAdminForm() {
       description="Le compte naît sans mot de passe : un e-mail invite la personne à en choisir un elle-même, via « Mot de passe oublié »."
       footer={
         <>
-          <Btn type="submit" form="create-admin-form" loading={pending}>
+          <Btn type="submit" form="create-admin-form" loading={create.pending}>
             Créer et inviter
           </Btn>
-          <Btn variant="o" onClick={() => setOpen(false)}>
+          <Btn variant="o" disabled={create.pending} onClick={() => setOpen(false)}>
             Annuler
           </Btn>
         </>
       }
     >
       <form id="create-admin-form" onSubmit={onSubmit} noValidate>
-        {error ? (
+        {create.error ? (
           <p role="alert" className="mb-4 rounded-xl bg-danger-tint px-4 py-3 text-[13.5px] font-semibold text-danger">
-            {error}
+            {create.error}
           </p>
         ) : null}
 

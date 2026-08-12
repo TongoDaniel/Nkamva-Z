@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
 
 /** Le champ décide de la route : deux endpoints, un par invariant surveillé. */
@@ -49,42 +49,45 @@ export function ReconcileButton({
   expectedValue: number;
   delta: number;
 }) {
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [reason, setReason] = React.useState("");
-  const [pending, setPending] = React.useState(false);
 
   const route = ROUTE[field];
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    const text = reason.trim();
-    if (text.length < MIN_REASON) {
-      toast.error(`Le motif demande au moins ${MIN_REASON} caractères.`);
-      return;
-    }
-    setPending(true);
-    try {
+  const reconcile = useAction(
+    async (text: string) => {
       const { data } = await api.post<{ corrected: boolean; delta: number }>(
         `/api/admin/wallets/${walletId}/${route}`,
         { reason: text },
       );
+      return data;
+    },
+    {
       // `corrected: false` n'est pas un échec : l'écart s'est résorbé entre
       // l'affichage et le clic — une vente, un retrait approuvé. Le dire évite
       // de chercher une correction qui n'a pas eu lieu.
-      toast.success(
+      success: (data) =>
         data.corrected
           ? `Solde corrigé de ${fmtFcfa(data.delta)}.`
           : "Plus d'écart à corriger : le solde concordait déjà.",
-      );
-      setOpen(false);
-      setReason("");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La correction a échoué.");
-    } finally {
-      setPending(false);
+      error: "La correction a échoué.",
+      onSuccess: () => {
+        setOpen(false);
+        setReason("");
+      },
+    },
+  );
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const text = reason.trim();
+    // Contrôle local : la route exige le même minimum, mais l'aller-retour
+    // n'apprendrait rien de plus à qui vient d'écrire trois mots.
+    if (text.length < MIN_REASON) {
+      toast.error(`Le motif demande au moins ${MIN_REASON} caractères.`);
+      return;
     }
+    void reconcile.run(text);
   }
 
   if (!route) return null;
@@ -150,10 +153,21 @@ export function ReconcileButton({
           </p>
 
           <div className="flex flex-col gap-2.5">
-            <Btn type="submit" block loading={pending} disabled={reason.trim().length < MIN_REASON}>
+            <Btn
+              type="submit"
+              block
+              loading={reconcile.pending}
+              disabled={reason.trim().length < MIN_REASON}
+            >
               Appliquer la correction
             </Btn>
-            <Btn type="button" variant="t" block onClick={() => setOpen(false)}>
+            <Btn
+              type="button"
+              variant="t"
+              block
+              disabled={reconcile.pending}
+              onClick={() => setOpen(false)}
+            >
               Annuler
             </Btn>
           </div>

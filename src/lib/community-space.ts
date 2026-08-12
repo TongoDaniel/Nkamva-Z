@@ -105,9 +105,33 @@ interface Viewer {
 }
 
 /**
+ * Assemble le lecteur à partir de lectures déjà faites. Ne touche pas la base :
+ * c'est ce qui permet à l'appelant de lancer ces lectures en parallèle plutôt
+ * que de les enchaîner.
+ */
+function viewerFrom(
+  communityId: string,
+  userId: string,
+  community: { trainerId: string; trainerProfile: { userId: string } },
+  subscription: { status: string } | null,
+  user: { sanctionLevel: string } | null,
+): Viewer {
+  return {
+    communityId,
+    trainerId: community.trainerId,
+    isTrainer: community.trainerProfile.userId === userId,
+    subscriptionStatus: (subscription?.status as Viewer['subscriptionStatus']) ?? null,
+    sanctionLevel: user?.sanctionLevel ?? 'NONE',
+  }
+}
+
+/**
  * Qui est le lecteur pour cette communauté ? Résolu une fois, réutilisé par les
  * deux gardes : les interroger séparément multiplierait les requêtes et, pire,
  * laisserait diverger la lecture qu'elles font de la même situation.
+ *
+ * Réservé aux appelants qui n'ont que l'identifiant. Ceux qui viennent de lire
+ * la communauté passent par `viewerFrom`, qui n'ajoute aucun aller-retour.
  */
 async function resolveViewer(communityId: string, userId: string): Promise<Viewer> {
   const [community, subscription, user] = await Promise.all([
@@ -123,13 +147,7 @@ async function resolveViewer(communityId: string, userId: string): Promise<Viewe
   ])
   if (!community) throw new Error('COMMUNITY_NOT_FOUND')
 
-  return {
-    communityId,
-    trainerId: community.trainerId,
-    isTrainer: community.trainerProfile.userId === userId,
-    subscriptionStatus: (subscription?.status as Viewer['subscriptionStatus']) ?? null,
-    sanctionLevel: user?.sanctionLevel ?? 'NONE',
-  }
+  return viewerFrom(communityId, userId, community, subscription, user)
 }
 
 /**
@@ -162,18 +180,33 @@ const AUTHOR = { id: true, fullName: true } as const
 
 /** Contenu complet de l'espace : les deux salons, dans leur ordre d'affichage. */
 export async function getCommunitySpace(slug: string, userId: string): Promise<CommunitySpace> {
-  const community = await db.community.findFirst({
-    where: { slug, status: 'active' },
-    select: {
-      id: true, slug: true, name: true, trainerId: true,
-      forumEnabled: true, broadcastEnabled: true, messagingEnabled: true,
-      resourcesEnabled: true, eventsEnabled: true,
-      trainerProfile: { select: { userId: true, user: { select: { id: true, fullName: true } } } },
-    },
-  })
+  // Les trois lectures partent ensemble. L'abonnement se filtrait par
+  // `communityId`, ce qui obligeait à attendre la communauté : le filtre passe
+  // par la relation, si bien que le slug suffit. Un aller-retour de moins —
+  // et il compte, mesuré à 223 ms depuis le poste de développement.
+  const [community, subscription, user] = await Promise.all([
+    db.community.findFirst({
+      where: { slug, status: 'active' },
+      select: {
+        id: true, slug: true, name: true, trainerId: true,
+        forumEnabled: true, broadcastEnabled: true, messagingEnabled: true,
+        resourcesEnabled: true, eventsEnabled: true,
+        trainerProfile: { select: { userId: true, user: { select: { id: true, fullName: true } } } },
+      },
+    }),
+    db.communitySubscription.findFirst({
+      where: {
+        community: { slug, status: 'active' },
+        learnerId: userId,
+        status: { in: [...OPEN_STATUSES] },
+      },
+      select: { status: true },
+    }),
+    db.user.findUnique({ where: { id: userId }, select: { sanctionLevel: true } }),
+  ])
   if (!community) throw new Error('COMMUNITY_NOT_FOUND')
 
-  const viewer = await resolveViewer(community.id, userId)
+  const viewer = viewerFrom(community.id, userId, community, subscription, user)
   assertCanRead(viewer)
 
   const trainerUserId = community.trainerProfile.userId

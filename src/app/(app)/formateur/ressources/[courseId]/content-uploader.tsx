@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { FileUp, CheckCircle2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { toast } from "@/components/nk/toast";
+import { UploadBar } from "@/components/nk/upload-bar";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtBytes } from "@/lib/format";
+import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
 
 /**
  * Miroir de COURSE_UPLOAD_LIMITS dans src/lib/courses.ts.
@@ -75,11 +77,62 @@ export function ContentUploader({
   currentSizeBytes: number | null;
   remainingBytes: number;
 }) {
-  const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [pending, setPending] = React.useState(false);
+  // `null` quand rien ne monte, ou pendant les phases de durée inconnue.
+  const [progress, setProgress] = React.useState<UploadProgress | null>(null);
+  const [phase, setPhase] = React.useState("");
 
-  async function onFile(file: File) {
+  const send = useAction(
+    async (file: File, type: NonNullable<ReturnType<typeof contentTypeFor>>) => {
+      setPhase("Préparation de l'envoi…");
+      setProgress(null);
+      const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
+        `/api/trainer/courses/${courseId}/upload`,
+        { mimeType: type.mime, sizeBytes: file.size, kind: type.kind },
+      );
+
+      // Levé plutôt que retourné : un retour vaudrait réussite, et l'écran
+      // inviterait à publier une ressource dont le contenu n'est pas déposé.
+      if (data.uploadUrl.startsWith(PLACEHOLDER_PREFIX)) {
+        throw new ApiError(
+          "STORAGE_NOT_CONFIGURED",
+          "Stockage des fichiers non configuré : le contenu n'a pas pu être envoyé.",
+          0,
+        );
+      }
+
+      // Dépôt direct sur R2, hors de `api` : pas de délai d'abandon, une vidéo
+      // sur un réseau lent ne doit pas être coupée à vingt secondes.
+      setPhase("Envoi du fichier…");
+      await putToPresignedUrl(data.uploadUrl, file, { onProgress: setProgress });
+
+      // Le dernier octet est parti, mais le serveur relit encore l'objet et
+      // vérifie son contenu : la barre redevient indéterminée plutôt que de
+      // rester figée à 100 %.
+      setPhase("Vérification du fichier…");
+      setProgress(null);
+      await api.post(`/api/trainer/courses/${courseId}/upload/confirm`, {
+        s3Key: data.s3Key,
+        kind: type.kind,
+        mimeType: type.mime,
+      });
+    },
+    {
+      success: "Contenu enregistré. Vous pouvez publier la ressource.",
+      error: "L'envoi du contenu a échoué. Réessayez.",
+    },
+  );
+
+  // Le champ se vide une fois l'envoi retombé : sans cela, redéposer deux fois
+  // le même fichier n'émettrait pas de second `change`.
+  React.useEffect(() => {
+    if (send.pending) return;
+    setProgress(null);
+    setPhase("");
+    if (inputRef.current) inputRef.current.value = "";
+  }, [send.pending]);
+
+  function onFile(file: File) {
     const type = contentTypeFor(file);
     if (!type) {
       toast.error("Formats acceptés : MP4, PDF, ZIP ou RAR.");
@@ -97,47 +150,13 @@ export function ContentUploader({
       );
       return;
     }
-
-    setPending(true);
-    try {
-      const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
-        `/api/trainer/courses/${courseId}/upload`,
-        { mimeType: type.mime, sizeBytes: file.size, kind: type.kind },
-      );
-
-      if (data.uploadUrl.startsWith(PLACEHOLDER_PREFIX)) {
-        toast.error("Stockage des fichiers non configuré : le contenu n'a pas pu être envoyé.");
-        return;
-      }
-
-      const upload = await fetch(data.uploadUrl, {
-        method: "PUT",
-        headers: { "content-type": type.mime },
-        body: file,
-      });
-      if (!upload.ok) throw new Error("UPLOAD_FAILED");
-
-      await api.post(`/api/trainer/courses/${courseId}/upload/confirm`, {
-        s3Key: data.s3Key,
-        kind: type.kind,
-        mimeType: type.mime,
-      });
-      toast.success("Contenu enregistré. Vous pouvez publier la ressource.");
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : "L'envoi du contenu a échoué. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
+    void send.run(file, type);
   }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Btn variant="o" loading={pending} onClick={() => inputRef.current?.click()}>
+        <Btn variant="o" loading={send.pending} onClick={() => inputRef.current?.click()}>
           <FileUp aria-hidden="true" />
           {currentKey ? "Remplacer le contenu" : "Déposer le contenu"}
         </Btn>
@@ -155,6 +174,8 @@ export function ContentUploader({
           </span>
         )}
       </div>
+      {send.pending ? <UploadBar progress={progress} label={phase} className="mt-0" /> : null}
+
       <p className="text-[12.5px] text-ink-3">
         Stockage restant : {fmtBytes(remainingBytes)}
       </p>

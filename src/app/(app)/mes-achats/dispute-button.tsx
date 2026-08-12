@@ -6,7 +6,7 @@ import { ShieldAlert, TriangleAlert } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { AttachmentPicker, type Attachment } from "@/components/nk/attachment-picker";
-import { toast } from "@/components/nk/toast";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { cn } from "@/lib/utils";
 import { DISPUTE_REASONS, INELIGIBILITY } from "../mes-litiges/dispute-status";
@@ -40,7 +40,6 @@ export function DisputeButton({
   const [reason, setReason] = React.useState<string>(DISPUTE_REASONS[0].value);
   const [detail, setDetail] = React.useState("");
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
-  const [pending, setPending] = React.useState(false);
 
   async function onOpen() {
     setOpen(true);
@@ -59,9 +58,8 @@ export function DisputeButton({
     }
   }
 
-  async function onSubmit() {
-    setPending(true);
-    try {
+  const submit = useAction(
+    async () => {
       const { data } = await api.post<{ id: string }>("/api/me/disputes", {
         purchaseId,
         reason,
@@ -70,15 +68,19 @@ export function DisputeButton({
         // si l'ouverture échoue, aucune pièce n'est brûlée sans porteur.
         ...(attachments.length ? { attachments: attachments.map((a) => a.s3Key) } : {}),
       });
-      toast.success("Contestation ouverte. Le support vous répondra dans le fil.");
-      setOpen(false);
-      router.push(`/mes-litiges/${data.id}`);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'ouverture a échoué.");
-      setPending(false);
-    }
-  }
+      return data.id;
+    },
+    {
+      success: "Contestation ouverte. Le support vous répondra dans le fil.",
+      error: "L'ouverture a échoué.",
+      // Fermeture et navigation dans la transition : le bouton reste occupé
+      // jusqu'à ce que le fil du litige soit à l'écran.
+      onSuccess: (id) => {
+        setOpen(false);
+        router.push(`/mes-litiges/${id}`);
+      },
+    },
+  );
 
   const refusal = eligibility && !eligibility.eligible ? eligibility.reason : null;
   const canSubmit = eligibility?.eligible && detail.trim().length >= MIN_DETAIL;
@@ -99,7 +101,7 @@ export function DisputeButton({
         footer={
           eligibility?.eligible ? (
             <>
-              <Btn loading={pending} disabled={!canSubmit} onClick={onSubmit}>
+              <Btn loading={submit.pending} disabled={!canSubmit} onClick={() => void submit.run()}>
                 Ouvrir la contestation
               </Btn>
               <Btn variant="o" onClick={() => setOpen(false)}>

@@ -19,7 +19,7 @@ export default async function ConfirmationPage({
 }) {
   const { purchaseId } = await params;
   const auth = await getAuthContext();
-  if (!auth) redirect("/auth/connexion");
+  if (!auth) redirect("/auth/deconnexion");
 
   // Il n'existe pas de GET /api/purchases/[purchaseId] : l'achat est lu côté
   // serveur, et seul le suivi d'état passe par /reconcile.

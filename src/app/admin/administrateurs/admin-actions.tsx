@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 type SubRole = "FINANCES" | "MODERATION";
 
@@ -38,58 +37,36 @@ export function AdminActions({
   currentRole: SubRole;
   suspended: boolean;
 }) {
-  const router = useRouter();
   const [confirmClose, setConfirmClose] = React.useState(false);
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
 
   const otherRole: SubRole = currentRole === "FINANCES" ? "MODERATION" : "FINANCES";
 
-  async function switchRole() {
-    setPending(true);
-    try {
-      await api.patch(`/api/admin/admins/${userId}`, { adminRole: otherRole });
-      toast.success(`${userName} passe en ${LABELS[otherRole]}.`);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Le changement a échoué.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const switchRole = () =>
+    void action.run("role", () => api.patch(`/api/admin/admins/${userId}`, { adminRole: otherRole }), {
+      success: `${userName} passe en ${LABELS[otherRole]}.`,
+      error: "Le changement a échoué.",
+    });
 
-  async function closeAccount() {
-    setPending(true);
-    try {
-      await api.del(`/api/admin/admins/${userId}`);
-      toast.success(`Le compte de ${userName} est fermé.`);
-      setConfirmClose(false);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La fermeture a échoué.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const closeAccount = () =>
+    void action.run("close", () => api.del(`/api/admin/admins/${userId}`), {
+      success: `Le compte de ${userName} est fermé.`,
+      error: "La fermeture a échoué.",
+      onSuccess: () => setConfirmClose(false),
+    });
 
   // Rouvrir n'est pas destructeur et ne demande donc pas de confirmation : la
   // fenêtre modale est réservée à ce qui coupe un accès, pas à ce qui le rend.
-  async function reopenAccount() {
-    setPending(true);
-    try {
-      await api.post(`/api/admin/admins/${userId}`);
-      toast.success(`Le compte de ${userName} est rouvert.`);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La réouverture a échoué.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const reopenAccount = () =>
+    void action.run("reopen", () => api.post(`/api/admin/admins/${userId}`), {
+      success: `Le compte de ${userName} est rouvert.`,
+      error: "La réouverture a échoué.",
+    });
 
   if (suspended) {
     return (
       <div className="flex flex-wrap gap-2">
-        <Btn size="sm" variant="o" onClick={reopenAccount} loading={pending}>
+        <Btn size="sm" variant="o" onClick={reopenAccount} loading={action.isRunning("reopen")}>
           Rouvrir le compte
         </Btn>
       </div>
@@ -98,7 +75,7 @@ export function AdminActions({
 
   return (
     <div className="flex flex-wrap gap-2">
-      <Btn size="sm" variant="o" onClick={switchRole} loading={pending && !confirmClose}>
+      <Btn size="sm" variant="o" onClick={switchRole} loading={action.isRunning("role")}>
         Passer en {LABELS[otherRole]}
       </Btn>
       <Btn size="sm" variant="danger" onClick={() => setConfirmClose(true)}>
@@ -112,10 +89,10 @@ export function AdminActions({
         description="La personne ne pourra plus se connecter, et ses sessions ouvertes sont coupées immédiatement. Le compte reste un compte d'administration : il n'est ni supprimé, ni transformé en compte apprenant, et son journal d'audit reste lisible. Vous pourrez le rouvrir."
         footer={
           <>
-            <Btn variant="danger" onClick={closeAccount} loading={pending}>
+            <Btn variant="danger" onClick={closeAccount} loading={action.isRunning("close")}>
               Fermer le compte
             </Btn>
-            <Btn variant="o" onClick={() => setConfirmClose(false)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setConfirmClose(false)}>
               Annuler
             </Btn>
           </>

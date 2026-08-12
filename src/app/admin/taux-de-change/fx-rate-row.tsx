@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Loader2, Pencil, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { StPill } from "@/components/nk/status-pill";
 import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtNumber } from "@/lib/format";
 
 export function FxRateRow({
@@ -22,15 +22,25 @@ export function FxRateRow({
   /** Montant témoin en FCFA, pour rendre le taux lisible à l'œil. */
   sample: number;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(unitsPerXaf ?? "");
-  const [pending, setPending] = React.useState(false);
 
   const rate = unitsPerXaf === null ? null : Number(unitsPerXaf);
   const preview = rate !== null && Number.isFinite(rate) ? rate * sample : null;
 
-  async function save() {
+  const save = useAction(
+    (value: number) =>
+      api.patch(`/api/admin/fx-rates/${encodeURIComponent(currency)}`, { unitsPerXaf: value }),
+    {
+      success: `Taux ${currency} enregistré.`,
+      error: "L'enregistrement a échoué.",
+      // Le champ ne se referme qu'à l'arrivée du taux relu : le refermer plus
+      // tôt afficherait l'ancienne valeur comme si elle venait d'être écrite.
+      onSuccess: () => setEditing(false),
+    },
+  );
+
+  function submit() {
     const value = Number(draft.trim().replace(",", "."));
     // La route refuse déjà une valeur hors bornes ; ce contrôle-ci évite
     // seulement l'aller-retour, il ne remplace pas celui du serveur.
@@ -38,19 +48,7 @@ export function FxRateRow({
       toast.error("Saisissez un nombre strictement positif.");
       return;
     }
-    setPending(true);
-    try {
-      await api.patch(`/api/admin/fx-rates/${encodeURIComponent(currency)}`, {
-        unitsPerXaf: value,
-      });
-      toast.success(`Taux ${currency} enregistré.`);
-      setEditing(false);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'enregistrement a échoué.");
-    } finally {
-      setPending(false);
-    }
+    void save.run(value);
   }
 
   return (
@@ -75,12 +73,17 @@ export function FxRateRow({
               <span className="text-[12px] text-ink-3">{currency} pour 1 FCFA</span>
               <button
                 type="button"
-                onClick={save}
-                disabled={pending}
+                onClick={submit}
+                disabled={save.pending}
+                aria-busy={save.pending || undefined}
                 aria-label="Enregistrer"
-                className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-lg border border-line text-brand hover:border-brand"
+                className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-lg border border-line text-brand hover:border-brand disabled:opacity-50"
               >
-                <Check className="size-3.5" aria-hidden="true" />
+                {save.pending ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Check className="size-3.5" aria-hidden="true" />
+                )}
               </button>
               <button
                 type="button"

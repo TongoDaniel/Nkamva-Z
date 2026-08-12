@@ -6,7 +6,7 @@ import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Avatar } from "@/components/nk/avatar";
 import { getAuthContext } from "@/lib/api";
 import { listApplications, getApplicationStats } from "@/lib/trainer-application-review";
@@ -123,12 +123,14 @@ export default async function ValidationFormateursPage({
                       ? `Soumis le ${fmtDate(application.submittedAt)}`
                       : `Créé le ${fmtDate(application.createdAt)}`}
                   </span>
-                  <Btn asChild variant="o" size="sm">
-                    <Link href={`/admin/validation-formateurs/${application.id}`}>
+                  <BtnLink
+                    href={`/admin/validation-formateurs/${application.id}`}
+                    variant="o"
+                    size="sm"
+                  >
                       <BadgeCheck aria-hidden="true" />
                       Examiner
-                    </Link>
-                  </Btn>
+                  </BtnLink>
                 </li>
               );
             })}

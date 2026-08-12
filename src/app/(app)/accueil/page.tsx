@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Library, Receipt } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { EmptyState } from "@/components/nk/empty-state";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { ProgressRing } from "@/components/nk/progress-ring";
@@ -122,9 +122,7 @@ export default async function AccueilPage({
             title="Rien en cours"
             description="Ouvrez une de vos ressources pour la retrouver ici la prochaine fois."
             action={
-              <Btn asChild variant="o">
-                <Link href="/mes-ressources">Mes ressources</Link>
-              </Btn>
+              <BtnLink href="/mes-ressources" variant="o">Mes ressources</BtnLink>
             }
           />
         ) : (
@@ -153,9 +151,9 @@ export default async function AccueilPage({
                     downloaded={item.courseView?.downloaded ?? false}
                   />
                   {!isDownloadable(course.format) ? (
-                    <Btn asChild size="sm" variant="o">
-                      <Link href={`/mes-ressources/${course.id}`}>Reprendre</Link>
-                    </Btn>
+                    <BtnLink href={`/mes-ressources/${course.id}`} size="sm" variant="o">
+                      Reprendre
+                    </BtnLink>
                   ) : null}
                 </li>
               );

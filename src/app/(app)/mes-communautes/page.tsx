@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AlertTriangle, MessageSquareOff, Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { Avatar } from "@/components/nk/avatar";
 import { getAuthContext } from "@/lib/api";
@@ -36,9 +36,7 @@ export default async function MesCommunautesPage() {
         // l'annuaire s'ouvre d'ici qu'on soit membre de dix communautés ou
         // d'aucune, pas seulement depuis l'état vide.
         actions={
-          <Btn asChild variant="o">
-            <Link href={routes.communities}>Parcourir les communautés</Link>
-          </Btn>
+          <BtnLink href={routes.communities} variant="o">Parcourir les communautés</BtnLink>
         }
       />
 
@@ -91,17 +89,17 @@ export default async function MesCommunautesPage() {
                 </span>
               </div>
 
-              <Btn asChild variant={m.status === "PAST_DUE" ? "p" : "o"} size="sm">
-                <Link
-                  href={
-                    m.status === "PAST_DUE"
-                      ? `/adhesion/${m.community.slug}`
-                      : `/mes-communautes/${m.community.slug}`
-                  }
-                >
-                  {m.status === "PAST_DUE" ? "Régler" : "Ouvrir"}
-                </Link>
-              </Btn>
+              <BtnLink
+                href={
+                  m.status === "PAST_DUE"
+                    ? `/adhesion/${m.community.slug}`
+                    : `/mes-communautes/${m.community.slug}`
+                }
+                variant={m.status === "PAST_DUE" ? "p" : "o"}
+                size="sm"
+              >
+                {m.status === "PAST_DUE" ? "Régler" : "Ouvrir"}
+              </BtnLink>
             </li>
           ))}
         </ul>

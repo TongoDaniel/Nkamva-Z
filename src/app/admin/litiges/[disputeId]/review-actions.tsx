@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { HelpCircle, MessageSquare, Scale, ThumbsDown } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
-import { toast } from "@/components/nk/toast";
+import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -35,9 +34,8 @@ export function DisputeActions({
   isSuperAdmin: boolean;
   providerDisputeActive: boolean;
 }) {
-  const router = useRouter();
   const [dialog, setDialog] = React.useState<Dialog | null>(null);
-  const [pending, setPending] = React.useState<string | null>(null);
+  const action = useKeyedAction();
 
   const [message, setMessage] = React.useState("");
   const [question, setQuestion] = React.useState("");
@@ -52,24 +50,17 @@ export function DisputeActions({
   const overrideNeeded = !withinPolicy;
   const canRefund = openable && !providerDisputeActive && (!overrideNeeded || isSuperAdmin);
 
-  async function call(path: string, body: unknown, label: string, reset: () => void) {
-    setPending(path);
-    try {
-      await api.post(`/api/admin/disputes/${disputeId}/${path}`, body);
-      toast.success(label);
-      setDialog(null);
-      reset();
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message);
-        if (err.code === "STALE_DISPUTE") router.refresh();
-      } else {
-        toast.error("L'action a échoué. Réessayez.");
-      }
-    } finally {
-      setPending(null);
-    }
+  function call(path: string, body: unknown, label: string, reset: () => void) {
+    void action.run(path, () => api.post(`/api/admin/disputes/${disputeId}/${path}`, body), {
+      success: label,
+      onSuccess: () => {
+        setDialog(null);
+        reset();
+      },
+      // Deux modérateurs sur le même dossier : l'écran doit être relu avant
+      // toute nouvelle tentative, et le bouton reste occupé jusque-là.
+      refreshOnError: (err) => err instanceof ApiError && err.code === "STALE_DISPUTE",
+    });
   }
 
   const partialAmount = Number.parseInt(amount, 10);
@@ -124,7 +115,7 @@ export function DisputeActions({
         footer={
           <>
             <Btn
-              loading={pending === "messages"}
+              loading={action.isRunning("messages")}
               disabled={!message.trim()}
               onClick={() => call("messages", { body: message.trim() }, "Message envoyé.", () => setMessage(""))}
             >
@@ -152,7 +143,7 @@ export function DisputeActions({
         footer={
           <>
             <Btn
-              loading={pending === "ask-learner"}
+              loading={action.isRunning("ask-learner")}
               disabled={question.trim().length < 10}
               onClick={() =>
                 call(
@@ -189,7 +180,7 @@ export function DisputeActions({
         footer={
           <>
             <Btn
-              loading={pending === "resolve"}
+              loading={action.isRunning("resolve")}
               disabled={!canSubmitRefund}
               onClick={() =>
                 call(
@@ -291,7 +282,7 @@ export function DisputeActions({
           <>
             <Btn
               variant="danger"
-              loading={pending === "resolve"}
+              loading={action.isRunning("resolve")}
               disabled={note.trim().length < 10}
               onClick={() =>
                 call(

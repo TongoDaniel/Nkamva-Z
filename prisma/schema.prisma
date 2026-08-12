@@ -1221,6 +1221,13 @@ model TrainerApplication {
   websiteUrl           String?
   domains              String[]
   experienceYears      Int?
+  /**
+   * Cadence d'abonnement demandée par le candidat, quand le parcours la lui a
+   * fait choisir. Elle n'engage rien : elle n'est honorée qu'à l'approbation,
+   * où elle devient `TrainerProfile.subscriptionCadence`. Nulle si le dossier
+   * a été ouvert par un parcours qui ne pose pas la question.
+   */
+  desiredCadence       PlanCadence?
   submittedAt          DateTime?
   reviewedById         String?
   reviewedAt           DateTime?

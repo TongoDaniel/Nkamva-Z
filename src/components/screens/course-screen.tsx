@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   Check,
@@ -10,7 +9,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { Cover, formatLabel } from "@/components/nk/cover";
 import { Price, ResourceCard } from "@/components/nk/resource-card";
@@ -219,18 +218,14 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
                   <Check className="size-4" aria-hidden="true" />
                   Vous possédez déjà cette ressource
                 </p>
-                <Btn asChild size="lg" block>
-                  <Link href="/mes-ressources">Accéder à la ressource</Link>
-                </Btn>
+                <BtnLink href="/mes-ressources" size="lg" block>Accéder à la ressource</BtnLink>
               </>
             ) : suspended ? (
               <>
                 <p className="mb-4.5 rounded-xl bg-danger-tint px-4 py-3 text-[13.5px] font-semibold text-danger">
                   L&apos;accès à cette ressource est suspendu le temps d&apos;un litige en cours.
                 </p>
-                <Btn asChild variant="o" size="lg" block>
-                  <Link href="/contact">Contacter le support</Link>
-                </Btn>
+                <BtnLink href="/contact" variant="o" size="lg" block>Contacter le support</BtnLink>
               </>
             ) : (
               <>
@@ -240,9 +235,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
                 <p className="mb-4.5 text-[13px] font-semibold text-ink-3">
                   Paiement à l&apos;unité · accès à vie
                 </p>
-                <Btn asChild size="lg" block>
-                  <Link href={`/achat/${course.slug}`}>Acheter maintenant</Link>
-                </Btn>
+                <BtnLink href={`/achat/${course.slug}`} size="lg" block>Acheter maintenant</BtnLink>
               </>
             )}
 

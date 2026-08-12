@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Logo } from "@/components/nk/logo";
 import { cn } from "@/lib/utils";
 
@@ -85,12 +85,10 @@ export function PublicTopbar() {
           {/* Pas de favoris ici : ils appartiennent à un compte. Le cœur menait
               une personne non connectée vers un écran qui la renvoyait aussitôt
               se connecter. L'entrée vit dans le menu du compte, côté connecté. */}
-          <Btn asChild variant="t" size="sm" className="max-[820px]:hidden">
-            <Link href="/auth/connexion">Se connecter</Link>
-          </Btn>
-          <Btn asChild variant="p" size="sm">
-            <Link href="/auth/inscription">S&apos;inscrire</Link>
-          </Btn>
+          <BtnLink href="/auth/connexion" variant="t" size="sm" className="max-[820px]:hidden">
+            Se connecter
+          </BtnLink>
+          <BtnLink href="/auth/inscription" variant="p" size="sm">S&apos;inscrire</BtnLink>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -125,12 +123,12 @@ export function PublicTopbar() {
           </Link>
         ))}
         <div className="mt-4 flex gap-2.5">
-          <Btn asChild variant="o" size="sm" className="flex-1">
-            <Link href="/auth/connexion">Se connecter</Link>
-          </Btn>
-          <Btn asChild variant="p" size="sm" className="flex-1">
-            <Link href="/auth/inscription">S&apos;inscrire</Link>
-          </Btn>
+          <BtnLink href="/auth/connexion" variant="o" size="sm" className="flex-1">
+            Se connecter
+          </BtnLink>
+          <BtnLink href="/auth/inscription" variant="p" size="sm" className="flex-1">
+            S&apos;inscrire
+          </BtnLink>
         </div>
       </nav>
     </header>
