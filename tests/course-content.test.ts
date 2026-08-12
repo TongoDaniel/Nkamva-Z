@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
 import {
   createCourse, publishCourse, presignCourseUpload, confirmCourseUpload,
-  trainerStorage, TRAINER_STORAGE_QUOTA_BYTES,
+  deleteCourseContent, trainerStorage, TRAINER_STORAGE_QUOTA_BYTES,
 } from '@/lib/courses'
 import { getCourseContentUrl } from '@/lib/access'
 
@@ -187,5 +187,96 @@ describe('Contenu de ressource et quota', () => {
     const published = await publishCourse(kit.id, profile.id, user.id)
     expect(published.status).toBe('published')
     expect(published.contentMimeType).toBe('application/zip')
+  })
+
+  // =========================================================================
+  // Suppression du contenu — arbitrage 18
+  // =========================================================================
+  // Le geste n'existait pas : le quota d'un formateur ne pouvait que croître
+  // depuis son inscription. Seule la purge des replays à 24 mois lui rendait
+  // de la place, alors que `setTrainerStorageTiers` lui conseillait de
+  // « libérer de l'espace d'abord ».
+  //
+  // ⚠️ Aucun objet n'est réellement supprimé ici : `tests/setup.ts` neutralise
+  // les variables `AWS_*`, donc `deleteObject` sort sans client. C'est ce qui
+  // rend ces tests sûrs à jouer — le `.env` de dev pointe sur le seau de
+  // production.
+
+  async function withContent(profileId: string, userId: string, bytes: number) {
+    const course = await createCourse(profileId, userId, {
+      title: 'Ressource à effacer', blurb: 'Accroche', description: 'Description',
+      category: 'dev', format: 'video', priceFcfa: 12000,
+    })
+    await confirmCourseUpload(course.id, profileId, userId, {
+      s3Key: `course-assets/${course.id}/content-abc.mp4`,
+      kind: 'video',
+      mimeType: 'video/mp4',
+    })
+    // Comme plus haut : sans R2 configuré, `headObject` rend null et la taille
+    // ne s'enregistre pas. On la pose pour éprouver ce qui est rendu au quota.
+    return prisma.course.update({
+      where: { id: course.id },
+      data: { contentSizeBytes: BigInt(bytes) },
+    })
+  }
+
+  it('supprimer le contenu rend les octets et laisse la fiche', async () => {
+    const { user, profile } = await setup()
+    const course = await withContent(profile.id, user.id, 500_000)
+    expect((await trainerStorage(profile.id)).usedBytes).toBe(500_000)
+
+    const after = await deleteCourseContent(course.id, profile.id, user.id)
+
+    expect(after.contentS3Key).toBeNull()
+    expect(after.contentSizeBytes).toBeNull()
+    expect(after.contentMimeType).toBeNull()
+    expect((await trainerStorage(profile.id)).usedBytes).toBe(0)
+    // La fiche reste : rien en aval ne casse.
+    expect(await prisma.course.findUnique({ where: { id: course.id } })).not.toBeNull()
+    expect(after.title).toBe('Ressource à effacer')
+  })
+
+  it('la ressource repasse en brouillon plutôt que de rester publiée sans contenu', async () => {
+    const { user, profile } = await setup()
+    const course = await withContent(profile.id, user.id, 500_000)
+    await publishCourse(course.id, profile.id, user.id)
+
+    const after = await deleteCourseContent(course.id, profile.id, user.id)
+
+    // Publiée sans contenu, elle serait achetable et livrerait du vide.
+    expect(after.status).toBe('draft')
+  })
+
+  it('une ressource vendue ne peut pas être vidée de son contenu', async () => {
+    const { user, profile } = await setup()
+    const course = await withContent(profile.id, user.id, 500_000)
+    await prisma.course.update({
+      where: { id: course.id }, data: { obligationAt: new Date() },
+    })
+
+    await expect(deleteCourseContent(course.id, profile.id, user.id))
+      .rejects.toThrow('COURSE_SOLD')
+
+    // Elle reste servie à ses acheteurs — et ne lui est plus comptée.
+    const intact = await prisma.course.findUniqueOrThrow({ where: { id: course.id } })
+    expect(intact.contentS3Key).not.toBeNull()
+    expect((await trainerStorage(profile.id)).usedBytes).toBe(0)
+  })
+
+  it('supprimer un contenu absent est refusé, et un autre formateur ne peut rien effacer', async () => {
+    const { user, profile } = await setup()
+    const vide = await createCourse(profile.id, user.id, {
+      title: 'Sans contenu', blurb: 'Accroche', description: 'Description',
+      category: 'dev', format: 'video', priceFcfa: 8000,
+    })
+    await expect(deleteCourseContent(vide.id, profile.id, user.id)).rejects.toThrow('NO_CONTENT')
+
+    const course = await withContent(profile.id, user.id, 500_000)
+    const autre = await prisma.user.create({ data: { email: 'autre@test.com', role: 'TRAINER' } })
+    const autreProfil = await prisma.trainerProfile.create({
+      data: { userId: autre.id, approvedAt: new Date() },
+    })
+    await expect(deleteCourseContent(course.id, autreProfil.id, autre.id))
+      .rejects.toThrow('NOT_OWNER')
   })
 })

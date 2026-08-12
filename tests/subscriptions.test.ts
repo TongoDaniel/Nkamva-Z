@@ -23,6 +23,7 @@ function jsonRequest(body: unknown) {
 import {
   renewDueSubscriptions, suspendOverdueSubscriptions, settleSubscriptionCharge,
   canTrainerWrite, openFirstPeriod, periodEndFor, SUBSCRIPTION_GRACE_DAYS,
+  retryAutoRenewDebits,
 } from '@/lib/subscriptions'
 import { setTariff } from '@/lib/pricing'
 import { fmtNumber } from '@/lib/format'
@@ -427,8 +428,8 @@ describe('Abonnement formateur — cycle de vie', () => {
   })
 
   // -------------------------------------------------------------------------
-  // Le constat de règlement est le seul geste qui lève un impayé : aucun
-  // prélèvement automatique n'existe.
+  // Le constat par Finances reste un geste valable — ce n'est simplement plus
+  // le seul : le prélèvement sur solde (arbitrage 8) lève aussi un impayé.
   it('la route de constat est réservée à Finances et au Super-admin', async () => {
     const { profile, admin } = await setupTrainer()
     await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
@@ -478,5 +479,150 @@ describe('Abonnement formateur — cycle de vie', () => {
     expect(
       (await prisma.trainerProfile.findUniqueOrThrow({ where: { id: profile.id } })).subscriptionCurrentPeriodEnd,
     ).not.toBeNull()
+  })
+
+  // =========================================================================
+  // Renouvellement automatique — arbitrages 8 et 9
+  // =========================================================================
+
+  /** Dote le formateur d'un solde et, éventuellement, du consentement. */
+  async function withWallet(trainerId: string, balance: number, autoRenew = true) {
+    await prisma.wallet.create({ data: { trainerId, balance } })
+    await prisma.trainerProfile.update({ where: { id: trainerId }, data: { autoRenew } })
+  }
+
+  it('inactif par défaut : rien n\'est prélevé, même avec un solde large', async () => {
+    const { profile, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    await prisma.wallet.create({ data: { trainerId: profile.id, balance: 100_000 } })
+
+    const result = await renewDueSubscriptions()
+
+    // Arbitrage 8 — le prélèvement est un consentement, pas un défaut.
+    expect(result.debited).toBe(0)
+    expect(result.pastDue).toBe(1)
+    expect(await prisma.walletDebit.count()).toBe(0)
+    expect((await prisma.wallet.findFirstOrThrow({ where: { trainerId: profile.id } })).balance).toBe(100_000)
+  })
+
+  it('actif et solde suffisant : la période est réglée à l\'échéance même', async () => {
+    const { profile, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    await withWallet(profile.id, 20_000)
+
+    const result = await renewDueSubscriptions()
+
+    expect(result.debited).toBe(1)
+    // Un formateur prélevé n'est jamais passé par l'impayé.
+    expect(result.pastDue).toBe(0)
+    const charge = await prisma.subscriptionCharge.findFirstOrThrow({ where: { trainerId: profile.id } })
+    expect(charge.status).toBe('SETTLED')
+    const after = await prisma.trainerProfile.findUniqueOrThrow({ where: { id: profile.id } })
+    expect(after.subscriptionStatus).toBe('ACTIVE')
+    expect(after.subscriptionPastDueAt).toBeNull()
+  })
+
+  it('actif mais solde insuffisant : impayé, et le message dit pourquoi', async () => {
+    const { profile, user, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    await withWallet(profile.id, 1_200)
+
+    const result = await renewDueSubscriptions()
+
+    expect(result.debited).toBe(0)
+    expect(result.pastDue).toBe(1)
+    const notice = await prisma.notification.findFirstOrThrow({
+      where: { userId: user.id, type: 'SUBSCRIPTION_PAYMENT_DUE' },
+    })
+    // Annoncer un simple « à régler » à qui croyait être prélevé serait
+    // incompréhensible : le solde qui a manqué doit être nommé.
+    // `fmtNumber` et non une espace littérale : le séparateur de milliers est
+    // insécable, et l'écrire à la main rend le test faux pour rien.
+    expect(notice.body).toContain(fmtNumber(1_200))
+    expect(notice.body).toContain('retenté chaque nuit')
+  })
+
+  it('le rejeu nocturne solde l\'échéance dès que le solde se garnit', async () => {
+    const { profile, user, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    await withWallet(profile.id, 1_000)
+    await renewDueSubscriptions()
+
+    // Rien n'a changé : le rejeu ne prélève pas ce qui n'est pas là.
+    expect(await retryAutoRenewDebits()).toMatchObject({ debited: 0 })
+
+    // Une vente tombe. Le formateur ne fait rien.
+    await prisma.wallet.update({
+      where: { trainerId: profile.id }, data: { balance: 12_000 },
+    })
+    const retry = await retryAutoRenewDebits()
+
+    expect(retry).toMatchObject({ debited: 1, amountFcfa: 5_000 })
+    const charge = await prisma.subscriptionCharge.findFirstOrThrow({ where: { trainerId: profile.id } })
+    expect(charge.status).toBe('SETTLED')
+    expect((await prisma.trainerProfile.findUniqueOrThrow({ where: { id: profile.id } })).subscriptionStatus)
+      .toBe('ACTIVE')
+    await prisma.notification.findFirstOrThrow({
+      where: { userId: user.id, type: 'SUBSCRIPTION_PAYMENT_DEBITED' },
+    })
+  })
+
+  it('le rejeu ne prélève rien sans consentement, ni sur un abonnement résilié', async () => {
+    const { profile, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    await withWallet(profile.id, 50_000, false)
+    await renewDueSubscriptions()
+
+    expect(await retryAutoRenewDebits()).toMatchObject({ attempted: 0, debited: 0 })
+
+    // Consentement donné, mais résiliation en cours : la dette d'une période
+    // consommée se récupère au terme, par un autre chemin (arbitrage 10).
+    await prisma.trainerProfile.update({
+      where: { id: profile.id },
+      data: { autoRenew: true, subscriptionCanceledAt: new Date() },
+    })
+    expect(await retryAutoRenewDebits()).toMatchObject({ attempted: 0, debited: 0 })
+  })
+
+  it('rejouer le job ne prélève pas deux fois la même période', async () => {
+    const { profile, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    await withWallet(profile.id, 20_000)
+    await renewDueSubscriptions()
+
+    await retryAutoRenewDebits()
+    await retryAutoRenewDebits()
+
+    expect(await prisma.walletDebit.count()).toBe(1)
+    expect((await prisma.wallet.findFirstOrThrow({ where: { trainerId: profile.id } })).balance).toBe(15_000)
+  })
+
+  it('une période offerte ne prélève rien, même consentement donné', async () => {
+    const { profile } = await setupTrainer()
+    await withWallet(profile.id, 20_000)
+
+    const result = await renewDueSubscriptions()
+
+    expect(result.waived).toBe(1)
+    expect(result.debited).toBe(0)
+    expect(await prisma.walletDebit.count()).toBe(0)
+  })
+
+  it('le prélèvement porte sur le total, paliers de stockage compris', async () => {
+    const { profile, admin } = await setupTrainer()
+    await setTariff({ cadence: 'MONTHLY', amountFcfa: 5_000, validFrom: TARIFF_FROM(), actorId: admin.id })
+    await setTariff({
+      kind: 'STORAGE_TIER', cadence: 'MONTHLY', amountFcfa: 2_000,
+      validFrom: TARIFF_FROM(), actorId: admin.id,
+    })
+    await prisma.trainerProfile.update({ where: { id: profile.id }, data: { storageTiers: 2 } })
+    await withWallet(profile.id, 20_000)
+
+    await renewDueSubscriptions()
+
+    // Arbitrage 69 — une seule ligne à régler : 5 000 + 2 × 2 000.
+    const debit = await prisma.walletDebit.findFirstOrThrow({ where: { trainerId: profile.id } })
+    expect(debit.amountFcfa).toBe(9_000)
+    expect((await prisma.wallet.findFirstOrThrow({ where: { trainerId: profile.id } })).balance).toBe(11_000)
   })
 })

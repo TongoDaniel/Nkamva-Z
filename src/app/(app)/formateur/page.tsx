@@ -5,6 +5,7 @@ import {
   BookOpen,
   ChevronRight,
   Coins,
+  CreditCard,
   Library,
   Plus,
   Radio,
@@ -37,6 +38,7 @@ const SECTION_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   "/formateur/communaute": Users,
   "/mes-lives": Radio,
   "/formateur/portefeuille": Wallet,
+  "/formateur/abonnement": CreditCard,
   "/formateur/litiges": Scale,
 };
 

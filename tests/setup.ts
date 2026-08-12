@@ -78,7 +78,7 @@ export async function cleanDatabase() {
       "trainer_application_review_events", "trainer_documents",
       "trainer_activation_payments", "trainer_applications",
       "payout_method_review_events", "payout_review_events", "payouts",
-      "wallet_reconciliations", "payout_methods", "wallets", "trainer_profiles",
+      "wallet_reconciliations", "wallet_debits", "payout_methods", "wallets", "trainer_profiles",
       "recovery_codes",
       "invoices", "invoice_counters",
       "replays", "live_messages", "live_participants", "live_sessions",
@@ -88,7 +88,8 @@ export async function cleanDatabase() {
       "course_views", "consumption_snapshots",
       "dispute_messages", "dispute_review_events", "fund_reservations",
       "disputes", "support_tickets", "manual_refund_tasks",
-      "reports", "platform_tariffs", "platform_discounts", "subscription_charges",
+      "reports", "platform_tariffs", "platform_discounts",
+      "subscription_payments", "subscription_charges",
       "users"
     CASCADE
   `)

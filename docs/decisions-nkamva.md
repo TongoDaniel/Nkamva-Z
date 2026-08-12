@@ -918,7 +918,23 @@ accès.
 > Ce qui ne change pas : **la lecture n'est jamais coupée**. Les apprenants continuent
 > d'accéder à ce qu'ils ont payé — un défaut de paiement du formateur ne doit pas se
 > transformer en litiges de masse, et chaque litige ouvert réserve des fonds (décision 8).
-> Statut : 📋 Aucun job de renouvellement, donc aucun impayé n'est encore détecté.
+>
+> ⚠️ **Amendé le 12 août 2026 — le retour au catalogue n'est plus « sur décision ».**
+> La rédaction précédente posait que les ressources « sont sorties du catalogue sur
+> décision, elles y reviennent sur décision », ce qui laissait un formateur ayant réglé
+> son impayé attendre le geste d'un administrateur pour retrouver sa vitrine.
+> **Le règlement republie désormais automatiquement**, par les trois chemins qui soldent
+> une période : le prélèvement sur solde, le paiement par carte ou mobile money, et le
+> constat manuel de Finances. Voir l'arbitrage 12 de `docs/abonnement-formateur.md`.
+>
+> Cela a exigé de **distinguer une sortie subie d'un archivage volontaire**, ce que le
+> code ne savait pas faire : la suspension écrivait `status = 'archived'`, exactement la
+> même valeur que celle qu'un formateur pose en rangeant lui-même une ressource. Sans
+> marqueur, republier « ce qui a été retiré » aurait ressuscité ce qu'il avait choisi de
+> retirer de la vente. D'où `Course.catalogSuspendedAt`.
+> Statut : ✅ **Implémenté le 12 août 2026** — `catalog-suspension.ts`, migration
+> `20260812151635_subscription_payment_and_catalog_suspension`, tests dans
+> `tests/subscription-payment.test.ts`.
 
 **69. Extension de stockage — par paliers de 50 Go** — Au-delà des 40 Go inclus
 (décision 54), le stockage s'achète par tranches de 50 Go, facturées avec l'abonnement.
@@ -964,11 +980,25 @@ applique la cadence en attente, détecte l'impayé et exécute la décision 68.
 > avec la date à laquelle ses ressources sortiront du catalogue. Un impayé se découvrait
 > jusque-là par une seule notification, qui pouvait passer inaperçue alors que la
 > sanction, elle, retire les ressources du catalogue.
-> ⚠️ **Rien n'encaisse automatiquement.** Aucun provider d'abonnement n'est branché : le
-> règlement est constaté à la main. `subscriptionProvider` et `subscriptionProviderId`
-> restent nuls.
-> ⚠️ **Délai de grâce de 14 jours** (`SUBSCRIPTION_GRACE_DAYS`) : valeur retenue par
-> défaut, **non arbitrée**. Voir « Points non arbitrés ».
+> ⚠️ ~~**Rien n'encaisse automatiquement.**~~ **Levé le 12 août 2026.** Le formateur
+> dispose désormais de trois voies de règlement : le **prélèvement sur son solde NkamVa**
+> — opt-in, retenté chaque nuit pendant le délai de grâce —, le **paiement par carte ou
+> mobile money** par la même porte que les achats, et le constat manuel de Finances, qui
+> subsiste. Le fournisseur reste absent du modèle : `subscriptionProvider` et
+> `subscriptionProviderId` restent nuls, le règlement en ligne s'inscrivant sur
+> `SubscriptionPayment`. Voir `docs/abonnement-formateur.md`.
+>
+> **Délai de grâce de 14 jours** (`SUBSCRIPTION_GRACE_DAYS`) : ~~valeur retenue par
+> défaut, non arbitrée~~ — **arbitré le 12 août 2026** (arbitrage 14 de
+> `docs/abonnement-formateur.md`). Avec le rejeu nocturne du prélèvement, ce n'est plus
+> seulement un sursis : c'est la fenêtre pendant laquelle les ventes du formateur peuvent
+> solder son échéance sans qu'il ait rien à faire.
+>
+> **Ce que le formateur peut enfin faire lui-même** (12 août 2026) : trois champs
+> modélisés n'étaient écrits par personne — `pendingCadence` (décision 52),
+> `subscriptionCanceledAt`, et la valeur `CANCELED` de l'enum. L'écran
+> `/formateur/abonnement` leur donne un auteur : changer de cadence, activer le
+> prélèvement, résilier, régler, et consulter ses périodes.
 
 ---
 
@@ -1272,14 +1302,14 @@ negativeSince non null  ⟺  solde retirable < 0
 - **Délai de grâce avant suspension** (arbitrage 70) — 14 jours retenus par défaut dans
   `SUBSCRIPTION_GRACE_DAYS`, jamais arbitrés. La valeur est nommée et isolée pour être
   discutée, pas découverte au fond d'une condition.
-- **Provider d'abonnement** — le règlement est constaté à la main par Finances
-  (`/admin/abonnements`). Aucun prélèvement automatique n'existe : reste à décider quel
-  provider encaisse l'abonnement formateur, et si le constat manuel subsiste ensuite
-  comme filet.
-- **Retour au catalogue après régularisation** — constater un règlement remet le
-  formateur en règle mais **ne republie rien** : ses ressources sont sorties du catalogue
-  sur décision, elles y reviennent sur décision. Faut-il un geste dédié, ou le formateur
-  les republie-t-il lui-même une par une ?
+- ~~**Provider d'abonnement**~~ — **tranché le 12 août 2026.** Aucun fournisseur
+  d'abonnement récurrent n'est branché, et il n'en faut pas : le prélèvement porte sur le
+  **solde NkamVa** du formateur, et le règlement manuel passe par Stripe et PawaPay, la
+  même porte que les achats. Le constat de Finances subsiste comme filet. Voir
+  `docs/abonnement-formateur.md`.
+- ~~**Retour au catalogue après régularisation**~~ — **tranché le 12 août 2026** : le
+  règlement republie automatiquement (arbitrage 12). La décision 68 est amendée en
+  conséquence.
 - **Prix du palier de 50 Go** (arbitrage 69) — le pas est tranché, le montant non. Reste
   aussi à dire si l'extension suit la cadence de l'abonnement du formateur (mensuelle ou
   annuelle) ou se facture à part.

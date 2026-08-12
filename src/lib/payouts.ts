@@ -66,8 +66,43 @@ async function recordTransition(
 // P1 / P2 / P3 — demande de retrait
 // ==========================================================================
 
-export async function requestPayout(trainerProfileId: string, userId: string, amountFcfa: number) {
-  if (!Number.isInteger(amountFcfa) || amountFcfa < PAYOUT_MIN_AMOUNT_FCFA) throw new Error('AMOUNT_BELOW_MINIMUM')
+/**
+ * Frais retenus sur un versement de clôture — arbitrage 6.
+ *
+ * ⚠️ **Valeur retenue par défaut, non arbitrée** : elle est ici pour être
+ * discutée, pas pour être découverte au fond d'une condition. Le coût réel d'un
+ * transfert dépend du fournisseur et du corridor ; tant qu'aucune grille n'est
+ * administrée, un forfait vaut mieux qu'un montant inventé à chaque appel.
+ */
+export const CLOSING_PAYOUT_FEE_FCFA = 500
+
+export async function requestPayout(
+  trainerProfileId: string,
+  userId: string,
+  amountFcfa: number,
+  /**
+   * Versement de clôture (arbitrage 6) : dispense du minimum, frais retenus sur
+   * le montant. **Réservé à l'espace en état de solde** — un formateur en
+   * activité n'a aucune raison d'y avoir droit, et l'ouvrir à tous viderait le
+   * plancher de son sens.
+   */
+  options: { closing?: boolean } = {},
+) {
+  if (!Number.isInteger(amountFcfa) || amountFcfa <= 0) throw new Error('AMOUNT_BELOW_MINIMUM')
+
+  const closing = options.closing === true
+  if (closing) {
+    const profile = await db.trainerProfile.findUnique({
+      where: { id: trainerProfileId },
+      select: { subscriptionStatus: true },
+    })
+    if (profile?.subscriptionStatus !== 'CANCELED') throw new Error('NOT_CLOSING')
+    // Les frais sont retenus sur le montant : un reliquat qui ne les couvre pas
+    // ne peut pas être versé — le transfert coûterait plus que ce qu'il rend.
+    if (amountFcfa <= CLOSING_PAYOUT_FEE_FCFA) throw new Error('AMOUNT_BELOW_FEES')
+  } else if (amountFcfa < PAYOUT_MIN_AMOUNT_FCFA) {
+    throw new Error('AMOUNT_BELOW_MINIMUM')
+  }
 
   const wallet = await db.wallet.findUnique({ where: { trainerId: trainerProfileId } })
   if (!wallet) throw new Error('WALLET_NOT_FOUND')
@@ -101,6 +136,8 @@ export async function requestPayout(trainerProfileId: string, userId: string, am
         trainerId: trainerProfileId,
         payoutMethodId: method.id,
         amountFcfa,
+        feeFcfa: closing ? CLOSING_PAYOUT_FEE_FCFA : 0,
+        isClosingPayout: closing,
         status,
         // Le score est figé : la décision doit rester auditable même si le
         // score du formateur évolue ensuite.

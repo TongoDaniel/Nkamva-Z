@@ -7,6 +7,7 @@ import { getStripe } from '@/lib/stripe'
 import { issueInvoiceQuietly } from '@/lib/invoices'
 import { promoteCheckoutSession } from '@/lib/purchases'
 import { promoteActivationCheckoutSession, settleActivationPayment } from '@/lib/trainer-activation'
+import { promoteSubscriptionCheckoutSession, settleSubscriptionPayment } from '@/lib/subscription-payment'
 import { openDisputeFromChargeback, closeChargeback } from '@/lib/disputes'
 
 type StripeLikeEvent = {
@@ -71,6 +72,15 @@ export async function POST(request: Request) {
         break
       }
 
+      // Troisième sujet depuis l'arbitrage 11 : le règlement d'une échéance
+      // d'abonnement. Même partage que ci-dessus — chaque promotion ne
+      // reconnaît que ses propres lignes.
+      const subscriptionIntent = await promoteSubscriptionCheckoutSession(object.id)
+      if (subscriptionIntent) {
+        await settleSubscriptionPayment(subscriptionIntent, 'STRIPE')
+        break
+      }
+
       const intentId = await promoteCheckoutSession(object.id)
       if (!intentId) break
       const credit = await db.$transaction(async (tx) => {
@@ -91,6 +101,9 @@ export async function POST(request: Request) {
       // ce qui laisse le chemin d'achat intact.
       const activation = await settleActivationPayment(object.id, 'STRIPE')
       if (activation.settled) break
+
+      const subscription = await settleSubscriptionPayment(object.id, 'STRIPE')
+      if (subscription.settled) break
 
       const credit = await db.$transaction(async (tx) => {
         return creditWalletOnPurchase(tx, object.id, 'STRIPE')

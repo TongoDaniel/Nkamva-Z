@@ -371,8 +371,14 @@ describe('Lives et replays', () => {
 
   // --- Stockage et purge (arbitrages 51 et 54) ---
 
-  it('arbitrage 54 — un replay pèse sur le quota du formateur', async () => {
-    const { community, trainer, trainerUser, member } = await setup()
+  // ⚠️ **Amendé par l'arbitrage 17** (12 août 2026). L'arbitrage 54 posait que tout
+  // replay pèse sur le quota. Ce n'est plus vrai de tous : le replay d'une communauté
+  // **payante** relève d'une obligation envers des membres qui ont payé — le formateur
+  // ne peut ni refuser l'enregistrement, ni l'effacer, ni le retirer avant 24 mois —,
+  // donc il ne lui est plus compté. Celui d'une communauté gratuite, si : personne n'a
+  // rien payé pour lui.
+  it('arbitrage 17 — le replay d\'une communauté gratuite pèse sur le quota', async () => {
+    const { community, trainer, trainerUser, member } = await setup({ priceFcfa: 0 })
     expect(await trainerStorageUsedBytes(trainer.id)).toBe(0)
 
     await replayFor(community.id, trainer.id, trainerUser.id, member.id)
@@ -381,8 +387,20 @@ describe('Lives et replays', () => {
     expect(await trainerStorageUsedBytes(trainer.id)).toBe(3_000_000_000)
   })
 
-  it('arbitrage 51 — la purge à 24 mois rend l\'espace au formateur', async () => {
+  it('arbitrage 17 — celui d\'une communauté payante n\'y pèse pas', async () => {
     const { community, trainer, trainerUser, member } = await setup()
+
+    await replayFor(community.id, trainer.id, trainerUser.id, member.id)
+
+    // Des membres ont payé pour y accéder, et la décision 51 le leur promet sur
+    // 24 mois : c'est une obligation, pas un choix de stockage.
+    expect(await trainerStorageUsedBytes(trainer.id)).toBe(0)
+  })
+
+  it('arbitrage 51 — la purge à 24 mois rend l\'espace au formateur', async () => {
+    // Communauté gratuite : sinon le replay ne comptait déjà pas et la purge ne
+    // prouverait rien.
+    const { community, trainer, trainerUser, member } = await setup({ priceFcfa: 0 })
     const replay = await replayFor(community.id, trainer.id, trainerUser.id, member.id)
 
     expect((await purgeExpiredReplays()).purged).toBe(0)

@@ -18,6 +18,7 @@ import { purgeDeletedAccounts } from './jobs/purge-deleted-accounts'
 import { remindPendingDeletions } from './jobs/remind-pending-deletions'
 import {
   renewDueSubscriptions, suspendOverdueSubscriptions, alertUpcomingSuspensions,
+  retryAutoRenewDebits, endCanceledSubscriptions, closeDormantSpaces,
 } from './subscriptions'
 import { renewDueMemberships, expireOverdueMemberships } from './memberships'
 import { refreshCommunityActivity } from './community-space'
@@ -103,11 +104,44 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     run: async () => ({ ...(await renewDueSubscriptions()) }),
   },
   {
+    // Arbitrage 9 — le prélèvement rejoué chaque nuit pendant le délai de
+    // grâce : une vente tombée dans la journée solde l'échéance sans que le
+    // formateur ait rien à faire.
+    //
+    // ⚠️ **L'heure n'est pas indifférente.** Il passe après le renouvellement
+    // (01:00), qui ouvre les périodes, et **avant la suspension** (01:30), qui
+    // retire les ressources du catalogue. Placé après elle, un formateur dont
+    // le solde vient de se garnir serait suspendu la nuit même où son échéance
+    // pouvait se régler.
+    name: 'SUBSCRIPTION_AUTO_DEBIT_RETRY',
+    schedule: '15 1 * * *',
+    run: async () => ({ ...(await retryAutoRenewDebits()) }),
+  },
+  {
     // Décision 68 — au terme du délai de grâce, les ressources sortent du
     // catalogue. La lecture des apprenants n'est jamais coupée.
     name: 'SUBSCRIPTION_SUSPENSION',
     schedule: '30 1 * * *',
     run: async () => ({ ...(await suspendOverdueSubscriptions()) }),
+  },
+  {
+    // Arbitrages 4, 5 et 10 — les abonnements résiliés arrivés à leur terme.
+    // Le renouvellement les ignore (il filtre sur `subscriptionCanceledAt`) :
+    // sans ce job, ils resteraient ACTIVE indéfiniment, à vendre sans payer.
+    //
+    // Après la suspension : un formateur qui résilie **et** laisse un impayé
+    // doit être traité par le chemin de la résiliation, qui prélève sa dette.
+    name: 'SUBSCRIPTION_END_CANCELED',
+    schedule: '40 1 * * *',
+    run: async () => ({ ...(await endCanceledSubscriptions()) }),
+  },
+  {
+    // Arbitrage 15 — les espaces en état de solde restés sans mouvement
+    // pendant 24 mois. Ni argent à rendre, ni litige ouvert : plus rien ne
+    // retient l'espace ouvert.
+    name: 'TRAINER_SPACE_DORMANT_CLOSE',
+    schedule: '50 3 * * *',
+    run: async () => ({ ...(await closeDormantSpaces()) }),
   },
   {
     // Alerte Finances 3 jours avant la suspension : un impayé se rattrape

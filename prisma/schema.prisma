@@ -331,6 +331,16 @@ model TrainerProfile {
    * Cadence souhaitée au prochain renouvellement (décision 52).
    */
   pendingCadence               PlanCadence?
+  /**
+   * Renouvellement automatique — arbitrage 8. **Inactif par défaut** : le
+   * formateur l'active lui-même, et son échéance est alors prélevée sur son
+   * solde retirable.
+   *
+   * ⚠️ Ce drapeau ne gouverne **que** le renouvellement. La dette d'une période
+   * consommée est récupérée sur le solde à la résiliation même s'il vaut faux
+   * (arbitrage 10) : la période a été servie, elle se paie.
+   */
+  autoRenew                    Boolean                   @default(false)
   subscriptionStatus           TrainerSubscriptionStatus @default(ACTIVE)
   subscriptionProvider         PaymentProvider?
   subscriptionProviderId       String?
@@ -344,6 +354,7 @@ model TrainerProfile {
   /// Paliers de 50 Go achetés au-delà des 40 Go inclus (arbitrage 69).
   storageTiers                 Int                       @default(0)
   subscriptionCharges          SubscriptionCharge[]
+  subscriptionPayments         SubscriptionPayment[]
   wallet                       Wallet?
   ratingAverage                Float                     @default(0)
   ratingCount                  Int                       @default(0)
@@ -397,6 +408,25 @@ model Course {
   lessonsCount     Int?
   status           String            @default("draft")
   publishedAt      DateTime?
+  /// Arbitrage 13 — date du **premier achat abouti**. Elle marque une ressource
+  /// que le formateur n'a plus le droit d'effacer : quelqu'un l'a payée, elle
+  /// doit continuer d'être servie. Ce qu'il ne peut pas effacer ne lui est plus
+  /// compté (`trainerStorageUsedBytes`), et il ne le paie donc plus.
+  ///
+  /// Un champ plutôt qu'un `count` d'achats à la volée : la lecture du quota est
+  /// sur le chemin de chaque téléversement, et l'arbitrage 19 exige de toute
+  /// façon que l'appartenance ne bouge **qu'au renouvellement** — un calcul en
+  /// direct ferait retomber la ressource dans le quota le jour du remboursement.
+  obligationAt     DateTime?
+  /// Arbitrage 12 — sortie du catalogue **subie**, pour impayé (décision 68).
+  ///
+  /// Sans ce marqueur, republier au règlement était impossible : la suspension
+  /// écrit `status = 'archived'`, **exactement la même valeur** que celle qu'un
+  /// formateur pose en archivant lui-même une ressource. Rien ne distinguait
+  /// les deux, et l'audit ne gardait que le compte. Republier « ce qui a été
+  /// retiré » aurait ressuscité ce qu'il avait volontairement retiré de la
+  /// vente.
+  catalogSuspendedAt DateTime?
   circuit          CourseCircuit     @default(MARKETPLACE)
   communityLinks   CommunityCourse[]
   purchases        Purchase[]
@@ -408,6 +438,9 @@ model Course {
   @@index([status, category])
   @@index([trainerId, status])
   @@index([publishedAt])
+  // Le quota somme les tailles d'un formateur en excluant ce qui est sous
+  // obligation : c'est exactement ce couple qui est filtré.
+  @@index([trainerId, obligationAt])
   @@map("courses")
 }
 
@@ -902,10 +935,49 @@ model Wallet {
   negativeSince        DateTime?
   fundReservations     FundReservation[]
   reconciliations      WalletReconciliation[]
+  debits               WalletDebit[]
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
 
   @@map("wallets")
+}
+
+/// Ce qui fait baisser un solde autrement qu'un retrait ou un remboursement.
+enum WalletDebitReason {
+  /// Prélèvement de l'échéance d'abonnement, sur consentement (arbitrage 8).
+  SUBSCRIPTION_RENEWAL
+  /// Dette d'une période consommée, récupérée à la résiliation (arbitrage 10).
+  /// **Ne dépend pas du consentement** au prélèvement automatique : la période
+  /// a été servie, elle se paie.
+  SUBSCRIPTION_ARREARS
+}
+
+// --- WalletDebit ---
+/// Le portefeuille n'avait **aucun grand-livre** : `balance` est une valeur
+/// mutable, et seule `WalletReconciliation` gardait trace des corrections
+/// manuelles. Un solde qui baisse sans ligne pour l'expliquer est un défaut —
+/// le formateur voit son argent partir et n'a rien à lire.
+///
+/// Ce modèle ne couvre pas tous les mouvements : un retrait se lit sur `Payout`,
+/// un débit de litige sur `FundReservation`. Il couvre ce qui n'avait pas de
+/// pièce à soi, c'est-à-dire les prélèvements d'abonnement.
+model WalletDebit {
+  id                   String              @id @default(uuid())
+  walletId             String
+  wallet               Wallet              @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  trainerId            String
+  amountFcfa           Int
+  reason               WalletDebitReason
+  /// La période réglée par ce prélèvement. **L'unicité est l'idempotence** : une
+  /// même échéance ne peut pas être prélevée deux fois, et c'est la base qui le
+  /// refuse — pas la prudence du code. Le rejeu nocturne de l'arbitrage 9 en
+  /// dépend : il repasse chaque nuit sur les mêmes périodes.
+  subscriptionChargeId String?             @unique
+  subscriptionCharge   SubscriptionCharge? @relation(fields: [subscriptionChargeId], references: [id], onDelete: SetNull)
+  createdAt            DateTime            @default(now())
+
+  @@index([trainerId, createdAt])
+  @@map("wallet_debits")
 }
 
 // --- WalletReconciliation ---
@@ -976,6 +1048,18 @@ model Payout {
   payoutMethodId      String
   payoutMethod        PayoutMethod        @relation(fields: [payoutMethodId], references: [id], onDelete: Restrict)
   amountFcfa          Int
+  /// Frais du fournisseur retenus **sur le montant** — arbitrage 6. Nuls sur un
+  /// retrait ordinaire : la plateforme les absorbe. Renseignés sur le versement
+  /// dérogatoire de fin de vie, où le reliquat peut être inférieur au coût du
+  /// transfert et où les faire porter à la plateforme reviendrait à payer pour
+  /// rendre l'argent.
+  feeFcfa             Int                 @default(0)
+  /// Versement de clôture, dispensé du minimum de 10 000 FCFA (arbitrage 6).
+  ///
+  /// Sans cette dérogation, un formateur qui part avec 3 200 FCFA ne peut
+  /// jamais les retirer — donc son espace ne se ferme jamais, et la règle de
+  /// l'arbitrage 5 (« jusqu'à solde retiré ») boucle indéfiniment.
+  isClosingPayout     Boolean             @default(false)
   status              PayoutStatus        @default(PENDING)
   kycScoreSnapshot    Int?
   kycBadgeSnapshot    String?
@@ -1682,6 +1766,41 @@ enum SubscriptionChargeStatus {
   WAIVED
 }
 
+// --- SubscriptionPayment ---
+/// Un règlement d'abonnement par carte ou mobile money — arbitrage 11.
+///
+/// Pendant de `TrainerActivationPayment`, pour les **renouvellements** : le
+/// premier abonnement se règle avant que le profil existe, les suivants une
+/// fois qu'il existe. Deux modèles plutôt qu'un, parce qu'ils ne s'accrochent
+/// pas au même objet — l'un à une candidature, l'autre à un formateur.
+model SubscriptionPayment {
+  id                    String         @id @default(uuid())
+  trainerId             String
+  trainerProfile        TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  amountFcfa            Int
+  /// Les périodes que ce règlement couvre, **figées à l'ouverture**.
+  ///
+  /// Sans cette liste, un renouvellement survenu entre l'ouverture du paiement
+  /// et le retour du fournisseur verrait sa période soldée par un montant qui
+  /// ne la couvrait pas : le formateur aurait payé deux périodes et en aurait
+  /// réglé trois.
+  chargeIds             String[]
+  provider              PaymentProvider
+  /// Nul le temps que le fournisseur rende son identifiant.
+  providerTransactionId String?        @unique
+  providerStatus        PaymentStatus  @default(PENDING)
+  /// Motif d'échec tel que le fournisseur le nomme, comme sur `Purchase`.
+  failureCode           String?
+  paidAt                DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  // Une seule tentative en vol par formateur : c'est le service qui le tient,
+  // l'index est là pour que la lecture soit directe.
+  @@index([trainerId, providerStatus])
+  @@map("subscription_payments")
+}
+
 model SubscriptionCharge {
   id             String                   @id @default(uuid())
   trainerId      String
@@ -1706,6 +1825,8 @@ model SubscriptionCharge {
   status         SubscriptionChargeStatus @default(DUE)
   settledAt      DateTime?
   invoice        Invoice?
+  /// Le prélèvement sur solde qui a réglé cette période, s'il y en a eu un.
+  walletDebit    WalletDebit?
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
 

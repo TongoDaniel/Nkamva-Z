@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileUp, CheckCircle2 } from "lucide-react";
+import { FileUp, CheckCircle2, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { toast } from "@/components/nk/toast";
 import { UploadBar } from "@/components/nk/upload-bar";
@@ -71,11 +71,18 @@ export function ContentUploader({
   currentKey,
   currentSizeBytes,
   remainingBytes,
+  sold,
 }: {
   courseId: string;
   currentKey: string | null;
   currentSizeBytes: number | null;
   remainingBytes: number;
+  /**
+   * Ressource déjà achetée (arbitrage 13). Son contenu ne peut plus être
+   * supprimé — il doit rester servi à ses acheteurs — et c'est précisément pour
+   * cela qu'il ne pèse plus sur le quota du formateur.
+   */
+  sold: boolean;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   // `null` quand rien ne monte, ou pendant les phases de durée inconnue.
@@ -122,6 +129,29 @@ export function ContentUploader({
       error: "L'envoi du contenu a échoué. Réessayez.",
     },
   );
+
+  /**
+   * Arbitrage 18 — rendre les octets au quota. Ce geste n'existait pas : le
+   * quota d'un formateur ne pouvait que croître depuis son inscription, et
+   * l'écran des paliers lui conseillait pourtant de « libérer de l'espace ».
+   */
+  const remove = useAction(
+    async () => {
+      await api.del(`/api/trainer/courses/${courseId}/content`);
+    },
+    {
+      success: "Contenu supprimé. L'espace est rendu à votre quota.",
+      error: "La suppression a échoué. Réessayez.",
+    },
+  );
+
+  // Confirmation en deux temps plutôt qu'un clic sec : le fichier part de R2 et
+  // ne revient pas. Le dépôt n'a aucune primitive de confirmation — deux états
+  // valent mieux qu'une modale inventée ici pour l'occasion.
+  const [confirming, setConfirming] = React.useState(false);
+  React.useEffect(() => {
+    if (!remove.pending) setConfirming(false);
+  }, [remove.pending]);
 
   // Le champ se vide une fois l'envoi retombé : sans cela, redéposer deux fois
   // le même fichier n'émettrait pas de second `change`.
@@ -175,6 +205,47 @@ export function ContentUploader({
         )}
       </div>
       {send.pending ? <UploadBar progress={progress} label={phase} className="mt-0" /> : null}
+
+      {/*
+        Arbitrage 18 — rendre les octets au quota. Sans ce geste, le stockage
+        d'un formateur ne pouvait que croître : `archiveCourse` ne change qu'un
+        statut, le fichier reste sur R2 et continue de lui être facturé.
+      */}
+      {currentKey && !sold ? (
+        confirming ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Btn variant="danger" loading={remove.pending} onClick={() => void remove.run()}>
+              <Trash2 aria-hidden="true" />
+              Confirmer la suppression
+            </Btn>
+            <button
+              type="button"
+              className="text-[13px] font-bold text-ink-2 underline"
+              onClick={() => setConfirming(false)}
+            >
+              Annuler
+            </button>
+            <span className="text-[12.5px] text-ink-3">
+              Le fichier sera définitivement effacé. La ressource repassera en brouillon.
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="self-start text-[13px] font-bold text-danger underline"
+            onClick={() => setConfirming(true)}
+          >
+            Supprimer le contenu et libérer {currentSizeBytes ? fmtBytes(currentSizeBytes) : "l'espace"}
+          </button>
+        )
+      ) : null}
+
+      {currentKey && sold ? (
+        <p className="text-[12.5px] leading-relaxed text-ink-3">
+          Cette ressource a été achetée : son contenu doit rester accessible à ses acheteurs et ne
+          peut plus être supprimé. En contrepartie, il ne compte plus dans votre quota de stockage.
+        </p>
+      ) : null}
 
       <p className="text-[12.5px] text-ink-3">
         Stockage restant : {fmtBytes(remainingBytes)}
