@@ -362,6 +362,19 @@ jour même** : la bascule attend le renouvellement.
 *Ordre de construction. Chaque lot se termine par une vérification qui lui est propre :
 `tsc` vert ne prouve rien, et un 200 non plus — la mémoire du projet le rappelle assez.*
 
+**✅ Les douze lots sont livrés (12 août 2026).** 74 tests ajoutés, tous verts ; `tsc`
+vert ; l'écran vérifié au navigateur sur la base de dev. La campagne complète rend
+518 tests passants sur 531, les 13 échecs restants étant ceux qui préexistaient sur
+`develop` — mêmes cinq fichiers, tous dans le paiement, les litiges et les adhésions.
+
+**Cinq migrations** et non six : le marqueur de sortie de catalogue a voyagé avec
+`SubscriptionPayment`, les deux servant le même arbitrage 12 —
+`course_obligation_marker`, `wallet_debit_trace`, `trainer_auto_renew`,
+`subscription_payment_and_catalog_suspension`, `payout_closing_and_fees`.
+
+La fermeture de communauté n'en a demandé aucune : `Community.status` était déjà une
+chaîne libre, testée partout en lecture. Il ne manquait qu'un auteur.
+
 **Contraintes valables pour tous les lots**
 
 - Migrations par `prisma migrate`, **jamais** `db:push`. `directUrl` se fait recommenter
