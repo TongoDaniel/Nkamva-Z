@@ -50,6 +50,19 @@ export async function storageTierPriceFcfa(cadence: PlanCadence, at = new Date()
   return (await getStorageTierTariff(cadence, at))?.amountFcfa ?? 0
 }
 
+/**
+ * Les deux prix de palier en vigueur, tels que `/admin/parametres` les affiche.
+ * Pendant de `getCurrentTariffs` pour l'abonnement : un prix qu'on peut poser
+ * sans jamais le relire est un prix qu'on pose deux fois.
+ */
+export async function getCurrentStorageTierTariffs(at = new Date()) {
+  const [monthly, yearly] = await Promise.all([
+    getStorageTierTariff('MONTHLY', at),
+    getStorageTierTariff('YEARLY', at),
+  ])
+  return { MONTHLY: monthly, YEARLY: yearly }
+}
+
 export interface TrainerStorageView {
   usedBytes: number
   quotaBytes: number

@@ -7,7 +7,8 @@ import { Btn } from "@/components/nk/button";
 import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getApplicationDetail } from "@/lib/trainer-application-review";
-import { MAX_RESUBMISSIONS } from "@/lib/trainer-applications";
+import { cadenceOf, MAX_RESUBMISSIONS } from "@/lib/trainer-applications";
+import { quotePrice } from "@/lib/pricing";
 import { fmtDate, fmtNumber } from "@/lib/format";
 import { APPLICATION_STATUS, DOCUMENT_STATUS, DOCUMENT_LABELS } from "../status";
 import { ReviewActions } from "./review-actions";
@@ -36,6 +37,11 @@ export default async function ApplicationDetailPage({
   const state = APPLICATION_STATUS[application.status];
   const candidateName = application.user.fullName ?? application.user.email;
 
+  // Ce que l'acceptation déclenchera réellement : ouverture immédiate de
+  // l'espace si l'abonnement ne coûte rien, simple droit de payer sinon. Le
+  // tarif est lu au jour de l'examen, comme il le sera au jour du règlement.
+  const activationQuote = await quotePrice(cadenceOf(application));
+
   return (
     <>
       <BtnLink href="/admin/validation-formateurs" variant="t" size="sm" className="mb-4">
@@ -62,6 +68,7 @@ export default async function ApplicationDetailPage({
             candidateName={candidateName}
             isSuperAdmin={auth.user.adminRole === "SUPER_ADMIN"}
             maxResubmissions={MAX_RESUBMISSIONS}
+            activationAmountFcfa={activationQuote.payableFcfa}
             documents={application.documents.map((d) => ({
               id: d.id,
               type: d.type,

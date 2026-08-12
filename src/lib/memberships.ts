@@ -36,7 +36,7 @@ import { notify, deliverSideEffects } from './notification'
 import { consumeInvitationForPurchase } from './invitations'
 import { assertCanActAsLearner } from './roles'
 import {
-  openProviderPayment, reconcilePurchase, freePendingAttempt,
+  openProviderPayment, purchaseSubject, reconcilePurchase, freePendingAttempt,
   resumableAsIs, isCheckoutSession,
   type MobileMoneyPayer, type OpenPaymentResult,
 } from './purchases'
@@ -301,7 +301,7 @@ export async function initiateMembershipPayment(
       select: { countryCode: true },
     })
     const reopened = await openProviderPayment({
-      purchaseId: pending.id,
+      subject: purchaseSubject(pending.id),
       provider,
       amountFcfa: pending.amountFcfa,
       // Même libellé que l'ouverture nominale plus bas : c'est ce que
@@ -406,7 +406,7 @@ export async function initiateMembershipPayment(
   let opened
   try {
     opened = await openProviderPayment({
-      purchaseId: purchase.id,
+      subject: purchaseSubject(purchase.id),
       provider,
       amountFcfa,
       label: 'Adhesion NkamVa',

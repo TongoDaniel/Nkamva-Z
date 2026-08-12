@@ -1228,6 +1228,12 @@ model TrainerApplication {
    * a été ouvert par un parcours qui ne pose pas la question.
    */
   desiredCadence       PlanCadence?
+  /**
+   * Identité retenue par la modération à l'approbation. Elle est conservée ici
+   * parce que le `TrainerProfile` qui la portera ne naît plus dans la même
+   * transaction : il attend le règlement du premier abonnement.
+   */
+  verifiedLegalName    String?
   submittedAt          DateTime?
   reviewedById         String?
   reviewedAt           DateTime?
@@ -1238,6 +1244,7 @@ model TrainerApplication {
   reopenedAt           DateTime?
   documents            TrainerDocument[]
   reviewEvents         TrainerApplicationReviewEvent[]
+  activationPayments   TrainerActivationPayment[]
   createdAt            DateTime                        @default(now())
   updatedAt            DateTime                        @updatedAt
 
@@ -1272,6 +1279,44 @@ model TrainerDocument {
   @@index([status])
   @@index([applicationId, status])
   @@map("trainer_documents")
+}
+
+// --- TrainerActivationPayment ---
+/// Le règlement du premier abonnement, exigé **avant** que le formateur existe.
+///
+/// Il ne peut pas prendre la forme d'un `SubscriptionCharge` : celui-ci porte un
+/// `trainerId`, donc un `TrainerProfile` — et tout l'objet de cette étape est
+/// que le profil ne naisse qu'une fois l'argent encaissé. La ligne est donc
+/// rattachée à la candidature, et c'est son règlement qui déclenche
+/// l'ouverture de l'espace.
+///
+/// Les montants sont **figés à l'ouverture du paiement** (décision 57) : la
+/// grille peut bouger entre le clic et le retour du fournisseur, ce qui est
+/// encaissé est ce qui a été annoncé.
+model TrainerActivationPayment {
+  id                    String             @id @default(uuid())
+  applicationId         String
+  application           TrainerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  cadence               PlanCadence
+  listPriceFcfa         Int
+  discountFcfa          Int                @default(0)
+  discountLabel         String?
+  amountFcfa            Int
+  provider              PaymentProvider
+  /// Nul le temps que le fournisseur rende son identifiant.
+  providerTransactionId String?            @unique
+  providerStatus        PaymentStatus      @default(PENDING)
+  /// Motif d'échec tel que le fournisseur le nomme, comme sur `Purchase` :
+  /// le candidat doit savoir s'il recharge son compte ou s'il réessaie.
+  failureCode           String?
+  paidAt                DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  // Une seule tentative en cours ou réussie par dossier : c'est le service qui
+  // le tient, l'index est là pour que la lecture soit directe.
+  @@index([applicationId, providerStatus])
+  @@map("trainer_activation_payments")
 }
 
 // --- TrainerApplicationReviewEvent ---

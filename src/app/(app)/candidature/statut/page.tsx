@@ -6,8 +6,11 @@ import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { getAuthContext } from "@/lib/api";
 import { getMyApplication } from "@/lib/trainer-applications";
+import { getActivationState } from "@/lib/trainer-activation";
+import { payableProvidersForUser } from "@/lib/fx";
 import { fmtDate } from "@/lib/format";
 import { DOCUMENT_SLOTS, DOCUMENT_STATUS } from "@/lib/trainer-document-slots";
+import { ActivationPanel } from "./activation-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +30,13 @@ export default async function StatutCandidaturePage() {
 
   const documentsByType = new Map(application.documents.map((d) => [d.type, d]));
 
+  // Un dossier accepté n'ouvre plus l'espace à lui seul : le premier abonnement
+  // doit être réglé. `getActivationState` rend `null` dès que l'espace existe,
+  // ou quand il n'y a rien à payer.
+  const activation =
+    application.status === "APPROVED" ? await getActivationState(auth.user.id) : null;
+  const providers = activation ? await payableProvidersForUser(auth.user.id) : [];
+
   const view = {
     SUBMITTED: {
       icon: <FileSearch className="size-8" aria-hidden="true" />,
@@ -38,7 +48,12 @@ export default async function StatutCandidaturePage() {
       icon: <CheckCircle2 className="size-8" aria-hidden="true" />,
       tone: "bg-brand-tint text-brand",
       title: "Votre candidature est acceptée",
-      body: "Bienvenue parmi les formateurs NkamVa. Votre espace formateur est ouvert : vous pouvez publier votre première ressource.",
+      // Deux formulations, parce qu'il y a deux situations : annoncer « votre
+      // espace est ouvert » puis présenter un mur de paiement juste en dessous
+      // serait la pire des deux.
+      body: activation
+        ? "Bienvenue parmi les formateurs NkamVa. Une dernière étape avant l'ouverture de votre espace : le règlement de votre abonnement."
+        : "Bienvenue parmi les formateurs NkamVa. Votre espace formateur est ouvert : vous pouvez publier votre première ressource.",
     },
     REJECTED: {
       icon: <XCircle className="size-8" aria-hidden="true" />,
@@ -97,12 +112,14 @@ export default async function StatutCandidaturePage() {
             </p>
           ) : null}
 
-          {application.status === "APPROVED" ? (
+          {application.status === "APPROVED" && !activation ? (
             <BtnLink href="/formateur" size="lg" className="mt-6">
               Ouvrir mon espace formateur
             </BtnLink>
           ) : null}
         </section>
+
+        {activation ? <ActivationPanel state={activation} providers={providers} /> : null}
 
         <section
           aria-label="Pièces du dossier"

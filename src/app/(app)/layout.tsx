@@ -25,12 +25,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Le nom complet n'est pas dans le JWT : la topbar le lit ici plutôt que de
   // se rabattre sur la partie locale de l'adresse e-mail.
-  const [profile, unreadMessages] = await Promise.all([
+  const [profile, unreadMessages, openApplication] = await Promise.all([
     db.user.findUnique({
       where: { id: auth.user.id },
       select: { fullName: true, preferredName: true },
     }),
     countUnreadMessages(auth.user.id, auth.user.trainerId),
+    // Le menu du compte porte une entrée vers le dossier tant qu'il en reste un
+    // à suivre. On ne peut pas le déduire du rôle : `PENDING_TRAINER` ne couvre
+    // que le dossier envoyé, pas le brouillon commencé et abandonné en route.
+    //
+    // `APPROVED` en fait partie, et c'est le cas qui compte le plus : un dossier
+    // accepté dont l'abonnement n'est pas réglé n'a pas encore d'espace, et
+    // c'est depuis cet écran qu'on le paie. L'absence de `trainerId` suffit à
+    // distinguer les deux — un formateur en exercice n'est pas interrogé.
+    auth.user.trainerId
+      ? null
+      : db.trainerApplication.findFirst({
+          where: {
+            userId: auth.user.id,
+            status: { in: ["DRAFT", "SUBMITTED", "RESUBMISSION_PENDING", "APPROVED"] },
+          },
+          select: { id: true },
+        }),
   ]);
 
   return (
@@ -44,6 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         email: auth.user.email,
         isTrainer: Boolean(auth.user.trainerId),
         unreadMessages,
+        hasOpenApplication: openApplication !== null,
       }}
     >
       {children}

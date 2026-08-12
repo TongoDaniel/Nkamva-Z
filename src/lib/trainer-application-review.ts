@@ -86,6 +86,9 @@ export async function getApplicationDetail(applicationId: string) {
       domains: true, experienceYears: true, submittedAt: true, reviewedAt: true,
       finalRejectionReason: true, approvedAt: true, rejectedAt: true,
       reopenedAt: true, reopenedById: true, createdAt: true, updatedAt: true,
+      // La cadence demandée décide du montant que l'acceptation rendra exigible :
+      // l'écran d'examen l'annonce au modérateur avant qu'il tranche.
+      desiredCadence: true,
       user: {
         select: { id: true, email: true, fullName: true, countryCode: true, phone: true, createdAt: true },
       },

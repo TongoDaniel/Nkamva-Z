@@ -8,6 +8,7 @@ import { auditStandalone } from '@/lib/audit'
 import { creditWalletOnPurchase } from '@/lib/wallet'
 import { issueInvoiceQuietly } from '@/lib/invoices'
 import { acknowledge, readSignedCallback } from '@/lib/pawapay-callbacks'
+import { failActivationPayment, settleActivationPayment } from '@/lib/trainer-activation'
 
 export async function POST(request: Request) {
   const read = await readSignedCallback(request, 'DEPOSIT')
@@ -22,6 +23,13 @@ export async function POST(request: Request) {
 
   switch (snapshot.status) {
     case 'COMPLETED': {
+      // Deux sujets peuvent s'encaisser ici depuis que le premier abonnement
+      // d'un formateur se règle en mobile money : un achat, ou l'ouverture d'un
+      // espace formateur. L'identifiant de dépôt ne dit pas lequel — chaque
+      // chemin ne reconnaît que ses propres lignes et laisse passer les autres.
+      const activation = await settleActivationPayment(depositId, 'PAWAPAY')
+      if (activation.settled) break
+
       const credit = await db.$transaction((tx) => creditWalletOnPurchase(tx, depositId, 'PAWAPAY'))
       // La facture s'émet après le commit, et son échec ne remonte pas au
       // fournisseur : un callback en erreur serait rejoué, et l'accès de
@@ -37,12 +45,26 @@ export async function POST(request: Request) {
       // lui, l'écran de confirmation ne peut dire que « l'opérateur a refusé »,
       // là où l'apprenant a besoin de savoir s'il doit recharger son compte ou
       // approuver la demande sur son téléphone.
+      const failureCode = snapshot.failureReason?.failureCode ?? 'UNSPECIFIED_FAILURE'
+
+      // Même partage qu'au succès : le refus peut porter sur une activation.
+      // Sans ce chemin, la tentative resterait PENDING pour toujours et le
+      // garde-fou « une seule tentative en cours » interdirait au candidat de
+      // réessayer — un échec d'opérateur lui fermerait la porte définitivement.
+      if (await failActivationPayment(depositId, failureCode)) {
+        await auditStandalone({
+          action: 'TRAINER_ACTIVATION_FAILED',
+          meta: {
+            kind: 'DEPOSIT', depositId, failureCode,
+            failureMessage: snapshot.failureReason?.failureMessage ?? null,
+          },
+        })
+        break
+      }
+
       const failed = await db.purchase.updateMany({
         where: { providerTransactionId: depositId, providerStatus: 'PENDING' },
-        data: {
-          providerStatus: 'FAILED',
-          failureCode: snapshot.failureReason?.failureCode ?? 'UNSPECIFIED_FAILURE',
-        },
+        data: { providerStatus: 'FAILED', failureCode },
       })
       await auditStandalone({
         action: failed.count > 0 ? 'PURCHASE_FAILED' : 'PAWAPAY_CALLBACK_IGNORED',

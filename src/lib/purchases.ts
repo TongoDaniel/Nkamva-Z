@@ -66,16 +66,79 @@ export interface MobileMoneyPayer {
   provider: string
 }
 
+/**
+ * Ce qui est payé, et comment la ligne correspondante se met à jour.
+ *
+ * Cette indirection existe parce que l'ouverture d'un paiement n'est plus
+ * réservée aux achats : le premier abonnement d'un formateur se règle lui aussi
+ * ici, et il ne s'appuie sur aucun `Purchase` — le profil qui le porterait
+ * n'existe pas encore. Plutôt que d'ouvrir un second chemin vers les
+ * fournisseurs, qui divergerait du premier au premier correctif, on décrit le
+ * sujet du paiement et on garde une seule porte.
+ */
+export interface PaymentSubject {
+  /** Sert au journal d'audit et aux métadonnées transmises au fournisseur. */
+  kind: 'PURCHASE' | 'TRAINER_ACTIVATION'
+  /** Identifiant de la ligne à régler, côté NkamVa. */
+  id: string
+  /** Où Stripe ramène le payeur — succès comme abandon. */
+  returnUrl: string
+  /** Inscrit sur la ligne l'identifiant rendu par le fournisseur. */
+  recordTransactionId: (providerTransactionId: string) => Promise<void>
+  /** Raccourci de développement : règle la ligne sans passer par un fournisseur. */
+  settleSimulated: (providerTransactionId: string, provider: PaymentProvider) => Promise<void>
+}
+
+/** Base publique du site, pour les URL de retour des pages hébergées. */
+export function webBaseUrl(): string {
+  return process.env.WEB_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+}
+
+/** Le sujet « achat », de loin le plus fréquent. */
+export function purchaseSubject(purchaseId: string): PaymentSubject {
+  return {
+    kind: 'PURCHASE',
+    id: purchaseId,
+    // L'abandon ramène là où l'apprenant attendait déjà : l'écran de
+    // confirmation lit l'état réel de l'achat et n'affirme aucun succès.
+    returnUrl: `${webBaseUrl()}/achat/confirmation/${purchaseId}`,
+    recordTransactionId: async (providerTransactionId) => {
+      await db.purchase.update({ where: { id: purchaseId }, data: { providerTransactionId } })
+    },
+    settleSimulated: async (providerTransactionId, provider) => {
+      const credit = await db.$transaction((tx) =>
+        creditWalletOnPurchase(tx, providerTransactionId, provider),
+      )
+      if (credit.credited && credit.purchaseId) await issueInvoiceQuietly(credit.purchaseId)
+    },
+  }
+}
+
 export interface OpenPaymentParams {
-  purchaseId: string
+  subject: PaymentSubject
   provider: PaymentProvider
   amountFcfa: number
   /** Libellé porté sur le relevé du client (4 à 22 caractères chez PawaPay). */
   label: string
+  /** Le payeur — apprenant pour un achat, candidat pour une activation. */
   learnerId: string
   countryCode: string | null
   /** Obligatoire pour PawaPay : le mobile money désigne un numéro, pas un compte. */
   payer?: MobileMoneyPayer
+}
+
+/** Le `targetType` du journal, selon ce qui est payé. */
+function subjectTargetType(kind: PaymentSubject['kind']): string {
+  return kind === 'PURCHASE' ? 'Purchase' : 'TrainerActivationPayment'
+}
+
+/**
+ * La clé sous laquelle l'identifiant part chez le fournisseur. `purchaseId`
+ * est conservé tel quel pour les achats : c'est ce que lisent les tableaux de
+ * bord du support, et le renommer les aveuglerait sur l'historique.
+ */
+function subjectMetadataKey(kind: PaymentSubject['kind']): string {
+  return kind === 'PURCHASE' ? 'purchaseId' : 'activationPaymentId'
 }
 
 export interface OpenPaymentResult {
@@ -142,13 +205,14 @@ async function openPawaPayDeposit(params: OpenPaymentParams): Promise<OpenPaymen
     amount: converted.amount,
     currency: converted.currency,
     customerMessage: params.label,
-    clientReferenceId: params.purchaseId,
-    metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
+    clientReferenceId: params.subject.id,
+    metadata: { [subjectMetadataKey(params.subject.kind)]: params.subject.id, learnerId: params.learnerId },
   })
 
   if (response.status === 'REJECTED') {
     await auditStandalone({
-      action: 'PAYMENT_REJECTED', targetType: 'Purchase', targetId: params.purchaseId,
+      action: 'PAYMENT_REJECTED',
+      targetType: subjectTargetType(params.subject.kind), targetId: params.subject.id,
       meta: {
         provider: 'PAWAPAY', depositId,
         failureCode: response.failureReason?.failureCode ?? null,
@@ -158,10 +222,7 @@ async function openPawaPayDeposit(params: OpenPaymentParams): Promise<OpenPaymen
     throw new Error(response.failureReason?.failureCode || 'PAYMENT_REJECTED')
   }
 
-  await db.purchase.update({
-    where: { id: params.purchaseId },
-    data: { providerTransactionId: depositId },
-  })
+  await params.subject.recordTransactionId(depositId)
 
   return { providerTransactionId: depositId, nextStep: 'CONFIRM_ON_PHONE' }
 }
@@ -194,8 +255,7 @@ async function openStripeCheckoutSession(params: OpenPaymentParams): Promise<Ope
     throw new Error('PAYMENT_PROVIDER_UNAVAILABLE')
   }
 
-  const base = process.env.WEB_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
-  const confirmation = `${base}/achat/confirmation/${params.purchaseId}`
+  const confirmation = params.subject.returnUrl
 
   const session = await stripe.checkout.sessions.create(
     {
@@ -217,26 +277,23 @@ async function openStripeCheckoutSession(params: OpenPaymentParams): Promise<Ope
       // confirmation lit l'état réel de l'achat et n'affirme aucun succès.
       success_url: confirmation,
       cancel_url: confirmation,
-      metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
+      metadata: { [subjectMetadataKey(params.subject.kind)]: params.subject.id, learnerId: params.learnerId },
       payment_intent_data: {
         description: params.label,
-        metadata: { purchaseId: params.purchaseId, learnerId: params.learnerId },
+        metadata: { [subjectMetadataKey(params.subject.kind)]: params.subject.id, learnerId: params.learnerId },
       },
     },
     // Une reprise crée une **nouvelle** session : la clé porte donc l'identifiant
-    // de session côté Stripe, pas seulement l'achat. Sans ce sel, rouvrir un
+    // de session côté Stripe, pas seulement la ligne. Sans ce sel, rouvrir un
     // paiement rendrait la session périmée précédente.
-    { idempotencyKey: `purchase_${params.purchaseId}_${Date.now()}` },
+    { idempotencyKey: `${params.subject.kind.toLowerCase()}_${params.subject.id}_${Date.now()}` },
   )
 
   // Sans page à ouvrir, l'apprenant n'a nulle part où payer : mieux vaut
   // refuser que laisser une ligne en attente que rien ne viendra conclure.
   if (!session.url) throw new Error('PAYMENT_PROVIDER_UNAVAILABLE')
 
-  await db.purchase.update({
-    where: { id: params.purchaseId },
-    data: { providerTransactionId: session.id },
-  })
+  await params.subject.recordTransactionId(session.id)
 
   return {
     providerTransactionId: session.id,
@@ -286,16 +343,13 @@ async function settleWithoutProvider(
   provider: PaymentProvider,
 ): Promise<OpenPaymentResult> {
   const providerTransactionId = crypto.randomUUID()
-  await db.purchase.update({
-    where: { id: params.purchaseId },
-    data: { providerTransactionId },
-  })
+  await params.subject.recordTransactionId(providerTransactionId)
   await auditStandalone({
-    action: 'PAYMENT_SIMULATED', targetType: 'Purchase', targetId: params.purchaseId,
+    action: 'PAYMENT_SIMULATED',
+    targetType: subjectTargetType(params.subject.kind), targetId: params.subject.id,
     meta: { provider, providerTransactionId, reason: 'ALLOW_PAYMENT_SIMULATION' },
   })
-  const credit = await db.$transaction((tx) => creditWalletOnPurchase(tx, providerTransactionId, provider))
-  if (credit.credited && credit.purchaseId) await issueInvoiceQuietly(credit.purchaseId)
+  await params.subject.settleSimulated(providerTransactionId, provider)
   return { providerTransactionId, nextStep: 'ALREADY_SETTLED' }
 }
 
@@ -382,7 +436,7 @@ export async function initiatePurchase(
       }
     }
     const reopened = await openProviderPayment({
-      purchaseId: existing.id,
+      subject: purchaseSubject(existing.id),
       provider,
       amountFcfa: existing.amountFcfa,
       label: course.title,
@@ -474,7 +528,7 @@ export async function initiatePurchase(
   let opened: OpenPaymentResult
   try {
     opened = await openProviderPayment({
-      purchaseId: purchase.id,
+      subject: purchaseSubject(purchase.id),
       provider,
       amountFcfa,
       label: course.title,
@@ -674,7 +728,13 @@ interface ProviderVerdict {
 }
 
 /** Interroge le fournisseur. `null` quand le paiement n'est pas encore tranché. */
-async function providerSaysSettled(
+/**
+ * Le verdict du fournisseur sur une transaction. Exporté parce que la
+ * réconciliation ne concerne plus seulement les achats : l'ouverture d'un
+ * espace formateur se règle par les mêmes tunnels et se perd de la même façon
+ * quand un callback n'arrive pas.
+ */
+export async function providerSaysSettled(
   provider: PaymentProvider,
   providerTransactionId: string,
 ): Promise<ProviderVerdict> {

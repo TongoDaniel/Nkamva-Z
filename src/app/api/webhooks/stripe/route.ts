@@ -6,6 +6,7 @@ import { auditStandalone } from '@/lib/audit'
 import { getStripe } from '@/lib/stripe'
 import { issueInvoiceQuietly } from '@/lib/invoices'
 import { promoteCheckoutSession } from '@/lib/purchases'
+import { promoteActivationCheckoutSession, settleActivationPayment } from '@/lib/trainer-activation'
 import { openDisputeFromChargeback, closeChargeback } from '@/lib/disputes'
 
 type StripeLikeEvent = {
@@ -59,6 +60,17 @@ export async function POST(request: Request) {
     // ensuite — indexé sur `pi_…` — ne retrouverait aucun achat.
     case 'checkout.session.completed': {
       if (object.payment_status !== 'paid') break
+
+      // Deux sujets peuvent se régler par Checkout depuis que le premier
+      // abonnement d'un formateur se paie en ligne : un achat, ou l'activation
+      // d'un espace formateur. La session ne dit pas lequel — on tente les deux
+      // promotions, chacune ne reconnaissant que ses propres lignes.
+      const activationIntent = await promoteActivationCheckoutSession(object.id)
+      if (activationIntent) {
+        await settleActivationPayment(activationIntent, 'STRIPE')
+        break
+      }
+
       const intentId = await promoteCheckoutSession(object.id)
       if (!intentId) break
       const credit = await db.$transaction(async (tx) => {
@@ -74,6 +86,12 @@ export async function POST(request: Request) {
     // cet événement le retrouve. Si le crédit a déjà eu lieu, l'écriture
     // idempotente de `creditWalletOnPurchase` n'en refait aucun.
     case 'payment_intent.succeeded': {
+      // Même partage que ci-dessus. `settleActivationPayment` ne reconnaît que
+      // ses propres identifiants et rend `settled: false` sur tous les autres,
+      // ce qui laisse le chemin d'achat intact.
+      const activation = await settleActivationPayment(object.id, 'STRIPE')
+      if (activation.settled) break
+
       const credit = await db.$transaction(async (tx) => {
         return creditWalletOnPurchase(tx, object.id, 'STRIPE')
       })
