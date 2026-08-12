@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Send, TriangleAlert } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { WizardSteps, WizardCard } from "@/components/nk/wizard";
-import { toast } from "@/components/nk/toast";
+import { useAction } from "@/hooks/use-action";
 import { FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
 import { ApplicationForm, type ApplicationDraft } from "./application-form";
 import { DocumentUpload, type DocumentState } from "./document-upload";
-import { DOCUMENT_SLOTS } from "./documents";
+import { DOCUMENT_SLOTS } from "@/lib/trainer-document-slots";
 
 const STEPS = [
   { id: "presentation", label: "Présentation" },
@@ -42,25 +42,21 @@ export function ApplicationWizard({
     return application.missingDocuments.length > 0 ? 1 : 2;
   });
   const [error, setError] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState(false);
+
+  const submit = useAction(() => api.post("/api/trainer-applications/me/submit"), {
+    success: "Candidature envoyée. L'équipe de modération vous répondra par e-mail.",
+    // L'échec s'affiche au fil de l'écran : pas de toast.
+    error: null,
+    // Navigation dans la transition : le bouton reste occupé jusqu'à ce que
+    // l'écran de statut soit affiché.
+    onSuccess: () => router.push("/candidature/statut"),
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "L'envoi a échoué. Réessayez."),
+  });
 
   const isResubmission = application?.status === "RESUBMISSION_PENDING";
   const documentsByType = new Map(application?.documents.map((d) => [d.type, d]) ?? []);
   const ready = application != null && application.missingDocuments.length === 0;
-
-  async function onSubmit() {
-    setError(null);
-    setPending(true);
-    try {
-      await api.post("/api/trainer-applications/me/submit");
-      toast.success("Candidature envoyée. L'équipe de modération vous répondra par e-mail.");
-      router.push("/candidature/statut");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "L'envoi a échoué. Réessayez.");
-      setPending(false);
-    }
-  }
 
   return (
     <>
@@ -149,7 +145,7 @@ export function ApplicationWizard({
               <ArrowLeft aria-hidden="true" />
               Pièces
             </Btn>
-            <Btn size="lg" loading={pending} disabled={!ready} onClick={onSubmit}>
+            <Btn size="lg" loading={submit.pending} disabled={!ready} onClick={() => void submit.run()}>
               <Send aria-hidden="true" />
               {isResubmission ? "Renvoyer mon dossier" : "Envoyer ma candidature"}
             </Btn>

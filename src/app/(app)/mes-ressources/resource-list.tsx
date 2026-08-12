@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download, Filter, PlayCircle } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Tabs } from "@/components/nk/tabs";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { ProgressRing } from "@/components/nk/progress-ring";
@@ -60,12 +61,10 @@ function ResourceActions({ item }: { item: ResourceItem }) {
   }
 
   return (
-    <Btn asChild size="sm">
-      <Link href={`/mes-ressources/${course.id}`}>
+    <BtnLink href={`/mes-ressources/${course.id}`} size="sm">
         <PlayCircle aria-hidden="true" />
         {item.isStarted ? "Reprendre" : "Commencer"}
-      </Link>
-    </Btn>
+    </BtnLink>
   );
 }
 

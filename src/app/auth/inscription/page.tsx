@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AuthShell, AuthAside } from "@/components/layouts/auth-shell";
+import { AuthShell, AuthIllustration } from "@/components/layouts/auth-shell";
 import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 export default function InscriptionPage() {
   return (
     <AuthShell
-      aside={
-        <AuthAside
+      illustration={
+        <AuthIllustration
           photo="/auth/inscription-formatrice.webp"
-          photoBrief="formatrice au travail, ambiance chaleureuse"
+          focus="10%"
           quote="NkamVa a structuré ma communauté de 2 000 étudiants."
           author="Aissatou Diallo · Formatrice"
         />

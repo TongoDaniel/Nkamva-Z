@@ -1,13 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Banknote } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
 
 /**
@@ -24,27 +23,22 @@ export function SettleAction({
   amountFcfa: number;
   trainerName: string;
 }) {
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [reference, setReference] = React.useState("");
-  const [pending, setPending] = React.useState(false);
 
-  async function settle() {
-    setPending(true);
-    try {
-      await api.post(`/api/admin/subscriptions/charges/${chargeId}/settle`, {
+  const settle = useAction(
+    () =>
+      api.post(`/api/admin/subscriptions/charges/${chargeId}/settle`, {
         reference: reference.trim() || undefined,
-      });
-      toast.success("Règlement constaté.");
-      setOpen(false);
-      setReference("");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action a échoué. Réessayez.");
-    } finally {
-      setPending(false);
-    }
-  }
+      }),
+    {
+      success: "Règlement constaté.",
+      onSuccess: () => {
+        setOpen(false);
+        setReference("");
+      },
+    },
+  );
 
   return (
     <>
@@ -60,10 +54,10 @@ export function SettleAction({
         description={`Pour ${trainerName}. À ne faire qu'une fois le paiement réellement reçu.`}
         footer={
           <>
-            <Btn loading={pending} onClick={settle}>
+            <Btn loading={settle.pending} onClick={() => void settle.run()}>
               Constater
             </Btn>
-            <Btn variant="o" onClick={() => setOpen(false)}>
+            <Btn variant="o" disabled={settle.pending} onClick={() => setOpen(false)}>
               Annuler
             </Btn>
           </>

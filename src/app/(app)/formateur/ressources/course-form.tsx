@@ -6,7 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
-import { toast } from "@/components/nk/toast";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { cn } from "@/lib/utils";
 import {
@@ -179,7 +179,48 @@ export function CourseForm({
   const [values, setValues] = React.useState<CourseFormValues>(initial ?? EMPTY_COURSE);
   const [error, setError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
-  const [pending, setPending] = React.useState(false);
+
+  const save = useAction(
+    async () => {
+      const payload = toPayload(values);
+      if (mode === "create") {
+        const { data } = await api.post<{ id: string }>("/api/trainer/courses", payload);
+        return data.id;
+      }
+      await api.patch(`/api/trainer/courses/${courseId}`, payload);
+      return null;
+    },
+    {
+      success: (id) =>
+        id
+          ? "Ressource créée. Elle reste en brouillon jusqu'à publication."
+          : "Modifications enregistrées.",
+      // Les erreurs se posent sur les champs fautifs : pas de toast.
+      error: null,
+      // Ouvrir la fiche est joué dans la transition : le bouton reste occupé
+      // jusqu'à ce qu'elle soit à l'écran. En édition, seul le rafraîchissement
+      // joue, et il suffit.
+      onSuccess: (id) => {
+        if (id) router.push(`/formateur/ressources/${id}`);
+      },
+      onError: (err) => {
+        if (err instanceof ApiError) {
+          if (err.details?.length) {
+            setFieldErrors(
+              Object.fromEntries(
+                err.details
+                  .filter((d) => d.field && d.reason)
+                  .map((d) => [d.field as string, d.reason as string]),
+              ),
+            );
+          }
+          setError(err.message);
+        } else {
+          setError("L'enregistrement a échoué. Réessayez.");
+        }
+      },
+    },
+  );
 
   const set = <K extends keyof CourseFormValues>(key: K, value: CourseFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
@@ -195,36 +236,7 @@ export function CourseForm({
       return;
     }
 
-    setPending(true);
-    try {
-      const payload = toPayload(values);
-      if (mode === "create") {
-        const { data } = await api.post<{ id: string }>("/api/trainer/courses", payload);
-        toast.success("Ressource créée. Elle reste en brouillon jusqu'à publication.");
-        router.push(`/formateur/ressources/${data.id}`);
-      } else {
-        await api.patch(`/api/trainer/courses/${courseId}`, payload);
-        toast.success("Modifications enregistrées.");
-        router.refresh();
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.details?.length) {
-          setFieldErrors(
-            Object.fromEntries(
-              err.details
-                .filter((d) => d.field && d.reason)
-                .map((d) => [d.field as string, d.reason as string]),
-            ),
-          );
-        }
-        setError(err.message);
-      } else {
-        setError("L'enregistrement a échoué. Réessayez.");
-      }
-    } finally {
-      setPending(false);
-    }
+    void save.run();
   }
 
   return (
@@ -385,7 +397,7 @@ export function CourseForm({
             onChange={(e) => set("lessonsCount", e.target.value)}
           />
 
-          <Btn type="submit" block size="lg" loading={pending} className="mt-2">
+          <Btn type="submit" block size="lg" loading={save.pending} className="mt-2">
             {mode === "create" ? "Créer le brouillon" : "Enregistrer"}
           </Btn>
           {mode === "create" ? (

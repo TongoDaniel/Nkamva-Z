@@ -9,6 +9,7 @@ const CreateSchema = z.object({
   websiteUrl: z.string().url().max(500).optional(),
   domains: z.array(z.string().max(60)).max(10).optional(),
   experienceYears: z.number().int().min(0).max(80).optional(),
+  desiredCadence: z.enum(['MONTHLY', 'YEARLY']).optional(),
 })
 
 export async function POST(request: Request) {

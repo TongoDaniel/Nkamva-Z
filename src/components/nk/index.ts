@@ -1,5 +1,7 @@
 // Socle de composants NkamVa, porté depuis la maquette (assets/nkamva*.css).
 export { Btn, IconBtn, btnVariants, type BtnProps } from "./button";
+export { BtnLink, type BtnLinkProps } from "./button-link";
+export { NavLink, LinkPending, type NavLinkProps } from "./nav-link";
 export { Chip, FilterPill, chipVariants } from "./chip";
 export { StPill, stPillVariants } from "./status-pill";
 export {
@@ -13,6 +15,7 @@ export {
 export { Avatar, initials } from "./avatar";
 export { Cover, FormatGlyph, coverTone, categoryTone, formatLabel, FORMAT_LABELS } from "./cover";
 export { Skeleton, SkeletonRegion, ResourceCardSkeleton } from "./skeleton";
+export { UploadBar } from "./upload-bar";
 export { EmptyState, EmptyRow } from "./empty-state";
 export { Toaster, toast } from "./toast";
 export { DataTable, CellUser, Pager, type Column } from "./data-table";

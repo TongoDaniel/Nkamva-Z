@@ -7,7 +7,7 @@ import { Building2, User } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
-import { toast } from "@/components/nk/toast";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { cn } from "@/lib/utils";
 import { OPERATOR_LABELS } from "../payout-status";
@@ -64,11 +64,54 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
   const [phone, setPhone] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
-  const [pending, setPending] = React.useState(false);
   // Second facteur, exigé pour pointer de l'argent vers un nouveau compte.
   // Il remplace l'alerte SMS qui prévenait après coup qu'un RIB avait changé :
   // celle-ci empêche au lieu de prévenir.
   const [twoFactorCode, setTwoFactorCode] = React.useState("");
+
+  const save = useAction(
+    () =>
+      api.post("/api/trainer/payout-methods", {
+        type,
+        accountNature: nature,
+        ...(nature === "INDIVIDUAL" ? { holderName: holderName.trim() } : {}),
+        ...(nature === "BUSINESS"
+          ? {
+              businessName: businessName.trim(),
+              businessDocS3Key: businessDoc!.s3Key,
+              legalRepProofS3Key: legalRepProof!.s3Key,
+            }
+          : {}),
+        ...(type === "BANK_IBAN"
+          ? { iban: iban.replace(/\s+/g, ""), ...(bic.trim() ? { bic: bic.trim() } : {}) }
+          : { mobileOperator: operator, mobilePhone: phone.trim() }),
+        twoFactorCode: twoFactorCode.trim(),
+      }),
+    {
+      success: "Compte enregistré. Sa vérification commence.",
+      // Les erreurs se posent sur les champs fautifs : pas de toast.
+      error: null,
+      // Le retour au portefeuille est joué dans la transition : le bouton reste
+      // occupé jusqu'à ce que l'écran rafraîchi soit affiché.
+      onSuccess: () => router.push("/formateur/portefeuille"),
+      onError: (err) => {
+        if (err instanceof ApiError) {
+          if (err.details?.length) {
+            setFieldErrors(
+              Object.fromEntries(
+                err.details
+                  .filter((d) => d.field && d.reason)
+                  .map((d) => [d.field as string, d.reason as string]),
+              ),
+            );
+          }
+          setError(ERROR_MESSAGES[err.code] ?? err.message);
+        } else {
+          setError("L'enregistrement a échoué. Réessayez.");
+        }
+      },
+    },
+  );
 
   /**
    * Un document qui arrive doit effacer l'erreur qui le réclamait, sinon le
@@ -119,45 +162,7 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
       return;
     }
 
-    setPending(true);
-    try {
-      await api.post("/api/trainer/payout-methods", {
-        type,
-        accountNature: nature,
-        ...(nature === "INDIVIDUAL" ? { holderName: holderName.trim() } : {}),
-        ...(nature === "BUSINESS"
-          ? {
-              businessName: businessName.trim(),
-              businessDocS3Key: businessDoc!.s3Key,
-              legalRepProofS3Key: legalRepProof!.s3Key,
-            }
-          : {}),
-        ...(type === "BANK_IBAN"
-          ? { iban: iban.replace(/\s+/g, ""), ...(bic.trim() ? { bic: bic.trim() } : {}) }
-          : { mobileOperator: operator, mobilePhone: phone.trim() }),
-        twoFactorCode: twoFactorCode.trim(),
-      });
-      toast.success("Compte enregistré. Sa vérification commence.");
-      router.push("/formateur/portefeuille");
-      router.refresh();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.details?.length) {
-          setFieldErrors(
-            Object.fromEntries(
-              err.details
-                .filter((d) => d.field && d.reason)
-                .map((d) => [d.field as string, d.reason as string]),
-            ),
-          );
-        }
-        setError(ERROR_MESSAGES[err.code] ?? err.message);
-      } else {
-        setError("L'enregistrement a échoué. Réessayez.");
-      }
-    } finally {
-      setPending(false);
-    }
+    void save.run();
   }
 
   return (
@@ -361,7 +366,7 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
               </p>
             </div>
 
-            <Btn type="submit" block size="lg" loading={pending} className="mt-2">
+            <Btn type="submit" block size="lg" loading={save.pending} className="mt-2">
               {replacing ? "Remplacer mon compte" : "Enregistrer le compte"}
             </Btn>
           </fieldset>

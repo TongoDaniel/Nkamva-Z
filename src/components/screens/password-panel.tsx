@@ -7,6 +7,7 @@ import { PasswordField } from "@/components/nk/input";
 import { PasswordChecklist } from "@/components/nk/password-checklist";
 import { SettingCard } from "@/components/nk/setting-card";
 import { FormError } from "@/components/layouts/auth-shell";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { passwordError } from "@/lib/validation";
 
@@ -27,9 +28,27 @@ export function PasswordPanel({ callbackUrl = "/auth/connexion?password=1" }: { 
   const [confirm, setConfirm] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [fieldError, setFieldError] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  const change = useAction(
+    async () => {
+      await api.post("/api/me/password", { currentPassword: current, newPassword: next });
+      // Le changement invalide toutes les sessions, dont celle-ci : on sort
+      // proprement plutôt que de laisser l'interface se heurter à des 401.
+      // La déconnexion quitte le site, donc le bouton reste occupé jusqu'au
+      // déchargement — il ne doit surtout pas se rallumer entre-temps.
+      await signOut({ callbackUrl });
+    },
+    {
+      success: null,
+      // L'échec s'affiche en tête du formulaire : pas de toast.
+      error: null,
+      refresh: false,
+      onError: (err) =>
+        setError(err instanceof ApiError ? err.message : "Le changement a échoué. Réessayez."),
+    },
+  );
+
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -47,17 +66,7 @@ export function PasswordPanel({ callbackUrl = "/auth/connexion?password=1" }: { 
       return;
     }
     setFieldError(null);
-    setPending(true);
-
-    try {
-      await api.post("/api/me/password", { currentPassword: current, newPassword: next });
-      // Le changement invalide toutes les sessions, dont celle-ci : on sort
-      // proprement plutôt que de laisser l'interface se heurter à des 401.
-      await signOut({ callbackUrl });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Le changement a échoué. Réessayez.");
-      setPending(false);
-    }
+    void change.run();
   }
 
   return (
@@ -65,7 +74,7 @@ export function PasswordPanel({ callbackUrl = "/auth/connexion?password=1" }: { 
       title="Mot de passe"
       subtitle="Le changement déconnecte toutes vos sessions ouvertes, y compris celle-ci. Vous devrez vous reconnecter juste après."
       footer={
-        <Btn type="submit" form="pwd-form" loading={pending} disabled={!current || !next || !confirm}>
+        <Btn type="submit" form="pwd-form" loading={change.pending} disabled={!current || !next || !confirm}>
           Modifier le mot de passe
         </Btn>
       }

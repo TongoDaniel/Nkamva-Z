@@ -51,8 +51,23 @@ export interface PasswordRule {
   test: (value: string) => boolean;
 }
 
+/**
+ * Longueur minimale d'un mot de passe, tenue par les routes qui en acceptent
+ * un (`auth/register`, `auth/reset-password`, `me/password`).
+ *
+ * Elle vit ici parce qu'elle vivait ailleurs trois fois : la liste ci-dessous
+ * en exigeait 8, l'inscription 10. Un candidat cochait donc les trois règles à
+ * l'écran et se faisait refuser par le serveur, sans que rien n'ait menti —
+ * les deux avaient raison chacun de leur côté.
+ */
+export const MIN_PASSWORD_LENGTH = 10;
+
 export const PASSWORD_RULES: PasswordRule[] = [
-  { id: "length", label: "Au moins 8 caractères", test: (v) => v.length >= 8 },
+  {
+    id: "length",
+    label: `Au moins ${MIN_PASSWORD_LENGTH} caractères`,
+    test: (v) => v.length >= MIN_PASSWORD_LENGTH,
+  },
   { id: "upper", label: "Au moins une majuscule", test: (v) => /[A-Z]/.test(v) },
   { id: "digit", label: "Au moins un chiffre", test: (v) => /\d/.test(v) },
 ];

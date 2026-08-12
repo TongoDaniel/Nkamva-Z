@@ -549,6 +549,23 @@
   }
 }
 
+/**
+ * Navigation en cours — le trait qui va et vient sous l'entrée cliquée.
+ *
+ * Il est indéterminé à dessein : on ne sait pas combien de temps le serveur
+ * mettra, et une barre qui prétendrait connaître sa progression mentirait.
+ * Sous `prefers-reduced-motion`, la règle globale plus bas fige l'animation ;
+ * le trait reste alors visible, immobile, ce qui suffit à dire « ça travaille ».
+ */
+@keyframes nk-nav {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

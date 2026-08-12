@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, FileText, ShieldAlert } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getPayoutMethodDetail, PAYOUT_METHOD_MAX_REJECTIONS } from "@/lib/payout-methods";
 import { fmtDate } from "@/lib/format";
@@ -65,12 +65,10 @@ export default async function MoyenDePaiementDetailPage({
           </>
         }
         actions={
-          <Btn asChild variant="o" size="sm">
-            <Link href="/admin/moyens-de-paiement">
+          <BtnLink href="/admin/moyens-de-paiement" variant="o" size="sm">
               <ArrowLeft aria-hidden="true" />
               Retour à la file
-            </Link>
-          </Btn>
+          </BtnLink>
         }
       />
 

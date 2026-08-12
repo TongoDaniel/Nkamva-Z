@@ -11,8 +11,8 @@ import { Tabs } from "@/components/nk/tabs";
 import { Avatar } from "@/components/nk/avatar";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
 
 export interface MemberRow {
@@ -76,10 +76,11 @@ export function MembersPanel({
   const [rows, setRows] = React.useState(initial);
   const [target, setTarget] = React.useState<MemberRow | null>(null);
   const [reason, setReason] = React.useState("");
-  const [pending, setPending] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [filter, setFilter] = React.useState("all");
-  const [opening, setOpening] = React.useState<string | null>(null);
+  // Clés portant l'identifiant du membre : l'état occupé se pose sur la seule
+  // ligne cliquée, et non sur toute la liste.
+  const action = useKeyedAction();
 
   React.useEffect(() => setRows(initial), [initial]);
 
@@ -101,59 +102,84 @@ export function MembersPanel({
    * messagerie, pas ici : la dupliquer dans une fenêtre priverait le formateur
    * de l'historique au moment précis où il en a besoin.
    */
-  async function write(row: MemberRow) {
-    setOpening(row.learnerId);
-    try {
-      const { data } = await api.post<{ id: string }>(
-        `/api/trainer/communities/${communityId}/conversations`,
-        { learnerId: row.learnerId },
-      );
-      router.push(`/messagerie?fil=${data.id}`);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Le fil n'a pas pu être ouvert.");
-      setOpening(null);
-    }
-  }
-
-  async function reload() {
+  /**
+   * Relit la liste. Appelée *dans* l'action, elle est couverte par l'état
+   * occupé : la ligne cesse de tourner quand les données fraîches sont là.
+   */
+  async function fetchRows() {
     const { data } = await api.get<MemberRow[]>(
       `/api/trainer/communities/${communityId}/members`,
     );
-    setRows(data);
-    router.refresh();
+    return data;
   }
 
-  async function ban() {
+  /**
+   * Ouvre le fil du membre puis y emmène. La conversation vit dans la
+   * messagerie, pas ici : la dupliquer dans une fenêtre priverait le formateur
+   * de l'historique au moment précis où il en a besoin.
+   */
+  function write(row: MemberRow) {
+    void action.run(
+      `write:${row.learnerId}`,
+      async () => {
+        const { data } = await api.post<{ id: string }>(
+          `/api/trainer/communities/${communityId}/conversations`,
+          { learnerId: row.learnerId },
+        );
+        return data.id;
+      },
+      {
+        success: null,
+        error: "Le fil n'a pas pu être ouvert.",
+        // On quitte l'écran : rien à rafraîchir ici, et la navigation lancée
+        // dans la transition tient le bouton occupé jusqu'à l'arrivée du fil.
+        refresh: false,
+        onSuccess: (id) => router.push(`/messagerie?fil=${id}`),
+      },
+    );
+  }
+
+  function ban() {
     if (!target) return;
-    setPending(true);
-    try {
-      await api.post(`/api/trainer/communities/${communityId}/members`, {
-        learnerId: target.learnerId,
-        action: "BAN",
-        reason: reason.trim(),
-      });
-      toast.success(`${target.fullName ?? "Ce membre"} ne peut plus écrire dans le salon.`);
-      setTarget(null);
-      setReason("");
-      await reload();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action a échoué.");
-    } finally {
-      setPending(false);
-    }
+    const member = target;
+    void action.run(
+      "ban",
+      async () => {
+        await api.post(`/api/trainer/communities/${communityId}/members`, {
+          learnerId: member.learnerId,
+          action: "BAN",
+          reason: reason.trim(),
+        });
+        return fetchRows();
+      },
+      {
+        success: `${member.fullName ?? "Ce membre"} ne peut plus écrire dans le salon.`,
+        error: "L'action a échoué.",
+        onSuccess: (fresh) => {
+          setRows(fresh);
+          setTarget(null);
+          setReason("");
+        },
+      },
+    );
   }
 
-  async function unban(row: MemberRow) {
-    try {
-      await api.post(`/api/trainer/communities/${communityId}/members`, {
-        learnerId: row.learnerId,
-        action: "UNBAN",
-      });
-      toast.success(`${row.fullName ?? "Ce membre"} peut de nouveau écrire.`);
-      await reload();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action a échoué.");
-    }
+  function unban(row: MemberRow) {
+    void action.run(
+      `unban:${row.learnerId}`,
+      async () => {
+        await api.post(`/api/trainer/communities/${communityId}/members`, {
+          learnerId: row.learnerId,
+          action: "UNBAN",
+        });
+        return fetchRows();
+      },
+      {
+        success: `${row.fullName ?? "Ce membre"} peut de nouveau écrire.`,
+        error: "L'action a échoué.",
+        onSuccess: (fresh) => setRows(fresh),
+      },
+    );
   }
 
   return (
@@ -264,15 +290,20 @@ export function MembersPanel({
                     variant="t"
                     size="sm"
                     onClick={() => write(row)}
-                    disabled={opening === row.learnerId}
+                    loading={action.isRunning(`write:${row.learnerId}`)}
                   >
                     <MessageSquare className="size-4" aria-hidden="true" />
-                    {opening === row.learnerId ? "Ouverture…" : "Écrire"}
+                    Écrire
                   </Btn>
                 ) : null}
 
                 {isBanned ? (
-                  <Btn variant="o" size="sm" onClick={() => unban(row)}>
+                  <Btn
+                    variant="o"
+                    size="sm"
+                    onClick={() => unban(row)}
+                    loading={action.isRunning(`unban:${row.learnerId}`)}
+                  >
                     <ShieldCheck className="size-4" aria-hidden="true" />
                     Rendre la parole
                   </Btn>
@@ -321,11 +352,15 @@ export function MembersPanel({
         />
         <p className="mt-1.5 text-[12.5px] text-ink-3">Dix caractères au minimum.</p>
         <div className="mt-5 flex flex-wrap justify-end gap-3">
-          <Btn variant="o" onClick={() => setTarget(null)}>
+          <Btn variant="o" disabled={action.busy} onClick={() => setTarget(null)}>
             Annuler
           </Btn>
-          <Btn onClick={ban} disabled={pending || reason.trim().length < 10}>
-            {pending ? "…" : "Bannir du salon"}
+          <Btn
+            onClick={ban}
+            loading={action.isRunning("ban")}
+            disabled={reason.trim().length < 10}
+          >
+            Bannir du salon
           </Btn>
         </div>
       </Modal>

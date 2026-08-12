@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Heart, Users } from "lucide-react";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
 import { PageHead } from "@/components/nk/page-head";
@@ -35,7 +35,7 @@ export default async function FavorisPage() {
   // montrer. Le middleware garde déjà la route ; ce doublon reste au cas où la
   // garde de navigation serait désactivée.
   const auth = await getAuthContext();
-  if (!auth) redirect("/auth/connexion?callbackUrl=/favoris");
+  if (!auth) redirect("/auth/deconnexion?callbackUrl=/favoris");
 
   const { courses, communities } = await listMyFavorites(auth.user.id);
 
@@ -58,9 +58,7 @@ export default async function FavorisPage() {
             title="Aucune ressource en favori"
             description="Touchez le cœur sur une ressource du catalogue pour la retrouver ici."
             action={
-              <Btn asChild variant="o">
-                <Link href={routes.catalog}>Parcourir le catalogue</Link>
-              </Btn>
+              <BtnLink href={routes.catalog} variant="o">Parcourir le catalogue</BtnLink>
             }
           />
         ) : (
@@ -85,9 +83,7 @@ export default async function FavorisPage() {
             title="Aucune communauté en favori"
             description="Mettez de côté les communautés qui vous intéressent pour les comparer plus tard."
             action={
-              <Btn asChild variant="o">
-                <Link href={routes.communities}>Explorer les communautés</Link>
-              </Btn>
+              <BtnLink href={routes.communities} variant="o">Explorer les communautés</BtnLink>
             }
           />
         ) : (

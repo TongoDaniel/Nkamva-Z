@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Receipt, BookOpen, Download, Users, Wallet } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { StatTile } from "@/components/nk/stat-tile";
 import { DataTable, type Column } from "@/components/nk/data-table";
@@ -205,12 +205,8 @@ export default async function MesAchatsPage({
         // d'entrée à eux et dont les achats sont le point d'entrée.
         actions={
           <>
-            <Btn asChild variant="o">
-              <Link href="/mes-factures">Mes factures</Link>
-            </Btn>
-            <Btn asChild variant="o">
-              <Link href="/mes-litiges">Mes contestations</Link>
-            </Btn>
+            <BtnLink href="/mes-factures" variant="o">Mes factures</BtnLink>
+            <BtnLink href="/mes-litiges" variant="o">Mes contestations</BtnLink>
           </>
         }
       />
@@ -244,9 +240,7 @@ export default async function MesAchatsPage({
           title="Aucun achat pour l'instant"
           description="Vos paiements apparaîtront ici, avec leur statut et leur montant."
           action={
-            <Btn asChild>
-              <Link href={routes.catalog}>Découvrir le catalogue</Link>
-            </Btn>
+            <BtnLink href={routes.catalog}>Découvrir le catalogue</BtnLink>
           }
         />
       ) : (

@@ -1,14 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Check, FileUp, RotateCcw, TriangleAlert } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { StPill } from "@/components/nk/status-pill";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { UploadBar } from "@/components/nk/upload-bar";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
+import { putToPresignedUrl, sha256Hex, type UploadProgress } from "@/lib/upload";
 import { cn } from "@/lib/utils";
-import { DOCUMENT_STATUS, type DocumentSlot } from "./documents";
+import { DOCUMENT_STATUS, type DocumentSlot } from "@/lib/trainer-document-slots";
 
 export interface DocumentState {
   id: string;
@@ -30,53 +31,61 @@ export function DocumentUpload({
   editable: boolean;
   storageAvailable: boolean;
 }) {
-  const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [pending, setPending] = React.useState(false);
   const [progress, setProgress] = React.useState<string | null>(null);
+  // Avancement chiffré de l'envoi, distinct du libellé d'étape ci-dessus.
+  const [sent, setSent] = React.useState<UploadProgress | null>(null);
 
   const confirmed = current && ["PENDING", "RESUBMITTED", "APPROVED"].includes(current.status);
   const rejected = current?.status === "REJECTED";
   const state = current ? DOCUMENT_STATUS[current.status] : null;
 
-  async function onFile(file: File) {
-    setPending(true);
-    try {
+  const send = useAction(
+    async (file: File) => {
       setProgress("Préparation de l'envoi…");
+      // L'empreinte est exigée par la présignature : sans elle la route répond
+      // 400 et aucune pièce ne pouvait être déposée.
+      const sha256 = await sha256Hex(file);
       const { data: ticket } = await api.post<{ documentId: string; uploadUrl: string }>(
         "/api/trainer-applications/me/documents/upload",
         {
           type: slot.type,
           mimeType: file.type,
           sizeBytes: file.size,
+          sha256,
           originalFileName: file.name,
         },
       );
 
       setProgress("Envoi du fichier…");
-      const upload = await fetch(ticket.uploadUrl, {
-        method: "PUT",
-        headers: { "content-type": file.type },
-        body: file,
-      });
-      if (!upload.ok) throw new Error("UPLOAD_FAILED");
+      // Dépôt direct, hors de `api` : pas de délai d'abandon sur un gros
+      // fichier parti sur un réseau lent.
+      await putToPresignedUrl(ticket.uploadUrl, file, { onProgress: setSent });
 
       // La confirmation revérifie côté serveur que le fichier est bien arrivé
       // et que son contenu correspond au type annoncé.
+      // Le dernier octet est parti : la barre redevient indéterminée le
+      // temps que le serveur relise le fichier.
+      setSent(null);
       setProgress("Vérification…");
       await api.post(`/api/trainer-applications/me/documents/${ticket.documentId}/confirm`);
+    },
+    {
+      success: `${slot.label} déposée.`,
+      error: "L'envoi a échoué. Réessayez.",
+    },
+  );
 
-      toast.success(`${slot.label} déposée.`);
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : "L'envoi a échoué. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-      setProgress(null);
-      if (inputRef.current) inputRef.current.value = "";
-    }
+  // Repères d'étape et champ de fichier remis à zéro une fois l'envoi retombé.
+  React.useEffect(() => {
+    if (send.pending) return;
+    setProgress(null);
+    setSent(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }, [send.pending]);
+
+  function onFile(file: File) {
+    void send.run(file);
   }
 
   const inputId = `doc-${slot.type}`;
@@ -120,16 +129,16 @@ export function DocumentUpload({
             id={inputId}
             accept={slot.accept}
             className="sr-only"
-            disabled={!storageAvailable || pending}
+            disabled={!storageAvailable || send.pending}
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) void onFile(file);
+              if (file) onFile(file);
             }}
           />
           <Btn
             variant={confirmed || rejected ? "o" : "p"}
             size="sm"
-            loading={pending}
+            loading={send.pending}
             disabled={!storageAvailable}
             onClick={() => inputRef.current?.click()}
             aria-controls={inputId}
@@ -141,9 +150,11 @@ export function DocumentUpload({
             )}
             {rejected ? "Renvoyer la pièce" : confirmed ? "Remplacer" : "Déposer le fichier"}
           </Btn>
-          <p className="mt-2 text-[12px] text-ink-3" aria-live="polite">
-            {progress ?? slot.maxLabel}
-          </p>
+          {send.pending ? (
+            <UploadBar progress={sent} label={progress ?? "Envoi…"} />
+          ) : (
+            <p className="mt-2 text-[12px] text-ink-3">{slot.maxLabel}</p>
+          )}
         </div>
       ) : null}
     </div>

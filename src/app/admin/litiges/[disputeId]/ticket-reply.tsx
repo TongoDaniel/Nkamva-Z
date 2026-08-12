@@ -1,35 +1,28 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 /** Réponse de la modération aux éléments apportés par un formateur. */
 export function TicketReply({ ticketId }: { ticketId: string }) {
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [note, setNote] = React.useState("");
-  const [pending, setPending] = React.useState(false);
 
-  async function onSubmit() {
-    setPending(true);
-    try {
-      await api.post(`/api/admin/disputes/tickets/${ticketId}/resolve`, {
-        resolutionNote: note.trim(),
-      });
-      toast.success("Réponse transmise au formateur.");
-      setOpen(false);
-      setNote("");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'envoi a échoué.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const reply = useAction(
+    () =>
+      api.post(`/api/admin/disputes/tickets/${ticketId}/resolve`, { resolutionNote: note.trim() }),
+    {
+      success: "Réponse transmise au formateur.",
+      error: "L'envoi a échoué.",
+      onSuccess: () => {
+        setOpen(false);
+        setNote("");
+      },
+    },
+  );
 
   return (
     <>
@@ -44,10 +37,14 @@ export function TicketReply({ ticketId }: { ticketId: string }) {
         description="Votre réponse lui est notifiée. Elle n'apparaît pas dans le fil de l'acheteur."
         footer={
           <>
-            <Btn loading={pending} disabled={note.trim().length < 10} onClick={onSubmit}>
+            <Btn
+              loading={reply.pending}
+              disabled={note.trim().length < 10}
+              onClick={() => void reply.run()}
+            >
               Envoyer
             </Btn>
-            <Btn variant="o" onClick={() => setOpen(false)}>
+            <Btn variant="o" disabled={reply.pending} onClick={() => setOpen(false)}>
               Annuler
             </Btn>
           </>

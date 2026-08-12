@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { flushSync } from "react-dom";
-import Link from "next/link";
 import {
   CreditCard,
   Play,
@@ -14,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { PillInput } from "@/components/nk/input";
 import { EmptyState } from "@/components/nk/empty-state";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
@@ -371,12 +371,8 @@ export function HelpCenter({
           Écrivez au support : nous répondons en français sous {responseHours} heures ouvrées.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Btn asChild variant="light">
-            <Link href="/contact">Contacter le support</Link>
-          </Btn>
-          <Btn asChild variant="gh">
-            <Link href="/communautes">Demander à la communauté</Link>
-          </Btn>
+          <BtnLink href="/contact" variant="light">Contacter le support</BtnLink>
+          <BtnLink href="/communautes" variant="gh">Demander à la communauté</BtnLink>
         </div>
       </section>
     </>

@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
 
 /**
@@ -23,26 +22,22 @@ export function RefundActions({
   refundAmountFcfa: number;
   trainerDebitFcfa: number;
 }) {
-  const router = useRouter();
   const [dialog, setDialog] = React.useState<null | "complete" | "cancel">(null);
-  const [pending, setPending] = React.useState(false);
   const [notes, setNotes] = React.useState("");
   const [errorMessage, setErrorMessage] = React.useState("");
 
-  async function call(action: "complete" | "cancel", body: unknown, label: string) {
-    setPending(true);
-    try {
-      await api.post(`/api/admin/manual-refund-tasks/${taskId}/${action}`, body);
-      toast.success(label);
-      setDialog(null);
-      setNotes("");
-      setErrorMessage("");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action a échoué.");
-    } finally {
-      setPending(false);
-    }
+  const action = useKeyedAction();
+
+  function call(key: "complete" | "cancel", body: unknown, label: string) {
+    void action.run(key, () => api.post(`/api/admin/manual-refund-tasks/${taskId}/${key}`, body), {
+      success: label,
+      error: "L'action a échoué.",
+      onSuccess: () => {
+        setDialog(null);
+        setNotes("");
+        setErrorMessage("");
+      },
+    });
   }
 
   return (
@@ -66,12 +61,12 @@ export function RefundActions({
         footer={
           <>
             <Btn
-              loading={pending}
+              loading={action.isRunning("complete")}
               onClick={() => call("complete", { notes: notes.trim() || undefined }, "Remboursement enregistré.")}
             >
               Confirmer
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>Annuler</Btn>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>Annuler</Btn>
           </>
         }
       >
@@ -98,7 +93,7 @@ export function RefundActions({
           <>
             <Btn
               variant="danger"
-              loading={pending}
+              loading={action.isRunning("cancel")}
               // Dix caractères, comme l'exige le schéma de la route : en dessous,
               // le bouton était actif et l'appel repartait en 400.
               disabled={errorMessage.trim().length < 10}
@@ -106,7 +101,7 @@ export function RefundActions({
             >
               Enregistrer l&apos;échec
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>Annuler</Btn>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>Annuler</Btn>
           </>
         }
       >

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { BookOpen, Plus } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { EmptyState } from "@/components/nk/empty-state";
 import { getAuthContext } from "@/lib/api";
 import { listTrainerCourses } from "@/lib/courses";
@@ -57,12 +56,10 @@ export default async function TrainerCoursesPage({
         title="Mes publications"
         lead="Gérez vos ressources, suivez leurs ventes et préparez vos prochains contenus."
         actions={
-          <Btn asChild>
-            <Link href="/formateur/ressources/nouvelle">
+          <BtnLink href="/formateur/ressources/nouvelle">
               <Plus aria-hidden="true" />
               Publier une ressource
-            </Link>
-          </Btn>
+          </BtnLink>
         }
       />
 
@@ -73,9 +70,7 @@ export default async function TrainerCoursesPage({
           title="Aucune ressource pour l'instant"
           description="Créez votre première ressource : vous fixez le format, le contenu et le prix, en FCFA."
           action={
-            <Btn asChild>
-              <Link href="/formateur/ressources/nouvelle">Créer une ressource</Link>
-            </Btn>
+            <BtnLink href="/formateur/ressources/nouvelle">Créer une ressource</BtnLink>
           }
         />
       ) : (

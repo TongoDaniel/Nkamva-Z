@@ -13,7 +13,7 @@ import { getAuthContext } from "@/lib/api";
  */
 export default async function FormateurLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuthContext();
-  if (!auth) redirect("/auth/connexion");
+  if (!auth) redirect("/auth/deconnexion");
   if (!auth.user.trainerId) redirect("/devenir-formateur");
 
   return <>{children}</>;

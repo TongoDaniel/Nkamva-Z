@@ -14,7 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
 import { EmptyState } from "@/components/nk/empty-state";
@@ -68,12 +68,10 @@ export default async function FormateurPage() {
         title="Espace formateur"
         lead="Vos publications, vos ventes et votre solde, calculés sur les achats réellement encaissés."
         actions={
-          <Btn asChild>
-            <Link href="/formateur/ressources/nouvelle">
+          <BtnLink href="/formateur/ressources/nouvelle">
               <Plus aria-hidden="true" />
               Publier une ressource
-            </Link>
-          </Btn>
+          </BtnLink>
         }
       />
 
@@ -164,9 +162,7 @@ export default async function FormateurPage() {
             title="Aucune ressource pour l'instant"
             description="Créez votre première ressource : vous fixez le format, le contenu et le prix, en FCFA."
             action={
-              <Btn asChild>
-                <Link href="/formateur/ressources/nouvelle">Créer une ressource</Link>
-              </Btn>
+              <BtnLink href="/formateur/ressources/nouvelle">Créer une ressource</BtnLink>
             }
           />
         ) : (

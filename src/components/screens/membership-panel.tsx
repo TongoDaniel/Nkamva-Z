@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, MessageSquareOff } from "lucide-react";
 import { Btn } from "@/components/nk/button";
-import { api, ApiError } from "@/lib/client";
+import { BtnLink } from "@/components/nk/button-link";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtDate, fmtFcfa } from "@/lib/format";
 
 export interface MembershipState {
@@ -35,22 +34,13 @@ export function MembershipPanel({
   isOwner: boolean;
   membership: MembershipState | null;
 }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
 
-  async function act(run: () => Promise<unknown>, done: string) {
-    setPending(true);
-    try {
-      await run();
-      toast.success(done);
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : "L'opération n'a pas abouti. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-    }
+  function act(key: string, fn: () => Promise<unknown>, done: string) {
+    void action.run(key, fn, {
+      success: done,
+      error: "L'opération n'a pas abouti. Réessayez.",
+    });
   }
 
   if (isOwner) {
@@ -64,9 +54,9 @@ export function MembershipPanel({
   if (!membership) {
     return (
       <>
-        <Btn asChild size="lg" block className="mt-4">
-          <Link href={`/adhesion/${slug}`}>Rejoindre — {fmtFcfa(priceFcfa)} / mois</Link>
-        </Btn>
+        <BtnLink href={`/adhesion/${slug}`} size="lg" block className="mt-4">
+          Rejoindre — {fmtFcfa(priceFcfa)} / mois
+        </BtnLink>
         <p className="mt-2 text-center text-[12.5px] text-ink-3">
           Sans engagement. Le premier mois court à la confirmation du paiement.
         </p>
@@ -85,11 +75,9 @@ export function MembershipPanel({
             l&apos;accès jusque-là.
           </span>
         </p>
-        <Btn asChild size="lg" block>
-          <Link href={`/adhesion/${slug}`}>
+        <BtnLink href={`/adhesion/${slug}`} size="lg" block>
             Régler {membership.dueAmountFcfa ? fmtFcfa(membership.dueAmountFcfa) : ""}
-          </Link>
-        </Btn>
+        </BtnLink>
       </div>
     );
   }
@@ -105,9 +93,10 @@ export function MembershipPanel({
         <Btn
           size="lg"
           block
-          loading={pending}
+          loading={action.isRunning("reprise")}
           onClick={() =>
             act(
+              "reprise",
               () => api.post(`/api/communities/${encodeURIComponent(slug)}/adhesion/reprise`),
               "Votre adhésion se poursuivra.",
             )
@@ -121,9 +110,7 @@ export function MembershipPanel({
 
   return (
     <div className="mt-4 grid gap-3">
-      <Btn asChild size="lg" block>
-        <Link href={`/mes-communautes/${slug}`}>Entrer dans la communauté</Link>
-      </Btn>
+      <BtnLink href={`/mes-communautes/${slug}`} size="lg" block>Entrer dans la communauté</BtnLink>
       <p className="flex items-start gap-2.5 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
         {membership.status === "BANNED" ? (
           <>
@@ -147,9 +134,10 @@ export function MembershipPanel({
         variant="o"
         size="lg"
         block
-        loading={pending}
+        loading={action.isRunning("resiliation")}
         onClick={() =>
           act(
+            "resiliation",
             () => api.del(`/api/communities/${encodeURIComponent(slug)}/adhesion`),
             "Résiliée. Votre accès court jusqu'au terme du mois payé.",
           )

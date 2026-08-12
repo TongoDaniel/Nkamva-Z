@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import * as React from "react";
-import Link from "next/link";
 import { BadgeCheck, CreditCard, Gavel, ShieldAlert, Undo2, Wallet } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StatTile } from "@/components/nk/stat-tile";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getApplicationStats } from "@/lib/trainer-application-review";
 import { getDisputeStats, listManualRefundTasks } from "@/lib/dispute-review";
@@ -50,9 +49,7 @@ function QueueRow({
         <b className="block text-sm font-bold">{label}</b>
         <small className="text-[13px] text-ink-2">{detail}</small>
       </div>
-      <Btn asChild size="sm" variant="o">
-        <Link href={href}>Ouvrir</Link>
-      </Btn>
+      <BtnLink href={href} size="sm" variant="o">Ouvrir</BtnLink>
     </li>
   );
 }

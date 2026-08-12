@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Loader2, Pencil, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 export function SettingRow({
   settingKey,
@@ -23,14 +23,22 @@ export function SettingRow({
   min: number | null;
   max: number | null;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(value);
-  const [pending, setPending] = React.useState(false);
 
   const bounded = min !== null && max !== null;
 
-  async function save() {
+  const save = useAction(
+    (next: string) =>
+      api.patch(`/api/admin/settings/${encodeURIComponent(settingKey)}`, { value: next }),
+    {
+      success: "Réglage mis à jour.",
+      error: "La mise à jour a échoué.",
+      onSuccess: () => setEditing(false),
+    },
+  );
+
+  function submit() {
     if (draft.trim() === value) {
       setEditing(false);
       return;
@@ -44,19 +52,7 @@ export function SettingRow({
         return;
       }
     }
-    setPending(true);
-    try {
-      await api.patch(`/api/admin/settings/${encodeURIComponent(settingKey)}`, {
-        value: draft.trim(),
-      });
-      toast.success("Réglage mis à jour.");
-      setEditing(false);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La mise à jour a échoué.");
-    } finally {
-      setPending(false);
-    }
+    void save.run(draft.trim());
   }
 
   return (
@@ -83,12 +79,17 @@ export function SettingRow({
               />
               <button
                 type="button"
-                onClick={save}
-                disabled={pending}
+                onClick={submit}
+                disabled={save.pending}
+                aria-busy={save.pending || undefined}
                 aria-label="Enregistrer"
-                className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-lg border border-line text-brand hover:border-brand"
+                className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-lg border border-line text-brand hover:border-brand disabled:opacity-50"
               >
-                <Check className="size-3.5" aria-hidden="true" />
+                {save.pending ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Check className="size-3.5" aria-hidden="true" />
+                )}
               </button>
               <button
                 type="button"

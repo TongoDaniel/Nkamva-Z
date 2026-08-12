@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Library, BookOpen, PlayCircle, Inbox } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { StatTile } from "@/components/nk/stat-tile";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { listMyResources } from "@/lib/access";
 import type { ResourceItem } from "@/lib/dto";
@@ -45,9 +44,7 @@ export default async function MesRessourcesPage({
         title="Mes ressources"
         lead="Retrouvez ici toutes les ressources que vous avez acquises. L'accès est à vie."
         actions={
-          <Btn asChild variant="o">
-            <Link href={routes.catalog}>Explorer le catalogue</Link>
-          </Btn>
+          <BtnLink href={routes.catalog} variant="o">Explorer le catalogue</BtnLink>
         }
       />
 
@@ -71,9 +68,7 @@ export default async function MesRessourcesPage({
           title="Aucune ressource pour l'instant"
           description="Les cours, guides et modèles que vous achetez apparaissent ici, définitivement."
           action={
-            <Btn asChild>
-              <Link href={routes.catalog}>Découvrir le catalogue</Link>
-            </Btn>
+            <BtnLink href={routes.catalog}>Découvrir le catalogue</BtnLink>
           }
         />
       ) : (

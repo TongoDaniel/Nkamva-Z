@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useAction } from "@/hooks/use-action";
 import { MessageSquare } from "lucide-react";
 import { Btn } from "@/components/nk/button";
-import { api, ApiError } from "@/lib/client";
+import { api } from "@/lib/client";
 
 /**
  * Entrée dans la messagerie depuis la communauté — c'est l'adhésion qui ouvre
@@ -17,28 +17,31 @@ import { api, ApiError } from "@/lib/client";
  */
 export function OpenConversation({ slug }: { slug: string }) {
   const router = useRouter();
-  const [pending, setPending] = React.useState(false);
+
+  const open = useAction(
+    async () => {
+      const { data } = await api.post<{ id: string }>("/api/me/conversations", {
+        communitySlug: slug,
+      });
+      return data.id;
+    },
+    {
+      success: null,
+      error: "La conversation n'a pas pu être ouverte.",
+      // On quitte l'écran : rien à rafraîchir ici, et la navigation lancée dans
+      // la transition tient le bouton occupé jusqu'à l'arrivée du fil.
+      refresh: false,
+      onSuccess: (id) => router.push(`/messagerie?fil=${id}`),
+    },
+  );
 
   return (
     <Btn
       variant="o"
       size="sm"
       block
-      loading={pending}
-      onClick={async () => {
-        setPending(true);
-        try {
-          const { data } = await api.post<{ id: string }>("/api/me/conversations", {
-            communitySlug: slug,
-          });
-          router.push(`/messagerie?fil=${data.id}`);
-        } catch (err) {
-          toast.error(
-            err instanceof ApiError ? err.message : "La conversation n'a pas pu être ouverte.",
-          );
-          setPending(false);
-        }
-      }}
+      loading={open.pending}
+      onClick={() => void open.run()}
     >
       <MessageSquare aria-hidden="true" />
       Écrire au formateur

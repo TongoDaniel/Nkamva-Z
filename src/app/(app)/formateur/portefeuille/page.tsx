@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowDownToLine, CreditCard, Lock, Plus, Wallet } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
 import { InfoBox } from "@/components/nk/info-box";
@@ -107,12 +107,10 @@ export default async function PortefeuillePage() {
         lead="Votre solde, votre score de confiance et vos retraits. Le solde est crédité à chaque vente réellement encaissée."
         actions={
           active ? null : (
-            <Btn asChild>
-              <Link href="/formateur/portefeuille/moyen-de-paiement">
+            <BtnLink href="/formateur/portefeuille/moyen-de-paiement">
                 <Plus aria-hidden="true" />
                 Enregistrer un compte
-              </Link>
-            </Btn>
+            </BtnLink>
           )
         }
       />
@@ -248,11 +246,9 @@ export default async function PortefeuillePage() {
                 title="Aucun compte enregistré"
                 description="Vous serez payé sur le compte que vous enregistrez ici. Il est vérifié avant tout versement, et le vôtre seul est accepté."
                 action={
-                  <Btn asChild>
-                    <Link href="/formateur/portefeuille/moyen-de-paiement">
+                  <BtnLink href="/formateur/portefeuille/moyen-de-paiement">
                       Enregistrer un compte
-                    </Link>
-                  </Btn>
+                  </BtnLink>
                 }
               />
             )}
@@ -344,9 +340,9 @@ export default async function PortefeuillePage() {
                 <p className="text-[13.5px] font-bold text-ink">{blocker.title}</p>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">{blocker.body}</p>
                 {blocker.action ? (
-                  <Btn asChild block className="mt-4">
-                    <Link href={blocker.action.href}>{blocker.action.label}</Link>
-                  </Btn>
+                  <BtnLink href={blocker.action.href} block className="mt-4">
+                    {blocker.action.label}
+                  </BtnLink>
                 ) : null}
               </>
             ) : (

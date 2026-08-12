@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink, FileWarning } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getApplicationDetail } from "@/lib/trainer-application-review";
 import { MAX_RESUBMISSIONS } from "@/lib/trainer-applications";
@@ -38,12 +38,10 @@ export default async function ApplicationDetailPage({
 
   return (
     <>
-      <Btn asChild variant="t" size="sm" className="mb-4">
-        <Link href="/admin/validation-formateurs">
+      <BtnLink href="/admin/validation-formateurs" variant="t" size="sm" className="mb-4">
           <ArrowLeft aria-hidden="true" />
           Retour à la file
-        </Link>
-      </Btn>
+      </BtnLink>
 
       <AdminHead
         title={candidateName}

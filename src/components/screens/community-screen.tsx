@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { MessageSquare, PlayCircle, Users, Library } from 'lucide-react'
-import { Btn } from '@/components/nk/button'
+import { BtnLink } from '@/components/nk/button-link'
 import { Chip } from '@/components/nk/chip'
 import { Price, ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
@@ -193,13 +193,13 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
 
             {/* Le formateur, sur sa propre communauté, n'a rien à faire de sa
                 fiche publique : on lui donne l'écran depuis lequel il la gère. */}
-            <Btn asChild variant="o" className="mt-4 w-full">
-              {isOwner ? (
-                <Link href="/formateur/communaute">Gérer ma communauté</Link>
-              ) : (
-                <Link href={routes.trainer(community.trainer.id)}>Voir le formateur</Link>
-              )}
-            </Btn>
+            <BtnLink
+              href={isOwner ? "/formateur/communaute" : routes.trainer(community.trainer.id)}
+              variant="o"
+              className="mt-4 w-full"
+            >
+              {isOwner ? "Gérer ma communauté" : "Voir le formateur"}
+            </BtnLink>
 
             {/* Une issue, pas une proposition : discret, en bas du panneau.
                 Rien à signaler chez soi : le bouton disparaît pour le formateur

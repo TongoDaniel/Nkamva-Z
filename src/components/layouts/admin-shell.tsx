@@ -10,6 +10,7 @@ import {
   UserCog, Users, Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
+import { NavLink } from "@/components/nk/nav-link";
 import { cn } from "@/lib/utils";
 
 import { navForSubRole, type AdminNavGroup } from "./admin-nav";
@@ -233,14 +234,15 @@ export function AdminShell({
               {group.items.map(({ href, label, icon: Icon, badge }) => {
                 const active = isActive(pathname, href);
                 return (
-                  <Link
+                  <NavLink
                     key={href}
                     href={href}
-                    aria-current={active ? "page" : undefined}
+                    current={active}
                     className={cn(
                       "flex items-center gap-3 rounded-nk-sm px-2.5 py-2.5 text-[13.7px] font-semibold transition duration-150",
                       active ? "bg-brand text-white" : "text-[#98a49b] hover:bg-white/[0.06] hover:text-white",
                     )}
+                    pendingClassName="inset-x-2.5 bottom-1"
                   >
                     <Icon className="size-[17px] shrink-0" aria-hidden="true" />
                     {label}
@@ -254,7 +256,7 @@ export function AdminShell({
                         {badge}
                       </span>
                     ) : null}
-                  </Link>
+                  </NavLink>
                 );
               })}
             </div>

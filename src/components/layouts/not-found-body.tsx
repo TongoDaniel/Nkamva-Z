@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { Compass } from "lucide-react";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { routesOf, type Space } from "@/lib/spaces";
 
 /**
@@ -24,12 +23,8 @@ export function NotFoundBody({ space = "public" }: { space?: Space }) {
         description="Le lien est peut-être obsolète, ou la ressource a été retirée du catalogue."
         action={
           <div className="flex flex-wrap justify-center gap-3">
-            <Btn asChild>
-              <Link href={routes.catalog}>Parcourir le catalogue</Link>
-            </Btn>
-            <Btn asChild variant="o">
-              <Link href={routes.home}>Retour à l&apos;accueil</Link>
-            </Btn>
+            <BtnLink href={routes.catalog}>Parcourir le catalogue</BtnLink>
+            <BtnLink href={routes.home} variant="o">Retour à l&apos;accueil</BtnLink>
           </div>
         }
       />

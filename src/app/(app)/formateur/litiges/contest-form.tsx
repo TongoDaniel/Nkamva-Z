@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 import { Btn } from "@/components/nk/button";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 const MIN = 20;
 
@@ -15,23 +14,20 @@ const MIN = 20;
  * les lit pas, de même que le formateur ne lit pas le détail de son motif.
  */
 export function ContestForm({ disputeId }: { disputeId: string }) {
-  const router = useRouter();
   const [reason, setReason] = React.useState("");
-  const [pending, setPending] = React.useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  const contest = useAction(
+    () => api.post(`/api/trainer/disputes/${disputeId}/contest`, { reason: reason.trim() }),
+    {
+      success: "Vos éléments ont été transmis à la modération.",
+      error: "L'envoi a échoué. Réessayez.",
+      onSuccess: () => setReason(""),
+    },
+  );
+
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setPending(true);
-    try {
-      await api.post(`/api/trainer/disputes/${disputeId}/contest`, { reason: reason.trim() });
-      setReason("");
-      toast.success("Vos éléments ont été transmis à la modération.");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'envoi a échoué. Réessayez.");
-    } finally {
-      setPending(false);
-    }
+    void contest.run();
   }
 
   return (
@@ -55,7 +51,7 @@ export function ContestForm({ disputeId }: { disputeId: string }) {
           : "Ces éléments ne sont lus que par l'équipe de modération."}
       </p>
       <div className="mt-3 flex justify-end">
-        <Btn type="submit" loading={pending} disabled={reason.trim().length < MIN}>
+        <Btn type="submit" loading={contest.pending} disabled={reason.trim().length < MIN}>
           <Send aria-hidden="true" />
           Transmettre
         </Btn>

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Search, X } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { auditActionLabel } from "@/lib/audit-labels";
 import {
   AUDIT_ACTION_GROUPS,
@@ -168,12 +168,10 @@ export function AuditFilters({
             Filtrer
           </Btn>
           {activeCount > 0 ? (
-            <Btn asChild size="sm" variant="t">
-              <Link href={resetHref}>
+            <BtnLink href={resetHref} size="sm" variant="t">
                 <X className="size-3.5" aria-hidden="true" />
                 Effacer {activeCount} filtre{activeCount > 1 ? "s" : ""}
-              </Link>
-            </Btn>
+            </BtnLink>
           ) : null}
         </div>
       </div>

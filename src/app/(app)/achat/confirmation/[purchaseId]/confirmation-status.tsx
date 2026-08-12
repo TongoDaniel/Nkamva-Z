@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { Cover, formatLabel } from "@/components/nk/cover";
 import { api } from "@/lib/client";
 import { fmtDate, fmtFcfa } from "@/lib/format";
@@ -56,15 +56,19 @@ export function ConfirmationStatus({
   community?: ConfirmationCommunity | null;
 }) {
   const [timedOut, setTimedOut] = React.useState(false);
+  // Incrémenté par « Vérifier à nouveau » : le compte à rebours repart, et le
+  // sondage avec lui.
+  const [attempt, setAttempt] = React.useState(0);
 
   // Au-delà du délai, on cesse d'interroger : l'achat reste suivi dans
   // « Mes achats », le webhook créditera l'accès quand il arrivera.
   React.useEffect(() => {
+    setTimedOut(false);
     const id = setTimeout(() => setTimedOut(true), POLL_TIMEOUT_MS);
     return () => clearTimeout(id);
-  }, []);
+  }, [attempt]);
 
-  const { data } = useQuery({
+  const { data, refetch, isFetching } = useQuery({
     queryKey: ["purchase-reconcile", purchaseId],
     queryFn: async () => {
       const res = await api.get<{
@@ -91,6 +95,19 @@ export function ConfirmationStatus({
   const failureCode = data?.failureCode ?? initialFailureCode;
   const failureMessage = paymentFailureMessage(failureCode);
 
+  /**
+   * Redemander l'état sans recharger la page.
+   *
+   * C'était un `window.location.reload()` : tout l'écran repartait de zéro,
+   * sans rien afficher pendant l'aller-retour — alors que la requête est déjà
+   * là, et qu'elle sait dire quand elle travaille. Relancer le compte à rebours
+   * rouvre aussi le sondage automatique, refermé au dépassement du délai.
+   */
+  const recheck = () => {
+    setAttempt((n) => n + 1);
+    void refetch();
+  };
+
   return (
     <div className="grid items-start gap-8 pt-2 lg:grid-cols-[1fr_360px]">
       <div
@@ -114,12 +131,10 @@ export function ConfirmationStatus({
                   Les ressources incluses sont dès maintenant dans votre espace.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <Btn asChild size="lg">
-                    <Link href={routes.community(community.slug)}>Aller à la communauté</Link>
-                  </Btn>
-                  <Btn asChild variant="o" size="lg">
-                    <Link href="/mes-communautes">Mes communautés</Link>
-                  </Btn>
+                  <BtnLink href={routes.community(community.slug)} size="lg">
+                    Aller à la communauté
+                  </BtnLink>
+                  <BtnLink href="/mes-communautes" variant="o" size="lg">Mes communautés</BtnLink>
                 </div>
               </>
             ) : (
@@ -129,12 +144,8 @@ export function ConfirmationStatus({
                   L&apos;accès est à vie : vous la retrouverez toujours dans votre espace.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <Btn asChild size="lg">
-                    <Link href="/mes-ressources">Accéder à ma ressource</Link>
-                  </Btn>
-                  <Btn asChild variant="o" size="lg">
-                    <Link href="/mes-achats">Voir mes achats</Link>
-                  </Btn>
+                  <BtnLink href="/mes-ressources" size="lg">Accéder à ma ressource</BtnLink>
+                  <BtnLink href="/mes-achats" variant="o" size="lg">Voir mes achats</BtnLink>
                 </div>
               </>
             )}
@@ -162,15 +173,14 @@ export function ConfirmationStatus({
             ) : null}
             <div className="flex flex-wrap gap-3">
               {courseSlug || community ? (
-                <Btn asChild size="lg">
-                  <Link href={community ? `/adhesion/${community.slug}` : `/achat/${courseSlug}`}>
-                    Réessayer le paiement
-                  </Link>
-                </Btn>
+                <BtnLink
+                  href={community ? `/adhesion/${community.slug}` : `/achat/${courseSlug}`}
+                  size="lg"
+                >
+                  Réessayer le paiement
+                </BtnLink>
               ) : null}
-              <Btn asChild variant="o" size="lg">
-                <Link href="/contact">Contacter le support</Link>
-              </Btn>
+              <BtnLink href="/contact" variant="o" size="lg">Contacter le support</BtnLink>
             </div>
           </>
         ) : timedOut ? (
@@ -185,10 +195,8 @@ export function ConfirmationStatus({
               espace — rien n&apos;est perdu.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Btn asChild size="lg">
-                <Link href="/mes-achats">Suivre dans mes achats</Link>
-              </Btn>
-              <Btn variant="o" size="lg" onClick={() => window.location.reload()}>
+              <BtnLink href="/mes-achats" size="lg">Suivre dans mes achats</BtnLink>
+              <Btn variant="o" size="lg" loading={isFetching} onClick={recheck}>
                 Vérifier à nouveau
               </Btn>
             </div>

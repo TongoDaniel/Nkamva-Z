@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AudioLines,
@@ -19,11 +18,12 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { ReportButton } from "@/components/nk/report-button";
 import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
-import { toast } from "sonner";
-import { api, ApiError } from "@/lib/client";
+import { useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { useLiveRoom } from "@/hooks/use-live-room";
 import { cn } from "@/lib/utils";
 import type { LiveRoomView } from "@/lib/lives";
@@ -77,7 +77,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
   const [panel, setPanel] = React.useState<Panel>("requests");
   const [selected, setSelected] = React.useState<ReadonlySet<string>>(new Set());
   const [draft, setDraft] = React.useState("");
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
   // Les durées d'attente dépendent de l'horloge : les calculer au rendu serveur
   // donnerait une autre valeur à l'hydratation. On n'affiche qu'après montage.
   const [clock, setClock] = React.useState<number | null>(null);
@@ -133,17 +133,17 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
     .filter((p) => p.handRaisedAt)
     .sort((a, b) => a.handRaisedAt!.getTime() - b.handRaisedAt!.getTime());
 
-  async function act(body: unknown, message?: string) {
-    setPending(true);
-    try {
-      await api.post(`/api/lives/${room.id}`, body);
-      if (message) toast.success(message);
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action n'a pas abouti.");
-    } finally {
-      setPending(false);
-    }
+  /**
+   * `key` désigne le bouton cliqué : sans elle, un seul booléen faisait tourner
+   * toute la console — commandes de séance, file des mains levées et chaque
+   * ligne de participant — à chaque geste de modération.
+   */
+  function act(key: string, body: unknown, message?: string, after?: () => void) {
+    void action.run(key, () => api.post(`/api/lives/${room.id}`, body), {
+      success: message ?? null,
+      error: "L'action n'a pas abouti.",
+      onSuccess: after,
+    });
   }
 
   const toggleSelected = (id: string) =>
@@ -159,50 +159,55 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
    * dédié : chaque levée de verrou est un geste de modération, et l'audit doit
    * pouvoir dire lequel a visé qui.
    */
-  async function unmuteAll() {
+  function unmuteAll() {
     const locked = others.filter((p) => p.mutedByHost);
-    setPending(true);
-    try {
-      for (const p of locked) {
-        await api.post(`/api/lives/${room.id}`, { action: "mute", userId: p.userId, muted: false });
-      }
-      toast.success("Tous les micros sont rendus à leurs propriétaires.");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action n'a pas abouti.");
-    } finally {
-      setPending(false);
-    }
+    void action.run(
+      "unmute-all",
+      async () => {
+        for (const p of locked) {
+          await api.post(`/api/lives/${room.id}`, {
+            action: "mute",
+            userId: p.userId,
+            muted: false,
+          });
+        }
+      },
+      {
+        success: "Tous les micros sont rendus à leurs propriétaires.",
+        error: "L'action n'a pas abouti.",
+      },
+    );
   }
 
-  async function applyToSelection(muted: boolean) {
+  function applyToSelection(muted: boolean) {
     if (selected.size === 0) return;
-    setPending(true);
-    try {
-      for (const userId of selected) {
-        await api.post(`/api/lives/${room.id}`, { action: "mute", userId, muted });
-      }
-      const count = selected.size;
-      setSelected(new Set());
-      toast.success(
-        muted
+    const count = selected.size;
+    const targets = [...selected];
+    void action.run(
+      muted ? "select-mute" : "select-unmute",
+      async () => {
+        for (const userId of targets) {
+          await api.post(`/api/lives/${room.id}`, { action: "mute", userId, muted });
+        }
+      },
+      {
+        success: muted
           ? `${count} micro${count > 1 ? "s" : ""} coupé${count > 1 ? "s" : ""}.`
           : `${count} micro${count > 1 ? "s" : ""} rendu${count > 1 ? "s" : ""}.`,
-      );
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action n'a pas abouti.");
-    } finally {
-      setPending(false);
-    }
+        error: "L'action n'a pas abouti.",
+        // La sélection ne se vide qu'à l'arrivée de la salle relue : la vider
+        // plus tôt afficherait des micros encore ouverts comme désélectionnés.
+        onSuccess: () => setSelected(new Set()),
+      },
+    );
   }
 
-  async function sendChat(event: React.FormEvent) {
+  function sendChat(event: React.FormEvent) {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    await act({ action: "message", body: text });
-    setDraft("");
+    // Le champ ne se vide qu'à l'arrivée du message dans le salon relu.
+    act("message", { action: "message", body: text }, undefined, () => setDraft(""));
   }
 
   const dateLabel = new Intl.DateTimeFormat("fr-FR", {
@@ -235,24 +240,22 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           </div>
 
           {room.status === "SCHEDULED" ? (
-            <Btn size="sm" loading={pending} onClick={() => act({ action: "start" }, "Séance ouverte. L'enregistrement a démarré.")}>
+            <Btn size="sm" loading={action.isRunning("start")} onClick={() => act("start", { action: "start" }, "Séance ouverte. L'enregistrement a démarré.")}>
               <PlayCircle aria-hidden="true" />
               Ouvrir la séance
             </Btn>
           ) : null}
           {live ? (
-            <Btn variant="danger" size="sm" loading={pending} onClick={() => act({ action: "end" }, "Séance close. Le replay est en préparation.")}>
+            <Btn variant="danger" size="sm" loading={action.isRunning("end")} onClick={() => act("end", { action: "end" }, "Séance close. Le replay est en préparation.")}>
               <Square aria-hidden="true" />
               Terminer
             </Btn>
           ) : null}
 
-          <Btn asChild variant="gh" size="sm">
-            <Link href="/mes-lives">
+          <BtnLink href="/mes-lives" variant="gh" size="sm">
               <LogOut aria-hidden="true" />
               Quitter
-            </Link>
-          </Btn>
+          </BtnLink>
         </header>
 
         {/* Arbitrage 38 : l'enregistrement est automatique. Rien à décider au
@@ -381,14 +384,16 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           <Btn
             variant="gh"
             size="sm"
-            loading={pending}
-            onClick={() => act({ action: "mute-all" }, "Micros coupés. Ils ne peuvent pas les rouvrir eux-mêmes.")}
+            loading={action.isRunning("mute-all")}
+            onClick={() =>
+              act("mute-all", { action: "mute-all" }, "Micros coupés. Ils ne peuvent pas les rouvrir eux-mêmes.")
+            }
             disabled={others.length === 0 || lockedCount === others.length}
           >
             <MicOff aria-hidden="true" />
             Couper tous les micros
           </Btn>
-          <Btn variant="gh" size="sm" loading={pending} onClick={unmuteAll} disabled={lockedCount === 0}>
+          <Btn variant="gh" size="sm" loading={action.isRunning("unmute-all")} onClick={unmuteAll} disabled={lockedCount === 0}>
             <Mic aria-hidden="true" />
             Tout rouvrir
           </Btn>
@@ -462,9 +467,10 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                           place du participant — on lui rend la commande. */}
                       <Btn
                         size="sm"
-                        loading={pending}
+                        loading={action.isRunning(`floor:${p.userId}`)}
                         onClick={() =>
                           act(
+                            `floor:${p.userId}`,
                             { action: "mute", userId: p.userId, muted: false },
                             `${p.name ?? "Le participant"} a la parole — sa main est baissée, son micro lui est rendu.`,
                           )
@@ -475,9 +481,13 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                       <Btn
                         variant="t"
                         size="sm"
-                        loading={pending}
+                        loading={action.isRunning(`lower:${p.userId}`)}
                         onClick={() =>
-                          act({ action: "lower-hand", userId: p.userId }, "Demande retirée de la file.")
+                          act(
+                            `lower:${p.userId}`,
+                            { action: "lower-hand", userId: p.userId },
+                            "Demande retirée de la file.",
+                          )
                         }
                         aria-label={`Retirer la demande de ${p.name ?? "ce participant"}`}
                       >
@@ -499,7 +509,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                 <Btn
                   variant="o"
                   size="sm"
-                  disabled={selected.size === 0 || pending}
+                  disabled={selected.size === 0 || action.busy}
                   onClick={() => applyToSelection(true)}
                 >
                   <MicOff aria-hidden="true" />
@@ -508,7 +518,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                 <Btn
                   variant="o"
                   size="sm"
-                  disabled={selected.size === 0 || pending}
+                  disabled={selected.size === 0 || action.busy}
                   onClick={() => applyToSelection(false)}
                 >
                   <Mic aria-hidden="true" />
@@ -561,9 +571,10 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                         <Btn
                           variant={p.mutedByHost ? "o" : "t"}
                           size="sm"
-                          loading={pending}
+                          loading={action.isRunning(`mute:${p.userId}`)}
                           onClick={() =>
                             act(
+                              `mute:${p.userId}`,
                               { action: "mute", userId: p.userId, muted: !p.mutedByHost },
                               p.mutedByHost
                                 ? `Micro rendu à ${p.name ?? "ce participant"}.`
@@ -640,7 +651,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                   maxLength={2000}
                   className="min-w-0 flex-1 rounded-full border-[1.5px] border-line bg-card px-3.5 py-2 text-[14px] outline-none placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
                 />
-                <Btn type="submit" size="sm" disabled={!draft.trim() || pending} aria-label="Envoyer">
+                <Btn type="submit" size="sm" disabled={!draft.trim() || action.busy} aria-label="Envoyer">
                   <Send aria-hidden="true" />
                 </Btn>
               </form>

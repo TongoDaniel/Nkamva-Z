@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 type Level = "NONE" | "RESTRICTED" | "BANNED";
 
@@ -35,25 +34,25 @@ export function SanctionActions({
   level: Level;
   isSuperAdmin: boolean;
 }) {
-  const router = useRouter();
   const [dialog, setDialog] = React.useState<Level | null>(null);
   const [reason, setReason] = React.useState("");
-  const [pending, setPending] = React.useState(false);
 
-  async function apply(next: Level) {
-    setPending(true);
-    try {
+  // Le niveau est rendu par l'appel pour que le message de réussite puisse le
+  // relire : `success` reçoit le résultat, pas les arguments.
+  const apply = useAction(
+    async (next: Level) => {
       await api.post(`/api/admin/users/${userId}/sanction`, { level: next, reason: reason.trim() });
-      toast.success(next === "NONE" ? "Compte rétabli." : "Sanction appliquée.");
-      setDialog(null);
-      setReason("");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "L'action a échoué.");
-    } finally {
-      setPending(false);
-    }
-  }
+      return next;
+    },
+    {
+      success: (next) => (next === "NONE" ? "Compte rétabli." : "Sanction appliquée."),
+      error: "L'action a échoué.",
+      onSuccess: () => {
+        setDialog(null);
+        setReason("");
+      },
+    },
+  );
 
   // Lever une exclusion pèse autant que la prononcer : même réserve.
   const canLift = level !== "BANNED" || isSuperAdmin;
@@ -107,9 +106,9 @@ export function SanctionActions({
           <>
             <Btn
               variant={dialog === "BANNED" ? "danger" : undefined}
-              loading={pending}
+              loading={apply.pending}
               disabled={reason.trim().length < 10}
-              onClick={() => dialog && apply(dialog)}
+              onClick={() => dialog && void apply.run(dialog)}
             >
               {dialog === "NONE" ? "Rétablir" : dialog ? COPY[dialog].cta : ""}
             </Btn>

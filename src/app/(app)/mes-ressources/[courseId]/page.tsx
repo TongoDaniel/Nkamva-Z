@@ -20,7 +20,7 @@ export default async function LecturePage({
 }) {
   const { courseId } = await params;
   const auth = await getAuthContext();
-  if (!auth) redirect("/auth/connexion");
+  if (!auth) redirect("/auth/deconnexion");
 
   const access = await checkCourseAccess(courseId, auth.user.id);
   if (!access.granted) {

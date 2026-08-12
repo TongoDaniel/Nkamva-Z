@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { CalendarPlus } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
+import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 
 /**
@@ -18,9 +17,7 @@ export function ScheduleLive({
 }: {
   communities: Array<{ id: string; name: string }>;
 }) {
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const [communityId, setCommunityId] = React.useState(communities[0]?.id ?? "");
@@ -28,6 +25,36 @@ export function ScheduleLive({
   const [description, setDescription] = React.useState("");
   const [startsAt, setStartsAt] = React.useState("");
   const [duration, setDuration] = React.useState(60);
+
+  // Déclaré avant le retour anticipé ci-dessous : un hook ne peut pas vivre
+  // derrière une condition.
+  const schedule = useAction(
+    (when: Date) =>
+      api.post("/api/lives", {
+        communityId,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        scheduledStartAt: when.toISOString(),
+        durationMinutes: duration,
+      }),
+    {
+      success: "Séance programmée. Les membres en sont prévenus.",
+      // L'échec s'affiche dans la modale, à côté des champs : pas de toast.
+      error: null,
+      onSuccess: () => {
+        setOpen(false);
+        setTitle("");
+        setDescription("");
+        setStartsAt("");
+      },
+      onError: (err) =>
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "La séance n'a pas pu être programmée. Réessayez.",
+        ),
+    },
+  );
 
   // Un live appartient à une communauté (arbitrage 32). Sans communauté ouverte
   // aux sessions, il n'y a rien à programmer — le dire vaut mieux qu'un
@@ -40,7 +67,7 @@ export function ScheduleLive({
     );
   }
 
-  async function submit(event: React.FormEvent) {
+  function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
 
@@ -50,28 +77,7 @@ export function ScheduleLive({
     if (Number.isNaN(when.getTime())) return setError("Cette date n'est pas valide.");
     if (when.getTime() < Date.now()) return setError("Une séance ne se programme pas dans le passé.");
 
-    setPending(true);
-    try {
-      await api.post("/api/lives", {
-        communityId,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        scheduledStartAt: when.toISOString(),
-        durationMinutes: duration,
-      });
-      toast.success("Séance programmée. Les membres en sont prévenus.");
-      setOpen(false);
-      setTitle("");
-      setDescription("");
-      setStartsAt("");
-      router.refresh();
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "La séance n'a pas pu être programmée. Réessayez.",
-      );
-    } finally {
-      setPending(false);
-    }
+    void schedule.run(when);
   }
 
   const field =
@@ -164,7 +170,7 @@ export function ScheduleLive({
             <Btn type="button" variant="t" onClick={() => setOpen(false)}>
               Annuler
             </Btn>
-            <Btn type="submit" loading={pending}>
+            <Btn type="submit" loading={schedule.pending}>
               Programmer
             </Btn>
           </div>

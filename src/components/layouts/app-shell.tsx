@@ -21,6 +21,7 @@ import {
   Library,
 } from "lucide-react";
 import { Logo } from "@/components/nk/logo";
+import { NavLink } from "@/components/nk/nav-link";
 import { Avatar } from "@/components/nk/avatar";
 import { cn } from "@/lib/utils";
 import { TRAINER_SECTIONS } from "@/app/(app)/formateur/sections";
@@ -263,19 +264,20 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             {nav.map((item, index) => {
               const current = index === barCurrent;
               return (
-                <Link
+                <NavLink
                   key={item.href}
                   href={item.href}
-                  aria-current={current ? "page" : undefined}
+                  current={current}
                   className={cn(
                     "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
                     current
                       ? "bg-ink text-paper"
                       : "text-ink-2 hover:bg-white/70 hover:text-ink",
                   )}
+                  pendingClassName="inset-x-3.5 bottom-[5px]"
                 >
                   {item.label}
-                </Link>
+                </NavLink>
               );
             })}
           </nav>
@@ -322,27 +324,29 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               : index === burgerCurrent;
             return (
               <React.Fragment key={item.href}>
-                <Link
+                <NavLink
                   href={item.href}
-                  aria-current={current ? "page" : undefined}
+                  current={current}
                   className="block border-b border-line-2 px-1.5 py-3.5 text-base font-bold text-ink hover:text-brand"
+                  pendingClassName="inset-x-1.5 bottom-1.5"
                 >
                   {item.label}
-                </Link>
+                </NavLink>
                 {sections.map((section) => {
                   const active = isActive(pathname, section.href);
                   return (
-                    <Link
+                    <NavLink
                       key={section.href}
                       href={section.href}
-                      aria-current={active ? "page" : undefined}
+                      current={active}
                       className={cn(
                         "block border-b border-line-2 border-l-2 py-3 pl-4 pr-1.5 text-[15px] font-semibold hover:border-l-brand hover:text-brand",
                         active ? "border-l-brand text-brand" : "border-l-line text-ink-2",
                       )}
+                      pendingClassName="inset-x-4 bottom-1"
                     >
                       {section.label}
-                    </Link>
+                    </NavLink>
                   );
                 })}
               </React.Fragment>
@@ -353,15 +357,16 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               écrans qu'il contient seraient injoignables sur mobile. */}
           {burgerLinks.map(
             ({ href, label, icon: Icon }) => (
-              <Link
+              <NavLink
                 key={href}
                 href={href}
-                aria-current={isActive(pathname, href) ? "page" : undefined}
+                current={isActive(pathname, href)}
                 className="flex items-center gap-2.5 border-b border-line-2 px-1.5 py-3.5 text-[15px] font-semibold text-ink-2 hover:text-brand"
+                pendingClassName="inset-x-1.5 bottom-1.5"
               >
                 <Icon className="size-4 text-ink-3" aria-hidden="true" />
                 {label}
-              </Link>
+              </NavLink>
             ),
           )}
         </nav>

@@ -76,6 +76,13 @@ export async function middleware(request: NextRequest) {
   const authenticated =
     !!token && !isSessionRevoked(issuedAt, token.sessionsValidAfter as string | undefined)
 
+  // Sortie de secours des gardes serveur : elle doit rester atteignable AVEC une
+  // session, puisque c'est justement le cas où elle sert. La rediriger — en
+  // l'ajoutant à `AUTH_PAGES`, ou en y mettant `/auth` comme préfixe large —
+  // recréerait la boucle qu'elle existe pour rompre. Le motif est détaillé dans
+  // `src/app/auth/deconnexion/route.ts`.
+  if (pathname === '/auth/deconnexion') return NextResponse.next()
+
   // Vers l'accueil de l'espace connecté, pas vers les réglages : quelqu'un qui
   // rouvre la page de connexion en étant déjà connecté veut reprendre son
   // parcours. C'est aussi la valeur par défaut de `callbackUrl` du formulaire.

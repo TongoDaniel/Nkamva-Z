@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { TrainerDirectory } from "./trainer-directory";
 import { listPublicTrainers } from "@/lib/trainers";
 import { routesOf, type Space } from "@/lib/spaces";
@@ -30,9 +29,7 @@ export async function TrainersScreen({ space }: { space: Space }) {
         title="Nos formateurs"
         lead="Celles et ceux qui publient sur NkamVa. Chaque profil a été examiné avant sa première publication."
         actions={
-          <Btn asChild variant="o">
-            <Link href="/devenir-formateur">Devenir formateur</Link>
-          </Btn>
+          <BtnLink href="/devenir-formateur" variant="o">Devenir formateur</BtnLink>
         }
       />
 
@@ -43,9 +40,7 @@ export async function TrainersScreen({ space }: { space: Space }) {
           title="La liste des formateurs est momentanément indisponible"
           description="Le service ne répond pas pour l'instant. Le catalogue, lui, reste consultable."
           action={
-            <Btn asChild variant="o">
-              <Link href={routes.catalog}>Voir le catalogue</Link>
-            </Btn>
+            <BtnLink href={routes.catalog} variant="o">Voir le catalogue</BtnLink>
           }
         />
       ) : trainers.length === 0 ? (
@@ -55,9 +50,7 @@ export async function TrainersScreen({ space }: { space: Space }) {
           title="Aucun formateur publié pour l'instant"
           description="Les premiers profils apparaîtront ici dès qu'une ressource sera mise en ligne."
           action={
-            <Btn asChild>
-              <Link href="/devenir-formateur">Être parmi les premiers</Link>
-            </Btn>
+            <BtnLink href="/devenir-formateur">Être parmi les premiers</BtnLink>
           }
         />
       ) : (

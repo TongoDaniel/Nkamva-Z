@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 /**
  * Acceptation d'une invitation offerte.
@@ -15,30 +15,27 @@ import { api, ApiError } from "@/lib/client";
  */
 export function AcceptGift({ token, communityName }: { token: string; communityName: string }) {
   const router = useRouter();
-  const [pending, setPending] = React.useState(false);
 
-  async function accept() {
-    setPending(true);
-    try {
+  const accept = useAction(
+    async () => {
       const { data } = await api.post<{ communitySlug: string; giftMonths: number }>(
         `/api/invitations/${encodeURIComponent(token)}`,
       );
-      toast.success(
-        `Bienvenue dans ${communityName} — ${data.giftMonths} mois offerts, rien ne vous sera prélevé.`,
-      );
-      router.push(`/mes-communautes/${data.communitySlug}`);
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : "L'invitation n'a pas pu être acceptée.",
-      );
-      setPending(false);
-    }
-  }
+      return data;
+    },
+    {
+      success: ({ giftMonths }) =>
+        `Bienvenue dans ${communityName} — ${giftMonths} mois offerts, rien ne vous sera prélevé.`,
+      error: "L'invitation n'a pas pu être acceptée.",
+      // Navigation dans la transition : le bouton reste occupé jusqu'à ce que
+      // la communauté soit à l'écran.
+      onSuccess: ({ communitySlug }) => router.push(`/mes-communautes/${communitySlug}`),
+    },
+  );
 
   return (
-    <Btn size="lg" onClick={accept} disabled={pending}>
-      {pending ? "Ouverture de votre accès…" : "Accepter l'invitation"}
+    <Btn size="lg" onClick={() => void accept.run()} loading={accept.pending}>
+      Accepter l&apos;invitation
     </Btn>
   );
 }

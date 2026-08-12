@@ -1,13 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Plus, Tag } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { actionErrorMessage, useKeyedAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 /** Demain, au format d'un `<input type="date">`. */
 function tomorrow(): string {
@@ -20,9 +19,11 @@ function tomorrow(): string {
  * au passé.
  */
 export function PricingActions() {
-  const router = useRouter();
   const [dialog, setDialog] = React.useState<null | "tariff" | "discount">(null);
-  const [pending, setPending] = React.useState(false);
+  const action = useKeyedAction();
+  // Un seul emplacement d'erreur, partagé par le contrôle local et l'API : les
+  // deux s'affichent au même endroit dans la modale, et une seule est vraie à
+  // la fois. Le toast du hook est donc neutralisé (`error: null`).
   const [error, setError] = React.useState<string | null>(null);
 
   const [cadence, setCadence] = React.useState<"MONTHLY" | "YEARLY">("MONTHLY");
@@ -38,64 +39,71 @@ export function PricingActions() {
   const [reason, setReason] = React.useState("");
   const [validUntil, setValidUntil] = React.useState("");
 
-  async function submitTariff() {
+  const onApiError = (err: unknown) =>
+    setError(actionErrorMessage(err, "L'enregistrement a échoué."));
+
+  function submitTariff() {
     setError(null);
     const value = Number.parseInt(amount, 10);
     if (!Number.isFinite(value) || value < 0) {
       setError("Le montant doit être un entier positif ou nul. Zéro vaut gratuité.");
       return;
     }
-    setPending(true);
-    try {
-      await api.post("/api/admin/pricing/tariffs", {
-        cadence,
-        amountFcfa: value,
-        validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
-        ...(label.trim() ? { label: label.trim() } : {}),
-      });
-      toast.success("Tarif enregistré.");
-      setDialog(null);
-      setAmount("");
-      setLabel("");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "L'enregistrement a échoué.");
-    } finally {
-      setPending(false);
-    }
+    void action.run(
+      "tariff",
+      () =>
+        api.post("/api/admin/pricing/tariffs", {
+          cadence,
+          amountFcfa: value,
+          validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
+          ...(label.trim() ? { label: label.trim() } : {}),
+        }),
+      {
+        success: "Tarif enregistré.",
+        error: null,
+        onError: onApiError,
+        onSuccess: () => {
+          setDialog(null);
+          setAmount("");
+          setLabel("");
+        },
+      },
+    );
   }
 
-  async function submitDiscount() {
+  function submitDiscount() {
     setError(null);
     const value = Number.parseInt(discountAmount, 10);
     if (!Number.isFinite(value) || value <= 0) {
       setError("Une réduction est un montant en FCFA, strictement positif.");
       return;
     }
-    setPending(true);
-    try {
-      await api.post("/api/admin/pricing/discounts", {
-        kind,
-        label: discountLabel.trim(),
-        amountFcfa: value,
-        ...(kind === "PROMO_CODE" ? { code: code.trim().toUpperCase() } : {}),
-        ...(kind === "TRAINER" ? { trainerId: trainerId.trim(), reason: reason.trim() } : {}),
-        validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
-        ...(validUntil ? { validUntil: new Date(`${validUntil}T00:00:00`).toISOString() } : {}),
-      });
-      toast.success("Réduction enregistrée.");
-      setDialog(null);
-      setDiscountLabel("");
-      setDiscountAmount("");
-      setCode("");
-      setTrainerId("");
-      setReason("");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "L'enregistrement a échoué.");
-    } finally {
-      setPending(false);
-    }
+    void action.run(
+      "discount",
+      () =>
+        api.post("/api/admin/pricing/discounts", {
+          kind,
+          label: discountLabel.trim(),
+          amountFcfa: value,
+          ...(kind === "PROMO_CODE" ? { code: code.trim().toUpperCase() } : {}),
+          ...(kind === "TRAINER" ? { trainerId: trainerId.trim(), reason: reason.trim() } : {}),
+          validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
+          ...(validUntil ? { validUntil: new Date(`${validUntil}T00:00:00`).toISOString() } : {}),
+        }),
+      {
+        success: "Réduction enregistrée.",
+        error: null,
+        onError: onApiError,
+        onSuccess: () => {
+          setDialog(null);
+          setDiscountLabel("");
+          setDiscountAmount("");
+          setCode("");
+          setTrainerId("");
+          setReason("");
+        },
+      },
+    );
   }
 
   return (
@@ -118,10 +126,10 @@ export function PricingActions() {
         description="Il prend effet à la date choisie, et s'applique à chaque formateur à son propre renouvellement."
         footer={
           <>
-            <Btn loading={pending} onClick={submitTariff}>
+            <Btn loading={action.isRunning("tariff")} onClick={submitTariff}>
               Enregistrer
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>
               Annuler
             </Btn>
           </>
@@ -179,10 +187,10 @@ export function PricingActions() {
         description="Trois canaux, un seul résultat : le montant consenti. La plus favorable l'emporte, elles ne s'additionnent jamais."
         footer={
           <>
-            <Btn loading={pending} disabled={discountLabel.trim().length < 3} onClick={submitDiscount}>
+            <Btn loading={action.isRunning("discount")} disabled={discountLabel.trim().length < 3} onClick={submitDiscount}>
               Enregistrer
             </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
+            <Btn variant="o" disabled={action.busy} onClick={() => setDialog(null)}>
               Annuler
             </Btn>
           </>

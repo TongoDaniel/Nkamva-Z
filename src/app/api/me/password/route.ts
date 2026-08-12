@@ -2,13 +2,16 @@
 import { success, error, requireAuth, parseBody } from '@/lib/api'
 import { changePassword, type PasswordChangeFailure } from '@/lib/profile'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
+import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
 import { z } from 'zod'
 
+// Même plancher qu'à l'inscription : plus bas ici, il suffisait de changer son
+// mot de passe une fois pour descendre sous ce que l'inscription exige.
 const ChangeSchema = z.object({
   currentPassword: z.string().min(1, 'Mot de passe actuel requis'),
   newPassword: z
     .string()
-    .min(8, 'Au moins 8 caractères')
+    .min(MIN_PASSWORD_LENGTH, `Au moins ${MIN_PASSWORD_LENGTH} caractères`)
     .regex(/[A-Z]/, 'Au moins une majuscule')
     .regex(/\d/, 'Au moins un chiffre'),
 })

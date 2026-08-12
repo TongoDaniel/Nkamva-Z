@@ -1,30 +1,18 @@
 "use client";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Btn } from "@/components/nk/button";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 
 /** Clôt une réduction avant son terme. `endDiscount` existait sans appelant. */
 export function EndDiscountButton({ discountId }: { discountId: string }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState(false);
-
-  async function end() {
-    setPending(true);
-    try {
-      await api.del(`/api/admin/pricing/discounts/${discountId}`);
-      toast.success("Réduction close.");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "La clôture a échoué.");
-      setPending(false);
-    }
-  }
+  const end = useAction(() => api.del(`/api/admin/pricing/discounts/${discountId}`), {
+    success: "Réduction close.",
+    error: "La clôture a échoué.",
+  });
 
   return (
-    <Btn size="sm" variant="o" onClick={end} loading={pending}>
+    <Btn size="sm" variant="o" onClick={() => void end.run()} loading={end.pending}>
       Clore
     </Btn>
   );

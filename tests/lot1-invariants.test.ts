@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
 import {
-  createApplication, submitApplication, approveApplication,
+  createApplication, updateApplication, submitApplication, approveApplication,
   rejectDocuments, rejectApplicationFinal, reopenApplication,
   getApplicationStats,
 } from '@/lib/trainer-applications'
@@ -133,6 +133,73 @@ describe('Lot 1 — Validation des formateurs', () => {
     const docs = await prisma.trainerDocument.findMany({ where: { applicationId: application.id, isCurrent: true } })
     expect(docs).toHaveLength(3)
     expect(docs.every(d => d.status === 'APPROVED')).toBe(true)
+  })
+
+  // -------------------------------------------------------------------------
+  it('T3 — la cadence demandée à la candidature est honorée à l\'approbation', async () => {
+    const { user, admin, application } = await setupCandidate()
+    // Ce que pose l'étape « Formule » du parcours « Devenir formateur ».
+    await updateApplication(user.id, { desiredCadence: 'YEARLY' })
+    await uploadAllDocuments(user.id)
+    await submitApplication(user.id)
+
+    await approveApplication(application.id, {
+      verifiedLegalName: 'Jean Candidat',
+      expectedUpdatedAt: await freshUpdatedAt(application.id),
+      actorId: admin.id,
+    })
+
+    const profile = await prisma.trainerProfile.findUniqueOrThrow({ where: { userId: user.id } })
+    expect(profile.subscriptionCadence).toBe('YEARLY')
+
+    // La première période suit la même cadence : ouvrir douze mois de
+    // couverture au tarif mensuel serait un cadeau que personne n'a décidé.
+    const charge = await prisma.subscriptionCharge.findFirstOrThrow({
+      where: { trainerId: profile.id },
+    })
+    expect(charge.cadence).toBe('YEARLY')
+    const months = Math.round(
+      (charge.periodEnd.getTime() - charge.periodStart.getTime()) / (30 * 24 * 3600 * 1000),
+    )
+    expect(months).toBe(12)
+  })
+
+  // -------------------------------------------------------------------------
+  it('T3 — sans cadence demandée, l\'approbation retombe sur le mensuel', async () => {
+    // C'est le cas de `/candidature`, qui ne pose pas la question.
+    const { user, admin, application } = await setupCandidate()
+    await uploadAllDocuments(user.id)
+    await submitApplication(user.id)
+
+    await approveApplication(application.id, {
+      verifiedLegalName: 'Jean Candidat',
+      expectedUpdatedAt: await freshUpdatedAt(application.id),
+      actorId: admin.id,
+    })
+
+    const profile = await prisma.trainerProfile.findUniqueOrThrow({ where: { userId: user.id } })
+    expect(profile.subscriptionCadence).toBe('MONTHLY')
+  })
+
+  // -------------------------------------------------------------------------
+  it('la présentation reste modifiable en DRAFT, plus une fois le dossier envoyé', async () => {
+    const { user, application } = await setupCandidate()
+
+    const edited = await updateApplication(user.id, { slogan: 'Le back-end sans mystère' })
+    expect(edited.slogan).toBe('Le back-end sans mystère')
+    // Un champ non fourni n'est pas effacé : le parcours pose la cadence à la
+    // dernière étape, longtemps après la présentation.
+    expect(edited.description).toBe('Formateur Node.js')
+    expect(edited.domains).toEqual(['dev'])
+
+    await uploadAllDocuments(user.id)
+    await submitApplication(user.id)
+    await expect(updateApplication(user.id, { slogan: 'Trop tard' })).rejects.toThrow(
+      'APPLICATION_NOT_EDITABLE',
+    )
+
+    const untouched = await prisma.trainerApplication.findUniqueOrThrow({ where: { id: application.id } })
+    expect(untouched.slogan).toBe('Le back-end sans mystère')
   })
 
   // -------------------------------------------------------------------------

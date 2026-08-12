@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { ProgressRing } from "@/components/nk/progress-ring";
 import { api, ApiError } from "@/lib/client";
 import { fmtDuration } from "@/lib/format";
@@ -94,9 +93,7 @@ export function CoursePlayer({
         <AlertTriangle className="mx-auto mb-4 size-8 text-gold-ink" aria-hidden="true" />
         <h2 className="mb-2 text-lg font-extrabold">Lecture indisponible</h2>
         <p className="mx-auto mb-6 max-w-[46ch] text-ink-2">{error}</p>
-        <Btn asChild variant="o">
-          <Link href="/mes-ressources">Retour à mes ressources</Link>
-        </Btn>
+        <BtnLink href="/mes-ressources" variant="o">Retour à mes ressources</BtnLink>
       </div>
     );
   }
@@ -151,9 +148,9 @@ export function CoursePlayer({
           Votre position est enregistrée automatiquement. Vous reprendrez ici à votre prochaine
           visite, sur n&apos;importe quel appareil.
         </p>
-        <Btn asChild variant="o" size="sm" block className="mt-5">
-          <Link href="/mes-ressources">Retour à mes ressources</Link>
-        </Btn>
+        <BtnLink href="/mes-ressources" variant="o" size="sm" block className="mt-5">
+          Retour à mes ressources
+        </BtnLink>
         {format !== "video" ? (
           <p className="mt-4 text-[12.5px] text-ink-3">
             Format « {format} » : si la lecture intégrée ne convient pas, téléchargez la ressource

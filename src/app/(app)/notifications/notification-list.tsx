@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Bell,
   BadgeCheck,
@@ -13,8 +12,8 @@ import {
 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { EmptyState } from "@/components/nk/empty-state";
-import { toast } from "@/components/nk/toast";
-import { api, ApiError } from "@/lib/client";
+import { useAction } from "@/hooks/use-action";
+import { api } from "@/lib/client";
 import { fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -97,35 +96,32 @@ function Row({ item, onRead }: { item: NotificationItem; onRead: (id: string) =>
 }
 
 export function NotificationList({ items }: { items: NotificationItem[] }) {
-  const router = useRouter();
   const [rows, setRows] = React.useState(items);
-  const [pending, setPending] = React.useState(false);
 
   React.useEffect(() => setRows(items), [items]);
 
   const unreadCount = rows.filter((r) => !r.readAt).length;
 
+  const mark = useAction(
+    (id?: string) => api.post("/api/me/notifications/read", id ? { id } : {}),
+    {
+      success: null,
+      error: "Le marquage n'a pas pu être enregistré.",
+      // Retour à ce que le serveur a dit en dernier, plutôt qu'à un instantané
+      // local : c'est la seule version dont on soit sûr.
+      onError: () => setRows(items),
+    },
+  );
+
   // Marquage optimiste : la pastille disparaît au clic, sans attendre le
   // serveur. En cas d'échec on remet l'état d'avant plutôt que de laisser
   // croire à une lecture enregistrée.
-  const markRead = async (id?: string) => {
-    const before = rows;
+  const markRead = (id?: string) => {
     const now = new Date().toISOString();
     setRows((current) =>
       current.map((r) => (!r.readAt && (!id || r.id === id) ? { ...r, readAt: now } : r)),
     );
-    setPending(true);
-    try {
-      await api.post("/api/me/notifications/read", id ? { id } : {});
-      router.refresh();
-    } catch (error) {
-      setRows(before);
-      toast.error(
-        error instanceof ApiError ? error.message : "Le marquage n'a pas pu être enregistré.",
-      );
-    } finally {
-      setPending(false);
-    }
+    void mark.run(id);
   };
 
   if (rows.length === 0) {
@@ -148,7 +144,7 @@ export function NotificationList({ items }: { items: NotificationItem[] }) {
             : "Tout est lu"}
         </p>
         {unreadCount > 0 ? (
-          <Btn variant="o" size="sm" loading={pending} onClick={() => markRead()}>
+          <Btn variant="o" size="sm" loading={mark.pending} onClick={() => markRead()}>
             Tout marquer comme lu
           </Btn>
         ) : null}

@@ -36,7 +36,7 @@ export default async function AdhesionPage({
     const back = invitation
       ? `/adhesion/${slug}?invitation=${encodeURIComponent(invitation)}`
       : `/adhesion/${slug}`;
-    redirect(`/auth/connexion?callbackUrl=${encodeURIComponent(back)}`);
+    redirect(`/auth/deconnexion?callbackUrl=${encodeURIComponent(back)}`);
   }
 
   const community = await getPublicCommunity(slug, auth.user.id);

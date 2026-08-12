@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default async function AchatPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const auth = await getAuthContext();
-  if (!auth) redirect(`/auth/connexion?callbackUrl=${encodeURIComponent(`/achat/${slug}`)}`);
+  if (!auth) redirect(`/auth/deconnexion?callbackUrl=${encodeURIComponent(`/achat/${slug}`)}`);
 
   const course = (await getPublicCourse(slug)) as CourseDetail | null;
   if (!course) notFound();

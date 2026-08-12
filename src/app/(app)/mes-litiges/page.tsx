@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { StPill } from "@/components/nk/status-pill";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { listMyDisputes } from "@/lib/disputes";
 import { fmtDate, fmtFcfa } from "@/lib/format";
@@ -68,9 +68,9 @@ export default async function MesLitigesPage() {
                     </p>
                   ) : null}
                 </div>
-                <Btn asChild variant="o" size="sm">
-                  <Link href={`/mes-litiges/${dispute.id}`}>Ouvrir le dossier</Link>
-                </Btn>
+                <BtnLink href={`/mes-litiges/${dispute.id}`} variant="o" size="sm">
+                  Ouvrir le dossier
+                </BtnLink>
               </li>
             );
           })}

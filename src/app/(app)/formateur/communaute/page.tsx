@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Library, MessagesSquare, Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { StatTile } from "@/components/nk/stat-tile";
 import { getAuthContext } from "@/lib/api";
 import { getMyCommunity, listCommunityMembers } from "@/lib/communities";
@@ -75,9 +74,7 @@ export default async function MaCommunautePage() {
         title={community.name}
         lead="Sa visibilité, ses invitations, ses membres et ses réglages."
         actions={
-          <Btn asChild variant="o">
-            <Link href={`/mes-communautes/${community.slug}`}>Ouvrir le salon</Link>
-          </Btn>
+          <BtnLink href={`/mes-communautes/${community.slug}`} variant="o">Ouvrir le salon</BtnLink>
         }
       />
 

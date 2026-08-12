@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Check, Minus, TriangleAlert } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
-import { Btn } from "@/components/nk/button";
+import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getPayoutDetail, PAYOUT_MIN_AMOUNT_FCFA } from "@/lib/payouts";
 import { withdrawableBalance } from "@/lib/wallet";
@@ -68,12 +68,10 @@ export default async function RetraitDetailPage({
           </>
         }
         actions={
-          <Btn asChild variant="o" size="sm">
-            <Link href="/admin/retraits">
+          <BtnLink href="/admin/retraits" variant="o" size="sm">
               <ArrowLeft aria-hidden="true" />
               Retour à la file
-            </Link>
-          </Btn>
+          </BtnLink>
         }
       />
 
