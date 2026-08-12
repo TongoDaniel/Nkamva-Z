@@ -22,7 +22,9 @@ import {
   REQUIRED_DOCUMENT_TYPES, CONFIRMED_DOCUMENT_STATUSES,
   approveCurrentDocuments, rejectDocumentsInTx,
 } from './trainer-documents'
-import { openFirstPeriod } from './subscriptions'
+import { openFirstPeriod, type PrepaidFirstPeriod } from './subscriptions'
+import { quotePrice, CADENCE_LABELS } from './pricing'
+import { fmtFcfa } from './format'
 import type { PrismaTransaction } from './types'
 
 export const REOPEN_MIN_DELAY_HOURS = 24
@@ -270,8 +272,71 @@ export async function submitApplication(userId: string) {
 }
 
 // ==========================================================================
-// T3 — SUBMITTED → APPROVED
+// T3 — SUBMITTED → APPROVED, puis ouverture de l'espace au règlement
 // ==========================================================================
+
+/**
+ * Ce dont l'ouverture d'un espace formateur a besoin, une fois la candidature
+ * approuvée **et le premier abonnement réglé**.
+ *
+ * Le règlement est venu s'intercaler entre les deux : l'approbation ne fait
+ * plus naître le formateur, elle l'autorise. `prepaid` porte ce qui a été
+ * réellement encaissé — figé à l'ouverture du paiement, pas recalculé ici, la
+ * grille ayant pu bouger entre le clic et le retour du fournisseur.
+ */
+export interface ActivateTrainerInput {
+  verifiedLegalName: string
+  cadence: PlanCadence
+  prepaid?: PrepaidFirstPeriod | null
+}
+
+/**
+ * Crée le formateur : profil, portefeuille, première période, bascule de rôle.
+ *
+ * Extrait de `approveApplication`, dont c'était le corps. Il vit à part parce
+ * qu'il a maintenant **deux appelants** — l'approbation quand il n'y a rien à
+ * payer, le règlement sinon — et qu'une seconde copie de cette séquence serait
+ * la meilleure façon de créer un jour un TRAINER sans portefeuille.
+ *
+ * Tout se passe dans la transaction reçue, jamais dans une nouvelle : c'est ce
+ * qui garantit qu'un paiement encaissé et un espace ouvert vont ensemble.
+ */
+async function activateTrainer(
+  tx: PrismaTransaction,
+  application: { id: string; userId: string; slogan: string | null; description: string | null; websiteUrl: string | null; domains: string[]; experienceYears: number | null },
+  input: ActivateTrainerInput,
+) {
+  const profile = await tx.trainerProfile.create({
+    data: {
+      userId: application.userId,
+      verifiedLegalName: input.verifiedLegalName,
+      slogan: application.slogan,
+      description: application.description,
+      websiteUrl: application.websiteUrl,
+      domains: application.domains,
+      experienceYears: application.experienceYears,
+      subscriptionCadence: input.cadence,
+      approvedAt: new Date(),
+    },
+  })
+  // Dans la MÊME transaction que la bascule de rôle : un formateur TRAINER
+  // sans portefeuille serait incohérent.
+  await tx.wallet.create({ data: { trainerId: profile.id } })
+
+  // Un formateur sans période serait invisible du renouvellement, donc jamais
+  // facturé. Elle suit la cadence du profil : ouvrir douze mois de couverture
+  // pour un abonnement annuel facturé au mois serait un cadeau silencieux.
+  await openFirstPeriod(tx, profile.id, input.cadence, new Date(), input.prepaid ?? null)
+
+  await setUserRole(tx, application.userId, 'TRAINER', 'TRAINER_APPLICATION_APPROVED')
+
+  return profile
+}
+
+/** La cadence retenue pour un dossier — celle demandée, ou le défaut mensuel. */
+export function cadenceOf(application: { desiredCadence: PlanCadence | null }): PlanCadence {
+  return application.desiredCadence ?? 'MONTHLY'
+}
 
 export interface ApproveInput {
   verifiedLegalName: string
@@ -287,83 +352,156 @@ export async function approveApplication(applicationId: string, input: ApproveIn
   if (!application) throw new Error('APPLICATION_NOT_FOUND')
   if (application.status !== 'SUBMITTED') throw new Error('APPLICATION_NOT_SUBMITTED')
 
+  // La cadence demandée à la candidature est honorée ici : c'est elle qui
+  // décide du montant à régler, puis de celui du profil. Sans dossier qui la
+  // porte — parcours `/candidature`, qui ne pose pas la question — on retombe
+  // sur le défaut mensuel du schéma.
+  const cadence = cadenceOf(application)
+
+  // Le prix est lu **avant** la transaction, et il décide de tout ce qui suit :
+  // un abonnement gratuit ouvre l'espace sur-le-champ, un abonnement payant
+  // l'ajourne jusqu'au règlement. Exiger un paiement de zéro fermerait la
+  // porte à toute la cohorte de lancement.
+  const quote = await quotePrice(cadence)
+  const freeOfCharge = quote.payableFcfa === 0
+
   const result = await db.$transaction(async (tx) => {
     await guardedUpdate(tx, applicationId, 'SUBMITTED', input.expectedUpdatedAt, {
       status: 'APPROVED',
       approvedAt: new Date(),
       reviewedById: input.actorId,
       reviewedAt: new Date(),
+      // Conservée sur le dossier : le profil qui la portera peut ne naître que
+      // dans plusieurs jours, quand le candidat aura réglé.
+      verifiedLegalName: input.verifiedLegalName,
     })
 
     // D2/D5 — l'approbation du dossier vaut approbation des pièces courantes.
     await approveCurrentDocuments(tx, applicationId, input.actorId)
 
-    // Le profil et le portefeuille naissent dans la MÊME transaction que la
-    // bascule de rôle : un formateur TRAINER sans wallet serait incohérent.
-    // La cadence demandée à la candidature est honorée ici, et nulle part
-    // ailleurs : c'est le seul moment où le profil naît. Sans dossier qui la
-    // porte — parcours `/candidature`, qui ne pose pas la question — on retombe
-    // sur le défaut mensuel du schéma.
-    const subscriptionCadence: PlanCadence = application.desiredCadence ?? 'MONTHLY'
+    const profile = freeOfCharge
+      ? await activateTrainer(tx, application, { verifiedLegalName: input.verifiedLegalName, cadence })
+      : null
 
-    const profile = await tx.trainerProfile.create({
-      data: {
-        userId: application.userId,
-        verifiedLegalName: input.verifiedLegalName,
-        slogan: application.slogan,
-        description: application.description,
-        websiteUrl: application.websiteUrl,
-        domains: application.domains,
-        experienceYears: application.experienceYears,
-        subscriptionCadence,
-        approvedAt: new Date(),
-      },
-    })
-    await tx.wallet.create({ data: { trainerId: profile.id } })
-
-    // La première période d'abonnement naît ici aussi : un formateur sans
-    // période serait invisible du renouvellement, donc jamais facturé.
-    // Au tarif de lancement (0), elle est ouverte comme offerte, pas comme due.
-    // Elle suit la cadence du profil : ouvrir douze mois de couverture pour un
-    // abonnement annuel facturé au mois serait un cadeau silencieux.
-    await openFirstPeriod(tx, profile.id, subscriptionCadence)
-
-    await setUserRole(tx, application.userId, 'TRAINER', 'TRAINER_APPLICATION_APPROVED')
     await recordTransition(tx, {
       applicationId, fromStatus: 'SUBMITTED', toStatus: 'APPROVED', actorId: input.actorId,
     })
     await audit(tx, {
       actorId: input.actorId, actorRole: 'MODERATION',
       action: 'TRAINER_APPLICATION_APPROVED', targetType: 'TrainerApplication', targetId: applicationId,
-      meta: { userId: application.userId, trainerProfileId: profile.id, verifiedLegalName: input.verifiedLegalName },
+      meta: {
+        userId: application.userId, trainerProfileId: profile?.id ?? null,
+        verifiedLegalName: input.verifiedLegalName,
+        cadence, amountDueFcfa: quote.payableFcfa,
+        // Ce qui distingue une approbation qui ouvre l'espace d'une approbation
+        // qui attend un règlement — la question qu'on se posera en relisant.
+        activationPending: !freeOfCharge,
+      },
     })
 
     return { profile, application: await tx.trainerApplication.findUniqueOrThrow({ where: { id: applicationId } }) }
   })
 
   await deliverSideEffects('TRAINER_APPLICATION_APPROVED', { type: 'TrainerApplication', id: applicationId }, async () => {
+    if (freeOfCharge) {
+      await notify(application.userId, {
+        type: 'TRAINER_APPLICATION_APPROVED',
+        title: 'Votre candidature est acceptée',
+        body: 'Vous pouvez désormais publier des ressources sur NkamVa.',
+        link: '/formateur',
+      })
+      await sendEmail({
+        to: application.user.email,
+        subject: 'NkamVa — Votre candidature formateur est acceptée',
+        ...renderSimpleEmail({
+          title: 'Votre candidature est acceptée',
+          paragraphs: [
+            'Bonne nouvelle : votre candidature de formateur a été acceptée.',
+            'Votre espace formateur est ouvert, vous pouvez publier vos premières ressources.',
+          ],
+          cta: { label: 'Accéder à mon espace', url: absoluteUrl('/formateur') },
+        }),
+        tags: ['trainer-application-approved'],
+      })
+      return
+    }
+
+    // Approbation payante : on ne promet pas un espace ouvert, on demande le
+    // règlement. Annoncer « votre espace est ouvert » puis buter sur un mur de
+    // paiement serait la pire des deux formulations.
     await notify(application.userId, {
       type: 'TRAINER_APPLICATION_APPROVED',
-      title: 'Votre candidature est acceptée',
-      body: 'Vous pouvez désormais publier des ressources sur NkamVa.',
-      link: '/formateur',
+      title: 'Candidature acceptée : réglez votre abonnement',
+      // « formule mensuelle » et non « abonnement mensuelle » : les libellés de
+      // cadence s'accordent sur « formule », au féminin.
+      body: `Votre dossier est validé. Réglez votre abonnement — formule ${CADENCE_LABELS[cadence].toLowerCase()}, ${fmtFcfa(quote.payableFcfa)} — pour ouvrir votre espace formateur.`,
+      link: '/candidature/statut',
     })
     await sendEmail({
       to: application.user.email,
-      subject: 'NkamVa — Votre candidature formateur est acceptée',
+      subject: 'NkamVa — Votre candidature est acceptée, une dernière étape',
       ...renderSimpleEmail({
         title: 'Votre candidature est acceptée',
         paragraphs: [
-          'Bonne nouvelle : votre candidature de formateur a été acceptée.',
-          'Votre espace formateur est ouvert, vous pouvez publier vos premières ressources.',
+          'Bonne nouvelle : votre candidature de formateur a été validée par notre équipe.',
+          `Il reste une étape avant l'ouverture de votre espace : le règlement de votre abonnement, formule ${CADENCE_LABELS[cadence].toLowerCase()}, soit ${fmtFcfa(quote.payableFcfa)}.`,
+          'Votre espace formateur s\'ouvre dès le paiement reçu.',
         ],
-        cta: { label: 'Accéder à mon espace', url: absoluteUrl('/formateur') },
+        cta: { label: 'Régler mon abonnement', url: absoluteUrl('/candidature/statut') },
       }),
       tags: ['trainer-application-approved'],
     })
   })
 
   return result.application
+}
+
+// ==========================================================================
+// Ouverture de l'espace au règlement du premier abonnement
+// ==========================================================================
+
+/**
+ * Ouvre l'espace d'un candidat approuvé dont le premier abonnement vient
+ * d'être encaissé. Appelée par `src/lib/trainer-activation.ts`, dans la
+ * transaction qui passe le paiement en SUCCEEDED.
+ *
+ * Idempotente par la contrainte d'unicité de `TrainerProfile.userId` : un
+ * webhook rejoué trouve le profil déjà là et rend la main sans rien refaire.
+ */
+export async function openTrainerSpace(
+  tx: PrismaTransaction,
+  applicationId: string,
+  prepaid: PrepaidFirstPeriod,
+) {
+  const application = await tx.trainerApplication.findUniqueOrThrow({
+    where: { id: applicationId },
+    select: {
+      id: true, userId: true, status: true, slogan: true, description: true,
+      websiteUrl: true, domains: true, experienceYears: true,
+      desiredCadence: true, verifiedLegalName: true,
+    },
+  })
+  if (application.status !== 'APPROVED') throw new Error('APPLICATION_NOT_APPROVED')
+
+  const existing = await tx.trainerProfile.findUnique({
+    where: { userId: application.userId },
+    select: { id: true },
+  })
+  if (existing) return existing
+
+  return activateTrainer(tx, application, {
+    // Le repli sur le nom du compte ne devrait jamais servir : l'approbation
+    // écrit toujours ce champ. Il couvre les dossiers approuvés avant que la
+    // colonne existe, pour lesquels le règlement ne doit pas échouer — mieux
+    // vaut un profil à vérifier qu'un paiement encaissé sans espace ouvert.
+    verifiedLegalName:
+      application.verifiedLegalName ||
+      (await tx.user.findUniqueOrThrow({ where: { id: application.userId }, select: { fullName: true } }))
+        .fullName ||
+      'À vérifier',
+    cadence: cadenceOf(application),
+    prepaid,
+  })
 }
 
 // ==========================================================================

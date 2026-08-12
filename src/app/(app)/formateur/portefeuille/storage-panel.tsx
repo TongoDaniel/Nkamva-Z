@@ -29,11 +29,17 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
   const percent = Math.min(100, Math.round((storage.usedBytes / storage.quotaBytes) * 100) || 0);
   const dirty = tiers !== storage.tiers;
   const monthly = tiers * storage.tierPriceFcfa;
+  const added = tiers - storage.tiers;
 
   const save = useAction(() => api.patch("/api/trainer/storage", { tiers }), {
+    // « À chaque échéance », jamais « par mois » : cet écran ne connaît pas la
+    // cadence du formateur, et un abonné annuel s'y voyait annoncer une somme
+    // mensuelle qu'il ne paierait jamais.
     success:
-      tiers > storage.tiers
-        ? `Palier ajouté. ${fmtFcfa(monthly)} par ${storage.tierPriceFcfa === monthly ? "mois" : "échéance"} à partir de votre prochain renouvellement.`
+      added > 0
+        ? monthly > 0
+          ? `${added} palier${added > 1 ? "s" : ""} ajouté${added > 1 ? "s" : ""}. ${fmtFcfa(monthly)} à chaque échéance, à partir de votre prochain renouvellement.`
+          : `${added} palier${added > 1 ? "s" : ""} ajouté${added > 1 ? "s" : ""}, sans surcoût : aucun prix de palier n'est en vigueur.`
         : "Paliers réduits, effectif à votre prochain renouvellement.",
     error: "La mise à jour a échoué.",
     // Le curseur retombe sur la valeur du serveur : le laisser sur un palier

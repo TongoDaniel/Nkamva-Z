@@ -51,13 +51,38 @@ export function periodEndFor(start: Date, cadence: PlanCadence): Date {
  * candidature, dans la même transaction que la création du profil : un
  * formateur sans période d'abonnement serait invisible du renouvellement.
  */
+/**
+ * Une première période **déjà encaissée**, avec les montants tels qu'ils ont
+ * été annoncés au candidat et facturés.
+ *
+ * Ils ne sont pas recalculés à l'ouverture : la grille a pu changer entre le
+ * moment où le paiement s'est ouvert et le retour du fournisseur. Ce qui est
+ * inscrit doit être ce qui a été payé, sans quoi la comptabilité affiche une
+ * période réglée pour un montant que personne n'a versé.
+ */
+export interface PrepaidFirstPeriod {
+  listPriceFcfa: number
+  discountFcfa: number
+  discountLabel: string | null
+  amountFcfa: number
+  paidAt: Date
+}
+
 export async function openFirstPeriod(
   tx: PrismaTransaction,
   trainerProfileId: string,
   cadence: PlanCadence = 'MONTHLY',
   now = new Date(),
+  prepaid: PrepaidFirstPeriod | null = null,
 ) {
-  const quote = await quotePrice(cadence, { trainerId: trainerProfileId, at: now })
+  const quote = prepaid
+    ? {
+        listPriceFcfa: prepaid.listPriceFcfa,
+        discountFcfa: prepaid.discountFcfa,
+        discountLabel: prepaid.discountLabel,
+        payableFcfa: prepaid.amountFcfa,
+      }
+    : await quotePrice(cadence, { trainerId: trainerProfileId, at: now })
   const periodEnd = periodEndFor(now, cadence)
   // Un formateur qui vient d'être approuvé n'a aucun palier : l'appel rend zéro.
   // Il est fait quand même, pour que l'ouverture et le renouvellement calculent
@@ -76,12 +101,16 @@ export async function openFirstPeriod(
       storageTiers: storage.tiers,
       storageFcfa: storage.amountFcfa,
       amountDueFcfa: quote.payableFcfa + storage.amountFcfa,
-      // Une période à zéro n'est pas « due » : elle est offerte. La distinguer
-      // évite qu'un job d'impayé s'acharne sur la cohorte de lancement. Le
-      // stockage entre dans ce total : un abonnement offert avec des paliers
-      // payants reste dû.
-      status: quote.payableFcfa + storage.amountFcfa === 0 ? 'WAIVED' : 'DUE',
-      settledAt: quote.payableFcfa + storage.amountFcfa === 0 ? now : null,
+      // Trois cas, et non deux depuis que le premier abonnement se règle avant
+      // l'ouverture de l'espace :
+      // - déjà encaissé → SETTLED, avec la date du versement ;
+      // - rien à payer → WAIVED. Une période à zéro n'est pas « due », elle est
+      //   offerte : la distinguer évite qu'un job d'impayé s'acharne sur la
+      //   cohorte de lancement ;
+      // - sinon DUE. Le stockage entre dans ce total : un abonnement offert
+      //   avec des paliers payants reste dû.
+      status: prepaid ? 'SETTLED' : quote.payableFcfa + storage.amountFcfa === 0 ? 'WAIVED' : 'DUE',
+      settledAt: prepaid ? prepaid.paidAt : quote.payableFcfa + storage.amountFcfa === 0 ? now : null,
     },
   })
 

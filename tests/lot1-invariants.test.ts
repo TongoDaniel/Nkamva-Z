@@ -4,6 +4,11 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
+import { setTariff } from '@/lib/pricing'
+import {
+  failActivationPayment, getActivationState, initiateActivationPayment,
+  reconcileActivationPayment, settleActivationPayment,
+} from '@/lib/trainer-activation'
 import {
   createApplication, updateApplication, submitApplication, approveApplication,
   rejectDocuments, rejectApplicationFinal, reopenApplication,
@@ -104,6 +109,181 @@ describe('Lot 1 — Validation des formateurs', () => {
     const events = await prisma.trainerApplicationReviewEvent.findMany({ where: { applicationId: application.id } })
     expect(events).toHaveLength(1)
     expect(events[0].toStatus).toBe('SUBMITTED')
+  })
+
+  // -------------------------------------------------------------------------
+  // Le règlement du premier abonnement : on ne devient pas formateur en
+  // contractant une dette. Les tests ci-dessus s'exécutent sur une grille
+  // tarifaire vide — donc un abonnement gratuit — et décrivent le chemin sans
+  // paiement. Ceux qui suivent posent un tarif et décrivent l'autre.
+  // -------------------------------------------------------------------------
+  describe('activation payante', () => {
+    /** Approuve un dossier après avoir posé un abonnement mensuel payant. */
+    async function approvePaid(amountFcfa = 9_000) {
+      const { user, admin, superAdmin, application } = await setupCandidate()
+      await setTariff({
+        cadence: 'MONTHLY', amountFcfa, validFrom: new Date(), actorId: superAdmin.id,
+      })
+      await uploadAllDocuments(user.id)
+      await submitApplication(user.id)
+      await approveApplication(application.id, {
+        verifiedLegalName: 'Jean Candidat',
+        expectedUpdatedAt: await freshUpdatedAt(application.id),
+        actorId: admin.id,
+      })
+      return { user, admin, application }
+    }
+
+    /**
+     * Une tentative de paiement ouverte, telle que `initiateActivationPayment`
+     * la laisse. Écrite directement : ouvrir le paiement pour de bon exigerait
+     * un fournisseur, que la suite neutralise à dessein.
+     */
+    async function openAttempt(applicationId: string, providerTransactionId: string, amountFcfa = 9_000) {
+      return prisma.trainerActivationPayment.create({
+        data: {
+          applicationId, cadence: 'MONTHLY',
+          listPriceFcfa: amountFcfa, discountFcfa: 0, amountFcfa,
+          provider: 'STRIPE', providerTransactionId, providerStatus: 'PENDING',
+        },
+      })
+    }
+
+    it("une approbation payante n'ouvre aucun espace : ni profil, ni rôle TRAINER", async () => {
+      const { user, application } = await approvePaid()
+
+      expect(await prisma.trainerProfile.findUnique({ where: { userId: user.id } })).toBeNull()
+      expect(await prisma.wallet.count()).toBe(0)
+      // Aucune échéance non plus : la dette est précisément ce qu'on ne crée pas.
+      expect(await prisma.subscriptionCharge.count()).toBe(0)
+
+      const after = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+      expect(after.role).toBe('PENDING_TRAINER')
+
+      // Le dossier est bien approuvé, et il porte de quoi créer le profil plus tard.
+      const refreshed = await prisma.trainerApplication.findUniqueOrThrow({ where: { id: application.id } })
+      expect(refreshed.status).toBe('APPROVED')
+      expect(refreshed.verifiedLegalName).toBe('Jean Candidat')
+
+      // Et l'écran de suivi sait quoi réclamer.
+      const state = await getActivationState(user.id)
+      expect(state?.amountFcfa).toBe(9_000)
+      expect(state?.cadence).toBe('MONTHLY')
+    })
+
+    it('le règlement ouvre l\'espace : profil, portefeuille, rôle et période réglée', async () => {
+      const { user, application } = await approvePaid()
+      await openAttempt(application.id, 'pi_activation_ok')
+
+      const settled = await settleActivationPayment('pi_activation_ok', 'STRIPE')
+      expect(settled.settled).toBe(true)
+
+      const profile = await prisma.trainerProfile.findUniqueOrThrow({ where: { userId: user.id } })
+      expect(profile.verifiedLegalName).toBe('Jean Candidat')
+      await prisma.wallet.findUniqueOrThrow({ where: { trainerId: profile.id } })
+
+      const refreshed = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+      expect(refreshed.role).toBe('TRAINER')
+
+      // La période n'est pas due : elle est réglée, du montant réellement payé.
+      const charge = await prisma.subscriptionCharge.findFirstOrThrow({ where: { trainerId: profile.id } })
+      expect(charge.status).toBe('SETTLED')
+      expect(charge.amountDueFcfa).toBe(9_000)
+      expect(charge.settledAt).not.toBeNull()
+
+      // Plus rien à réclamer sur l'écran de suivi.
+      expect(await getActivationState(user.id)).toBeNull()
+    })
+
+    it('un règlement rejoué n\'ouvre pas un second espace', async () => {
+      const { user, application } = await approvePaid()
+      await openAttempt(application.id, 'pi_activation_replay')
+
+      const first = await settleActivationPayment('pi_activation_replay', 'STRIPE')
+      const second = await settleActivationPayment('pi_activation_replay', 'STRIPE')
+
+      expect(first.settled).toBe(true)
+      // Le webhook rejoué ne trouve plus de tentative en attente.
+      expect(second.settled).toBe(false)
+      expect(await prisma.trainerProfile.count({ where: { userId: user.id } })).toBe(1)
+      expect(await prisma.subscriptionCharge.count()).toBe(1)
+    })
+
+    it('un identifiant étranger ne règle rien — c\'est le cas des webhooks d\'achat', async () => {
+      await approvePaid()
+      const foreign = await settleActivationPayment('pi_un_achat_quelconque', 'STRIPE')
+      expect(foreign.settled).toBe(false)
+      expect(await prisma.trainerProfile.count()).toBe(0)
+    })
+
+    it('un échec de paiement laisse le candidat réessayer', async () => {
+      const { user, application } = await approvePaid()
+      await openAttempt(application.id, 'dep_refuse')
+
+      expect(await failActivationPayment('dep_refuse', 'INSUFFICIENT_BALANCE')).toBe(true)
+      // Le motif remonte à l'écran, et plus aucune tentative ne bloque la suivante.
+      const state = await getActivationState(user.id)
+      expect(state?.pending).toBe(false)
+      expect(state?.lastFailureCode).toBe('INSUFFICIENT_BALANCE')
+
+      // Rejoué, l'échec ne rebascule pas une ligne déjà FAILED.
+      expect(await failActivationPayment('dep_refuse', 'INSUFFICIENT_BALANCE')).toBe(false)
+    })
+
+    it('un abonnement gratuit ouvre l\'espace sans rien réclamer', async () => {
+      // La cohorte de lancement : exiger un paiement de zéro lui fermerait la
+      // porte. La grille reste vide, donc le tarif vaut zéro.
+      const { user, admin, application } = await setupCandidate()
+      await uploadAllDocuments(user.id)
+      await submitApplication(user.id)
+      await approveApplication(application.id, {
+        verifiedLegalName: 'Jean Candidat',
+        expectedUpdatedAt: await freshUpdatedAt(application.id),
+        actorId: admin.id,
+      })
+
+      const profile = await prisma.trainerProfile.findUniqueOrThrow({ where: { userId: user.id } })
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('TRAINER')
+      const charge = await prisma.subscriptionCharge.findFirstOrThrow({ where: { trainerId: profile.id } })
+      expect(charge.status).toBe('WAIVED')
+      expect(await getActivationState(user.id)).toBeNull()
+    })
+
+    it('on ne peut pas ouvrir deux paiements de front', async () => {
+      const { user, application } = await approvePaid()
+      await openAttempt(application.id, 'pi_en_vol')
+
+      await expect(initiateActivationPayment(user.id, 'STRIPE')).rejects.toThrow('PAYMENT_IN_PROGRESS')
+    })
+
+    it('sans fournisseur joignable, la réconciliation ne conclut rien d\'elle-même', async () => {
+      // Le filet qui rattrape un webhook perdu ne doit pas devenir une porte
+      // dérobée : sans réponse du fournisseur, il laisse la tentative en
+      // attente plutôt que de conclure que le candidat a payé parce qu'il est
+      // revenu sur la page. Les clés sont neutralisées par `tests/setup.ts`,
+      // donc aucun fournisseur ne répond ici.
+      const { user, application } = await approvePaid()
+      await openAttempt(application.id, 'pi_sans_reponse')
+
+      expect(await reconcileActivationPayment(user.id)).toBe(false)
+      expect(await prisma.trainerProfile.count({ where: { userId: user.id } })).toBe(0)
+      const state = await getActivationState(user.id)
+      expect(state?.pending).toBe(true)
+    })
+
+    it('un dossier non approuvé n\'a rien à régler', async () => {
+      const { user } = await setupCandidate()
+      await expect(initiateActivationPayment(user.id, 'STRIPE')).rejects.toThrow('APPLICATION_NOT_APPROVED')
+      expect(await getActivationState(user.id)).toBeNull()
+    })
+
+    it('un formateur en exercice ne repaie pas son ouverture', async () => {
+      const { user, application } = await approvePaid()
+      await openAttempt(application.id, 'pi_deja_formateur')
+      await settleActivationPayment('pi_deja_formateur', 'STRIPE')
+
+      await expect(initiateActivationPayment(user.id, 'STRIPE')).rejects.toThrow('ALREADY_TRAINER')
+    })
   })
 
   // -------------------------------------------------------------------------

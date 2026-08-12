@@ -7,6 +7,7 @@ import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
+import { fmtFcfa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DOCUMENT_LABELS } from "../status";
 
@@ -30,6 +31,7 @@ export function ReviewActions({
   candidateName,
   isSuperAdmin,
   maxResubmissions,
+  activationAmountFcfa,
 }: {
   applicationId: string;
   status: string;
@@ -38,6 +40,12 @@ export function ReviewActions({
   candidateName: string;
   isSuperAdmin: boolean;
   maxResubmissions: number;
+  /**
+   * Ce que le candidat devra régler pour que son espace s'ouvre, au tarif du
+   * jour. Zéro pendant la gratuité de lancement — l'espace s'ouvre alors dans
+   * la foulée de l'acceptation.
+   */
+  activationAmountFcfa: number;
 }) {
   const action = useKeyedAction();
   const [openDialog, setOpenDialog] = React.useState<null | "approve" | "documents" | "final">(null);
@@ -108,7 +116,15 @@ export function ReviewActions({
         open={openDialog === "approve"}
         onOpenChange={(open) => setOpenDialog(open ? "approve" : null)}
         title="Accepter cette candidature ?"
-        description="Un profil formateur et un portefeuille seront créés, et le compte passera en formateur."
+        // L'acceptation n'ouvre plus l'espace à elle seule : depuis que le
+        // premier abonnement se règle d'avance, elle en ouvre le droit. Le
+        // dire ici évite qu'un modérateur croie avoir créé un formateur et
+        // s'étonne de ne pas le trouver dans l'annuaire.
+        description={
+          activationAmountFcfa > 0
+            ? `Le dossier sera accepté, mais l'espace ne s'ouvrira qu'au règlement de l'abonnement (${fmtFcfa(activationAmountFcfa)}). Le compte reste en candidature jusque-là.`
+            : "Un profil formateur et un portefeuille seront créés, et le compte passera en formateur."
+        }
         footer={
           <>
             <Btn

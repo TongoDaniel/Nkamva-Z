@@ -8,6 +8,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   Bell,
   ChevronDown,
+  FileBadge,
   FileText,
   Heart,
   LogOut,
@@ -88,6 +89,25 @@ const ACCOUNT_LINKS = [
   { href: "/profil", label: "Profil et paramètres", icon: Settings },
 ];
 
+/**
+ * L'entrée vers le dossier de candidature, ajoutée au menu du compte tant qu'un
+ * dossier est en cours.
+ *
+ * Elle n'est pas dans `ACCOUNT_LINKS` parce qu'elle n'est pas permanente : elle
+ * naît à la création du dossier et disparaît à la décision. Sans elle, un
+ * candidat n'avait **aucun chemin** vers son suivi une fois la page quittée —
+ * ni onglet, ni menu, ni notification cliquable. Il fallait connaître l'URL.
+ *
+ * `/candidature` et non `/candidature/statut` : c'est la page qui sait où
+ * envoyer selon l'état du dossier — la saisie tant qu'il reste à compléter, le
+ * suivi une fois parti.
+ */
+const APPLICATION_LINK = {
+  href: "/candidature",
+  label: "Ma candidature",
+  icon: FileBadge,
+} as const;
+
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -147,10 +167,12 @@ function AccountMenu({
   name,
   email,
   unreadMessages,
+  links,
 }: {
   name: string;
   email: string;
   unreadMessages: number;
+  links: readonly { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[];
 }) {
   return (
     <DropdownMenu.Root>
@@ -180,7 +202,7 @@ function AccountMenu({
             <b className="block font-display text-[14.5px]">{name}</b>
             <small className="block truncate text-[12.5px] text-ink-3">{email}</small>
           </div>
-          {ACCOUNT_LINKS.map(({ href, label, icon: Icon }) => (
+          {links.map(({ href, label, icon: Icon }) => (
             <DropdownMenu.Item key={href} asChild>
               <Link
                 href={href}
@@ -215,6 +237,12 @@ export interface ShellUser {
   isTrainer: boolean;
   /** Messages reçus non lus, tous fils confondus. Compté par le layout serveur. */
   unreadMessages: number;
+  /**
+   * Vrai tant qu'un dossier de candidature est en cours — la décision n'est pas
+   * tombée, ou elle demande de nouvelles pièces. Lu par le layout serveur : le
+   * JWT ne porte que le rôle, et `PENDING_TRAINER` ne couvre pas le brouillon.
+   */
+  hasOpenApplication: boolean;
 }
 
 /**
@@ -226,6 +254,12 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = React.useState(false);
   const nav = user.isTrainer ? [...LEARNER_NAV, ...TRAINER_NAV] : LEARNER_NAV;
+  // Le suivi du dossier se range juste avant « Profil et paramètres » : c'est
+  // du compte qu'il relève, pas du catalogue. Un formateur approuvé ne le voit
+  // plus — son dossier est clos, son espace a pris le relais.
+  const accountLinks = user.hasOpenApplication
+    ? [...ACCOUNT_LINKS.slice(0, -1), APPLICATION_LINK, ACCOUNT_LINKS[ACCOUNT_LINKS.length - 1]]
+    : ACCOUNT_LINKS;
   // Ce que le menu mobile ajoute sous les onglets : les écrans du menu du
   // compte qui n'ont pas déjà leur entrée. Le calcul sert deux fois — pour les
   // rendre, et pour savoir quelles routes rattachées y ont déjà un titulaire.
@@ -235,7 +269,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   // cette seconde exclusion, le panneau mobile offrirait deux fois la même page
   // et y poserait deux `aria-current`.
   const expandedSections = user.isTrainer ? TRAINER_SECTIONS : [];
-  const burgerLinks = ACCOUNT_LINKS.filter(
+  const burgerLinks = accountLinks.filter(
     (link) =>
       !nav.some((item) => item.href === link.href) &&
       !expandedSections.some((section) => section.href === link.href),
@@ -287,6 +321,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               name={user.name}
               email={user.email}
               unreadMessages={user.unreadMessages}
+              links={accountLinks}
             />
             <button
               type="button"

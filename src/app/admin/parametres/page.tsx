@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
+import type { PlanCadence, PlatformTariff, TariffKind } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { Lock } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { StPill } from "@/components/nk/status-pill";
 import { getAuthContext } from "@/lib/api";
 import { getCurrentTariffs, listTariffs, listDiscounts, CADENCE_LABELS } from "@/lib/pricing";
+import { getCurrentStorageTierTariffs, STORAGE_TIER_BYTES } from "@/lib/storage-tiers";
 import { listSettings, SETTING_SPECS, isNumericSettingKey } from "@/lib/settings";
-import { fmtFcfa, fmtDate } from "@/lib/format";
+import { fmtFcfa, fmtDate, fmtBytes } from "@/lib/format";
 import { PricingActions } from "./pricing-actions";
 import { EndDiscountButton } from "./end-discount-button";
 import { SettingRow } from "./setting-row";
@@ -25,14 +27,68 @@ const DISCOUNT_KIND_LABELS: Record<string, string> = {
   PROMO_CODE: "Code promo",
 };
 
+/**
+ * Deux natures partagent la grille (arbitrage 69). L'historique les mêle par
+ * ordre de date : sans cette étiquette, un prix de palier se lirait comme une
+ * baisse de l'abonnement.
+ */
+const TARIFF_KIND_LABELS: Record<TariffKind, string> = {
+  SUBSCRIPTION: "Abonnement",
+  STORAGE_TIER: "Palier stockage",
+};
+
+/** Les deux cadences d'une grille, à l'identique pour l'abonnement et le palier. */
+function CurrentTariffTiles({
+  current,
+  emptyNote,
+}: {
+  current: Record<PlanCadence, PlatformTariff | null>;
+  emptyNote: string;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {(["MONTHLY", "YEARLY"] as const).map((cadence) => {
+        const tariff = current[cadence];
+        return (
+          <div key={cadence} className="rounded-nk-lg border border-line p-5">
+            <p className="mb-1 text-[12.5px] font-bold uppercase tracking-wide text-ink-3">
+              {CADENCE_LABELS[cadence]}
+            </p>
+            {tariff ? (
+              <>
+                <p className="font-display text-[26px] font-extrabold leading-none">
+                  {tariff.amountFcfa === 0 ? "Gratuit" : fmtFcfa(tariff.amountFcfa)}
+                </p>
+                <p className="mt-2 text-[12.5px] text-ink-2">
+                  Depuis le {fmtDate(tariff.validFrom)}
+                  {tariff.validUntil ? ` · jusqu'au ${fmtDate(tariff.validUntil)}` : ""}
+                </p>
+                {tariff.label ? (
+                  <p className="mt-1 text-[12.5px] text-ink-3">{tariff.label}</p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="font-display text-[26px] font-extrabold leading-none text-ink-3">—</p>
+                <p className="mt-2 text-[12.5px] leading-relaxed text-ink-2">{emptyNote}</p>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default async function ParametresPage() {
   const auth = await getAuthContext();
   // Décision 60 — la grille tarifaire et la bascule gratuit ⇄ payant sont au
   // Super-admin. Finances n'a que les remises, qui ne vivent pas sur cet écran.
   if (auth?.user.adminRole !== "SUPER_ADMIN") redirect("/admin");
 
-  const [current, history, discounts, settings] = await Promise.all([
+  const [current, storageCurrent, history, discounts, settings] = await Promise.all([
     getCurrentTariffs(),
+    getCurrentStorageTierTariffs(),
     listTariffs(),
     listDiscounts(),
     listSettings(),
@@ -48,43 +104,11 @@ export default async function ParametresPage() {
       />
 
       <div className="grid gap-6">
-        <AdminCard title="Tarif en vigueur">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {(["MONTHLY", "YEARLY"] as const).map((cadence) => {
-              const tariff = current[cadence];
-              return (
-                <div key={cadence} className="rounded-nk-lg border border-line p-5">
-                  <p className="mb-1 text-[12.5px] font-bold uppercase tracking-wide text-ink-3">
-                    {CADENCE_LABELS[cadence]}
-                  </p>
-                  {tariff ? (
-                    <>
-                      <p className="font-display text-[26px] font-extrabold leading-none">
-                        {tariff.amountFcfa === 0 ? "Gratuit" : fmtFcfa(tariff.amountFcfa)}
-                      </p>
-                      <p className="mt-2 text-[12.5px] text-ink-2">
-                        Depuis le {fmtDate(tariff.validFrom)}
-                        {tariff.validUntil ? ` · jusqu'au ${fmtDate(tariff.validUntil)}` : ""}
-                      </p>
-                      {tariff.label ? (
-                        <p className="mt-1 text-[12.5px] text-ink-3">{tariff.label}</p>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-display text-[26px] font-extrabold leading-none text-ink-3">
-                        —
-                      </p>
-                      <p className="mt-2 text-[12.5px] leading-relaxed text-ink-2">
-                        Aucun tarif posé. Tant qu&apos;il n&apos;y en a pas, l&apos;abonnement est
-                        de fait gratuit.
-                      </p>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        <AdminCard title="Tarif d'abonnement en vigueur">
+          <CurrentTariffTiles
+            current={current}
+            emptyNote="Aucun tarif posé. Tant qu'il n'y en a pas, l'abonnement est de fait gratuit."
+          />
 
           <PricingActions />
 
@@ -93,6 +117,21 @@ export default async function ParametresPage() {
             La bascule prend effet <b className="font-bold text-ink-2">à l&apos;échéance de
             chaque formateur</b>, pas à une date commune : personne n&apos;est débité par
             surprise, et il n&apos;y a aucun prorata à calculer.
+          </p>
+        </AdminCard>
+
+        <AdminCard title="Palier de stockage en vigueur">
+          <CurrentTariffTiles
+            current={storageCurrent}
+            emptyNote="Aucun prix posé. Les paliers pris par les formateurs ne facturent alors rien — et rien ne leur sera réclamé rétroactivement le jour où un prix sera posé."
+          />
+
+          <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+            Au-delà des 40 Go inclus, le stockage s&apos;achète par tranches de{" "}
+            {fmtBytes(STORAGE_TIER_BYTES)}, depuis le portefeuille du formateur. Le palier{" "}
+            <b className="font-bold text-ink-2">se facture avec l&apos;abonnement</b>, à sa cadence :
+            il n&apos;a pas d&apos;échéance propre. Le prix se pose avec le même bouton ci-dessus,
+            en choisissant « Palier de stockage ».
           </p>
         </AdminCard>
 
@@ -107,7 +146,10 @@ export default async function ParametresPage() {
                     key={tariff.id}
                     className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line-2 py-2.5 last:border-b-0"
                   >
-                    <span className="w-[90px] shrink-0 text-[12.5px] font-bold text-ink-2">
+                    <span className="w-[130px] shrink-0 text-[12.5px] font-bold text-ink-2">
+                      {TARIFF_KIND_LABELS[tariff.kind] ?? tariff.kind}
+                    </span>
+                    <span className="w-[90px] shrink-0 text-[12.5px] text-ink-3">
                       {CADENCE_LABELS[tariff.cadence]}
                     </span>
                     <span className="text-[13.5px] font-bold">

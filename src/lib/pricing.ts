@@ -11,7 +11,7 @@
 // zéro sans que personne l'ait décidé.
 // ==========================================================================
 
-import type { DiscountKind, PlanCadence } from '@prisma/client'
+import type { DiscountKind, PlanCadence, TariffKind } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
 import { fmtDate, fmtNumber } from './format'
@@ -128,10 +128,20 @@ export function subscriptionAnnouncement(plans: PublicPlan[]): string {
   )
 }
 
-export async function listTariffs(cadence?: PlanCadence) {
+/**
+ * Historique de la grille, toutes natures confondues par défaut.
+ *
+ * Les paliers de stockage partagent cette table (arbitrage 69) et l'écran qui
+ * les affiche doit dire laquelle il montre : sans cette mention, deux montants
+ * sans rapport se lisent comme une succession de prix d'abonnement.
+ */
+export async function listTariffs(filter: { cadence?: PlanCadence; kind?: TariffKind } = {}) {
   return db.platformTariff.findMany({
-    where: { kind: 'SUBSCRIPTION', ...(cadence ? { cadence } : {}) },
-    orderBy: [{ cadence: 'asc' }, { validFrom: 'desc' }],
+    where: {
+      ...(filter.kind ? { kind: filter.kind } : {}),
+      ...(filter.cadence ? { cadence: filter.cadence } : {}),
+    },
+    orderBy: [{ kind: 'asc' }, { cadence: 'asc' }, { validFrom: 'desc' }],
     take: 50,
   })
 }

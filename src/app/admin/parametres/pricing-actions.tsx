@@ -26,10 +26,17 @@ export function PricingActions() {
   // la fois. Le toast du hook est donc neutralisé (`error: null`).
   const [error, setError] = React.useState<string | null>(null);
 
+  // Deux natures de tarif partagent la grille (arbitrage 69). Elles sont bornées
+  // séparément côté service : poser un prix de palier ne clôt pas l'abonnement
+  // en vigueur.
+  const [tariffKind, setTariffKind] = React.useState<"SUBSCRIPTION" | "STORAGE_TIER">(
+    "SUBSCRIPTION",
+  );
   const [cadence, setCadence] = React.useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [amount, setAmount] = React.useState("");
   const [validFrom, setValidFrom] = React.useState(tomorrow());
   const [label, setLabel] = React.useState("");
+  const storageTier = tariffKind === "STORAGE_TIER";
 
   const [kind, setKind] = React.useState<"CAMPAIGN" | "TRAINER" | "PROMO_CODE">("CAMPAIGN");
   const [discountLabel, setDiscountLabel] = React.useState("");
@@ -53,13 +60,14 @@ export function PricingActions() {
       "tariff",
       () =>
         api.post("/api/admin/pricing/tariffs", {
+          kind: tariffKind,
           cadence,
           amountFcfa: value,
           validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
           ...(label.trim() ? { label: label.trim() } : {}),
         }),
       {
-        success: "Tarif enregistré.",
+        success: storageTier ? "Prix du palier enregistré." : "Tarif d'abonnement enregistré.",
         error: null,
         onError: onApiError,
         onSuccess: () => {
@@ -142,6 +150,26 @@ export function PricingActions() {
         ) : null}
 
         <div className="mb-[18px]">
+          <label htmlFor="tariff-kind" className="mb-1.5 block text-[13.5px] font-bold text-ink">
+            Ce que ce tarif facture
+          </label>
+          <select
+            id="tariff-kind"
+            value={tariffKind}
+            onChange={(e) => setTariffKind(e.target.value as typeof tariffKind)}
+            className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
+          >
+            <option value="SUBSCRIPTION">Abonnement formateur</option>
+            <option value="STORAGE_TIER">Palier de stockage (50 Go)</option>
+          </select>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
+            {storageTier
+              ? "Le palier se facture avec l'abonnement, à sa cadence. Tant qu'aucun prix n'est posé, un palier ne facture rien."
+              : "Les deux grilles sont indépendantes : poser l'une ne clôt pas l'autre."}
+          </p>
+        </div>
+
+        <div className="mb-[18px]">
           <label htmlFor="cadence" className="mb-1.5 block text-[13.5px] font-bold text-ink">
             Cadence
           </label>
@@ -157,13 +185,17 @@ export function PricingActions() {
         </div>
 
         <Field
-          label="Montant (FCFA)"
+          label={storageTier ? "Prix d'un palier (FCFA)" : "Montant (FCFA)"}
           type="number"
           inputMode="numeric"
           min={0}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          hint="Zéro vaut gratuité — c'est ainsi qu'on ouvre une période de lancement."
+          hint={
+            storageTier
+              ? "Prix d'une tranche de 50 Go, à cette cadence. Zéro rend les paliers gratuits."
+              : "Zéro vaut gratuité — c'est ainsi qu'on ouvre une période de lancement."
+          }
         />
         <Field
           label="Date d'effet"
@@ -176,7 +208,7 @@ export function PricingActions() {
           label="Libellé"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="Gratuité de lancement"
+          placeholder={storageTier ? "Palier 50 Go" : "Gratuité de lancement"}
         />
       </Modal>
 
