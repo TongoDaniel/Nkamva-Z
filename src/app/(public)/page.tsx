@@ -169,7 +169,7 @@ export default async function LandingPage() {
   return (
     <>
       {/* ---- Hero ---- */}
-      <section className="pb-2 pt-[58px] text-center max-[640px]:pt-10">
+      <section className="pb-2 pt-10 text-center sm:pt-[58px]">
         <div className="nk-wrap">
           <Reveal>
             <Kicker className="mb-3.5">Formation en ligne · paiement mobile money</Kicker>
@@ -181,7 +181,7 @@ export default async function LandingPage() {
             </h1>
           </Reveal>
           <Reveal delay={1.6}>
-            <p className="mx-auto mb-[26px] max-w-[54ch] text-[17px] leading-relaxed text-ink-2 text-pretty max-[640px]:text-[15.5px]">
+            <p className="mx-auto mb-[26px] max-w-[54ch] text-[15.5px] leading-relaxed text-ink-2 text-pretty sm:text-[17px]">
               Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par
               mobile money ou carte bancaire — la ressource reste à vous, à vie.
             </p>
@@ -219,7 +219,7 @@ export default async function LandingPage() {
       <PayBand markets={markets} />
 
       {/* ---- Comment ça marche ---- */}
-      <section className="pt-[76px] max-[640px]:pt-14">
+      <section className="pt-14 sm:pt-[76px]">
         <div className="nk-wrap">
           <Reveal>
             <SectionHead
@@ -254,7 +254,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- Le produit ---- */}
-      <section className="pt-[76px] max-[640px]:pt-14">
+      <section className="pt-14 sm:pt-[76px]">
         <div className="nk-wrap">
           <Reveal>
             <SectionHead
@@ -304,7 +304,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- Carrousel catalogue ---- */}
-      <section className="pt-[76px] max-[640px]:pt-14">
+      <section className="pt-14 sm:pt-[76px]">
         <div className="nk-wrap">
           {courses.length > 0 ? (
             <>
@@ -321,12 +321,13 @@ export default async function LandingPage() {
                   />
                 }
               >
-                {courses.map((course) => (
+                {courses.map((course, i) => (
                   <ResourceCard
                     key={course.id}
+                    eager={i === 0}
                     course={course}
                     space="public"
-                    className="w-[296px] flex-none snap-start max-[640px]:w-[262px]"
+                    className="w-[262px] flex-none snap-start sm:w-[296px]"
                   />
                 ))}
               </ScrollCarousel>
@@ -370,7 +371,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- Devenir formateur ---- */}
-      <section className="pt-[76px] max-[640px]:pt-14">
+      <section className="pt-14 sm:pt-[76px]">
         <div className="nk-wrap">
           <Reveal>
             <div className="grid items-stretch overflow-hidden rounded-[28px] border border-line bg-card shadow-nk-sm lg:grid-cols-[0.98fr_1.02fr]">
@@ -405,7 +406,7 @@ export default async function LandingPage() {
                   ))}
                 </dl>
                 <div className="mt-[22px] flex flex-wrap gap-3">
-                  <BtnLink href="/devenir-formateur" className="max-[640px]:flex-1">
+                  <BtnLink href="/devenir-formateur" className="flex-1 sm:flex-none">
                     Devenir formateur
                   </BtnLink>
                 </div>
@@ -419,7 +420,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- FAQ ---- */}
-      <section className="pt-[76px] max-[640px]:pt-14">
+      <section className="pt-14 sm:pt-[76px]">
         <div className="nk-wrap">
           <Reveal>
             <SectionHead

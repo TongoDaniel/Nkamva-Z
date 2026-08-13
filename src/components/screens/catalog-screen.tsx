@@ -88,7 +88,7 @@ async function CatalogBody({
   };
 
   return (
-    <div className="grid items-start gap-8 pt-6 min-[900px]:grid-cols-[262px_1fr]">
+    <div className="grid items-start gap-8 pt-6 lg:grid-cols-[262px_1fr]">
       <CatalogFilters categories={categoryFacets} formats={formatFacets} />
       <section aria-label="Résultats du catalogue">
         <CatalogToolbar
@@ -109,9 +109,10 @@ async function CatalogBody({
             />
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((course) => (
+              {items.map((course, i) => (
                 <ResourceCard
                   key={course.id}
+                  eager={i === 0}
                   course={course}
                   space={space}
                   favoritable={Boolean(auth)}

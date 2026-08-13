@@ -164,13 +164,13 @@ export function AdminShell({
   }, [open]);
 
   return (
-    <div className="nk-admin flex min-h-screen bg-paper">
+    <div className="nk-admin flex min-h-dvh bg-paper">
       <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
         Aller au contenu
       </a>
 
       {/* En-tête mobile (`.adm-mtop`) */}
-      <div className="sticky top-0 z-60 flex items-center gap-3 border-b border-line bg-card px-4.5 py-3.5 min-[861px]:hidden">
+      <div className="sticky top-0 z-60 flex items-center gap-3 border-b border-line bg-card px-4.5 py-3.5 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -191,7 +191,7 @@ export function AdminShell({
 
       {open ? (
         <div
-          className="fixed inset-0 z-90 bg-black/45 min-[861px]:hidden"
+          className="fixed inset-0 z-90 bg-black/45 lg:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
@@ -202,9 +202,12 @@ export function AdminShell({
         aria-label="Navigation administration"
         className={cn(
           "z-100 flex w-[250px] shrink-0 flex-col overflow-y-auto bg-linear-to-b from-ink to-[#0f1712] text-[#f3f1ea]",
-          "max-[860px]:fixed max-[860px]:inset-y-0 max-[860px]:left-0 max-[860px]:transition-transform max-[860px]:duration-250",
-          "min-[861px]:sticky min-[861px]:top-0 min-[861px]:h-screen",
-          open ? "max-[860px]:translate-x-0 max-[860px]:shadow-nk-lg" : "max-[860px]:-translate-x-full",
+          // Écrit à l'endroit : le tiroir glissant est le défaut, la barre
+          // latérale fixe est ce que `lg` ajoute.
+          "fixed inset-y-0 left-0 transition-transform duration-250",
+          "lg:sticky lg:inset-y-auto lg:top-0 lg:h-dvh",
+          "lg:translate-x-0 lg:shadow-none lg:transition-none",
+          open ? "translate-x-0 shadow-nk-lg" : "-translate-x-full",
         )}
       >
         <div className="flex items-center gap-2.5 px-5 pb-4 pt-5.5">
@@ -224,7 +227,7 @@ export function AdminShell({
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Fermer la navigation"
-            className="grid size-8 cursor-pointer place-items-center rounded-nk-sm text-[#98a49b] hover:bg-white/10 hover:text-white min-[861px]:hidden"
+            className="grid size-8 cursor-pointer place-items-center rounded-nk-sm text-[#98a49b] hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="size-4" aria-hidden="true" />
           </button>

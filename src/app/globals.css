@@ -75,6 +75,25 @@
   /* — gabarit — */
   --container-wrap: 1220px;
 
+  /* — points de rupture — arbitrage 110 —
+     Source unique du produit. Ce sont les valeurs par défaut de Tailwind,
+     redéclarées ici pour qu'elles se lisent au même endroit que les autres
+     tokens : le chantier mobile first a trouvé **sept** seuils concurrents
+     (640, 767, 768, 820, 860, 861, 900) semés dans les écrans, chacun inventé
+     par le composant qui en avait besoin.
+
+     La règle qui remplace tout ça : on écrit le style de base pour 375 px, et
+     on **ajoute** vers le haut avec `sm:` / `md:` / `lg:`. Pas de `max-*:`, pas
+     de `min-[NNNpx]:`. Un écran qui croit avoir besoin d'un huitième seuil a en
+     général un problème de mise en page, pas de point de rupture.
+
+     Conséquence assumée : sous 1024 px, les tablettes reçoivent la disposition
+     tactile. C'est le sens du chantier, pas un effet de bord. */
+  --breakpoint-sm: 40rem; /* 640px — rythme vertical de la vitrine */
+  --breakpoint-md: 48rem; /* 768px — plancher de 16 px sur les champs */
+  --breakpoint-lg: 64rem; /* 1024px — bascule mobile ⇄ bureau */
+  --breakpoint-xl: 80rem; /* 1280px */
+
   /* — animations de la maquette — */
   --animate-nk-shine: nk-shine 1.5s infinite;
   --animate-nk-pop: nk-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4);
@@ -324,7 +343,10 @@
     z-index: 1;
   }
 
-  @media (min-width: 860px) {
+  /* 860px tombait entre `md` et `lg`. Pour une respiration, mieux vaut tôt que
+     tard : on prend `md`. Pour une bascule de navigation, l'inverse — voir les
+     coquilles, qui prennent `lg`. */
+  @media (min-width: 48rem) {
     .nk-wrap {
       padding-inline: 1.75rem;
     }
@@ -387,23 +409,30 @@
     animation-play-state: paused;
   }
 
-  /* Cible tactile : sur écran tactile, étend la zone sensible à 44 px sans
-     toucher au dessin du bouton (WCAG 2.5.5, Apple HIG). L'élément doit être
-     positionné — c'est le cas de tous ceux qui portent la classe.
-     Poser `size-11` à la place changerait la maquette sur mobile ; ici le
-     bouton garde ses 38 px visibles et gagne 44 px de zone utile.
-     Deux conditions plutôt qu'une : `pointer: coarse` couvre les tablettes
-     larges, `max-width` couvre les navigateurs de bureau étroits — et rend la
-     règle vérifiable autrement que sur un vrai téléphone. */
-  @media (pointer: coarse), (max-width: 767px) {
+  /* Cible tactile : étend la zone sensible à 44 px sans toucher au dessin du
+     bouton (WCAG 2.5.5, Apple HIG). L'élément doit être positionné — c'est le
+     cas de tous ceux qui portent la classe.
+     Poser `size-11` à la place changerait la maquette ; ici le bouton garde ses
+     38 px visibles et gagne 44 px de zone utile.
+
+     Écrit à l'endroit, depuis le chantier mobile first : la zone étendue est le
+     **défaut**, et elle ne se retire qu'à partir de `md` **et** sur un pointeur
+     fin. L'ancienne version faisait l'inverse (`pointer: coarse, max-width`),
+     ce qui laissait sans zone étendue tout ce qui se trouvait sur un écran de
+     bureau tactile étroit. */
+  .nk-tap::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+
+  @media (min-width: 48rem) and (pointer: fine) {
     .nk-tap::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: max(100%, 44px);
-      height: max(100%, 44px);
-      transform: translate(-50%, -50%);
+      content: none;
     }
   }
 
@@ -457,12 +486,27 @@
    préflight Tailwind fait hériter la police aux contrôles de formulaire :
    sans ce plancher, *tous* les champs du produit déclenchent le zoom.
    `.nk-field-size` laisse un champ garder sa taille propre (cases du code à
-   six chiffres, qui sont volontairement à 22 px). */
-@media (max-width: 767px) {
+   six chiffres, qui sont volontairement à 22 px).
+
+   Écrit à l'endroit : 16 px est le **défaut**, et c'est le bureau qui reprend
+   la taille du corps de page. L'ancienne version bornait la règle à
+   `max-width: 767px`, ce qui en faisait une exception mobile greffée sur une
+   base pensée pour le bureau. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not(.nk-field-size),
+select:not(.nk-field-size),
+textarea:not(.nk-field-size) {
+  font-size: 16px;
+}
+
+/* La reprise à la taille du corps est conditionnée au **pointeur fin**, et pas
+   seulement à la largeur : une tablette tactile de 800 px déclenchait le zoom
+   au même titre qu'un téléphone. L'ancienne borne à 767 px avait le même trou,
+   il n'était simplement pas visible depuis un poste de travail. */
+@media (min-width: 48rem) and (pointer: fine) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not(.nk-field-size),
   select:not(.nk-field-size),
   textarea:not(.nk-field-size) {
-    font-size: 16px;
+    font-size: inherit;
   }
 }
 
@@ -485,7 +529,7 @@
     padding-right: max(1.125rem, env(safe-area-inset-right));
   }
 
-  @media (min-width: 860px) {
+  @media (min-width: 48rem) {
     .nk-wrap {
       padding-left: max(1.75rem, env(safe-area-inset-left));
       padding-right: max(1.75rem, env(safe-area-inset-right));
@@ -494,14 +538,19 @@
 }
 
 /* Un tiroir ouvert ne doit pas propager son défilement à la page dessous.
-   Borné à la largeur où le tiroir existe vraiment (au-delà, la barre latérale
-   admin est fixe et l'état « ouvert » n'a plus de sens) : au-dessus, bloquer
-   le défilement ferait disparaître la barre de défilement et décalerait la
-   mise en page. */
-@media (max-width: 860px) {
+   Le blocage est le défaut, et il se lève à partir de `lg` — au-delà, la barre
+   latérale admin est fixe et l'état « ouvert » n'a plus de sens ; bloquer le
+   défilement y ferait disparaître la barre de défilement et décalerait la mise
+   en page. */
+.nk-drawer-open {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 64rem) {
   .nk-drawer-open {
-    overflow: hidden;
-    overscroll-behavior: contain;
+    overflow: visible;
+    overscroll-behavior: auto;
   }
 }
 

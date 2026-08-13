@@ -56,7 +56,7 @@ export function Avatar({ className, size, tone, name, src, alt, ring, ...props }
       {...props}
     >
       {src ? (
-        <img src={src} alt="" className="size-full object-cover" />
+        <img src={src} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
       ) : (
         label
       )}

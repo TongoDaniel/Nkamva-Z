@@ -17,7 +17,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 text-center">
       <Logo />
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">Une erreur est survenue</h1>

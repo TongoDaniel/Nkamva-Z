@@ -225,9 +225,9 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
         {/* Panneau d'achat */}
         <aside
           aria-label={isAuthor ? "Votre ressource" : "Acheter cette ressource"}
-          className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk max-lg:order-first lg:sticky lg:top-[88px] lg:order-2"
+          className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk order-first lg:sticky lg:top-[88px] lg:order-2"
         >
-          <div className="max-lg:hidden">
+          <div className="hidden lg:block">
             <Cover
               category={course.category}
               format={course.format}

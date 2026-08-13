@@ -7,6 +7,7 @@ import { toast } from "@/components/nk/toast";
 import { UploadBar } from "@/components/nk/upload-bar";
 import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
+import { formatBytes, IMAGE_MAX_WIDTH, shrinkImage } from "@/lib/image";
 import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
 
 /** Miroir de COURSE_UPLOAD_LIMITS.image dans src/lib/courses.ts. */
@@ -27,7 +28,17 @@ export function CoverUploader({
   const [progress, setProgress] = React.useState<UploadProgress | null>(null);
 
   const send = useAction(
-    async (file: File) => {
+    async (original: File) => {
+      // Réduction **avant** la présignature : la taille annoncée doit être celle
+      // de l'objet réellement déposé, sinon le quota de stockage est réservé sur
+      // les 5 Mo d'origine.
+      const { file, changed, originalBytes } = await shrinkImage(original);
+      if (changed) {
+        toast.info(
+          `Image réduite à ${IMAGE_MAX_WIDTH} px — ${formatBytes(originalBytes)} → ${formatBytes(file.size)}.`,
+        );
+      }
+
       const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
         `/api/trainer/courses/${courseId}/upload`,
         { mimeType: file.type, sizeBytes: file.size, kind: "image" },
@@ -114,7 +125,8 @@ export function CoverUploader({
         <UploadBar progress={progress} label="Envoi de la couverture…" />
       ) : null}
       <p className="mt-2 text-[12.5px] text-ink-3">
-        PNG, JPEG ou WebP, 5 Mo maximum. À défaut, une couverture est générée à partir de la
+        PNG, JPEG ou WebP, 5 Mo maximum — l&apos;image est réduite à {IMAGE_MAX_WIDTH} px avant
+        l&apos;envoi, ce qui allège aussi votre forfait. À défaut, une couverture est générée à partir de la
         catégorie et du format.
       </p>
     </div>

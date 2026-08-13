@@ -155,8 +155,8 @@ function Novelties({ courses }: { courses: CourseListItem[] }) {
         </Link>
       </div>
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {courses.map((course) => (
-          <ResourceCard key={course.id} course={course} space="app" />
+        {courses.map((course, i) => (
+          <ResourceCard key={course.id} course={course} space="app" eager={i === 0} />
         ))}
       </div>
     </section>

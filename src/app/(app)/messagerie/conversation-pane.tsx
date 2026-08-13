@@ -330,7 +330,7 @@ export function ConversationPane({
                   aria-label="Envoyer"
                 >
                   <Send aria-hidden="true" />
-                  <span className="max-sm:sr-only">Envoyer</span>
+                  <span className="sr-only sm:not-sr-only">Envoyer</span>
                 </Btn>
               </form>
             ) : (

@@ -31,7 +31,7 @@ export function AuthShell({
   className?: string;
 }) {
   return (
-    <main className={cn("min-h-screen bg-paper px-5 pb-[70px] pt-14", className)}>
+    <main className={cn("min-h-dvh bg-paper px-5 pb-[70px] pt-14", className)}>
       {/* La carte ne s'élargit qu'au moment où elle se scinde. Sans le palier
           `lg:`, un écran de 900px la garderait sur une colonne mais à 780px de
           large : un formulaire de connexion étiré sur 700px. */}

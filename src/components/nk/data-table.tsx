@@ -54,7 +54,7 @@ export function DataTable<T>({
                   "px-1 pb-2.5 text-[11px] font-extrabold uppercase tracking-[0.06em] text-ink-3",
                   col.align === "right" && "text-right",
                   col.align === "center" && "text-center",
-                  col.hideOnMobile && "max-md:hidden",
+                  col.hideOnMobile && "hidden md:table-cell",
                 )}
               >
                 {col.header}
@@ -75,7 +75,7 @@ export function DataTable<T>({
                     "px-1 py-3.5 align-middle",
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center",
-                    col.hideOnMobile && "max-md:hidden",
+                    col.hideOnMobile && "hidden md:table-cell",
                   )}
                 >
                   {col.cell(row, index)}

@@ -73,6 +73,8 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
                 <img
                   src={covers.get(community.id)}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="h-[104px] w-full object-cover"
                 />
               ) : (

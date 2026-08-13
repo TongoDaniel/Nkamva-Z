@@ -153,7 +153,7 @@ export function CatalogFilters(props: { categories: Facet[]; formats: Facet[] })
   return (
     <aside
       aria-label="Filtres du catalogue"
-      className="sticky top-[88px] hidden flex-col min-[900px]:flex"
+      className="sticky top-[88px] hidden flex-col lg:flex"
     >
       <FiltersPanel {...props} />
     </aside>
@@ -202,7 +202,7 @@ export function CatalogToolbar({
         <Btn
           variant="o"
           size="sm"
-          className="min-[900px]:hidden"
+          className="lg:hidden"
           onClick={() => setDrawerOpen(true)}
           aria-expanded={drawerOpen}
           aria-controls="catalog-filters-drawer"
@@ -217,7 +217,7 @@ export function CatalogToolbar({
           ) : null}
         </Btn>
 
-        <div className="min-w-[230px] flex-1 max-sm:order-first max-sm:basis-full">
+        <div className="order-first basis-full min-w-[230px] flex-1 sm:order-none sm:basis-auto">
           <label htmlFor="catalog-search" className="sr-only">
             Rechercher une ressource ou un formateur
           </label>
@@ -291,7 +291,7 @@ export function CatalogToolbar({
 
       {drawerOpen ? (
         <div
-          className="fixed inset-0 z-[135] bg-black/40 min-[900px]:hidden"
+          className="fixed inset-0 z-[135] bg-black/40 lg:hidden"
           onClick={() => setDrawerOpen(false)}
           aria-hidden="true"
         />
@@ -300,7 +300,7 @@ export function CatalogToolbar({
         id="catalog-filters-drawer"
         aria-label="Filtres du catalogue"
         hidden={!drawerOpen}
-        className="fixed inset-y-0 left-0 z-[140] w-[min(320px,86vw)] overflow-y-auto border-r border-line bg-paper px-5 py-5 shadow-nk-lg min-[900px]:hidden"
+        className="fixed inset-y-0 left-0 z-[140] w-[min(320px,86vw)] overflow-y-auto border-r border-line bg-paper px-5 py-5 shadow-nk-lg lg:hidden"
       >
         <div className="mb-3 flex justify-end">
           <button
