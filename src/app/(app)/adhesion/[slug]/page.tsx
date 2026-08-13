@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
+import { PenLine } from "lucide-react";
+import { BtnLink } from "@/components/nk/button-link";
+import { EmptyState } from "@/components/nk/empty-state";
 import { PageHead } from "@/components/nk/page-head";
 import { getPublicCommunity } from "@/lib/communities";
 import { getMembership } from "@/lib/memberships";
@@ -46,6 +49,35 @@ export default async function AdhesionPage({
   // Une adhésion en impayé, elle, a précisément quelque chose à y faire.
   const membership = await getMembership(community.id, auth.user.id);
   if (membership && membership.status !== "PAST_DUE") redirect(routes.community(slug));
+
+  // `initiateMembershipPayment` refuse déjà l'adhésion à sa propre communauté
+  // (`CANNOT_JOIN_OWN_COMMUNITY`), et la fiche le dit par `MembershipPanel` —
+  // mais le tunnel, lui, déroulait encore son formulaire jusqu'au refus. Même
+  // état que le tunnel d'achat d'une ressource dont on est l'auteur.
+  if (auth.user.trainerId && auth.user.trainerId === community.trainer.id) {
+    return (
+      <div className="nk-wrap pb-16">
+        <PageHead
+          crumbs={[
+            { label: "Communautés", href: routes.communities },
+            { label: community.name, href: routes.community(slug) },
+            { label: "Votre communauté" },
+          ]}
+          title="Vous animez cette communauté"
+        />
+        <EmptyState
+          icon={<PenLine />}
+          title="Cette communauté est la vôtre"
+          description="Vous l'animez, vous n'y adhérez pas : vous paieriez une commission sur votre propre argent."
+          action={
+            <BtnLink href="/formateur/communaute" size="lg">
+              Gérer ma communauté
+            </BtnLink>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="nk-wrap pb-16">

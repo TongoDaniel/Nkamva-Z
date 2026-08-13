@@ -384,7 +384,10 @@ export async function initiatePurchase(
     where: { id: courseId },
     include: {
       trainerProfile: {
-        select: { id: true, commissionRate: true },
+        // `userId` n'était pas lu ici : cette fonction ne mentionnait
+        // `trainerId` qu'à l'écriture de l'achat, et n'a jamais comparé
+        // l'acheteur à l'auteur. Voir la garde ci-dessous.
+        select: { id: true, commissionRate: true, userId: true },
       },
     },
   })
@@ -394,6 +397,23 @@ export async function initiatePurchase(
   // Arbitrage 47 — circuits exclusifs. Elle s'obtient par l'abonnement à la
   // communauté, pas à l'unité.
   if (course.circuit === 'COMMUNITY') throw new Error('COURSE_NOT_FOR_SALE')
+
+  // Le formateur vend sa ressource, il ne l'achète pas — pendant exact de
+  // `CANNOT_JOIN_OWN_COMMUNITY` (memberships.ts), qui existait déjà quand
+  // celui-ci manquait. Payer chez soi ferait prélever la commission de la
+  // plateforme sur son propre argent, et ferait entrer un `Purchase`
+  // auto-référencé dans les agrégats de `trainer-stats.ts` : ventes et revenus
+  // nets s'en trouveraient gonflés par une vente qui n'en est pas une. Un tel
+  // achat ouvrirait ensuite un litige contre soi-même.
+  //
+  // Le refus tombe AVANT toute écriture et avant tout appel au fournisseur : ni
+  // ligne `Purchase`, ni transaction facturée ne doit rester derrière lui. Il
+  // vit ici, dans le service, et non dans le seul écran : le tunnel n'est pas
+  // la seule porte d'entrée de `initiatePurchase`.
+  //
+  // Un formateur reste libre d'acheter la ressource D'UN AUTRE : il garde tous
+  // les privilèges de l'apprenant (cf. roles.ts).
+  if (course.trainerProfile.userId === learnerId) throw new Error('CANNOT_BUY_OWN_COURSE')
 
   const learner = await db.user.findUnique({
     where: { id: learnerId },
