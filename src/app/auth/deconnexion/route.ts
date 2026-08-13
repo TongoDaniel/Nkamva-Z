@@ -47,14 +47,30 @@ export async function GET(request: NextRequest) {
     .getAll()
     .filter(c => SESSION_COOKIE_PREFIXES.some(p => c.name === p || c.name.startsWith(`${p}.`)))
 
-  const target = new URL('/auth/connexion', request.url)
+  const params = new URLSearchParams()
   // Le message ne s'affiche que s'il y avait vraiment une session à clore.
   // Sans ce test, quelqu'un qui n'a jamais ouvert de session s'entendrait dire
   // que la sienne a expiré.
-  if (stale.length > 0) target.searchParams.set('error', 'SESSION_ENDED')
-  if (callbackUrl) target.searchParams.set('callbackUrl', callbackUrl)
+  if (stale.length > 0) params.set('error', 'SESSION_ENDED')
+  if (callbackUrl) params.set('callbackUrl', callbackUrl)
+  const query = params.toString()
 
-  const response = NextResponse.redirect(target)
+  // Une `Location` relative, comme en émet déjà le middleware pour ses propres
+  // renvois. `NextResponse.redirect` exigerait une URL absolue, et la seule
+  // base à portée serait `request.url` — qui, sous `output: 'standalone'`, porte
+  // l'adresse d'écoute du serveur et non l'hôte public. Le 13 août 2026, le
+  // staging renvoyait ainsi vers `https://0.0.0.0:3000/auth/connexion` :
+  // `HOSTNAME` et `PORT` du conteneur pour l'hôte, `X-Forwarded-Proto` pour le
+  // schéma, et un ERR_ADDRESS_INVALID au bout. La sortie de secours était
+  // elle-même une impasse — c'est-à-dire l'exact contraire de sa raison d'être.
+  //
+  // Le réflexe serait de bâtir l'URL sur `WEB_BASE_URL` (voir `absoluteUrl`).
+  // Ce serait correct, mais superflu : une redirection vers la même origine n'a
+  // pas à la nommer, et ne rien nommer ne peut pas se tromper d'environnement.
+  const response = new NextResponse(null, {
+    status: 307,
+    headers: { Location: `/auth/connexion${query ? `?${query}` : ''}` },
+  })
   for (const cookie of stale) {
     response.cookies.set(cookie.name, '', { path: '/', maxAge: 0 })
   }
