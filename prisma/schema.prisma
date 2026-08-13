@@ -811,6 +811,13 @@ model LiveSession {
   title            String
   description      String?
   scheduledStartAt DateTime
+  /// Arbitrage 107 — l'horodatage est en UTC comme partout ; ce champ dit dans
+  /// quel fuseau l'animateur a **pensé** l'heure (identifiant IANA, ex.
+  /// `Africa/Douala`). Il ne sert pas à convertir — le navigateur du lecteur
+  /// s'en charge — mais à dire « 18 h 00 à Douala » à un membre de la diaspora,
+  /// qui verra 19 h 00 chez lui et se demanderait laquelle des deux fait foi.
+  /// Nul sur les séances programmées avant ce champ.
+  timeZone         String?
   durationMinutes  Int               @default(60)
   status           LiveSessionStatus @default(SCHEDULED)
   startedAt        DateTime?
@@ -821,6 +828,11 @@ model LiveSession {
   /// Enregistrement automatique (arbitrage 38) : identifiant d'egress LiveKit.
   /// Nul tant que le transport n'est pas configuré.
   egressId         String?
+  /// Arbitrage 94 — second egress, audio seul, pour les connexions faibles.
+  /// Un fichier de 2 h pèse ~60 Mo contre ~1,3 Go pour la vidéo : c'est la
+  /// différence entre un replay écoutable en 3G et un replay inaccessible.
+  /// Nul quand c'est Mux qui enregistre : il produit ses propres variantes.
+  audioEgressId    String?
   /// Flux d'ingestion Mux, quand c'est lui qui enregistre. Nul si le repli
   /// fichier vers le stockage objet a été retenu.
   muxStreamId      String?
@@ -853,12 +865,24 @@ model LiveParticipant {
   /// micro : le lever ne rallume rien, cela rend au participant la commande de
   /// son propre micro (arbitrage 41). Se traduit par `canPublish` côté LiveKit.
   mutedByHost  Boolean     @default(false)
+  /// Arbitrage 93 — la place sur la scène, plafonnée à neuf publieurs.
+  ///
+  /// **Distincte de `mutedByHost`, et il ne faut pas les confondre** : l'un est
+  /// un verrou posé sur quelqu'un, l'autre une place disponible ou prise. Un
+  /// participant sans place n'a été puni de rien — la scène est pleine, il lève
+  /// la main comme les autres (arbitrage 36). Les fondre en un seul booléen
+  /// ferait lire « l'animateur vous a coupé le micro » à quelqu'un que personne
+  /// n'a coupé.
+  onStage      Boolean     @default(false)
   /// Horodatage et non booléen : c'est lui qui ordonne et numérote la file des
   /// demandes de parole (arbitrage 36).
   handRaisedAt DateTime?
 
   @@unique([sessionId, userId])
   @@index([sessionId, handRaisedAt])
+  /// Compter les places prises est le geste le plus fréquent de la séance : il
+  /// se refait à chaque entrée en salle et à chaque prise de parole accordée.
+  @@index([sessionId, onStage])
   @@map("live_participants")
 }
 
@@ -911,6 +935,10 @@ model Replay {
   /// 32 bits, comme les vidéos de ressources. Ne compte dans le quota que pour
   /// les replays réellement stockés chez nous.
   sizeBytes       BigInt?
+  /// Arbitrage 94 — la variante audio seule, quand l'enregistrement est chez
+  /// nous. Elle compte dans le quota comme la vidéo : ce sont nos octets.
+  audioS3Key      String?
+  audioSizeBytes  BigInt?
   status          ReplayStatus   @default(PROCESSING)
   /// Arbitrage 51 — purge à 24 mois. La date est portée, pas recalculée : une
   /// règle qui change ne doit pas effacer rétroactivement ce qui était promis.

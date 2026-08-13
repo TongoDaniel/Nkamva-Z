@@ -305,6 +305,93 @@ export async function listDiscounts(activeOnly = false) {
   })
 }
 
+export interface DiscountRegisterRow {
+  id: string
+  kind: DiscountKind
+  label: string
+  amountFcfa: number
+  code: string | null
+  reason: string | null
+  validFrom: Date
+  validUntil: Date | null
+  maxUses: number | null
+  usedCount: number
+  createdAt: Date
+  /** Qui l'a accordée. Nul pour une remise posée avant que l'auteur ne soit tracé. */
+  grantedBy: { name: string | null; email: string } | null
+  /** Le formateur visé, pour une remise nominative. */
+  trainer: { id: string; name: string | null; email: string } | null
+}
+
+/**
+ * Le **registre** des remises — arbitrage 105.
+ *
+ * Distinct de `listDiscounts`, qui alimente l'écran de tarification du
+ * Super-admin : celui-ci porte l'auteur et le motif, et il est ouvert à
+ * Finances. Un registre métier n'est pas un journal d'audit : le premier se
+ * consulte pour travailler — vérifier ce qu'on a accordé, retrouver une remise
+ * négociée —, le second pour contrôler. L'arbitrage 7 ne réserve que le second
+ * au Super-admin, et l'angle mort signalé à l'arbitrage 60 venait de les avoir
+ * confondus.
+ *
+ * `PlatformDiscount.createdById` n'a **pas** de relation déclarée dans le
+ * schéma : les deux lectures se font donc en deux temps, plutôt que d'ajouter
+ * une clé étrangère à une table de facturation pour un écran de consultation.
+ */
+export async function listDiscountRegister(limit = 100): Promise<DiscountRegisterRow[]> {
+  const rows = await db.platformDiscount.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  })
+
+  const userIds = [
+    ...new Set(rows.flatMap((r) => [r.createdById, r.trainerId].filter((id): id is string => id !== null))),
+  ]
+  const trainerIds = [...new Set(rows.map((r) => r.trainerId).filter((id): id is string => id !== null))]
+
+  const [users, trainers] = await Promise.all([
+    userIds.length
+      ? db.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, fullName: true, email: true },
+        })
+      : [],
+    // `trainerId` désigne un `TrainerProfile`, pas un `User` : les confondre
+    // afficherait « auteur inconnu » sur toutes les remises nominatives.
+    trainerIds.length
+      ? db.trainerProfile.findMany({
+          where: { id: { in: trainerIds } },
+          select: { id: true, user: { select: { fullName: true, email: true } } },
+        })
+      : [],
+  ])
+
+  const byUser = new Map(users.map((u) => [u.id, u] as const))
+  const byTrainer = new Map(trainers.map((t) => [t.id, t] as const))
+
+  return rows.map((r) => {
+    const author = r.createdById ? byUser.get(r.createdById) : undefined
+    const trainer = r.trainerId ? byTrainer.get(r.trainerId) : undefined
+    return {
+      id: r.id,
+      kind: r.kind,
+      label: r.label,
+      amountFcfa: r.amountFcfa,
+      code: r.code,
+      reason: r.reason,
+      validFrom: r.validFrom,
+      validUntil: r.validUntil,
+      maxUses: r.maxUses,
+      usedCount: r.usedCount,
+      createdAt: r.createdAt,
+      grantedBy: author ? { name: author.fullName, email: author.email } : null,
+      trainer: trainer
+        ? { id: trainer.id, name: trainer.user.fullName, email: trainer.user.email }
+        : null,
+    }
+  })
+}
+
 export async function createDiscount(input: {
   kind: DiscountKind
   label: string

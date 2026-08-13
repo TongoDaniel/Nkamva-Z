@@ -43,6 +43,7 @@ import { notify, deliverSideEffects, absoluteUrl } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
 import { assertCanActAsLearner } from './roles'
+import { getSettingNumber } from './settings'
 import type { PrismaTransaction } from './types'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts doivent rester alignées. */
@@ -58,12 +59,8 @@ const DAY_MS = 86_400_000
 export const INVITATION_NOMINATIVE_TTL_DAYS = 14
 /** Un lien de parrainage vit un trimestre, puis se régénère. */
 export const INVITATION_SHARE_LINK_TTL_DAYS = 90
-/** Plafond d'acceptations d'un lien : maîtrise du dégât s'il fuite, rien de plus. */
-export const INVITATION_SHARE_LINK_MAX_USES = 25
 /** Arbitré (75). Ce plafond-ci n'est pas une valeur de confort. */
 export const INVITATION_GIFT_MAX_MONTHS = 3
-/** Gratuités qu'une communauté peut émettre sur 30 jours glissants. */
-export const INVITATION_GIFT_MONTHLY_QUOTA = 20
 /** Rétention de l'adresse invitée après l'état terminal (arbitrage 80). */
 export const INVITATION_RETENTION_DAYS = 90
 
@@ -216,12 +213,17 @@ export async function issueNominativeInvitation(params: IssueNominativeParams): 
   // Quota de gratuité : une garde de sécurité, pas une règle produit. Elle
   // empêche qu'une route distraite ou un script vide la valeur de l'abonnement
   // d'une communauté en une nuit.
+  //
+  // Arbitrage 102 — la valeur vit dans `Setting`, pas ici : ce n'est pas une
+  // décision qui engage la plateforme, c'est un réglage que le Super-admin doit
+  // pouvoir desserrer sans livraison le jour où un formateur en a besoin.
   if (params.grant === 'GIFT') {
+    const quota = await getSettingNumber('invitations.gift_monthly_quota')
     const since = new Date(Date.now() - 30 * DAY_MS)
     const issued = await db.communityInvitation.count({
       where: { communityId: community.id, grant: 'GIFT', createdAt: { gte: since } },
     })
-    if (issued >= INVITATION_GIFT_MONTHLY_QUOTA) throw new Error('INVITATION_QUOTA_EXCEEDED')
+    if (issued >= quota) throw new Error('INVITATION_QUOTA_EXCEEDED')
   }
 
   const minted = mintToken()
@@ -329,6 +331,10 @@ export async function issueShareLink(communityId: string, issuerId: string): Pro
 
   const minted = mintToken()
   const expiresAt = new Date(Date.now() + INVITATION_SHARE_LINK_TTL_DAYS * DAY_MS)
+  // Arbitrage 102 — plafond administrable. Il est **figé sur le lien** au
+  // moment de l'émettre : relire le réglage à chaque acceptation ferait varier
+  // en cours de route la capacité d'un lien déjà en circulation.
+  const maxUses = await getSettingNumber('invitations.share_link_max_uses')
 
   const invitation = await db.$transaction(async (tx) => {
     // Un lien épuisé ou expiré occupe encore l'index partiel : le révoquer est
@@ -352,7 +358,7 @@ export async function issueShareLink(communityId: string, issuerId: string): Pro
         tokenHash: minted.tokenHash,
         tokenPrefix: minted.tokenPrefix,
         token: minted.token,
-        maxUses: INVITATION_SHARE_LINK_MAX_USES,
+        maxUses,
         expiresAt,
       },
     })
@@ -362,7 +368,7 @@ export async function issueShareLink(communityId: string, issuerId: string): Pro
       action: 'INVITATION_ISSUED', targetType: 'CommunityInvitation', targetId: created.id,
       meta: {
         communityId, kind: 'SHARE_LINK', grant: 'PAID',
-        maxUses: INVITATION_SHARE_LINK_MAX_USES, expiresAt: expiresAt.toISOString(),
+        maxUses, expiresAt: expiresAt.toISOString(),
         replacedId: existing?.id ?? null,
       },
     })

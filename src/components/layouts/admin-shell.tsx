@@ -7,7 +7,7 @@ import { signOut } from "next-auth/react";
 import {
   BadgeCheck, BarChart3, Coins, CreditCard, FileClock, Gavel, LayoutDashboard,
   LogOut, Menu, PiggyBank, Plug, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2,
-  UserCog, Users, Wallet, X,
+  TicketPercent, UserCog, Users, Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { NavLink } from "@/components/nk/nav-link";
@@ -53,6 +53,11 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       // Super-admin corrige, et l'écran n'affiche le bouton qu'à lui.
       { href: "/admin/portefeuilles", label: "Portefeuilles", icon: PiggyBank, roles: ["FINANCES"] },
       { href: "/admin/abonnements", label: "Abonnements", icon: RefreshCw, roles: ["FINANCES"] },
+      // Arbitrage 105 — un registre métier n'est pas un journal d'audit. Le
+      // premier se consulte pour travailler, le second pour contrôler ; seul le
+      // second est réservé au Super-admin (décision 7). Sans cet écran, un admin
+      // Finances accordait des remises qu'il ne pouvait plus relire.
+      { href: "/admin/remises", label: "Remises", icon: TicketPercent, roles: ["FINANCES"] },
       // Un taux décide de ce que paie réellement un apprenant hors zone franc :
       // même porte que la grille tarifaire.
       { href: "/admin/taux-de-change", label: "Taux de change", icon: Coins, roles: ["FINANCES"] },

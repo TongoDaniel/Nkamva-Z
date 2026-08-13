@@ -13,10 +13,17 @@ export async function GET(request: Request, { params }: Params) {
   if (ctx instanceof Response) return ctx
 
   const { replayId } = await params
-  const wantsUrl = new URL(request.url).searchParams.get('lecture') === '1'
+  const query = new URL(request.url).searchParams
+  const wantsUrl = query.get('lecture') === '1'
+  // Arbitrage 94 — la variante audio seule, pour les connexions faibles. Un
+  // paramètre plutôt qu'une route : c'est le même droit d'accès, la même
+  // vérification, et un seul endroit où elle se fait.
+  const variant = query.get('variante') === 'audio' ? 'audio' : 'video'
 
   try {
-    if (wantsUrl) return success({ url: await getReplayUrl(replayId, ctx.user.id) })
+    if (wantsUrl) {
+      return success({ url: await getReplayUrl(replayId, ctx.user.id, false, variant) })
+    }
     return success(await getReplay(replayId, ctx.user.id))
   } catch (err) {
     return errorFromException(err)

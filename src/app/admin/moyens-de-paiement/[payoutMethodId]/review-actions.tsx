@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { BadgeCheck, Landmark, ShieldCheck, ThumbsDown, Undo2 } from "lucide-react";
+import { BadgeCheck, ShieldCheck, ThumbsDown, Undo2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 
-type Dialog = "manual" | "microDeposit" | "reject" | "escalation";
+type Dialog = "manual" | "reject" | "escalation";
 
 /**
  * Décisions d'instruction. Chaque appel porte `expectedUpdatedAt` : si un pair
@@ -47,12 +47,16 @@ export function ReviewActions({
 
   const instructible = status === "PENDING_REVIEW";
   const escalated = status === "BLOCKED";
-  // Décision 22c — le micro-virement est la couche de repli des comptes IBAN ;
-  // il n'a pas de sens sur un compte mobile money.
-  // Une fois les montants tirés, on ne les re-tire pas : ils sont peut-être
-  // déjà virés. Le domaine le refuse aussi — l'écran ne fait que ne pas le
-  // proposer.
-  const microDepositable = instructible && type === "BANK_IBAN" && !microDepositIssued;
+  // Arbitrage 99 — le micro-virement est **abandonné**. Aucun agrégateur
+  // bancaire n'existe en zone CEMAC : émettre les deux virements supposait une
+  // banque et une opération manuelle par dossier, que personne n'a jamais
+  // faite. La vérification d'un compte bancaire se fait sur pièce, en revue
+  // manuelle, comme celle d'un compte mobile money.
+  //
+  // Le service et ses tests restent en place (`verifyPayoutMethod`,
+  // `confirmMicroDeposit`) : la décision peut se rouvrir le jour où une banque
+  // partenaire arrive, et les dossiers déjà tirés doivent pouvoir se terminer.
+  // C'est l'écran qui ne le propose plus.
   const lastChance = rejectionCount + 1 >= maxRejections;
 
   function call(path: string, body: unknown, label: string, after?: () => void) {
@@ -94,12 +98,6 @@ export function ReviewActions({
               <BadgeCheck aria-hidden="true" />
               Vérifier après contrôle
             </Btn>
-            {microDepositable ? (
-              <Btn block variant="o" onClick={() => setDialog("microDeposit")}>
-                <Landmark aria-hidden="true" />
-                Passer par micro-virements
-              </Btn>
-            ) : null}
             <Btn block variant="danger" onClick={() => setDialog("reject")}>
               <ThumbsDown aria-hidden="true" />
               Refuser
@@ -115,11 +113,23 @@ export function ReviewActions({
         ) : null}
       </div>
 
+      {/* Arbitrage 99 — plus aucun micro-virement n'est émis, mais ceux qui
+          l'ont été doivent pouvoir se terminer : le formateur peut encore
+          saisir ses deux montants. */}
       {microDepositIssued ? (
         <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[12.5px] leading-relaxed text-gold-ink">
           <b className="font-extrabold">Des micro-virements sont en attente.</b> Virez les deux
           montants affichés, puis attendez que le formateur les confirme. On ne les retire pas une
-          seconde fois : les nouveaux ne correspondraient plus à ce que vous avez envoyé.
+          seconde fois : les nouveaux ne correspondraient plus à ce que vous avez envoyé. Ce mode de
+          vérification n&apos;est plus proposé sur les nouveaux dossiers.
+        </p>
+      ) : null}
+
+      {instructible && type === "BANK_IBAN" && !microDepositIssued ? (
+        <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+          Un compte bancaire se vérifie <b className="font-bold text-ink-2">sur pièce</b> — RIB au
+          nom du titulaire, comparé au nom légal vérifié. Le micro-virement a été abandonné : aucun
+          service ne permet de l&apos;émettre automatiquement dans la zone.
         </p>
       ) : null}
 
@@ -185,38 +195,6 @@ export function ReviewActions({
         />
       </Modal>
 
-      {/* PM3 — micro-virements */}
-      <Modal
-        open={dialog === "microDeposit"}
-        onOpenChange={(open) => setDialog(open ? "microDeposit" : null)}
-        title="Passer par deux micro-virements ?"
-        description="Deux petits montants seront tirés et affichés ici. À vous de les virer sur le compte ; le formateur devra les saisir pour prouver qu'il y a accès."
-        footer={
-          <>
-            <Btn
-              loading={action.isRunning("verify")}
-              onClick={() =>
-                call(
-                  "verify",
-                  { method: "MICRO_DEPOSIT", expectedUpdatedAt: updatedAt, note: note.trim() || undefined },
-                  "Micro-virements générés.",
-                  () => setNote(""),
-                )
-              }
-            >
-              Générer les montants
-            </Btn>
-            <Btn variant="o" onClick={() => setDialog(null)}>
-              Annuler
-            </Btn>
-          </>
-        }
-      >
-        <p className="text-[13px] leading-relaxed text-ink-2">
-          Le dossier reste à instruire tant que le formateur n&apos;a pas confirmé les deux
-          montants. Trois saisies erronées de sa part suspendent la vérification.
-        </p>
-      </Modal>
 
       {/* PM6 — refus */}
       <Modal

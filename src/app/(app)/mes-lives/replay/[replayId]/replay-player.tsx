@@ -37,14 +37,19 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
   const [url, setUrl] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(replay.downloadable);
   const [unavailable, setUnavailable] = React.useState(!replay.downloadable);
+  // Arbitrage 94 — la même séance en audio seul, ~60 Mo pour deux heures contre
+  // ~1,3 Go. Sur les connexions que sert la plateforme, c'est la différence
+  // entre écouter le replay et ne jamais le charger.
+  const [variant, setVariant] = React.useState<"video" | "audio">("video");
 
   // L'URL est signée et expire : on la demande à l'ouverture de l'écran plutôt
   // que de la rendre avec la page, où elle traînerait dans le HTML.
   React.useEffect(() => {
     if (!replay.downloadable) return;
     let alive = true;
+    setLoading(true);
     api
-      .get<{ url: string }>(`/api/replays/${replay.id}?lecture=1`)
+      .get<{ url: string }>(`/api/replays/${replay.id}?lecture=1&variante=${variant}`)
       .then(({ data }) => {
         if (alive) setUrl(data.url);
       })
@@ -61,7 +66,7 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
     return () => {
       alive = false;
     };
-  }, [replay.id, replay.downloadable]);
+  }, [replay.id, replay.downloadable, variant]);
 
   // La vitesse et le son se posent sur l'élément : c'est lui qui lit, il n'y a
   // plus de progression simulée à tenir en parallèle.
@@ -95,11 +100,19 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
             <Chip tone="gold" className="absolute left-4 top-4 z-[2]">
               Replay
             </Chip>
+            {url && variant === "audio" ? (
+              <div className="w-full px-6">
+                <p className="text-[13.5px] font-bold text-white">Version audio seule</p>
+                <p className="mt-1 text-[13px] text-[#b9c9dd]">
+                  L&apos;image n&apos;est pas chargée — seule la parole l&apos;est.
+                </p>
+              </div>
+            ) : null}
             {url ? (
               <video
                 ref={videoRef}
                 src={url}
-                className="size-full"
+                className={variant === "audio" ? "sr-only" : "size-full"}
                 playsInline
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
@@ -170,6 +183,20 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
               >
                 {muted ? <VolumeX /> : <Volume2 />}
               </button>
+
+              {/* Arbitrage 94 — proposé seulement quand la variante existe :
+                  les replays antérieurs à la bascule, et ceux hébergés
+                  ailleurs, n'en ont pas. */}
+              {replay.hasAudioVariant ? (
+                <button
+                  type="button"
+                  onClick={() => setVariant((v) => (v === "audio" ? "video" : "audio"))}
+                  aria-pressed={variant === "audio"}
+                  className="cursor-pointer rounded-full border border-white/25 px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-white/15"
+                >
+                  {variant === "audio" ? "Revenir à la vidéo" : "Audio seul"}
+                </button>
+              ) : null}
 
               <div className="flex items-center gap-1.5 rounded-full border border-white/25 px-2.5 py-1.5">
                 <Gauge className="size-4 text-[#b9c9dd]" aria-hidden="true" />

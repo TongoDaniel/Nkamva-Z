@@ -70,6 +70,24 @@ export const SETTING_SPECS = {
     max: 720,
     effect: 'Délai annoncé sur Contact, le Centre d’aide et les Mentions légales.',
   },
+  // Arbitrage 102 — ces deux-là sont des **limites de dégât**, pas des règles
+  // produit : elles ne sont annoncées nulle part comme une caractéristique de
+  // l'offre, et les reclasser ici évite d'avoir à les arbitrer. La règle
+  // produit, elle, reste dans le code — un lien partageable ne mène jamais
+  // qu'au tarif plein (arbitrage 74), et c'est ça le vrai garde-fou.
+  'invitations.gift_monthly_quota': {
+    fallback: 20,
+    min: 0,
+    max: 500,
+    effect:
+      'Nombre d’adhésions offertes qu’une communauté peut émettre sur 30 jours glissants.',
+  },
+  'invitations.share_link_max_uses': {
+    fallback: 25,
+    min: 1,
+    max: 1000,
+    effect: 'Nombre d’acceptations d’un lien de parrainage avant qu’il ne s’épuise.',
+  },
 } as const satisfies Record<string, SettingSpec>
 
 export type NumericSettingKey = keyof typeof SETTING_SPECS
@@ -137,19 +155,26 @@ export async function updateSetting(
   }
 
   const existing = await db.setting.findUnique({ where: { key } })
-  if (!existing) throw new Error('SETTING_NOT_FOUND')
-  if (existing.value === trimmed) throw new Error('VALUE_UNCHANGED')
+  // Une clé du registre sans ligne en base n'est pas une erreur : elle agit par
+  // son défaut, et la première modification la matérialise. Refuser ici rendait
+  // inéditable tout réglage câblé après le dernier seed — l'écran le proposait,
+  // l'enregistrement répondait « introuvable ».
+  if (!existing && !isNumericSettingKey(key)) throw new Error('SETTING_NOT_FOUND')
+  if (existing?.value === trimmed) throw new Error('VALUE_UNCHANGED')
+
+  const before = existing?.value ?? String(SETTING_SPECS[key as NumericSettingKey].fallback)
 
   return db.$transaction(async (tx) => {
-    const updated = await tx.setting.update({
+    const updated = await tx.setting.upsert({
       where: { key },
-      data: { value: trimmed, updatedById: actorId },
+      create: { key, value: trimmed, updatedById: actorId },
+      update: { value: trimmed, updatedById: actorId },
       select: { key: true, value: true, description: true, updatedAt: true },
     })
     await audit(tx, {
       actorId, actorRole: 'SUPER_ADMIN',
       action: 'SETTING_UPDATED', targetType: 'Setting', targetId: key,
-      meta: { from: existing.value, to: trimmed },
+      meta: { from: before, to: trimmed, created: existing === null },
     })
     return updated
   })

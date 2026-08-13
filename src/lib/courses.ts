@@ -103,7 +103,10 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
         // replays du quota au renouvellement suivant, comme le reste.
         community: { priceFcfa: 0 },
       },
-      _sum: { sizeBytes: true },
+      // La variante audio (arbitrage 94) est dans le même seau que la vidéo :
+      // ce sont nos octets, ils comptent. ~60 Mo pour deux heures — négligeable
+      // à l'unité, pas sur deux ans de séances hebdomadaires.
+      _sum: { sizeBytes: true, audioSizeBytes: true },
     }),
     db.community.aggregate({
       where: { trainerId },
@@ -119,6 +122,7 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
     (courses._sum.contentSizeBytes ?? BigInt(0)) +
     (courses._sum.coverSizeBytes ?? BigInt(0)) +
     (replays._sum.sizeBytes ?? BigInt(0)) +
+    (replays._sum.audioSizeBytes ?? BigInt(0)) +
     (communities._sum.coverSizeBytes ?? BigInt(0))
   return Number(total)
 }

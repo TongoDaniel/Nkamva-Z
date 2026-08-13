@@ -9,6 +9,7 @@ import { getAuthContext } from "@/lib/api";
 import { getReportDetail } from "@/lib/reports";
 import { fmtDate } from "@/lib/format";
 import { ResolveActions } from "./resolve-actions";
+import { SanctionTarget } from "./sanction-target";
 import {
   REPORT_STATUS,
   TARGET_LABELS,
@@ -164,6 +165,18 @@ export default async function SignalementDetailPage({
               removalAction={removal?.action ?? ""}
               removalEffect={removal?.effect ?? ""}
             />
+
+            {/* Décision 67 — la seule sanction que la Modération puisse tirer
+                d'un signalement visant un compte. Elle n'apparaît que sur cette
+                cible, et seulement tant que le dossier est ouvert. */}
+            {report.targetType === "USER" && report.target.exists && report.status === "OPEN" ? (
+              <SanctionTarget
+                userId={report.targetId}
+                userLabel={report.target.label}
+                currentLevel={report.target.sanctionLevel ?? "NONE"}
+                isSuperAdmin={auth.user.adminRole === "SUPER_ADMIN"}
+              />
+            ) : null}
           </AdminCard>
         </aside>
       </div>
