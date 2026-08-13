@@ -150,6 +150,12 @@
 }
 
 :root {
+  /* Hauteur de la barre d'onglets basse (`nk/tab-bar.tsx`), hors zone sûre.
+     Déclarée ici et non dans le composant : la barre est `fixed`, donc c'est la
+     coquille — un autre nœud — qui doit réserver la place sous le contenu. Une
+     valeur recopiée aux deux endroits aurait divergé au premier ajustement. */
+  --nk-tabbar-h: 3.5rem;
+
   /* Accent par défaut : le bleu du logo, utilisé par tout le produit sauf
      l'admin (voir `.nk-admin` plus bas). */
   --brand: #1c5ed0;
@@ -441,6 +447,16 @@
     padding-bottom: max(env(safe-area-inset-bottom), 0px);
   }
 
+  /* Place réservée sous le contenu pour la barre d'onglets basse, qui est
+     `fixed` et ne participe donc pas au flux. Sans elle, le pied de page et le
+     dernier bouton de chaque écran passent dessous.
+
+     La zone sûre s'y ajoute : sur un téléphone à barre gestuelle, la barre
+     d'onglets est d'autant plus haute. */
+  .nk-tabbar-gap {
+    height: calc(var(--nk-tabbar-h) + max(env(safe-area-inset-bottom), 0px));
+  }
+
   /* Squelette de chargement (`.sk`). */
   .nk-skeleton {
     position: relative;
@@ -551,6 +567,21 @@ textarea:not(.nk-field-size) {
   .nk-drawer-open {
     overflow: visible;
     overscroll-behavior: auto;
+  }
+}
+
+/* Tout ce qui est ancré en bas doit passer **au-dessus** de la barre d'onglets,
+   qui occupe désormais ce bord jusqu'à `lg` (arbitrage 111). Sonner borne son
+   `mobileOffset` à 600 px ; la barre, elle, vit jusqu'à 1024 px. Cette règle
+   couvre l'intervalle, et vaut aussi pour l'invite d'installation et la sonde
+   d'audit, qui étaient toutes deux en `fixed bottom-0`. */
+@media (max-width: 63.99rem) {
+  [data-sonner-toaster][data-y-position="bottom"] {
+    --offset-bottom: calc(var(--nk-tabbar-h) + env(safe-area-inset-bottom) + 0.75rem);
+  }
+
+  .nk-above-tabbar {
+    bottom: calc(var(--nk-tabbar-h) + max(env(safe-area-inset-bottom), 0px));
   }
 }
 

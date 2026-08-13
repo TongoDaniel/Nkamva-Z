@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { NavLink } from "@/components/nk/nav-link";
+import { useHistoryLayer } from "@/hooks/use-history-layer";
 import { cn } from "@/lib/utils";
 
 import { navForSubRole, type AdminNavGroup } from "./admin-nav";
@@ -121,6 +122,9 @@ export function AdminShell({
 }) {
   const pathname = usePathname() ?? "/admin";
   const [open, setOpen] = React.useState(false);
+
+  // Le retour d'Android referme le panneau au lieu de quitter l'écran.
+  useHistoryLayer(open, React.useCallback(() => setOpen(false), []));
   const { name, email, adminRole } = user;
 
   // Décision 7 — le filtrage se fait ici, pas dans le layout : la navigation

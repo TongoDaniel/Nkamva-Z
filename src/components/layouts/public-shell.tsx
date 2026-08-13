@@ -3,18 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { Logo } from "@/components/nk/logo";
+import { TabBar } from "@/components/nk/tab-bar";
 import { cn } from "@/lib/utils";
-
-const NAV = [
-  { href: "/ressources", label: "Ressources" },
-  { href: "/communautes", label: "Communautés" },
-  { href: "/formateurs", label: "Formateurs" },
-  { href: "/tarifs", label: "Tarifs" },
-  { href: "/recherche", label: "Recherche" },
-];
+import { isActive, PUBLIC_BAR as NAV, VISITOR_TABS } from "./nav-entries";
 
 const FOOTER_COLUMNS: Array<{ title: string; links: Array<{ href: string; label: string }> }> = [
   {
@@ -44,19 +37,16 @@ const FOOTER_COLUMNS: Array<{ title: string; links: Array<{ href: string; label:
   },
 ];
 
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-/** Barre supérieure publique — port de `.topbar` + `.mnav`. */
+/**
+ * Barre supérieure publique — port de `.topbar`.
+ *
+ * Le burger et son panneau ont disparu : sous `lg`, la navigation est la barre
+ * d'onglets basse (arbitrage 111), rendue par `PublicShell`. L'en-tête ne garde
+ * que le logo et les deux entrées de compte, qui ne sont pas des destinations
+ * de navigation.
+ */
 export function PublicTopbar() {
   const pathname = usePathname() ?? "/";
-  const [open, setOpen] = React.useState(false);
-
-  // Le menu mobile se referme dès que la route change.
-  React.useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md">
@@ -89,48 +79,8 @@ export function PublicTopbar() {
             Se connecter
           </BtnLink>
           <BtnLink href="/auth/inscription" variant="p" size="sm">S&apos;inscrire</BtnLink>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-controls="nk-mobile-nav"
-            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            className="nk-tap relative grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink lg:hidden"
-          >
-            {open ? (
-              <X className="size-5" aria-hidden="true" />
-            ) : (
-              <Menu className="size-5" aria-hidden="true" />
-            )}
-          </button>
         </div>
       </div>
-
-      <nav
-        id="nk-mobile-nav"
-        aria-label="Navigation principale (mobile)"
-        hidden={!open}
-        className="absolute inset-x-0 top-full z-[120] border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk lg:hidden"
-      >
-        {NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={isActive(pathname, item.href) ? "page" : undefined}
-            className="block border-b border-line-2 px-1.5 py-3.5 text-base font-bold text-ink hover:text-brand"
-          >
-            {item.label}
-          </Link>
-        ))}
-        <div className="mt-4 flex gap-2.5">
-          <BtnLink href="/auth/connexion" variant="o" size="sm" className="flex-1">
-            Se connecter
-          </BtnLink>
-          <BtnLink href="/auth/inscription" variant="p" size="sm" className="flex-1">
-            S&apos;inscrire
-          </BtnLink>
-        </div>
-      </nav>
     </header>
   );
 }
@@ -175,8 +125,9 @@ export function PublicFooter() {
   );
 }
 
-/** Coquille des pages publiques : topbar + contenu + footer. */
+/** Coquille des pages publiques : topbar + contenu + footer + barre d'onglets. */
 export function PublicShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? "/";
   return (
     <div className="flex min-h-dvh flex-col">
       <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
@@ -187,6 +138,11 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <PublicFooter />
+      {/* Réserve la hauteur de la barre : elle est `fixed`, donc hors du flux. */}
+      <div aria-hidden="true" className="nk-tabbar-gap lg:hidden" />
+      {/* Le visiteur n'a pas de « Plus » : ses quatre destinations tiennent, et
+          la quatrième place va à la connexion (arbitrage 111). */}
+      <TabBar items={VISITOR_TABS} pathname={pathname} />
     </div>
   );
 }
