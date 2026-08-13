@@ -1446,6 +1446,32 @@ horodatage ; l'heure s'affiche dans le fuseau du lecteur.
 > ignoré s'il est invalide. L'agenda n'affiche « soit 18 h 00 à Douala » que si le fuseau
 > du lecteur diffère : le rappeler à tout le monde serait du bruit.
 
+**108. Une communauté ouverte rend son animateur visible** *(corrige une asymétrie entre
+l'arbitrage 81 et l'annuaire)* — Un formateur entre dans `/formateurs` s'il est approuvé, non
+suspendu, et qu'il a **une ressource publiée _ou_ une communauté `active` + `PUBLIC`**. Sa
+page d'accueil formateur lui dit laquelle des deux lui manque.
+> Raison : une communauté publique ne demandait rien de son animateur, l'annuaire exigeait une
+> ressource publiée. Les deux règles étaient défendables séparément et incohérentes ensemble :
+> la fiche communauté annonçait le formateur, le nommait, et portait deux liens vers sa fiche —
+> son nom et « Voir le formateur » — qui répondaient **404**, à trois centimètres du bouton
+> d'adhésion payant. Le visiteur qui cherchait à savoir qui anime avant de payer tombait sur
+> une page introuvable.
+> Le sens de la correction — élargir plutôt que retirer les liens — suit la règle telle qu'elle
+> était déjà énoncée : « seuls les formateurs ayant quelque chose à montrer apparaissent ». Une
+> communauté ouverte **est** quelque chose à montrer.
+> Statut : ✅ **Implémenté le 13 août 2026** — `PUBLIC_TRAINER_WHERE` (`lib/trainers.ts`) est
+> devenu la source unique de la règle : l'annuaire, la fiche et la recherche transversale en
+> tenaient chacun une copie, et rien ne les gardait d'accord. Fiche allégée quand il n'y a pas
+> encore de ressource — la section renvoie vers la communauté au lieu de laisser un vide qui
+> ressemble à une page cassée —, et la carte d'annuaire annonce « 1 communauté » plutôt qu'un
+> « 0 ressource » qui décrit ce qui manque.
+> Le pendant côté formateur : `getTrainerVisibility` et l'encart de `/formateur`. La règle
+> existait et ne se disait nulle part — un formateur invisible n'avait aucun moyen d'apprendre
+> pourquoi, l'hypothèse naturelle étant un profil incomplet, qui n'y est pour rien. L'encart
+> nomme le geste manquant (publier, ou **ouvrir** une communauté restée privée) et disparaît
+> dès que la visibilité est acquise. Un test compare les deux lectures sur sept scénarios :
+> un préavis qui diverge de la règle qui cache est pire que pas de préavis.
+
 ---
 
 ## Conventions techniques (Lot 0)

@@ -179,10 +179,21 @@ export function TrainerDirectory({
                 ) : null}
 
                 <dl className="mt-auto flex flex-wrap gap-x-5 gap-y-1 border-t border-line-2 pt-4 text-[12.5px] text-ink-3">
-                  <div className="flex gap-1.5">
-                    <dd className="font-extrabold text-ink">{trainer.publishedCount}</dd>
-                    <dt>ressource{trainer.publishedCount > 1 ? "s" : ""}</dt>
-                  </div>
+                  {/* Un formateur entre aussi dans l'annuaire par sa communauté
+                      seule. Sa carte annoncerait alors « 0 ressource », ce qui
+                      décrit ce qui manque au lieu de ce qu'il propose : on
+                      montre la communauté à la place. */}
+                  {trainer.publishedCount > 0 ? (
+                    <div className="flex gap-1.5">
+                      <dd className="font-extrabold text-ink">{trainer.publishedCount}</dd>
+                      <dt>ressource{trainer.publishedCount > 1 ? "s" : ""}</dt>
+                    </div>
+                  ) : trainer.communityCount > 0 ? (
+                    <div className="flex gap-1.5">
+                      <dd className="font-extrabold text-ink">{trainer.communityCount}</dd>
+                      <dt>communauté{trainer.communityCount > 1 ? "s" : ""}</dt>
+                    </div>
+                  ) : null}
                   {trainer.studentsCount > 0 ? (
                     <div className="flex gap-1.5">
                       <dd className="font-extrabold text-ink">

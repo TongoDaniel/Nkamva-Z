@@ -10,6 +10,7 @@
 // ==========================================================================
 
 import { db } from './db'
+import { PUBLIC_TRAINER_WHERE } from './trainers'
 import type { CourseListItem } from './dto'
 
 /** En deçà, la recherche renvoie du bruit plutôt que des résultats. */
@@ -69,17 +70,20 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
       take: PER_SECTION,
     }),
 
-    // Mêmes conditions de visibilité que l'annuaire : un formateur sans
-    // ressource publiée n'a pas de fiche à montrer, il ne doit pas remonter.
+    // Mêmes conditions de visibilité que l'annuaire, et par le même objet : un
+    // formateur qui n'a pas de fiche atteignable ne doit pas remonter ici, sans
+    // quoi la recherche fabriquerait des liens vers des 404.
     db.trainerProfile.findMany({
       where: {
-        approvedAt: { not: null },
-        suspendedAt: null,
-        courses: { some: { status: 'published' } },
-        OR: [
-          { user: { fullName: contains } },
-          { slogan: contains },
-          { domains: { has: query } },
+        AND: [
+          PUBLIC_TRAINER_WHERE,
+          {
+            OR: [
+              { user: { fullName: contains } },
+              { slogan: contains },
+              { domains: { has: query } },
+            ],
+          },
         ],
       },
       select: {

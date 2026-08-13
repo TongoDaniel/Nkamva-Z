@@ -23,9 +23,11 @@ import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
 import { listTrainerCourses } from "@/lib/courses";
 import { getTrainerOverview, getSalesByCourse, getTrainerWallet } from "@/lib/trainer-stats";
+import { getTrainerVisibility } from "@/lib/trainers";
 import { fmtFcfa, fmtNumber } from "@/lib/format";
 import { COURSE_STATUS } from "./ressources/course-status";
 import { TRAINER_SECTIONS } from "./sections";
+import { VisibilityNotice } from "./visibility-notice";
 import { walletTileLabel } from "./wallet-label";
 
 export const dynamic = "force-dynamic";
@@ -53,11 +55,12 @@ export default async function FormateurPage() {
   if (!auth?.user.trainerId) return null;
   const trainerId = auth.user.trainerId;
 
-  const [overview, courses, sales, wallet] = await Promise.all([
+  const [overview, courses, sales, wallet, visibility] = await Promise.all([
     getTrainerOverview(trainerId),
     listTrainerCourses(trainerId),
     getSalesByCourse(trainerId),
     getTrainerWallet(trainerId),
+    getTrainerVisibility(trainerId),
   ]);
 
   const best = [...courses]
@@ -78,6 +81,10 @@ export default async function FormateurPage() {
           </BtnLink>
         }
       />
+
+      {/* Avant les chiffres : un formateur invisible des visiteurs doit
+          l'apprendre en arrivant, pas après avoir lu son solde. */}
+      {visibility ? <VisibilityNotice visibility={visibility} /> : null}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile

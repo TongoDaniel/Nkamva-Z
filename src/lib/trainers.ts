@@ -1,11 +1,37 @@
 // ==========================================================================
 // Annuaire public des formateurs
 // ==========================================================================
-// Seuls les formateurs validés et publiant réellement apparaissent : un profil
-// approuvé mais sans ressource au catalogue n'a rien à montrer à un visiteur.
+// Seuls les formateurs validés et ayant réellement quelque chose à montrer
+// apparaissent. « Quelque chose à montrer », c'est une ressource au catalogue
+// **ou** une communauté publique ouverte : les deux sont des surfaces où un
+// visiteur rencontre le formateur, et la fiche de l'un mène à celle de l'autre.
+//
+// La condition n'admettait que les ressources publiées. Une communauté
+// publique, elle, ne demande rien de son animateur : elle s'affichait donc en
+// vitrine, nom du formateur en tête, tandis que les deux liens vers sa fiche
+// répondaient 404 — juste au-dessus du bouton d'adhésion payant.
 // ==========================================================================
 
+import type { Prisma } from '@prisma/client'
 import { db } from './db'
+
+/**
+ * Ce qui rend un formateur visible des visiteurs. **Source unique** : la
+ * recherche (`lib/search.ts`), l'annuaire et la fiche appliquaient chacun leur
+ * copie de la règle, et rien ne les tenait d'accord.
+ *
+ * Le `OR` est enfermé dans un `AND` : l'annuaire filtré ajoute son propre `OR`
+ * de recherche, et deux `OR` au même niveau s'écrasent — le filtre l'aurait
+ * emporté sur la condition de visibilité.
+ */
+export const PUBLIC_TRAINER_WHERE = {
+  approvedAt: { not: null },
+  suspendedAt: null,
+  OR: [
+    { courses: { some: { status: 'published' } } },
+    { communities: { some: { status: 'active', visibility: 'PUBLIC' as const } } },
+  ],
+} satisfies Prisma.TrainerProfileWhereInput
 
 export interface PublicTrainer {
   id: string
@@ -18,24 +44,31 @@ export interface PublicTrainer {
   ratingCount: number
   studentsCount: number
   publishedCount: number
+  /**
+   * Communautés publiques ouvertes. Non décoratif : c'est ce qui permet à une
+   * carte sans ressource d'annoncer ce qu'elle a — sans quoi elle n'afficherait
+   * qu'un « 0 ressource » qui donne envie de passer son chemin.
+   */
+  communityCount: number
 }
 
 export async function listPublicTrainers(search?: string): Promise<PublicTrainer[]> {
   const trainers = await db.trainerProfile.findMany({
     where: {
-      approvedAt: { not: null },
-      suspendedAt: null,
-      // Au moins une ressource publiée : sans cela, la fiche serait vide.
-      courses: { some: { status: 'published' } },
-      ...(search
-        ? {
-            OR: [
-              { user: { fullName: { contains: search, mode: 'insensitive' as const } } },
-              { slogan: { contains: search, mode: 'insensitive' as const } },
-              { domains: { has: search } },
-            ],
-          }
-        : {}),
+      AND: [
+        PUBLIC_TRAINER_WHERE,
+        ...(search
+          ? [
+              {
+                OR: [
+                  { user: { fullName: { contains: search, mode: 'insensitive' as const } } },
+                  { slogan: { contains: search, mode: 'insensitive' as const } },
+                  { domains: { has: search } },
+                ],
+              },
+            ]
+          : []),
+      ],
     },
     select: {
       id: true,
@@ -47,7 +80,12 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
       ratingCount: true,
       studentsCount: true,
       user: { select: { fullName: true } },
-      _count: { select: { courses: { where: { status: 'published' } } } },
+      _count: {
+        select: {
+          courses: { where: { status: 'published' } },
+          communities: { where: { status: 'active', visibility: 'PUBLIC' } },
+        },
+      },
     },
     orderBy: [{ studentsCount: 'desc' }, { ratingAverage: 'desc' }],
     take: 60,
@@ -64,6 +102,7 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
     ratingCount: t.ratingCount,
     studentsCount: t.studentsCount,
     publishedCount: t._count.courses,
+    communityCount: t._count.communities,
   }))
 }
 
@@ -97,21 +136,15 @@ export interface PublicTrainerCourse {
 
 /**
  * Fiche publique d'un formateur. Les conditions de visibilité sont exactement
- * celles de l'annuaire — approuvé, non suspendu, au moins une ressource
- * publiée — sans quoi une fiche resterait atteignable par son URL après avoir
- * disparu de la liste.
+ * celles de l'annuaire — `PUBLIC_TRAINER_WHERE` —, sans quoi une fiche
+ * resterait atteignable par son URL après avoir disparu de la liste.
  *
  * `null` plutôt qu'une erreur : la page répond 404, et un profil suspendu ne se
  * distingue pas d'un identifiant inexistant.
  */
 export async function getPublicTrainer(trainerId: string): Promise<PublicTrainerDetail | null> {
   const trainer = await db.trainerProfile.findFirst({
-    where: {
-      id: trainerId,
-      approvedAt: { not: null },
-      suspendedAt: null,
-      courses: { some: { status: 'published' } },
-    },
+    where: { AND: [{ id: trainerId }, PUBLIC_TRAINER_WHERE] },
     select: {
       id: true,
       slogan: true,
@@ -125,7 +158,12 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
       approvedAt: true,
       userId: true,
       user: { select: { fullName: true } },
-      _count: { select: { courses: { where: { status: 'published' } } } },
+      _count: {
+        select: {
+          courses: { where: { status: 'published' } },
+          communities: { where: { status: 'active', visibility: 'PUBLIC' } },
+        },
+      },
       courses: {
         where: { status: 'published' },
         select: {
@@ -164,6 +202,7 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
     studentsCount: trainer.studentsCount,
     approvedAt: trainer.approvedAt,
     publishedCount: trainer._count.courses,
+    communityCount: trainer._count.communities,
     // Dates sérialisées ici : la page est un composant serveur, mais les cartes
     // qu'elle rend sont les mêmes que celles du catalogue, qui reçoit du JSON.
     courses: trainer.courses.map((c) => ({
@@ -171,5 +210,70 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
       publishedAt: c.publishedAt?.toISOString() ?? null,
     })),
     community: trainer.communities[0] ?? null,
+  }
+}
+
+// ==========================================================================
+// Ce que le formateur voit de sa propre visibilité
+// ==========================================================================
+// Le pendant de `PUBLIC_TRAINER_WHERE`, côté espace formateur. La règle
+// existait, elle ne se disait nulle part : un formateur pouvait animer une
+// communauté en vitrine, chercher son nom dans l'annuaire, ne pas s'y trouver,
+// et n'avoir aucun moyen d'apprendre pourquoi.
+//
+// Les deux fonctions lisent les mêmes colonnes, et un test les compare : une
+// condition ajoutée à l'une sans l'autre rendrait le préavis faux, ce qui est
+// pire que pas de préavis du tout.
+// ==========================================================================
+
+export interface TrainerVisibility {
+  /** La candidature a été acceptée. Sans cela, rien d'autre ne compte. */
+  approved: boolean
+  suspended: boolean
+  publishedCount: number
+  /** Communautés `active` **et** `PUBLIC` — celles qui rendent visible. */
+  publicCommunityCount: number
+  /**
+   * Communautés qui existent sans compter : privées, ou fermées. Distinguées
+   * de l'absence pure, parce que le geste à faire n'est pas le même — ouvrir
+   * ce qu'on a, ou créer ce qu'on n'a pas.
+   */
+  hiddenCommunityCount: number
+  /** Le résultat de `PUBLIC_TRAINER_WHERE`, recalculé ici. */
+  visible: boolean
+}
+
+export async function getTrainerVisibility(trainerId: string): Promise<TrainerVisibility | null> {
+  const trainer = await db.trainerProfile.findUnique({
+    where: { id: trainerId },
+    select: {
+      approvedAt: true,
+      suspendedAt: true,
+      _count: {
+        select: {
+          courses: { where: { status: 'published' } },
+          communities: { where: { status: 'active', visibility: 'PUBLIC' } },
+        },
+      },
+      communities: {
+        where: { NOT: { status: 'active', visibility: 'PUBLIC' } },
+        select: { id: true },
+      },
+    },
+  })
+  if (!trainer) return null
+
+  const approved = trainer.approvedAt !== null
+  const suspended = trainer.suspendedAt !== null
+  const publishedCount = trainer._count.courses
+  const publicCommunityCount = trainer._count.communities
+
+  return {
+    approved,
+    suspended,
+    publishedCount,
+    publicCommunityCount,
+    hiddenCommunityCount: trainer.communities.length,
+    visible: approved && !suspended && (publishedCount > 0 || publicCommunityCount > 0),
   }
 }
