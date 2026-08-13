@@ -21,8 +21,8 @@ export function Logo({
     <Link
       href={href}
       className={cn(
-        // `nk-tap` : en mode `compact` le mot passe en `sr-only` sous 860px et
-        // le lien se réduit à la marque, soit 36×36 — sous la cible tactile.
+        // `nk-tap` : en mode `compact` le mot est `sr-only` sous `lg` et le lien
+        // se réduit à la marque, soit 36×36 — sous la cible tactile.
         "nk-tap relative inline-flex items-center gap-2.5 font-display text-[21px] font-extrabold tracking-[-0.01em] text-ink hover:text-ink",
         className,
       )}
@@ -35,7 +35,7 @@ export function Logo({
         priority
         className="block size-9 shrink-0 rounded-[11px]"
       />
-      <span className={cn(compact && "max-[860px]:sr-only")}>
+      <span className={cn(compact && "sr-only lg:not-sr-only")}>
         Nkam<em className="not-italic text-brand">Va</em>
       </span>
     </Link>

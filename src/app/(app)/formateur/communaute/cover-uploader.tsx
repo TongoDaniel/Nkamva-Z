@@ -7,6 +7,7 @@ import { toast } from "@/components/nk/toast";
 import { UploadBar } from "@/components/nk/upload-bar";
 import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
+import { formatBytes, IMAGE_MAX_WIDTH, shrinkImage } from "@/lib/image";
 import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
 
 /** Miroir de COMMUNITY_COVER_LIMITS dans src/lib/communities.ts. */
@@ -35,7 +36,16 @@ export function CommunityCoverUploader({
   const [progress, setProgress] = React.useState<UploadProgress | null>(null);
 
   const send = useAction(
-    async (file: File) => {
+    async (original: File) => {
+      // Réduction **avant** la présignature : la taille annoncée doit être celle
+      // de l'objet réellement déposé, sinon le quota est réservé sur l'original.
+      const { file, changed, originalBytes } = await shrinkImage(original);
+      if (changed) {
+        toast.info(
+          `Image réduite à ${IMAGE_MAX_WIDTH} px — ${formatBytes(originalBytes)} → ${formatBytes(file.size)}.`,
+        );
+      }
+
       const { data } = await api.post<{ uploadUrl: string; s3Key: string }>(
         `/api/trainer/communities/${communityId}/cover`,
         { mimeType: file.type, sizeBytes: file.size },
@@ -146,7 +156,8 @@ export function CommunityCoverUploader({
         <UploadBar progress={progress} label="Envoi de la bannière…" />
       ) : null}
       <p className="mt-2 text-[12.5px] text-ink-3">
-        PNG, JPEG ou WebP, 5 Mo maximum. Elle compte dans votre stockage. À défaut, un dégradé
+        PNG, JPEG ou WebP, 5 Mo maximum — l&apos;image est réduite à {IMAGE_MAX_WIDTH} px avant
+        l&apos;envoi. Elle compte dans votre stockage. À défaut, un dégradé
         est affiché.
       </p>
     </section>

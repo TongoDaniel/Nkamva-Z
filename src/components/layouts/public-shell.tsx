@@ -63,7 +63,7 @@ export function PublicTopbar() {
       <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
         <Logo compact />
 
-        <nav aria-label="Navigation principale" className="hidden flex-1 gap-1 min-[820px]:flex">
+        <nav aria-label="Navigation principale" className="hidden flex-1 gap-1 lg:flex">
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -85,7 +85,7 @@ export function PublicTopbar() {
           {/* Pas de favoris ici : ils appartiennent à un compte. Le cœur menait
               une personne non connectée vers un écran qui la renvoyait aussitôt
               se connecter. L'entrée vit dans le menu du compte, côté connecté. */}
-          <BtnLink href="/auth/connexion" variant="t" size="sm" className="max-[820px]:hidden">
+          <BtnLink href="/auth/connexion" variant="t" size="sm" className="hidden lg:inline-flex">
             Se connecter
           </BtnLink>
           <BtnLink href="/auth/inscription" variant="p" size="sm">S&apos;inscrire</BtnLink>
@@ -95,7 +95,7 @@ export function PublicTopbar() {
             aria-expanded={open}
             aria-controls="nk-mobile-nav"
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            className="nk-tap relative grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink min-[820px]:hidden"
+            className="nk-tap relative grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink lg:hidden"
           >
             {open ? (
               <X className="size-5" aria-hidden="true" />
@@ -110,7 +110,7 @@ export function PublicTopbar() {
         id="nk-mobile-nav"
         aria-label="Navigation principale (mobile)"
         hidden={!open}
-        className="absolute inset-x-0 top-full z-[120] border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk min-[820px]:hidden"
+        className="absolute inset-x-0 top-full z-[120] border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk lg:hidden"
       >
         {NAV.map((item) => (
           <Link
@@ -178,7 +178,7 @@ export function PublicFooter() {
 /** Coquille des pages publiques : topbar + contenu + footer. */
 export function PublicShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
         Aller au contenu
       </a>

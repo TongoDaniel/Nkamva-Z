@@ -61,6 +61,7 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
               <img
                 src={coverUrl}
                 alt={`Bannière de ${community.name}`}
+                decoding="async"
                 className="h-[140px] w-full object-cover"
               />
             ) : (

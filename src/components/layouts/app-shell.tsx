@@ -285,7 +285,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
         Aller au contenu
       </a>
@@ -294,7 +294,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
           <Logo href="/accueil" compact />
 
-          <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 min-[820px]:flex">
+          <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 lg:flex">
             {nav.map((item, index) => {
               const current = index === barCurrent;
               return (
@@ -329,7 +329,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               aria-expanded={open}
               aria-controls="nk-app-nav"
               aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-              className="nk-tap relative grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink min-[820px]:hidden"
+              className="nk-tap relative grid size-[42px] cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink lg:hidden"
             >
               {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
             </button>
@@ -345,7 +345,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           // que les cinq sections formateur s'y déplient, la liste passe la
           // hauteur d'un téléphone — elle défile donc en son sein. `dvh` et non
           // `vh` : la barre d'adresse mobile mange la différence.
-          className="absolute inset-x-0 top-full z-[120] max-h-[calc(100dvh-62px)] overflow-y-auto overscroll-contain border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk md:max-h-[calc(100dvh-70px)] min-[820px]:hidden"
+          className="absolute inset-x-0 top-full z-[120] max-h-[calc(100dvh-62px)] overflow-y-auto overscroll-contain border-b border-line bg-paper px-4.5 pb-4.5 pt-2.5 shadow-nk md:max-h-[calc(100dvh-70px)] lg:hidden"
         >
           {nav.map((item, index) => {
             // Les cinq sections de l'espace formateur sont dépliées ici : sous

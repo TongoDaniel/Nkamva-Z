@@ -115,13 +115,27 @@ export interface CoverProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Badge en haut à gauche (ex. « VIDÉO · 4 H 20 »). */
   typeLabel?: string | null;
   /**
-   * Couverture déposée, via `coverImageUrl`. Posée en image de fond et non en
-   * `<img>` : un objet manquant du seau laisserait sinon l'icône d'image cassée
-   * du navigateur, là où un fond qui ne peint pas laisse simplement reparaître
-   * les rayures. La couverture est décorative — le titre la jouxte partout où
-   * elle apparaît —, elle n'a donc pas de texte de remplacement à perdre.
+   * Couverture déposée, via `coverImageUrl`.
+   *
+   * Rendue en `<img>` depuis le chantier mobile first, et non plus en image de
+   * fond. Le fond avait été choisi pour qu'un objet manquant laisse reparaître
+   * les rayures au lieu de l'icône d'image cassée — mais il **interdisait
+   * `loading="lazy"`**, et une page de catalogue tirait ses douze couvertures
+   * d'un coup, sur un forfait facturé au mégaoctet.
+   *
+   * La raison du choix initial tient toujours : `alt=""` fait qu'une image qui
+   * ne charge pas ne représente rien (HTML §4.8.4.4), donc les rayures
+   * reparaissent exactement comme avant. La couverture est décorative — le
+   * titre la jouxte partout où elle apparaît —, elle n'a pas de texte de
+   * remplacement à perdre.
    */
   imageUrl?: string | null;
+  /**
+   * Vrai pour la **première** couverture d'une liste, qui est en général le LCP :
+   * elle est alors chargée sans attendre et annoncée prioritaire. Toutes les
+   * autres restent paresseuses — c'est le défaut, et il doit le rester.
+   */
+  eager?: boolean;
   className?: string;
 }
 
@@ -130,6 +144,7 @@ export function Cover({
   format,
   typeLabel,
   imageUrl,
+  eager = false,
   className,
   children,
   ...props
@@ -144,10 +159,18 @@ export function Cover({
       {...props}
     >
       {imageUrl ? (
-        <span
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-          style={{ backgroundImage: `url("${encodeURI(imageUrl)}")` }}
-          aria-hidden="true"
+        // `img` et non `next/image` : la route de couverture redirige vers une
+        // URL R2 signée à durée de vie courte, que l'optimiseur mettrait en
+        // cache au-delà de la validité de la signature — il servirait ensuite
+        // des 403. Même raison que les bannières de communauté. Voir l'en-tête
+        // de `api/media/courses/[courseId]/cover/route.ts`.
+        <img
+          src={imageUrl}
+          alt=""
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={eager ? "high" : "auto"}
+          className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
       ) : (
         <span className="grid size-16 place-items-center rounded-[18px] bg-card/80 text-ink-2 shadow-nk-sm backdrop-blur-[3px] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">

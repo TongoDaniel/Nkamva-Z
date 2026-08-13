@@ -56,7 +56,7 @@ export function WizardSteps({
                 >
                   {done ? <Check className="size-[13px]" /> : i + 1}
                 </span>
-                <span className="max-sm:sr-only">{step.label}</span>
+                <span className="sr-only sm:not-sr-only">{step.label}</span>
               </span>
             </li>
           );

@@ -47,39 +47,84 @@ sera au lot 4, une fois le build réparé ou mesuré depuis le serveur de stagin
 
 ### Échelle de points de rupture
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L1-1** ⛔ | Déclarer l'échelle retenue dans `@theme` | `src/app/globals.css` | S |
-| **L1-2** | Migrer les 7 seuils arbitraires vers l'échelle | `(public)/page.tsx`, `layouts/{app,public,admin}-shell.tsx`, `nk/logo.tsx`, `screens/catalog-{controls,screen}.tsx` | M |
-| **L1-3** | Aligner les 3 `@media` manuscrites (767 / 860 / 860) sur l'échelle | `src/app/globals.css` | S |
-| **L1-4** | Supprimer `src/hooks/use-mobile.ts` (8ᵉ seuil, mort — seul `ui/sidebar`, orphelin, l'appelle) | `hooks/use-mobile.ts` | S |
-| **L1-5** | Inverser les 21 usages de `max-*:` en logique ascendante | 8 fichiers, dont `(public)/page.tsx` (8 usages) et `admin-shell.tsx` (3 lignes) | M |
+| **L1-1** ⛔ | Déclarer l'échelle retenue dans `@theme` | `src/app/globals.css` | ✅ |
+| **L1-2** | Migrer les 7 seuils arbitraires vers l'échelle | 7 fichiers | ✅ 0 `min-[Npx]:` restant |
+| **L1-3** | Aligner les `@media` manuscrites sur l'échelle | `src/app/globals.css` | ✅ |
+| **L1-4** | Supprimer `hooks/use-mobile.ts` (8ᵉ seuil, mort) | + `ui/sidebar.tsx` et `ui/chart.tsx`, ses seuls lecteurs, orphelins | ✅ |
+| **L1-5** | Inverser les 21 usages de `max-*:` en logique ascendante | 8 fichiers | ✅ 0 `max-*:` restant hors `ui/` |
+
+Trois règles ont changé de sens au passage, et c'est le cœur de « mobile first » :
+la zone tactile de 44 px, le plancher de 16 px sur les champs et le blocage de
+défilement sous tiroir sont désormais le **défaut**, retiré vers le haut, au lieu
+d'exceptions mobiles greffées sur une base bureau.
+
+Défaut trouvé en vérifiant : le plancher de 16 px retombait dès 768 px, donc une
+**tablette tactile** déclenchait le zoom iOS au même titre qu'un téléphone. La
+reprise est maintenant conditionnée à `pointer: fine`, pas seulement à la largeur.
+Le trou existait déjà avec l'ancienne borne à 767 px — il n'était pas visible
+depuis un poste de travail.
 
 ### Hauteur d'écran
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L1-6** | `min-h-screen` → `min-h-dvh` (7 occurrences, 6 fichiers) | les 4 coquilles + `devenir-formateur/page.tsx` + `app/error.tsx` | S |
+| **L1-6** | `min-h-screen` → `min-h-dvh` | 4 coquilles + `devenir-formateur` + `error.tsx` | ✅ vérifié au navigateur |
 
-### Chaîne d'image — *le lot qui rapporte le plus par heure*
+### Chaîne d'image
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L1-7** ⛔ | Décider du chemin : `next/image` avec `remotePatterns`, ou route de transformation maison devant R2 | `next.config.ts` | S |
-| **L1-8** | Générer des variantes à l'upload (largeurs + WebP) plutôt que servir l'original | route de confirmation d'upload des couvertures | L |
-| **L1-9** | Plafonner les dimensions à l'upload, pas seulement le poids (aujourd'hui : 5 Mo, aucune limite de pixels) | `ressources/[courseId]/cover-uploader.tsx`, `communaute/cover-uploader.tsx` | S |
-| **L1-10** | Passer `Cover` de `background-image` à une vraie image avec `srcset`/`sizes`, en gardant le repli en rayures quand l'objet manque | `nk/cover.tsx` | M |
-| **L1-11** | Chargement paresseux + priorité : la première carte visible est le LCP, les suivantes sont paresseuses | `nk/resource-card.tsx`, `screens/catalog-screen.tsx` | S |
-| **L1-12** | Même traitement pour les couvertures de communauté et les avatars (3 `<img>` bruts) | `screens/communities-screen.tsx`, `screens/community-screen.tsx`, `nk/avatar.tsx` | M |
+| **L1-7** ⛔ | Décider du chemin | — | ✅ **ni l'un ni l'autre** — voir ci-dessous |
+| **L1-8** | Variantes de largeur | — | ❌ **non fait**, voir ci-dessous |
+| **L1-9** | Plafonner les dimensions au dépôt | `lib/image.ts` (nouveau) + les 2 téléverseurs | ✅ |
+| **L1-10** | `Cover` en vraie image | `nk/cover.tsx` | ✅ |
+| **L1-11** | Paresseux + priorité sur la première carte | `nk/resource-card.tsx` + 3 listes | ✅ |
+| **L1-12** | Bannières de communauté et avatars | 3 fichiers | ✅ |
+
+**L1-7 — le chemin retenu n'est aucun des deux proposés.** `next/image` est
+écarté : la route de couverture redirige vers une **URL R2 signée à durée de vie
+courte**, que l'optimiseur mettrait en cache sous une clé qui survivrait à la
+signature — il servirait ensuite des 403. Une route de transformation maison est
+écartée aussi : elle ferait transiter les octets par le serveur Next, ce que
+l'architecture existante refuse explicitement. Aucune section `images` n'a donc
+été ajoutée à `next.config.ts` : elle aurait été de la configuration morte.
+
+À la place, la réduction se fait **avant le dépôt**, dans le navigateur du
+formateur (`src/lib/image.ts`) : bornée à 1 200 px, réencodée en WebP à 0,82.
+Une couverture de 5 Mo tombe autour de 150 Ko — et le formateur qui publie depuis
+son téléphone n'envoie plus 5 Mo sur son propre forfait. L'objet stocké étant
+borné, le quota de l'arbitrage 54 cesse aussi d'être mangé par des pixels que
+personne n'affichera.
+
+`shrinkImage` ne lève jamais : une image indécodable est déposée telle quelle.
+Bloquer un dépôt parce que la réduction a échoué serait pire que le défaut qu'on
+corrige.
+
+**L1-8 reste à faire.** La carte de catalogue (262 px) et la fiche reçoivent le
+même objet de 1 200 px. `Cover` ne compense pas encore par largeur. Douze cartes
+tirent donc ~1,8 Mo au lieu des ~120 Ko du budget de l'arbitrage 113 : c'est
+97 % de moins qu'avant le lot, mais toujours **au-dessus du budget**. La suite
+demande de produire deux variantes et de les servir par `?w=`, ce qui touche le
+contrat de présignature et la comptabilité du quota de stockage — un chantier à
+part entière, pas une finition de ce lot.
+
+**Vérifié au navigateur** : le repli en rayures survit au passage en `<img>`.
+L'événement `error` se déclenche bien sur un objet absent, et `alt=""` fait que
+l'élément ne représente rien (HTML §4.8.4.4) — les rayures du conteneur restent
+visibles, ce qui était la raison du choix initial du `background-image`.
 
 ### Ménage
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L1-13** | Retirer les dépendances mortes : `framer-motion`, `@mdxeditor/editor`, `@tanstack/react-table`, `recharts` (0 import) — **garder `vaul`**, requis au lot 2 | `package.json` | S |
-| **L1-14** | Décider du sort des ~30 composants `ui/` orphelins : supprimer ou documenter comme réserve | `src/components/ui/` | S |
+| **L1-13** | Retirer `framer-motion`, `@mdxeditor/editor`, `@tanstack/react-table`, `recharts` — **`vaul` gardé**, requis au lot 2 | `package.json` | ✅ |
+| **L1-14** | Sort des composants `ui/` orphelins | `src/components/ui/` | ⚠️ partiel — 3 supprimés (`sidebar`, `chart`, + le hook), le reste laissé en place |
 
-**Fin de lot :** un seul jeu de seuils dans tout le code, et une carte de catalogue tire une image sous le budget de L0-3.
+**Fin de lot :** un seul jeu de seuils dans tout le code ✅, et une couverture
+bornée à ~150 Ko au lieu de 5 Mo ✅ — mais le budget par écran de liste n'est pas
+encore tenu (L1-8).
 
 ---
 

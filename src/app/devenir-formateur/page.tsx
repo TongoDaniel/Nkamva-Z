@@ -56,7 +56,7 @@ export default async function DevenirFormateurPage() {
   }));
 
   return (
-    <main className="min-h-screen bg-paper px-5 pb-[70px] pt-14">
+    <main className="min-h-dvh bg-paper px-5 pb-[70px] pt-14">
       <div className="mx-auto w-full max-w-[560px]">
         <div className="mb-[26px] flex justify-center">
           <Logo />

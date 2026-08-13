@@ -25,6 +25,7 @@ export function ResourceCard({
   space,
   favoritable,
   favorited,
+  eager,
   className,
 }: {
   course: CourseListItem;
@@ -38,6 +39,13 @@ export function ResourceCard({
   favoritable?: boolean;
   /** État initial du cœur, lu côté serveur pour éviter un clignotement. */
   favorited?: boolean;
+  /**
+   * À poser sur la **première** carte d'une liste, et sur elle seule : c'est en
+   * général le plus grand élément peint à l'ouverture, donc le LCP. Les autres
+   * restent paresseuses — sur un forfait facturé au mégaoctet, une grille de
+   * douze cartes ne doit pas tirer douze couvertures d'un coup.
+   */
+  eager?: boolean;
   className?: string;
 }) {
   const duration = fmtDuration(course.durationSeconds);
@@ -56,6 +64,7 @@ export function ResourceCard({
         format={course.format}
         typeLabel={typeLabel}
         imageUrl={coverImageUrl(course)}
+        eager={eager}
       >
         {favoritable ? (
           <FavButton courseTitle={course.title} courseId={course.id} defaultPressed={favorited} />
