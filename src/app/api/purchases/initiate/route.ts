@@ -50,6 +50,14 @@ export async function POST(request: Request) {
         409,
       )
     }
+    if (err.message === 'COURSE_NOT_FOR_SALE') {
+      return error('COURSE_NOT_FOR_SALE', 'Cette ressource est incluse dans une communauté', 422)
+    }
+    // Règle de gouvernance, pas panne : sans cette ligne le refus tomberait dans
+    // le 500 générique et se lirait comme un incident.
+    if (err.message === 'CANNOT_BUY_OWN_COURSE') {
+      return error('CANNOT_BUY_OWN_COURSE', "Vous êtes l'auteur de cette ressource : vous ne l'achetez pas.", 422)
+    }
     // Filet : `requireLearner` ci-dessus a normalement déjà refusé. Sans cette
     // ligne, le refus levé par le service tomberait dans le 500 générique et se
     // lirait comme une panne plutôt que comme une règle.

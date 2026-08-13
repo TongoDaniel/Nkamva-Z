@@ -6,6 +6,7 @@ import {
   GraduationCap,
   ListOrdered,
   ListVideo,
+  PenLine,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -35,6 +36,12 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
   const access = auth ? await checkCourseAccess(course.id, auth.user.id) : null;
   const owned = access?.granted ?? false;
   const suspended = access?.reason === "ACCESS_SUSPENDED";
+
+  // L'auteur ne s'achète pas sa propre ressource : `initiatePurchase` le refuse
+  // (`CANNOT_BUY_OWN_COURSE`). L'écran doit le dire au lieu de proposer un
+  // bouton dont on sait qu'il échouera. Comparaison sur l'identifiant de
+  // compte, comme la garde serveur — et non sur le profil formateur du jeton.
+  const isAuthor = Boolean(auth && course.trainerProfile?.user?.id === auth.user.id);
 
   const related = (
     await searchCourses({ category: course.category, sort: "newest", page: 1, pageSize: 4 })
@@ -205,14 +212,31 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
 
         {/* Panneau d'achat */}
         <aside
-          aria-label="Acheter cette ressource"
+          aria-label={isAuthor ? "Votre ressource" : "Acheter cette ressource"}
           className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk max-lg:order-first lg:sticky lg:top-[88px] lg:order-2"
         >
           <div className="max-lg:hidden">
             <Cover category={course.category} format={course.format} typeLabel={typeLabel} />
           </div>
           <div className="p-6">
-            {owned ? (
+            {isAuthor ? (
+              <>
+                <p className="mb-1">
+                  <Price amountFcfa={course.priceFcfa} className="!text-[32px]" />
+                </p>
+                <p className="mb-4.5 flex items-start gap-2.5 rounded-xl border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+                  <PenLine className="mt-0.5 size-4 shrink-0 text-ink-3" aria-hidden="true" />
+                  <span>
+                    <b className="text-ink">Vous êtes l&apos;auteur de cette ressource.</b> Vous la
+                    vendez, vous ne l&apos;achetez pas : c&apos;est le prix que voient vos
+                    apprenants.
+                  </span>
+                </p>
+                <BtnLink href={`/formateur/ressources/${course.id}`} variant="o" size="lg" block>
+                  Gérer cette ressource
+                </BtnLink>
+              </>
+            ) : owned ? (
               <>
                 <p className="mb-4.5 flex items-center gap-2 text-[13.5px] font-bold text-brand">
                   <Check className="size-4" aria-hidden="true" />
@@ -239,10 +263,12 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
               </>
             )}
 
-            <p className="mt-4 flex items-center gap-2.5 border-t border-line-2 pt-4 text-[13px] font-semibold text-ink-2">
-              <ShieldCheck className="size-4 shrink-0 text-brand" aria-hidden="true" />
-              Accès immédiat après paiement
-            </p>
+            {isAuthor ? null : (
+              <p className="mt-4 flex items-center gap-2.5 border-t border-line-2 pt-4 text-[13px] font-semibold text-ink-2">
+                <ShieldCheck className="size-4 shrink-0 text-brand" aria-hidden="true" />
+                Accès immédiat après paiement
+              </p>
+            )}
 
             {course.includes?.length ? (
               <ul className="mt-4 grid gap-3 border-t border-line-2 pt-4">
@@ -255,9 +281,11 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
               </ul>
             ) : null}
 
-            <p className="mt-4 text-xs font-semibold text-ink-3">
-              Orange Money · MTN MoMo · Wave · Airtel Money · M-Pesa · carte bancaire
-            </p>
+            {isAuthor ? null : (
+              <p className="mt-4 text-xs font-semibold text-ink-3">
+                Orange Money · MTN MoMo · Wave · Airtel Money · M-Pesa · carte bancaire
+              </p>
+            )}
 
             {/* Le signalement est discret et en bas : c'est une issue, pas une
                 proposition. Il ouvre la file /admin/signalements, qui existait

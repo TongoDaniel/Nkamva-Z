@@ -177,6 +177,11 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
     status: 409,
   },
   CANNOT_JOIN_OWN_COMMUNITY: { message: 'Vous animez cette communauté', status: 422 },
+  // Pendant de la règle ci-dessus, côté vente à l'unité : on ne se paie pas sa
+  // propre ressource, sans quoi la commission serait prélevée sur son propre
+  // argent et la vente compterait dans ses propres statistiques.
+  CANNOT_BUY_OWN_COURSE: { message: "Vous êtes l'auteur de cette ressource", status: 422 },
+  CANNOT_DISPUTE_OWN_SALE: { message: 'Vous êtes le vendeur de cet achat', status: 422 },
   MEMBERSHIP_NOT_FOUND: { message: 'Aucune adhésion en cours à cette communauté', status: 404 },
   MEMBERSHIP_ALREADY_CANCELED: { message: 'Adhésion déjà résiliée', status: 409 },
   MEMBERSHIP_NOT_CANCELED: { message: 'Cette adhésion n\'est pas résiliée', status: 409 },

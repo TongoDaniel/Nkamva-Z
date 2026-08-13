@@ -331,6 +331,12 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
 
   if (!purchase) throw new Error('PURCHASE_NOT_FOUND')
   if (purchase.learnerId !== learnerId) throw new Error('NOT_OWNER')
+  // Un litige oppose deux parties. `initiatePurchase` interdit désormais
+  // d'acheter chez soi (`CANNOT_BUY_OWN_COURSE`), donc plus aucun achat
+  // auto-référencé ne naît — mais ceux qui ont pu naître avant restent en base,
+  // et instruire un dossier où l'apprenant et le formateur sont la même
+  // personne ferait réserver des fonds contre son propre portefeuille.
+  if (purchase.trainerProfile.userId === learnerId) throw new Error('CANNOT_DISPUTE_OWN_SALE')
   if (purchase.providerStatus !== 'SUCCEEDED') throw new Error('PURCHASE_NOT_SUCCEEDED')
   if (purchase.refundedAt) throw new Error('ALREADY_REFUNDED')
 
