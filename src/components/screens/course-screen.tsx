@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
-import { Cover, formatLabel } from "@/components/nk/cover";
+import { Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
 import { Price, ResourceCard } from "@/components/nk/resource-card";
 import { PageHead } from "@/components/nk/page-head";
 import { ReportButton } from "@/components/nk/report-button";
@@ -110,7 +110,12 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
           </ul>
 
           <div className="my-6 overflow-hidden rounded-nk-lg border border-line shadow-nk-sm">
-            <Cover category={course.category} format={course.format} typeLabel={typeLabel} />
+            <Cover
+              category={course.category}
+              format={course.format}
+              typeLabel={typeLabel}
+              imageUrl={coverImageUrl(course)}
+            />
           </div>
 
           <section className="py-8">
@@ -223,7 +228,12 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
           className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk max-lg:order-first lg:sticky lg:top-[88px] lg:order-2"
         >
           <div className="max-lg:hidden">
-            <Cover category={course.category} format={course.format} typeLabel={typeLabel} />
+            <Cover
+              category={course.category}
+              format={course.format}
+              typeLabel={typeLabel}
+              imageUrl={coverImageUrl(course)}
+            />
           </div>
           <div className="p-6">
             {isAuthor ? (

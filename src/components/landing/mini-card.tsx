@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Chip } from "@/components/nk/chip";
-import { categoryTone, Cover, formatLabel } from "@/components/nk/cover";
+import { categoryTone, Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
 import { Price } from "@/components/nk/resource-card";
 import { fmtDuration } from "@/lib/format";
 import type { CourseListItem } from "@/lib/dto";
@@ -31,6 +31,7 @@ export function MiniCard({
         category={course.category}
         format={course.format}
         typeLabel={typeLabel}
+        imageUrl={coverImageUrl(course)}
         className="aspect-[16/8.4]"
       />
       <div className="grid gap-[7px] px-[15px] pb-3.5 pt-[13px] text-left">

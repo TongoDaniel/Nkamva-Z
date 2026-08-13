@@ -79,6 +79,7 @@ export default async function AchatPage({ params }: { params: Promise<{ slug: st
         title={course.title}
         category={course.category}
         format={course.format}
+        coverS3Key={course.coverS3Key}
         priceFcfa={course.priceFcfa}
         durationSeconds={course.durationSeconds}
         trainerName={course.trainerProfile?.user?.fullName ?? null}

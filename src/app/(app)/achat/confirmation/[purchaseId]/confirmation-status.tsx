@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { BtnLink } from "@/components/nk/button-link";
-import { Cover, formatLabel } from "@/components/nk/cover";
+import { Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
 import { api } from "@/lib/client";
 import { fmtDate, fmtFcfa } from "@/lib/format";
 import { paymentFailureMessage } from "@/lib/payment-input";
@@ -41,6 +41,8 @@ export function ConfirmationStatus({
   courseSlug,
   courseCategory,
   courseFormat,
+  courseId,
+  courseCoverS3Key,
   community = null,
 }: {
   purchaseId: string;
@@ -53,6 +55,9 @@ export function ConfirmationStatus({
   courseSlug: string | null;
   courseCategory: string | null;
   courseFormat: string | null;
+  /** Les deux servent la couverture déposée ; nuls pour une adhésion. */
+  courseId: string | null;
+  courseCoverS3Key: string | null;
   community?: ConfirmationCommunity | null;
 }) {
   const [timedOut, setTimedOut] = React.useState(false);
@@ -230,6 +235,7 @@ export function ConfirmationStatus({
             category={courseCategory}
             format={courseFormat}
             typeLabel={formatLabel(courseFormat).toUpperCase()}
+            imageUrl={courseId ? coverImageUrl({ id: courseId, coverS3Key: courseCoverS3Key }) : null}
           />
         ) : null}
         <dl className="grid gap-3 p-6 text-sm">
