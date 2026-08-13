@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { Chip } from "./chip";
-import { categoryTone, Cover, formatLabel } from "./cover";
+import { categoryTone, Cover, coverImageUrl, formatLabel } from "./cover";
 import { FavButton } from "./fav-button";
 import { initials } from "./avatar";
 import { fmtDuration, fmtNumber } from "@/lib/format";
@@ -51,7 +51,12 @@ export function ResourceCard({
         className,
       )}
     >
-      <Cover category={course.category} format={course.format} typeLabel={typeLabel}>
+      <Cover
+        category={course.category}
+        format={course.format}
+        typeLabel={typeLabel}
+        imageUrl={coverImageUrl(course)}
+      >
         {favoritable ? (
           <FavButton courseTitle={course.title} courseId={course.id} defaultPressed={favorited} />
         ) : null}

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, ShieldCheck, Smartphone } from "lucide-react";
 import { Btn } from "@/components/nk/button";
-import { Cover, formatLabel } from "@/components/nk/cover";
+import { Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
 import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
 import { phoneNumberError, type PayableProvider } from "@/lib/payment-input";
@@ -47,6 +47,7 @@ export function CheckoutForm({
   title,
   category,
   format,
+  coverS3Key,
   priceFcfa,
   durationSeconds,
   trainerName,
@@ -56,6 +57,8 @@ export function CheckoutForm({
   title: string;
   category: string;
   format: string;
+  /** Sert la couverture déposée : l'acheteur doit reconnaître ce qu'il paie. */
+  coverS3Key: string | null;
   priceFcfa: number;
   durationSeconds: number | null;
   trainerName: string | null;
@@ -191,6 +194,7 @@ export function CheckoutForm({
           category={category}
           format={format}
           typeLabel={[formatLabel(format), duration].filter(Boolean).join(" · ").toUpperCase()}
+          imageUrl={coverImageUrl({ id: courseId, coverS3Key })}
         />
         <div className="p-6">
           <h2 className="text-[16.5px] font-bold leading-tight">{title}</h2>

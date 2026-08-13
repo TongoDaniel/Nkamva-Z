@@ -90,15 +90,50 @@ export function FormatGlyph({ format, className }: { format?: string | null; cla
   }
 }
 
+/**
+ * L'adresse de la couverture déposée par le formateur. Stable — ni signature,
+ * ni expiration —, donc utilisable depuis un composant client et mise en cache
+ * par le navigateur. Voir `api/media/courses/[courseId]/cover/route.ts`.
+ *
+ * `null` quand aucune image n'a été déposée : c'est ce qui laisse la couverture
+ * générée à sa place, plutôt qu'une requête qui répondrait 404 à chaque carte.
+ */
+export function coverImageUrl(course: { id: string; coverS3Key?: string | null }): string | null {
+  if (!course.coverS3Key) return null;
+  // Empreinte de la clé, que la route ignore : elle ne sert qu'à casser le
+  // cache. Chaque dépôt tire une nouvelle clé (`image-<uuid>.<ext>`), donc
+  // remplacer sa couverture change l'adresse — sans quoi le formateur aurait
+  // continué à voir l'ancienne image le temps que la redirection mise en cache
+  // expire, et aurait conclu une seconde fois que rien ne s'était passé.
+  const stamp = course.coverS3Key.replace(/[^a-z0-9]/gi, "").slice(-12);
+  return `/api/media/courses/${course.id}/cover?v=${stamp}`;
+}
+
 export interface CoverProps extends React.HTMLAttributes<HTMLDivElement> {
   category?: string | null;
   format?: string | null;
   /** Badge en haut à gauche (ex. « VIDÉO · 4 H 20 »). */
   typeLabel?: string | null;
+  /**
+   * Couverture déposée, via `coverImageUrl`. Posée en image de fond et non en
+   * `<img>` : un objet manquant du seau laisserait sinon l'icône d'image cassée
+   * du navigateur, là où un fond qui ne peint pas laisse simplement reparaître
+   * les rayures. La couverture est décorative — le titre la jouxte partout où
+   * elle apparaît —, elle n'a donc pas de texte de remplacement à perdre.
+   */
+  imageUrl?: string | null;
   className?: string;
 }
 
-export function Cover({ category, format, typeLabel, className, children, ...props }: CoverProps) {
+export function Cover({
+  category,
+  format,
+  typeLabel,
+  imageUrl,
+  className,
+  children,
+  ...props
+}: CoverProps) {
   const tone = TONES[coverTone(category)];
   return (
     <div
@@ -108,9 +143,17 @@ export function Cover({ category, format, typeLabel, className, children, ...pro
       }}
       {...props}
     >
-      <span className="grid size-16 place-items-center rounded-[18px] bg-card/80 text-ink-2 shadow-nk-sm backdrop-blur-[3px] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
-        <FormatGlyph format={format} />
-      </span>
+      {imageUrl ? (
+        <span
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+          style={{ backgroundImage: `url("${encodeURI(imageUrl)}")` }}
+          aria-hidden="true"
+        />
+      ) : (
+        <span className="grid size-16 place-items-center rounded-[18px] bg-card/80 text-ink-2 shadow-nk-sm backdrop-blur-[3px] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+          <FormatGlyph format={format} />
+        </span>
+      )}
       {typeLabel ? (
         <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-2.5 py-1.5 text-[11px] font-bold leading-none tracking-[0.06em] text-paper backdrop-blur-[3px]">
           {typeLabel}

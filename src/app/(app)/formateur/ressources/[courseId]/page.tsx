@@ -5,7 +5,7 @@ import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { StatTile } from "@/components/nk/stat-tile";
-import { Cover, formatLabel } from "@/components/nk/cover";
+import { Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
 import { db } from "@/lib/db";
 import { getAuthContext } from "@/lib/api";
 import { getSalesByCourse } from "@/lib/trainer-stats";
@@ -114,11 +114,14 @@ export default async function EditCoursePage({
         aside={
           <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
             <h2 className="mb-4 text-[16.5px] font-extrabold">Couverture</h2>
+            {/* C'est ici que le formateur juge son dépôt : ce panneau montrait
+                la couverture générée quoi qu'il ait envoyé. */}
             <div className="mb-3.5 overflow-hidden rounded-nk">
               <Cover
                 category={course.category}
                 format={course.format}
                 typeLabel={formatLabel(course.format).toUpperCase()}
+                imageUrl={coverImageUrl(course)}
               />
             </div>
             <CoverUploader courseId={course.id} currentKey={course.coverS3Key} />

@@ -34,7 +34,7 @@ export default async function ConfirmationPage({
       failureCode: true,
       createdAt: true,
       periodEnd: true,
-      course: { select: { title: true, slug: true, format: true, category: true } },
+      course: { select: { id: true, title: true, slug: true, format: true, category: true, coverS3Key: true } },
       community: { select: { name: true, slug: true } },
     },
   });
@@ -59,6 +59,8 @@ export default async function ConfirmationPage({
         courseSlug={purchase.course?.slug ?? null}
         courseCategory={purchase.course?.category ?? null}
         courseFormat={purchase.course?.format ?? null}
+        courseId={purchase.course?.id ?? null}
+        courseCoverS3Key={purchase.course?.coverS3Key ?? null}
         community={
           community
             ? {
