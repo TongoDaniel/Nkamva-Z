@@ -1,6 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Crumb {
@@ -8,7 +8,26 @@ export interface Crumb {
   href?: string;
 }
 
-/** En-tête de page générique — port de `.pagehead` + `.crumb`. */
+/**
+ * Le dernier maillon qui porte une adresse, en remontant depuis la fin — donc le
+ * parent immédiat de la page courante. C'est lui que le retour mobile vise.
+ */
+function parentCrumb(crumbs: Crumb[]): Crumb | null {
+  for (let i = crumbs.length - 1; i >= 0; i--) {
+    if (crumbs[i].href) return crumbs[i];
+  }
+  return null;
+}
+
+/**
+ * En-tête de page générique — port de `.pagehead` + `.crumb`.
+ *
+ * Le fil d'Ariane est en `flex flex-wrap` : sur 375 px il s'enroulait sur deux
+ * à trois lignes, au prix du budget vertical de l'arbitrage 113. Sous `md`, il
+ * cède donc la place à un **retour vers le parent** (arbitrage 117) ; le fil
+ * complet reparaît au-dessus. Les deux lisent la même liste de miettes : il n'y
+ * a pas deux vérités sur l'endroit d'où l'on vient.
+ */
 export function PageHead({
   crumbs,
   title,
@@ -24,8 +43,18 @@ export function PageHead({
 }) {
   return (
     <div className={cn("pb-2 pt-8", className)}>
+      {crumbs?.length && parentCrumb(crumbs) ? (
+        <Link
+          href={parentCrumb(crumbs)!.href!}
+          className="nk-tap relative mb-3 inline-flex items-center gap-1 text-[14px] font-semibold text-ink-2 hover:text-brand md:hidden"
+        >
+          <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+          {parentCrumb(crumbs)!.label}
+        </Link>
+      ) : null}
+
       {crumbs?.length ? (
-        <nav aria-label="Fil d'Ariane" className="mb-3.5">
+        <nav aria-label="Fil d'Ariane" className="mb-3.5 hidden md:block">
           <ol className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-3">
             {crumbs.map((c, i) => (
               <li key={`${c.label}-${i}`} className="flex items-center gap-2">

@@ -100,7 +100,7 @@ export function InstallPrompt() {
     <div
       role="dialog"
       aria-labelledby="nk-install-title"
-      className="nk-safe-b fixed inset-x-0 bottom-0 z-100 p-3 sm:left-auto sm:right-4 sm:w-[380px] sm:p-4"
+      className="nk-above-tabbar nk-safe-b fixed inset-x-0 bottom-0 z-100 p-3 sm:left-auto sm:right-4 sm:w-[380px] sm:p-4"
     >
       <div className="flex items-start gap-3 rounded-nk-lg border border-line bg-card p-4 shadow-nk-lg">
         <span

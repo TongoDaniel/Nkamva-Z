@@ -3,12 +3,19 @@
 import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useHistoryLayer } from "@/hooks/use-history-layer";
 import { cn } from "@/lib/utils";
 
 /**
  * Modale — port de `.adm-modal` / `.ac-modal`.
  * Bâtie sur Radix Dialog : piège de focus, restitution du focus à la fermeture,
  * Échap, `aria-modal` et inertage de l'arrière-plan sont pris en charge.
+ *
+ * Le bouton retour d'Android l'est aussi, depuis le chantier mobile first, et
+ * c'est ce composant qui le porte pour **les vingt écrans qui l'appellent** :
+ * `useHistoryLayer` fait de l'ouverture une entrée d'historique, donc le retour
+ * referme la modale au lieu de quitter l'écran en emportant la saisie.
+ * Radix ne gère qu'`Échap`, qui n'existe pas sur un téléphone.
  */
 export function Modal({
   open,
@@ -29,8 +36,26 @@ export function Modal({
   size?: "sm" | "md" | "lg";
   trigger?: React.ReactNode;
 }) {
+  // La modale s'utilise contrôlée (la plupart des appelants) ou non (celles qui
+  // n'ont qu'un `trigger`). Le hook d'historique a besoin de connaître l'état
+  // dans les deux cas : on double l'état interne de Radix plutôt que de forcer
+  // les vingt appelants à devenir contrôlés.
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const isOpen = open ?? uncontrolledOpen;
+
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      if (open === undefined) setUncontrolledOpen(next);
+      onOpenChange?.(next);
+    },
+    [open, onOpenChange],
+  );
+
+  const close = React.useCallback(() => setOpen(false), [setOpen]);
+  useHistoryLayer(isOpen, close);
+
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={isOpen} onOpenChange={setOpen}>
       {trigger ? <Dialog.Trigger asChild>{trigger}</Dialog.Trigger> : null}
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-200 bg-ink/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />

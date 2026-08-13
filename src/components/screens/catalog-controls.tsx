@@ -7,6 +7,7 @@ import { Btn } from "@/components/nk/button";
 import { PillInput, CheckOption } from "@/components/nk/input";
 import { FilterPill } from "@/components/nk/chip";
 import { formatLabel } from "@/components/nk/cover";
+import { useHistoryLayer } from "@/hooks/use-history-layer";
 import { cn } from "@/lib/utils";
 
 export interface Facet {
@@ -172,6 +173,9 @@ export function CatalogToolbar({
 }) {
   const { push, pending, search, category, format, sort } = useCatalogParams();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  // Le retour d'Android referme le tiroir de filtres au lieu de quitter le catalogue.
+  useHistoryLayer(drawerOpen, React.useCallback(() => setDrawerOpen(false), []));
   const [searchDraft, setSearchDraft] = React.useState(search);
 
   React.useEffect(() => setSearchDraft(search), [search]);

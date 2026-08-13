@@ -136,41 +136,80 @@ encore tenu (L1-8).
 
 ### Barre d'onglets basse
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L2-1** ⛔ | Extraire la source unique des entrées de navigation (aujourd'hui dupliquée barre bureau / panneau mobile) | `layouts/app-shell.tsx`, `layouts/public-shell.tsx` | M |
-| **L2-2** | Composant de barre d'onglets basse : 3–5 destinations, `nk-safe-b`, état courant, témoin d'attente `NavLink` | nouveau `nk/tab-bar.tsx` | M |
-| **L2-3** | Variantes apprenant / formateur / visiteur (les destinations diffèrent) | `layouts/{app,public}-shell.tsx` | M |
-| **L2-4** | Feuille glissante « Plus » pour tout ce qui ne tient pas dans la barre — sur `vaul` | nouveau `nk/sheet.tsx` | M |
-| **L2-5** | Retirer le burger et le panneau mobile devenus redondants | `layouts/{app,public}-shell.tsx` | S |
-| **L2-6** | Réserver la hauteur de la barre sous le contenu de tous les écrans (padding bas global) | les 4 coquilles | S |
+| **L2-1** ⛔ | Source unique des entrées de navigation | nouveau `layouts/nav-entries.ts` | ✅ |
+| **L2-2** | Barre d'onglets basse | nouveau `nk/tab-bar.tsx` | ✅ |
+| **L2-3** | Variantes visiteur / apprenant / formateur | `layouts/{app,public}-shell.tsx` | ✅ |
+| **L2-4** | Feuille glissante « Plus » sur `vaul` | nouveau `nk/sheet.tsx` | ✅ |
+| **L2-5** | Retirer le burger et son panneau | `layouts/{app,public}-shell.tsx` | ✅ |
+| **L2-6** | Réserver la hauteur sous le contenu | `.nk-tabbar-gap` + les 2 coquilles | ✅ |
+
+Mesuré à 375 px : onglets de **94 × 56** (visiteur) et **75 × 56** (formateur),
+tous au-dessus de la cible de 44 px. La hauteur vit dans `--nk-tabbar-h`, lue à
+la fois par la barre et par la réserve — la barre est `fixed`, donc c'est un
+autre nœud qui doit garder la place, et deux nombres recopiés auraient divergé.
+
+Sous `lg`, l'avatar de l'en-tête ne porte plus de menu déroulant : il mène au
+profil, et tout le compte vit dans « Plus », à portée de pouce. Le menu
+déroulant reste le rendu de bureau — mêmes entrées, même source.
 
 ### Historique et bouton retour
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L2-7** ⛔ | Primitive partagée « couche = entrée d'historique » (`useHistoryLayer` ou équivalent) : ouvrir pousse une entrée, retour ferme, fermer dépile | nouveau `hooks/use-history-layer.ts` | M |
-| **L2-8** | Brancher `nk/modal.tsx` dessus — **couvre d'un coup les 20 fichiers appelants** | `nk/modal.tsx` | S |
-| **L2-9** | Brancher les 4 tiroirs maison | `layouts/{app,public,admin}-shell.tsx`, `screens/catalog-controls.tsx` | M |
-| **L2-10** | Brancher les couches restantes : `screens/schedule-live.tsx`, sélecteurs de pièces jointes, feuille « Plus » de L2-4 | 3 fichiers | S |
-| **L2-11** | Vérifier qu'aucune couche ne survit à une navigation (le burger le fait déjà via `useEffect [pathname]`) | — | S |
+| **L2-7** ⛔ | Primitive « couche = entrée d'historique » | nouveau `hooks/use-history-layer.ts` | ✅ |
+| **L2-8** | Brancher `nk/modal.tsx` — couvre les 20 appelants | `nk/modal.tsx` | ✅ |
+| **L2-9** | Brancher les 4 tiroirs maison | 3 coquilles + `catalog-controls.tsx` | ✅ |
+| **L2-10** | Brancher la feuille « Plus » | `nk/sheet.tsx` | ✅ |
+| **L2-11** | Aucune couche ne survit à une navigation | — | ✅ |
+
+Trois précautions, chacune pour un piège réel : l'état de Next est **préservé**
+dans l'entrée empilée (un état étranger ferait recharger la page au retour) ; la
+fermeture programmatique **dépile**, sinon il faut trois retours pour quitter un
+écran où l'on a ouvert trois fois la même modale ; et le dépilement est **annulé
+si l'on a navigué entre-temps**, sinon une modale contenant un lien renverrait la
+personne à l'écran qu'elle vient de quitter.
+
+**Vérifié au navigateur**, modale et tiroir : le retour ferme la couche, l'URL ne
+bouge pas, et fermer par `Échap` ou par la croix ramène la pile à son niveau.
+
+Piège de vérification à retenir : dans le panneau navigateur, l'animation de
+sortie de Radix ne s'achève jamais, donc le nœud reste dans le DOM après la
+fermeture. Tester la présence du nœud donnait un faux échec — c'est
+`data-state="closed"` qu'il faut lire.
 
 ### Budget vertical
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L2-12** | Chiffrer et appliquer le plafond de chrome décidé en L0-3 (en-tête 62 px + barre basse + fil d'Ariane) | les 4 coquilles | M |
-| **L2-13** | Sur mobile, remplacer le fil d'Ariane par un retour explicite (arbitrage L0-1 n° 10) | `nk/page-head.tsx` + les écrans à fil d'Ariane | M |
-| **L2-14** | Décider et implémenter le comportement de l'en-tête au défilement (fixe / rétractable) | `layouts/{app,public}-shell.tsx` | M |
+| **L2-12** | Appliquer le plafond de chrome de l'arbitrage 113 | les coquilles | ✅ mesuré 120 px / 179 px |
+| **L2-13** | Retour explicite à la place du fil d'Ariane sous `md` | `nk/page-head.tsx` | ✅ |
+| **L2-14** | En-tête rétractable au défilement | — | ❌ **écarté** |
+
+**L2-14 est écartée par la mesure.** En-tête (63 px) + barre d'onglets (57 px)
+font 120 px sur 812, soit **14,8 %** — le plafond de 22 % est tenu avec 59 px de
+marge. Un en-tête rétractable ajouterait du mouvement et un état de défilement à
+suivre pour récupérer une place dont on n'a pas besoin. À rouvrir seulement si un
+écran fait passer le chrome au-dessus du plafond.
+
+Le retour mobile et le fil d'Ariane lisent la **même** liste de miettes : le
+retour vise le dernier maillon qui porte une adresse. Il n'y a pas deux vérités
+sur l'endroit d'où l'on vient.
 
 ### Collisions
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L2-15** | Décaler les toasts (`bottom-center`) au-dessus de la barre d'onglets | `nk/toast.tsx` | S |
-| **L2-16** | Idem pour l'invite d'installation PWA et la sonde d'audit, toutes deux en `fixed bottom-0` | `pwa/install-prompt.tsx`, `pwa/mobile-audit.tsx` | S |
+| **L2-15** | Toasts au-dessus de la barre | `nk/toast.tsx` + `globals.css` | ✅ |
+| **L2-16** | Invite d'installation et sonde d'audit | `.nk-above-tabbar` + les 2 composants | ✅ |
 
-**Fin de lot :** toute destination principale en un appui dans le tiers bas, et le retour d'Android ne quitte jamais l'écran tant qu'une couche est ouverte.
+`mobileOffset` de sonner ne s'applique que sous 600 px, alors que la barre existe
+jusqu'à 1024 px : une règle CSS couvre l'intervalle, et sert aussi aux deux
+autres éléments ancrés en bas.
+
+**Fin de lot :** toute destination principale en un appui dans le tiers bas ✅, et
+le retour d'Android ne quitte jamais l'écran tant qu'une couche est ouverte ✅.
 
 ---
 

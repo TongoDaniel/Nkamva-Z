@@ -14,6 +14,14 @@ export function Toaster() {
       theme="light"
       position="bottom-center"
       offset={26}
+      // Le bas de l'écran est désormais occupé par la barre d'onglets
+      // (arbitrage 111) : sans ce décalage, le toast se posait dessus et
+      // masquait la navigation pendant quatre secondes — juste après une
+      // action, donc exactement quand on veut continuer.
+      // `mobileOffset` ne s'applique que sous 600 px chez sonner ; la barre,
+      // elle, existe jusqu'à `lg`. La règle CSS de `globals.css` prend le relais
+      // entre les deux.
+      mobileOffset={{ bottom: "calc(var(--nk-tabbar-h) + env(safe-area-inset-bottom) + 0.75rem)" }}
       duration={4000}
       toastOptions={{
         classNames: {
