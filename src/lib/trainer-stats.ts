@@ -95,6 +95,29 @@ export async function getTrainerWallet(trainerId: string): Promise<TrainerWallet
   }
 }
 
+/**
+ * Litiges qui attendent encore quelque chose **du formateur**.
+ *
+ * Il n'existe pas de statut « en attente du formateur » : sa défense n'entre
+ * pas dans le fil du litige, elle prend la forme d'un `SupportTicket` rattaché
+ * au dossier (décision 19, voir `trainer-disputes.ts`) — sans quoi l'apprenant,
+ * qui lit le fil, découvrirait sa version. Un dossier encore ouvert sur lequel
+ * il n'a déposé aucun ticket est donc exactement ce sur quoi il n'a pas répondu.
+ *
+ * Aucune échéance ne pèse sur lui : `learnerDeadlineAt` est le seul délai en
+ * base, et il court contre l'apprenant. L'écran qui affiche ce compte ne doit
+ * annoncer aucun compte à rebours.
+ */
+export async function countDisputesToContest(trainerId: string): Promise<number> {
+  return db.dispute.count({
+    where: {
+      trainerId,
+      status: { in: ['OPEN', 'IN_REVIEW'] },
+      supportTickets: { none: {} },
+    },
+  })
+}
+
 export interface CourseSales {
   courseId: string
   salesCount: number
