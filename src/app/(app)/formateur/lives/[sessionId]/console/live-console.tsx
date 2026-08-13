@@ -380,6 +380,12 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
             {lockedCount === 0
               ? "Aucun micro coupé — chacun parle librement."
               : `${lockedCount} micro${lockedCount > 1 ? "s" : ""} coupé${lockedCount > 1 ? "s" : ""} par vous.`}
+            {/* Arbitrage 93 — l'occupation de la scène, pas une jauge de places
+                dans la salle : personne n'est refusé à l'entrée. */}
+            <span className="mt-0.5 block text-[12.5px] text-[#8fa6c0]">
+              Scène : {room.stage.taken} sur {room.stage.capacity} à l&apos;antenne
+              {room.stage.full ? " — complète, coupez un micro pour libérer une place." : "."}
+            </span>
           </p>
           <Btn
             variant="gh"
@@ -460,13 +466,24 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                             ? "main levée"
                             : `main levée depuis ${waitedLabel(p.handRaisedAt!, clock)}`}
                           {p.mutedByHost ? " · micro coupé" : ""}
+                          {!p.mutedByHost && !p.onStage ? " · hors scène" : ""}
                         </small>
                       </span>
                       {/* Arbitrage 41 : donner la parole lève le verrou et baisse
                           la main d'un même geste. Le micro n'est pas rallumé à la
-                          place du participant — on lui rend la commande. */}
+                          place du participant — on lui rend la commande.
+                          Arbitrage 93 : le geste consomme une place, et il n'y en
+                          a que neuf. Le bouton se désactive plutôt que d'échouer
+                          après coup — celui qui donne la parole doit savoir
+                          **avant** de cliquer qu'il faut d'abord en libérer une. */}
                       <Btn
                         size="sm"
+                        disabled={room.stage.full && !p.onStage}
+                        title={
+                          room.stage.full && !p.onStage
+                            ? "Scène complète : coupez d'abord un micro."
+                            : undefined
+                        }
                         loading={action.isRunning(`floor:${p.userId}`)}
                         onClick={() =>
                           act(

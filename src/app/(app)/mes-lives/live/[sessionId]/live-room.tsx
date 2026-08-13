@@ -195,6 +195,12 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
   // Le verrou de l'animateur est la source de vérité côté serveur ; le transport
   // le confirme en révoquant `canPublish`. Les deux doivent dire la même chose.
   const micLocked = room.mutedByHost || !room.canSpeak;
+  // Arbitrage 93 — sans place sur la scène, le micro n'est pas disponible non
+  // plus. La raison n'a rien à voir avec un verrou : personne n'a été coupé, il
+  // n'y a plus de place. Les deux causes se disent séparément, sans quoi un
+  // participant lirait qu'on lui a retiré la parole qu'il n'a jamais eue.
+  const offStage = !room.isHost && !room.onStage && !micLocked;
+  const micUnavailable = micLocked || offStage;
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[1fr_330px]">
@@ -310,13 +316,15 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
             <div className="flex flex-wrap items-center justify-center gap-3 px-5 py-4">
               <ControlButton
                 active={transport.micEnabled}
-                disabled={micLocked || !transport.connected}
+                disabled={micUnavailable || !transport.connected}
                 label={
                   micLocked
                     ? "Micro coupé par l'animateur"
-                    : transport.micEnabled
-                      ? "Couper le micro"
-                      : "Activer le micro"
+                    : offStage
+                      ? "Scène complète — levez la main"
+                      : transport.micEnabled
+                        ? "Couper le micro"
+                        : "Activer le micro"
                 }
                 onClick={() => void transport.setMic(!transport.micEnabled)}
               >
@@ -324,8 +332,14 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
               </ControlButton>
               <ControlButton
                 active={transport.camEnabled}
-                disabled={micLocked || !transport.connected}
-                label={transport.camEnabled ? "Couper la caméra" : "Activer la caméra"}
+                disabled={micUnavailable || !transport.connected}
+                label={
+                  offStage
+                    ? "Scène complète — levez la main"
+                    : transport.camEnabled
+                      ? "Couper la caméra"
+                      : "Activer la caméra"
+                }
                 onClick={() => void transport.setCam(!transport.camEnabled)}
               >
                 {transport.camEnabled ? <Video /> : <VideoOff />}
@@ -355,6 +369,12 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
             {room.mutedByHost ? (
               <p className="border-t border-white/10 px-5 py-3 text-center text-[13px] text-[#b9c9dd]">
                 Votre micro a été coupé par l&apos;animateur. Levez la main pour demander la parole.
+              </p>
+            ) : offStage ? (
+              <p className="border-t border-white/10 px-5 py-3 text-center text-[13px] text-[#b9c9dd]">
+                La scène est complète — {room.stage.taken} personnes sur {room.stage.capacity} y
+                prennent la parole. Levez la main : l&apos;animateur vous la donnera dès qu&apos;une
+                place se libère.
               </p>
             ) : !room.canSpeak ? (
               <p className="border-t border-white/10 px-5 py-3 text-center text-[13px] text-[#b9c9dd]">

@@ -96,6 +96,24 @@ export default async function ParametresPage() {
 
   const now = new Date();
 
+  // Une clé câblée mais jamais écrite n'a pas de ligne en base, et l'écran ne
+  // la montrait donc pas : le réglage existait, agissait par son défaut, et
+  // restait introuvable pour qui voulait le changer. On part du registre, pas
+  // de la table — c'est le registre qui dit ce que la plateforme sait régler.
+  const stored = new Map(settings.map((s) => [s.key, s]));
+  const settingRows = [
+    ...settings.filter((s) => !isNumericSettingKey(s.key)),
+    ...Object.keys(SETTING_SPECS).map((key) => {
+      const row = stored.get(key);
+      const spec = SETTING_SPECS[key as keyof typeof SETTING_SPECS];
+      return {
+        key,
+        value: row?.value ?? String(spec.fallback),
+        description: row?.description ?? null,
+      };
+    }),
+  ].sort((a, b) => a.key.localeCompare(b.key));
+
   return (
     <>
       <AdminHead
@@ -232,7 +250,7 @@ export default async function ParametresPage() {
           )}
         </AdminCard>
 
-        {settings.length > 0 ? (
+        {settingRows.length > 0 ? (
           <AdminCard title="Réglages système">
             <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
               Ces valeurs vivent en base, pas dans le code — contrairement aux règles ci-dessous.{" "}
@@ -242,7 +260,7 @@ export default async function ParametresPage() {
               : chaque réglage dit sous sa valeur les écrans qu&apos;il commande.
             </p>
             <dl>
-              {settings.map((setting) => {
+              {settingRows.map((setting) => {
                 const spec = isNumericSettingKey(setting.key)
                   ? SETTING_SPECS[setting.key]
                   : null;

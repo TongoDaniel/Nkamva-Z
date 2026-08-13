@@ -48,6 +48,10 @@ export function ScheduleLive({
         description: description.trim() || undefined,
         scheduledStartAt: when.toISOString(),
         durationMinutes: duration,
+        // Arbitrage 107 — l'heure part en UTC, le fuseau dit dans lequel elle a
+        // été pensée. Un membre de la diaspora verra l'heure chez lui *et* la
+        // mention « 18 h 00 à Douala », au lieu de deviner laquelle fait foi.
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     {
       success: "Séance programmée. Les membres en sont prévenus.",

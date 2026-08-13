@@ -31,11 +31,12 @@ import type { LiveSessionStatus } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
-import { presignDownload } from './s3'
+import { presignDownload, deleteObject } from './s3'
+import { DOWNLOAD_NOTICE_DAYS, sendNoticeOnce } from './notices'
 import {
   isLiveKitConfigured, livekitUrl, mintJoinToken, ensureRoom, closeRoom,
-  setParticipantCanPublish, countConnected, startRecording, startStreamRecording, stopRecording,
-  getEgressOutcome,
+  setParticipantCanPublish, countConnected, startRecording, startAudioRecording,
+  startStreamRecording, stopRecording, getEgressOutcome,
 } from './livekit'
 import {
   isMuxConfigured, createLiveStream, disableLiveStream, playbackUrl, downloadUrl,
@@ -48,6 +49,22 @@ const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
 export const REPLAY_RETENTION_MONTHS = 24
 
 export const LIVE_MESSAGE_MAX_LENGTH = 2000
+
+/**
+ * Arbitrage 93 — neuf publieurs simultanés, animateur compris.
+ *
+ * Ce n'est pas une jauge de places : personne n'est refusé à l'entrée
+ * (arbitrage 46), la salle accueille toute la communauté. C'est le nombre de
+ * gens qui **émettent** en même temps, et il est plafonné pour une raison
+ * mesurée : la bande descendante croît avec le carré du nombre de participants
+ * quand chacun reçoit tous les autres. À trente personnes, deux heures de
+ * séance coûtent plus de la moitié d'un abonnement communautaire mensuel — par
+ * membre. Plafonnée, la facture redevient linéaire.
+ *
+ * Le plafond est global et ne se règle pas par séance : l'exposer serait
+ * rouvrir la jauge que l'arbitrage 46 a refusée.
+ */
+export const LIVE_STAGE_CAPACITY = 9
 
 // --- Qui est le spectateur ---
 
@@ -125,14 +142,42 @@ async function assertIsHost(sessionId: string, userId: string) {
 
 // --- Programmer une séance ---
 
+/**
+ * Un identifiant IANA que la plateforme d'exécution connaît. `Intl` est le seul
+ * juge disponible : il n'y a pas de liste à maintenir, et une liste maintenue à
+ * la main vieillirait plus vite que la base de fuseaux.
+ */
+function isValidTimeZone(zone: string | null | undefined): boolean {
+  if (!zone) return false
+  try {
+    new Intl.DateTimeFormat('fr-FR', { timeZone: zone })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function scheduleLiveSession(
   communityId: string,
   trainerProfileId: string,
   userId: string,
-  input: { title: string; description?: string | null; scheduledStartAt: Date; durationMinutes?: number },
+  input: {
+    title: string
+    description?: string | null
+    scheduledStartAt: Date
+    durationMinutes?: number
+    /** Fuseau IANA dans lequel l'animateur a saisi l'heure (arbitrage 107). */
+    timeZone?: string | null
+  },
 ): Promise<{ id: string }> {
   const title = input.title.trim()
   if (!title) throw new Error('TITLE_REQUIRED')
+
+  // Un fuseau invalide est **ignoré**, pas refusé : il ne décide de rien —
+  // l'heure est en UTC — et faire échouer la programmation d'une séance parce
+  // qu'un navigateur exotique annonce un identifiant inconnu serait perdre le
+  // vrai pour le décoratif.
+  const timeZone = isValidTimeZone(input.timeZone) ? input.timeZone! : null
 
   const community = await db.community.findFirst({
     where: { id: communityId, status: 'active' },
@@ -155,6 +200,7 @@ export async function scheduleLiveSession(
         title,
         description: input.description?.trim() || null,
         scheduledStartAt: input.scheduledStartAt,
+        timeZone,
         durationMinutes: input.durationMinutes ?? 60,
         roomName,
       },
@@ -196,6 +242,30 @@ export async function cancelLiveSession(sessionId: string, userId: string): Prom
   if (session.status === 'LIVE') await closeRoom(session.roomName)
 }
 
+// --- Où va l'enregistrement (arbitrage 94) ---
+
+/**
+ * Mux n'enregistre que si on le lui demande explicitement.
+ *
+ * Avant l'arbitrage 94, la seule présence de clés dans l'environnement suffisait
+ * à lui confier tous les replays — et donc à choisir, sans que personne l'ait
+ * décidé, un coût treize fois supérieur sur vingt-quatre mois. Il reste
+ * appelable parce que son encodage adaptatif n'a pas d'équivalent dans le seau ;
+ * il ne redevient le chemin par défaut d'aucune configuration.
+ */
+function usesMux(): boolean {
+  return process.env.REPLAY_RECORDER === 'MUX' && isMuxConfigured()
+}
+
+/**
+ * Les deux clés d'un replay. Écrites une seule fois, au démarrage de l'egress,
+ * et **jamais reconstruites** ailleurs : c'est la leçon de
+ * `getCourseContentUrl`, qui devinait la clé d'une ressource et se trompait dès
+ * que la convention changeait.
+ */
+const replayVideoKey = (sessionId: string) => `replays/${sessionId}/enregistrement.mp4`
+const replayAudioKey = (sessionId: string) => `replays/${sessionId}/enregistrement.ogg`
+
 // --- Ouvrir et clore la séance ---
 
 /**
@@ -212,18 +282,25 @@ export async function startLiveSession(sessionId: string, userId: string) {
 
   const startedAt = new Date()
 
-  // Mux enregistre quand il est configuré ; sinon l'egress dépose un fichier
-  // dans le stockage objet. Les deux chemins produisent un replay — c'est ce
-  // que l'arbitrage 38 exige, pas un fournisseur en particulier.
-  const stream = await createLiveStream()
-  const egressId = stream
-    ? await startStreamRecording(session.roomName, stream.rtmpUrl)
-    : await startRecording(session.roomName, `replays/${sessionId}/enregistrement.mp4`)
+  // Arbitrage 94 — l'enregistrement va dans le seau, et Mux se demande.
+  // L'inverse était le cas avant : Mux enregistrait dès qu'il était configuré,
+  // et la seule présence de clés dans l'environnement décidait d'un coût
+  // treize fois supérieur sur vingt-quatre mois.
+  const stream = usesMux() ? await createLiveStream() : null
+  const [egressId, audioEgressId] = stream
+    ? [await startStreamRecording(session.roomName, stream.rtmpUrl), null]
+    : await Promise.all([
+        startRecording(session.roomName, replayVideoKey(sessionId)),
+        startAudioRecording(session.roomName, replayAudioKey(sessionId)),
+      ])
 
   await db.$transaction(async (tx) => {
     await tx.liveSession.update({
       where: { id: sessionId },
-      data: { status: 'LIVE', startedAt, egressId, muxStreamId: stream?.streamId ?? null },
+      data: {
+        status: 'LIVE', startedAt, egressId, audioEgressId,
+        muxStreamId: stream?.streamId ?? null,
+      },
     })
     await audit(tx, {
       actorId: userId, actorRole: 'TRAINER',
@@ -232,6 +309,7 @@ export async function startLiveSession(sessionId: string, userId: string) {
         communityId: session.communityId,
         recording: Boolean(egressId),
         recorder: stream ? 'MUX' : egressId ? 'STORAGE' : null,
+        audioVariant: Boolean(audioEgressId),
       },
     })
   })
@@ -253,12 +331,13 @@ export async function endLiveSession(sessionId: string, userId: string) {
     where: { id: sessionId },
     select: {
       id: true, communityId: true, trainerId: true, title: true,
-      startedAt: true, egressId: true, roomName: true, muxStreamId: true,
+      startedAt: true, egressId: true, audioEgressId: true, roomName: true, muxStreamId: true,
       community: { select: { name: true, slug: true } },
     },
   })
 
   if (full.egressId) await stopRecording(full.egressId)
+  if (full.audioEgressId) await stopRecording(full.audioEgressId)
   // Le flux d'ingestion se ferme ; l'asset déjà produit, lui, survit et
   // arrivera par webhook.
   if (full.muxStreamId) await disableLiveStream(full.muxStreamId)
@@ -290,9 +369,8 @@ export async function endLiveSession(sessionId: string, userId: string) {
         durationSeconds: Math.max(0, Math.round((endedAt.getTime() - recordedAt.getTime()) / 1000)),
         // Un replay hébergé par Mux n'a pas de clé chez nous : c'est le
         // webhook qui apportera son identifiant de lecture.
-        s3Key: full.egressId && !full.muxStreamId
-          ? `replays/${sessionId}/enregistrement.mp4`
-          : null,
+        s3Key: full.egressId && !full.muxStreamId ? replayVideoKey(sessionId) : null,
+        audioS3Key: full.audioEgressId ? replayAudioKey(sessionId) : null,
         status: full.egressId ? 'PROCESSING' : 'FAILED',
         purgeAt,
       },
@@ -318,6 +396,102 @@ export async function endLiveSession(sessionId: string, userId: string) {
 
 // --- Participer ---
 
+// --- La scène (arbitrage 93) ---
+
+/**
+ * Prend une place sur la scène si le plafond le permet. Rend `true` quand la
+ * place est acquise — ou qu'elle l'était déjà.
+ *
+ * Le verrou sur la ligne de séance sérialise l'attribution. Sans lui, deux
+ * entrées simultanées comptent chacune huit places prises et en accordent une
+ * neuvième **et** une dixième : le plafond ne tiendrait qu'en l'absence de
+ * concurrence, c'est-à-dire jamais pendant une séance qui commence. C'est le
+ * seul verrou pessimiste du dépôt, et il l'est pour une raison précise : le
+ * contrôle optimiste par `expectedUpdatedAt` compare un état connu, or ici il
+ * n'y a rien à comparer — seulement à compter.
+ *
+ * L'animateur ne passe pas par ici : sa place est acquise (voir `takeHostSeat`).
+ */
+async function claimStageSeat(
+  sessionId: string,
+  userId: string,
+): Promise<'SEATED' | 'FULL' | 'MISSING'> {
+  return db.$transaction(async (tx) => {
+    // Pas de `::uuid` : les identifiants du dépôt sont des `String @id`, donc
+    // des colonnes TEXT. Le cast faisait échouer la requête en 42883.
+    await tx.$queryRaw`SELECT id FROM live_sessions WHERE id = ${sessionId} FOR UPDATE`
+
+    const current = await tx.liveParticipant.findUnique({
+      where: { sessionId_userId: { sessionId, userId } },
+      select: { onStage: true },
+    })
+    // Trois issues et non deux : « la scène est pleine » et « cette personne
+    // n'est pas dans la séance » ne se disent pas de la même façon à
+    // l'animateur, et les confondre lui ferait chercher une place à libérer
+    // pour quelqu'un qui est parti.
+    if (!current) return 'MISSING'
+    if (current.onStage) return 'SEATED'
+
+    const taken = await tx.liveParticipant.count({
+      where: { sessionId, onStage: true, leftAt: null },
+    })
+    if (taken >= LIVE_STAGE_CAPACITY) return 'FULL'
+
+    await tx.liveParticipant.update({
+      where: { sessionId_userId: { sessionId, userId } },
+      data: { onStage: true },
+    })
+    return 'SEATED'
+  })
+}
+
+/**
+ * La place de l'animateur, qui ne se refuse pas : il anime, il publie.
+ *
+ * Elle est **comptée** comme les autres — sans quoi le plafond de neuf
+ * deviendrait dix. Le seul cas où elle le dépasse est un animateur qui
+ * rejoindrait une séance dont neuf membres tiennent déjà la scène ; il ne peut
+ * pas se produire en pratique, puisque c'est lui qui ouvre la séance.
+ */
+async function takeHostSeat(sessionId: string, userId: string): Promise<void> {
+  await db.liveParticipant.updateMany({
+    where: { sessionId, userId, onStage: false },
+    data: { onStage: true },
+  })
+}
+
+async function releaseStageSeat(sessionId: string, userId: string): Promise<void> {
+  await db.liveParticipant.updateMany({
+    where: { sessionId, userId, onStage: true },
+    data: { onStage: false },
+  })
+}
+
+export interface StageState {
+  capacity: number
+  taken: number
+  full: boolean
+}
+
+/**
+ * L'occupation de la scène telle que l'écran doit l'annoncer.
+ *
+ * Le compte est fait sur la liste déjà chargée plutôt que par une requête de
+ * plus : la lecture qui suit l'attribution doit refléter la place qu'on vient
+ * de prendre, or la liste a pu être lue avant. D'où `viewerOnStage`, qui
+ * corrige la ligne du lecteur.
+ */
+function stageStateOf(
+  participants: Array<{ userId: string; onStage: boolean }>,
+  viewerId: string,
+  viewerOnStage: boolean,
+): StageState {
+  const taken = participants.filter((p) =>
+    p.userId === viewerId ? viewerOnStage : p.onStage,
+  ).length
+  return { capacity: LIVE_STAGE_CAPACITY, taken, full: taken >= LIVE_STAGE_CAPACITY }
+}
+
 export interface LiveRoomView {
   id: string
   /** Qui regarde — l'écran s'en sert pour se reconnaître dans la liste. */
@@ -339,6 +513,13 @@ export interface LiveRoomView {
   mutedReason: 'BANNED' | 'RESTRICTED' | null
   /** Verrou posé par l'animateur sur *ce* participant (arbitrage 35). */
   mutedByHost: boolean
+  /**
+   * Ce participant tient-il une des neuf places (arbitrage 93) ? Ne pas le
+   * confondre avec `mutedByHost` : sans place, personne ne l'a coupé.
+   */
+  onStage: boolean
+  /** Occupation de la scène, pour dire pourquoi le micro n'est pas disponible. */
+  stage: StageState
   handRaisedAt: Date | null
   /** Rang dans la file des demandes de parole (arbitrage 36), 1 = premier. */
   handPosition: number | null
@@ -347,6 +528,7 @@ export interface LiveRoomView {
     name: string | null
     isHost: boolean
     mutedByHost: boolean
+    onStage: boolean
     handRaisedAt: Date | null
     handPosition: number | null
   }>
@@ -400,15 +582,34 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     where: { sessionId_userId: { sessionId, userId } },
     create: { sessionId, userId },
     update: { leftAt: null },
-    select: { mutedByHost: true, handRaisedAt: true },
+    select: { mutedByHost: true, handRaisedAt: true, onStage: true },
   })
+
+  // Arbitrage 93 — une place se prend en entrant, dans la limite du plafond.
+  // Rien avant que la séance soit ouverte : personne ne publie dans une salle
+  // d'attente, et réserver une place à l'avance ferait de l'heure d'arrivée un
+  // droit de parole.
+  let onStage = participant.onStage
+  if (session.status === 'LIVE') {
+    if (viewer.isTrainer) {
+      await takeHostSeat(sessionId, userId)
+      onStage = true
+    } else if (!participant.mutedByHost && muted === null) {
+      onStage = (await claimStageSeat(sessionId, userId)) === 'SEATED'
+    } else if (participant.onStage) {
+      // Coupé ou restreint entre deux entrées : la place ne lui sert plus, et
+      // la garder priverait quelqu'un d'autre.
+      await releaseStageSeat(sessionId, userId)
+      onStage = false
+    }
+  }
 
   const [participants, messages] = await Promise.all([
     db.liveParticipant.findMany({
       where: { sessionId, leftAt: null },
       orderBy: { joinedAt: 'asc' },
       select: {
-        userId: true, mutedByHost: true, handRaisedAt: true,
+        userId: true, mutedByHost: true, handRaisedAt: true, onStage: true,
         user: { select: { fullName: true } },
       },
     }),
@@ -441,8 +642,9 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
   }
 
   // Le micro n'est ouvert que si rien ne s'y oppose : ni verrou d'animateur, ni
-  // bannissement, ni restriction de compte. L'animateur, lui, publie toujours.
-  const canPublish = viewer.isTrainer || (!participant.mutedByHost && muted === null)
+  // bannissement, ni restriction de compte, **et** à condition de tenir une des
+  // neuf places (arbitrage 93). L'animateur, lui, publie toujours.
+  const canPublish = viewer.isTrainer || (onStage && !participant.mutedByHost && muted === null)
   const token = session.status === 'LIVE'
     ? await mintJoinToken({
         roomName: session.roomName,
@@ -475,6 +677,8 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     canSpeak: muted === null,
     mutedReason: muted,
     mutedByHost: participant.mutedByHost,
+    onStage,
+    stage: stageStateOf(participants, userId, onStage),
     handRaisedAt: participant.handRaisedAt,
     handPosition: positionOf(userId),
     participants: participants.map((p) => ({
@@ -482,6 +686,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       name: p.user.fullName,
       isHost: p.userId === hostUserId,
       mutedByHost: p.mutedByHost,
+      onStage: p.userId === userId ? onStage : p.onStage,
       handRaisedAt: p.handRaisedAt,
       handPosition: positionOf(p.userId),
     })),
@@ -503,7 +708,10 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
 export async function leaveLiveSession(sessionId: string, userId: string): Promise<void> {
   await db.liveParticipant.updateMany({
     where: { sessionId, userId, leftAt: null },
-    data: { leftAt: new Date(), handRaisedAt: null },
+    // Quitter la salle rend la place (arbitrage 93). Sans cela, une séance
+    // finirait par n'avoir plus une seule place libre pour des gens partis
+    // depuis une heure — et la file des mains levées ne s'écoulerait plus.
+    data: { leftAt: new Date(), handRaisedAt: null, onStage: false },
   })
 }
 
@@ -551,14 +759,26 @@ export async function setParticipantMuted(
   const session = await assertIsHost(sessionId, hostUserId)
   if (targetUserId === hostUserId) throw new Error('CANNOT_MUTE_HOST')
 
+  // Donner la parole, c'est asseoir quelqu'un sur la scène (arbitrage 93). La
+  // place se prend **avant** de lever le verrou : lever le verrou d'abord
+  // laisserait, le temps d'un échec, un participant délivré mais toujours muet
+  // côté transport, sans que rien à l'écran ne l'explique.
+  if (!muted) {
+    const seat = await claimStageSeat(sessionId, targetUserId)
+    if (seat === 'MISSING') throw new Error('PARTICIPANT_NOT_FOUND')
+    if (seat === 'FULL') throw new Error('STAGE_FULL')
+  }
+
   const updated = await db.liveParticipant.updateMany({
     where: { sessionId, userId: targetUserId },
     data: {
       mutedByHost: muted,
+      // Couper rend la place : la garder pour quelqu'un qui ne peut pas publier
+      // priverait de parole un participant qui, lui, le pourrait.
       // Donner la parole lève le verrou **et** baisse la main d'un même geste
       // (arbitrage 41) : laisser la main levée ferait figurer indéfiniment dans
       // la file quelqu'un qui a déjà obtenu ce qu'il demandait.
-      ...(muted ? {} : { handRaisedAt: null }),
+      ...(muted ? { onStage: false } : { handRaisedAt: null }),
     },
   })
   if (updated.count === 0) throw new Error('PARTICIPANT_NOT_FOUND')
@@ -603,9 +823,11 @@ export async function muteEveryone(sessionId: string, hostUserId: string) {
     select: { userId: true },
   })
 
+  // La scène se vide en même temps que les micros se coupent : neuf places
+  // tenues par des gens qu'on vient de faire taire n'attendraient plus rien.
   await db.liveParticipant.updateMany({
     where: { sessionId, userId: { not: hostUserId } },
-    data: { mutedByHost: true },
+    data: { mutedByHost: true, onStage: false },
   })
 
   for (const target of targets) {
@@ -668,6 +890,12 @@ export interface AgendaSession {
   description: string | null
   status: LiveSessionStatus
   startsAt: Date
+  /**
+   * Fuseau dans lequel l'animateur a pensé l'heure (arbitrage 107). L'écran
+   * ne le rappelle que s'il diffère de celui du lecteur : sinon il ajouterait
+   * du bruit à une évidence.
+   */
+  timeZone: string | null
   durationMinutes: number
   community: ViewCommunity
   host: ViewHost
@@ -686,7 +914,8 @@ export interface AgendaSession {
 
 const AGENDA_SELECT = {
   id: true, title: true, description: true, status: true,
-  scheduledStartAt: true, durationMinutes: true, peakParticipants: true, startedAt: true,
+  scheduledStartAt: true, timeZone: true, durationMinutes: true,
+  peakParticipants: true, startedAt: true,
   community: {
     select: {
       name: true, slug: true,
@@ -698,7 +927,8 @@ const AGENDA_SELECT = {
 
 function toAgenda(s: {
   id: string; title: string; description: string | null; status: LiveSessionStatus
-  scheduledStartAt: Date; durationMinutes: number; peakParticipants: number
+  scheduledStartAt: Date; timeZone: string | null
+  durationMinutes: number; peakParticipants: number
   community: {
     name: string; slug: string
     trainerProfile: { slogan: string | null; user: { fullName: string | null } }
@@ -712,6 +942,7 @@ function toAgenda(s: {
     description: s.description,
     status: s.status,
     startsAt: s.scheduledStartAt,
+    timeZone: s.timeZone,
     durationMinutes: s.durationMinutes,
     community: { name: s.community.name, slug: s.community.slug },
     host: {
@@ -801,6 +1032,14 @@ export interface ReplayView {
   host: ViewHost
   /** Arbitrage 55 — droit uniforme de tout membre, aucune case par séance. */
   downloadable: boolean
+  /**
+   * Arbitrage 94 — une variante audio existe-t-elle pour cette séance ?
+   *
+   * Les replays antérieurs à la bascule vers le stockage objet n'en ont pas, et
+   * ceux hébergés par Mux non plus : l'écran ne peut donc pas la proposer
+   * partout, il doit la lire ici.
+   */
+  hasAudioVariant: boolean
   purgeAt: Date
   /**
    * Le spectateur est-il le formateur de la communauté qui a produit ce replay ?
@@ -848,7 +1087,7 @@ export async function hasReplayAccess(
 
 const REPLAY_SELECT = {
   id: true, sessionId: true, title: true, recordedAt: true, durationSeconds: true,
-  status: true, purgeAt: true, communityId: true, s3Key: true,
+  status: true, purgeAt: true, communityId: true, s3Key: true, audioS3Key: true,
   session: { select: { description: true } },
   community: {
     select: {
@@ -862,6 +1101,7 @@ const REPLAY_SELECT = {
 function toReplay(r: {
   id: string; sessionId: string; title: string; recordedAt: Date
   durationSeconds: number | null; status: string; purgeAt: Date
+  audioS3Key: string | null
   session: { description: string | null }
   community: {
     name: string; slug: string
@@ -888,6 +1128,7 @@ function toReplay(r: {
     // identiques, aucune ne refuse le téléchargement. C'est donc un droit
     // uniforme, et il n'y a **pas** de case « téléchargeable » par séance.
     downloadable: r.status === 'READY',
+    hasAudioVariant: r.status === 'READY' && r.audioS3Key !== null,
     purgeAt: r.purgeAt,
   }
 }
@@ -987,17 +1228,28 @@ export async function getReplayUrl(
   replayId: string,
   userId: string,
   forDownload = false,
+  /** Arbitrage 94 — `audio` sert la variante légère, quand elle existe. */
+  variant: 'video' | 'audio' = 'video',
 ): Promise<string> {
   const replay = await db.replay.findFirst({
     where: { id: replayId, purgedAt: null },
     select: {
       id: true, communityId: true, recordedAt: true, s3Key: true, status: true,
-      muxPlaybackId: true,
+      muxPlaybackId: true, audioS3Key: true,
     },
   })
   if (!replay) throw new Error('REPLAY_NOT_FOUND')
   if (!(await hasReplayAccess(userId, replay))) throw new Error('NOT_MEMBER')
   if (replay.status !== 'READY') throw new Error('REPLAY_UNAVAILABLE')
+
+  // La variante audio n'existe que sur les replays enregistrés chez nous ; chez
+  // Mux, c'est son lecteur adaptatif qui joue ce rôle. Demander l'audio d'un
+  // replay qui n'en a pas est une erreur d'appel, pas un repli silencieux vers
+  // 1,3 Go de vidéo sur une connexion qui vient d'en demander 60 Mo.
+  if (variant === 'audio') {
+    if (!replay.audioS3Key) throw new Error('REPLAY_AUDIO_UNAVAILABLE')
+    return presignDownload(replay.audioS3Key)
+  }
 
   // Hébergé par Mux : lecture HLS adaptative, sans URL signée à renouveler.
   if (replay.muxPlaybackId) {
@@ -1021,18 +1273,36 @@ export async function getReplayUrl(
 export async function purgeExpiredReplays(now = new Date()): Promise<{ purged: number }> {
   const expired = await db.replay.findMany({
     where: { purgedAt: null, purgeAt: { lte: now } },
-    select: { id: true, title: true, sizeBytes: true, trainerId: true },
+    select: {
+      id: true, title: true, sizeBytes: true, audioSizeBytes: true,
+      s3Key: true, audioS3Key: true, trainerId: true,
+    },
   })
 
   for (const replay of expired) {
+    // **L'objet part avant la ligne.** Oublier cette boucle — c'était le cas
+    // jusqu'au 13 août 2026 — rendait le quota au formateur en base et laissait
+    // les octets dans le seau : la facture de stockage, elle, ne baissait
+    // jamais. Une purge qui ne purge que la comptabilité coûte plus cher que
+    // pas de purge du tout, puisqu'elle autorise à reremplir la place.
+    for (const key of [replay.s3Key, replay.audioS3Key]) {
+      if (key) await deleteObject(key)
+    }
+
     await db.replay.update({
       where: { id: replay.id },
-      data: { purgedAt: now, status: 'PURGED', s3Key: null, sizeBytes: null },
+      data: {
+        purgedAt: now, status: 'PURGED',
+        s3Key: null, sizeBytes: null, audioS3Key: null, audioSizeBytes: null,
+      },
     })
     await auditStandalone({
       actorId: null, actorRole: 'SYSTEM',
       action: 'REPLAY_PURGED', targetType: 'Replay', targetId: replay.id,
-      meta: { retentionMonths: REPLAY_RETENTION_MONTHS, freedBytes: Number(replay.sizeBytes ?? 0) },
+      meta: {
+        retentionMonths: REPLAY_RETENTION_MONTHS,
+        freedBytes: Number(replay.sizeBytes ?? 0) + Number(replay.audioSizeBytes ?? 0),
+      },
     })
   }
 
@@ -1045,28 +1315,41 @@ export async function purgeExpiredReplays(now = new Date()): Promise<{ purged: n
  * c'est sa dernière fenêtre pour en récupérer une copie.
  */
 export async function alertUpcomingReplayPurges(now = new Date()): Promise<{ alerted: number }> {
-  const horizon = new Date(now.getTime() + 30 * 86_400_000)
+  // Arbitrage 103 — **une seule fois**, au franchissement du seuil. La fenêtre
+  // était ouverte de maintenant à J-30, donc tous les replays concernés étaient
+  // renotifiés à chaque passage : trente notifications identiques pour un seul
+  // événement, soit la meilleure façon de faire ignorer un préavis.
+  const window = {
+    gt: new Date(now.getTime() + (DOWNLOAD_NOTICE_DAYS - 1) * 86_400_000),
+    lte: new Date(now.getTime() + DOWNLOAD_NOTICE_DAYS * 86_400_000),
+  }
 
   const soon = await db.replay.findMany({
-    where: { purgedAt: null, purgeAt: { gt: now, lte: horizon } },
+    where: { purgedAt: null, purgeAt: window },
     select: {
       id: true, title: true, purgeAt: true,
       trainerProfile: { select: { userId: true } },
     },
   })
 
+  let alerted = 0
   for (const replay of soon) {
-    await deliverSideEffects('REPLAY_PURGE_SOON', { type: 'Replay', id: replay.id }, () =>
-      notify(replay.trainerProfile.userId, {
+    const sent = await sendNoticeOnce(
+      `REPLAY_PURGE_NOTICE_${DOWNLOAD_NOTICE_DAYS}`,
+      replay.id,
+      replay.trainerProfile.userId,
+      {
         type: 'REPLAY_PURGE_SOON',
         title: `« ${replay.title} » sera supprimé le ${replay.purgeAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })}`,
         body: `Les replays sont conservés ${REPLAY_RETENTION_MONTHS} mois. La suppression vous rendra l'espace de stockage correspondant.`,
         link: '/mes-lives',
-      }),
+      },
+      { days: DOWNLOAD_NOTICE_DAYS, purgeAt: replay.purgeAt.toISOString() },
     )
+    if (sent) alerted += 1
   }
 
-  return { alerted: soon.length }
+  return { alerted }
 }
 
 /**
@@ -1082,6 +1365,9 @@ export async function markReplayReady(
     durationSeconds?: number
     muxAssetId?: string
     muxPlaybackId?: string
+    /** `null` efface la clé annoncée à la clôture : l'egress audio a échoué. */
+    audioS3Key?: string | null
+    audioSizeBytes?: number
   },
 ): Promise<void> {
   await db.replay.update({
@@ -1095,6 +1381,10 @@ export async function markReplayReady(
       ...(input.durationSeconds ? { durationSeconds: Math.round(input.durationSeconds) } : {}),
       ...(input.muxAssetId ? { muxAssetId: input.muxAssetId } : {}),
       ...(input.muxPlaybackId ? { muxPlaybackId: input.muxPlaybackId } : {}),
+      ...(input.audioS3Key !== undefined ? { audioS3Key: input.audioS3Key } : {}),
+      ...(input.audioSizeBytes !== undefined
+        ? { audioSizeBytes: BigInt(input.audioSizeBytes) }
+        : {}),
     },
   })
   await auditStandalone({
@@ -1102,6 +1392,7 @@ export async function markReplayReady(
     action: 'REPLAY_READY', targetType: 'Replay', targetId: sessionId,
     meta: {
       sizeBytes: input.sizeBytes ?? 0,
+      audioSizeBytes: input.audioSizeBytes ?? 0,
       host: input.muxPlaybackId ? 'MUX' : 'STORAGE',
     },
   })
@@ -1140,7 +1431,10 @@ export async function reconcileProcessingReplays(): Promise<{
 }> {
   const pending = await db.replay.findMany({
     where: { status: 'PROCESSING', session: { egressId: { not: null }, muxStreamId: null } },
-    select: { id: true, sessionId: true, session: { select: { egressId: true } } },
+    select: {
+      id: true, sessionId: true,
+      session: { select: { egressId: true, audioEgressId: true } },
+    },
   })
 
   let resolved = 0
@@ -1158,10 +1452,20 @@ export async function reconcileProcessingReplays(): Promise<{
     }
 
     if (outcome.ok) {
+      // La variante audio n'a pas voix au chapitre sur le statut du replay : si
+      // elle échoue, il reste une vidéo, et annoncer `FAILED` pour un fichier
+      // d'appoint ferait disparaître une séance parfaitement enregistrée.
+      const audio = replay.session.audioEgressId
+        ? await getEgressOutcome(replay.session.audioEgressId)
+        : null
+
       await markReplayReady(replay.sessionId, {
         s3Key: outcome.s3Key,
         sizeBytes: outcome.sizeBytes,
         durationSeconds: outcome.durationSeconds,
+        ...(audio?.done && audio.ok
+          ? { audioS3Key: audio.s3Key, audioSizeBytes: audio.sizeBytes }
+          : { audioS3Key: null }),
       })
       resolved++
     } else {

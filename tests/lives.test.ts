@@ -9,10 +9,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
 import {
   scheduleLiveSession, cancelLiveSession, startLiveSession, endLiveSession,
-  joinLiveSession, toggleHand, setParticipantMuted, muteEveryone,
+  joinLiveSession, leaveLiveSession, toggleHand, setParticipantMuted, muteEveryone,
   lowerParticipantHand, postLiveMessage, listMyAgenda, listTrainerSessions, listAgenda,
   listMyReplays, getReplay, hasReplayAccess, markReplayReady,
   purgeExpiredReplays, alertUpcomingReplayPurges, REPLAY_RETENTION_MONTHS,
+  LIVE_STAGE_CAPACITY,
 } from '@/lib/lives'
 import { mintJoinToken } from '@/lib/livekit'
 import { trainerStorageUsedBytes } from '@/lib/courses'
@@ -246,6 +247,133 @@ describe('Lives et replays', () => {
       .rejects.toThrow('CANNOT_MUTE_HOST')
   })
 
+  // --- Où va l'enregistrement (arbitrage 94) ---
+
+  it('arbitrage 94 — l\'enregistrement va dans le seau, et Mux ne se déclenche pas tout seul', async () => {
+    const { community, trainer, trainerUser } = await setup()
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+
+    // Des clés Mux présentes ne suffisent plus : avant, leur seule présence
+    // décidait d'un coût treize fois supérieur sur vingt-quatre mois.
+    const previous = { token: process.env.MUX_TOKEN_ID, secret: process.env.MUX_TOKEN_SECRET }
+    process.env.MUX_TOKEN_ID = 'mux-test'
+    process.env.MUX_TOKEN_SECRET = 'mux-secret'
+    try {
+      await startLiveSession(session.id, trainerUser.id)
+    } finally {
+      process.env.MUX_TOKEN_ID = previous.token ?? ''
+      process.env.MUX_TOKEN_SECRET = previous.secret ?? ''
+    }
+
+    const stored = await prisma.liveSession.findUniqueOrThrow({ where: { id: session.id } })
+    expect(stored.muxStreamId).toBeNull()
+
+    // Sans clés LiveKit, aucun egress ne démarre : le replay est donc en échec,
+    // et il **existe** — c'est la promesse de l'arbitrage 38, tenue même quand
+    // rien n'est configuré. Ce que ce test fixe, c'est le chemin choisi.
+    await endLiveSession(session.id, trainerUser.id)
+    const replay = await prisma.replay.findUniqueOrThrow({ where: { sessionId: session.id } })
+    expect(replay.muxAssetId).toBeNull()
+  })
+
+  // --- La scène (arbitrage 93) ---
+
+  it('arbitrage 93 — neuf publieurs au plus, mais la salle reste ouverte à tous', async () => {
+    const { community, trainer, trainerUser } = await setup()
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+    // L'animateur prend sa place en entrant : il en reste huit.
+    await joinLiveSession(session.id, trainerUser.id)
+
+    const rooms: Awaited<ReturnType<typeof joinLiveSession>>[] = []
+    for (let i = 0; i < 12; i++) {
+      const member = await prisma.user.create({
+        data: { email: `membre${i}@test.com`, role: 'LEARNER', fullName: `Membre ${i}` },
+      })
+      await subscribe(community.id, member.id)
+      rooms.push(await joinLiveSession(session.id, member.id))
+    }
+
+    // Tous sont entrés — l'arbitrage 46 tient : personne n'est refusé.
+    expect(rooms).toHaveLength(12)
+    expect(rooms.every((r) => r.canSpeak)).toBe(true)
+
+    const seated = rooms.filter((r) => r.onStage).length
+    expect(seated).toBe(LIVE_STAGE_CAPACITY - 1)
+    // Et ceux qui restent ne sont coupés par personne : c'est la différence que
+    // l'écran doit rendre.
+    const audience = rooms.filter((r) => !r.onStage)
+    expect(audience).toHaveLength(12 - (LIVE_STAGE_CAPACITY - 1))
+    expect(audience.every((r) => r.mutedByHost === false)).toBe(true)
+
+    const last = rooms[rooms.length - 1]
+    expect(last.stage).toEqual({
+      capacity: LIVE_STAGE_CAPACITY,
+      taken: LIVE_STAGE_CAPACITY,
+      full: true,
+    })
+  })
+
+  it('arbitrage 93 — donner la parole sur une scène pleine échoue, couper un micro la libère', async () => {
+    const { community, trainer, trainerUser } = await setup()
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+    await joinLiveSession(session.id, trainerUser.id)
+
+    const members: { id: string }[] = []
+    for (let i = 0; i < LIVE_STAGE_CAPACITY; i++) {
+      const member = await prisma.user.create({
+        data: { email: `place${i}@test.com`, role: 'LEARNER' },
+      })
+      await subscribe(community.id, member.id)
+      await joinLiveSession(session.id, member.id)
+      members.push(member)
+    }
+
+    // Le dernier n'a pas eu de place : il lève la main, c'est son seul recours
+    // (arbitrage 41), et l'animateur ne peut rien lui donner pour l'instant.
+    const waiting = members[members.length - 1]
+    await toggleHand(session.id, waiting.id, true)
+    await expect(setParticipantMuted(session.id, waiting.id, trainerUser.id, false))
+      .rejects.toThrow('STAGE_FULL')
+
+    // Couper quelqu'un rend sa place — c'est le geste qui débloque la file.
+    await setParticipantMuted(session.id, members[0].id, trainerUser.id, true)
+    await setParticipantMuted(session.id, waiting.id, trainerUser.id, false)
+
+    const state = await prisma.liveParticipant.findFirstOrThrow({
+      where: { sessionId: session.id, userId: waiting.id },
+    })
+    expect(state.onStage).toBe(true)
+    expect(state.handRaisedAt).toBeNull()
+  })
+
+  it('arbitrage 93 — quitter la salle rend la place', async () => {
+    const { community, trainer, trainerUser, member } = await setup()
+    await subscribe(community.id, member.id)
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+
+    expect((await joinLiveSession(session.id, member.id)).onStage).toBe(true)
+    await leaveLiveSession(session.id, member.id)
+
+    const state = await prisma.liveParticipant.findFirstOrThrow({
+      where: { sessionId: session.id, userId: member.id },
+    })
+    expect(state.onStage).toBe(false)
+  })
+
+  it('arbitrage 93 — un membre banni n\'occupe aucune place', async () => {
+    const { community, trainer, trainerUser, member } = await setup()
+    await subscribe(community.id, member.id, { status: 'BANNED' })
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+
+    const room = await joinLiveSession(session.id, member.id)
+    expect(room.onStage).toBe(false)
+    expect(room.stage.taken).toBe(0)
+  })
+
   it('arbitrage 40 — le membre banni assiste, sans prendre la parole', async () => {
     const { community, trainer, trainerUser, member } = await setup()
     await subscribe(community.id, member.id, { status: 'BANNED' })
@@ -415,14 +543,27 @@ describe('Lives et replays', () => {
     expect(await trainerStorageUsedBytes(trainer.id)).toBe(0)
   })
 
-  it('le formateur est prévenu un mois avant la purge', async () => {
+  it('arbitrage 103 — le formateur est prévenu un mois avant la purge, une seule fois', async () => {
     const { community, trainer, trainerUser, member } = await setup()
     const replay = await replayFor(community.id, trainer.id, trainerUser.id, member.id)
 
     expect((await alertUpcomingReplayPurges()).alerted).toBe(0)
 
-    const soon = new Date(replay.purgeAt.getTime() - 10 * DAY)
+    // Le préavis se déclenche **au franchissement du seuil**, pas pendant tout
+    // le mois qui précède : la fenêtre était ouverte de maintenant à J-30, si
+    // bien que le même replay était renotifié à chaque passage du job — trente
+    // notifications identiques pour un seul événement.
+    const tooEarly = new Date(replay.purgeAt.getTime() - 40 * DAY)
+    expect((await alertUpcomingReplayPurges(tooEarly)).alerted).toBe(0)
+
+    const soon = new Date(replay.purgeAt.getTime() - 29.5 * DAY)
     expect((await alertUpcomingReplayPurges(soon)).alerted).toBe(1)
+    expect(
+      await prisma.notification.count({ where: { userId: trainerUser.id, type: 'REPLAY_PURGE_SOON' } }),
+    ).toBe(1)
+
+    // Rejoué le lendemain — ou deux fois le même jour — il ne redit rien.
+    expect((await alertUpcomingReplayPurges(soon)).alerted).toBe(0)
     expect(
       await prisma.notification.count({ where: { userId: trainerUser.id, type: 'REPLAY_PURGE_SOON' } }),
     ).toBe(1)

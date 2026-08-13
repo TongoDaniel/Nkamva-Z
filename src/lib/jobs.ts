@@ -23,6 +23,7 @@ import {
 import { renewDueMemberships, expireOverdueMemberships } from './memberships'
 import { refreshCommunityActivity } from './community-space'
 import { purgeExpiredReplays, alertUpcomingReplayPurges, reconcileProcessingReplays } from './lives'
+import { noticeEndingGiftMemberships, noticeTariffSwitch } from './notices'
 
 export interface ScheduledJob {
   name: string
@@ -193,6 +194,21 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'REPLAY_RECONCILE',
     schedule: '*/10 * * * *',
     run: async () => ({ ...(await reconcileProcessingReplays()) }),
+  },
+  {
+    // Arbitrages 77 et 103 — les mois offerts se terminent à J-7 puis J-1. Le
+    // matin, pas la nuit : un préavis se lit le jour où il arrive.
+    name: 'GIFT_MEMBERSHIP_ENDING_NOTICE',
+    schedule: '0 8 * * *',
+    run: async () => ({ ...(await noticeEndingGiftMemberships()) }),
+  },
+  {
+    // Arbitrage 96 — 60 jours avant que la gratuité de lancement ne s'arrête.
+    // Le job ne dit rien tant qu'aucun tarif payant n'est posé : c'est la
+    // bascule qui le déclenche, pas le calendrier.
+    name: 'TARIFF_SWITCH_NOTICE',
+    schedule: '15 8 * * *',
+    run: async () => ({ ...(await noticeTariffSwitch()) }),
   },
 ]
 

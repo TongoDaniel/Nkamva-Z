@@ -10,6 +10,9 @@ const ScheduleSchema = z
     description: z.string().max(2000).optional(),
     scheduledStartAt: z.string().datetime(),
     durationMinutes: z.number().int().min(5).max(480).optional(),
+    // Arbitrage 107 — le fuseau dans lequel l'animateur a saisi l'heure. Le
+    // navigateur l'envoie ; le service ignore ce qu'il ne reconnaît pas.
+    timeZone: z.string().max(64).optional(),
   })
   .strict()
 
@@ -47,6 +50,7 @@ export async function POST(request: Request) {
         description: parsed.data.description,
         scheduledStartAt: new Date(parsed.data.scheduledStartAt),
         durationMinutes: parsed.data.durationMinutes,
+        timeZone: parsed.data.timeZone,
       }),
       undefined,
       201,

@@ -195,10 +195,18 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   LIVE_ALREADY_ENDED: { message: 'La séance est terminée', status: 409 },
   LIVE_CANCELED: { message: 'Cette séance a été annulée', status: 409 },
   CANNOT_MUTE_HOST: { message: 'L\'animateur ne se coupe pas lui-même', status: 422 },
+  STAGE_FULL: {
+    message: 'La scène est complète : coupez d\'abord un micro pour libérer une place',
+    status: 422,
+  },
   PARTICIPANT_NOT_FOUND: { message: 'Ce participant n\'est pas dans la séance', status: 404 },
   TITLE_REQUIRED: { message: 'Donnez un titre à la séance', status: 400 },
   REPLAY_NOT_FOUND: { message: 'Replay introuvable', status: 404 },
   REPLAY_UNAVAILABLE: { message: 'L\'enregistrement de cette séance n\'est pas disponible', status: 409 },
+  REPLAY_AUDIO_UNAVAILABLE: {
+    message: 'Cette séance n\'a pas de version audio seule',
+    status: 409,
+  },
   // --- Messagerie 1 à 1 (arbitrages 33 et 39) ---
   CONVERSATION_NOT_FOUND: { message: 'Conversation introuvable', status: 404 },
   MESSAGING_DISABLED: { message: 'La messagerie n\'est pas ouverte dans cette communauté', status: 422 },

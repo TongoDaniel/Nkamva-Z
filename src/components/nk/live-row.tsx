@@ -26,6 +26,34 @@ function timeLabel(date: Date) {
   return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
+/**
+ * Arbitrage 107 — l'heure s'affiche toujours dans le fuseau du lecteur ; on
+ * rappelle celui de l'animateur **seulement** s'il en diffère.
+ *
+ * Sans cette condition, tout le monde lirait « 18 h 00 (Africa/Douala) » à
+ * Douala, ce qui n'apprend rien et alourdit chaque ligne. Avec, un membre de la
+ * diaspora sait que 19 h 00 chez lui est bien la séance de 18 h 00 annoncée.
+ * Le nom de ville plutôt que l'identifiant : « Douala » se lit, `Africa/Douala`
+ * se déchiffre.
+ */
+function hostTimeLabel(date: Date, timeZone: string | null): string | null {
+  if (!timeZone) return null
+  try {
+    if (timeZone === Intl.DateTimeFormat().resolvedOptions().timeZone) return null
+    const time = new Intl.DateTimeFormat("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone,
+    }).format(date);
+    const city = timeZone.split("/").pop()?.replace(/_/g, " ") ?? timeZone;
+    return `${time} à ${city}`;
+  } catch {
+    // Fuseau inconnu du navigateur : mieux vaut ne rien dire que d'afficher un
+    // identifiant brut à côté d'une heure déjà juste.
+    return null;
+  }
+}
+
 const ROW = "flex flex-wrap items-center gap-4 rounded-nk border border-line bg-card px-4 py-3.5";
 
 /** Bloc de date à gauche de chaque ligne, comme `.live-date` de la maquette. */
@@ -70,6 +98,11 @@ export function LiveSessionRow({
             : session.host.name}{" "}
           · {timeLabel(session.startsAt)} · {session.durationMinutes} min
         </p>
+        {hostTimeLabel(session.startsAt, session.timeZone) ? (
+          <p className="mt-0.5 truncate text-[12.5px] text-ink-3">
+            soit {hostTimeLabel(session.startsAt, session.timeZone)}
+          </p>
+        ) : null}
       </div>
       {session.mine ? (
         <BtnLink

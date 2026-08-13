@@ -25,7 +25,7 @@
 
 import {
   AccessToken, EgressClient, RoomServiceClient, EgressStatus,
-  EncodedFileOutput, EncodedFileType, S3Upload, StreamOutput, StreamProtocol,
+  EncodedFileOutput, EncodedFileType, EncodingOptions, S3Upload, StreamOutput, StreamProtocol,
   type EgressInfo,
 } from 'livekit-server-sdk'
 import { storageConfig } from './s3'
@@ -193,6 +193,47 @@ export async function startRecording(
   roomName: string,
   s3Key: string,
 ): Promise<string | null> {
+  return startFileEgress(roomName, s3Key, false)
+}
+
+/**
+ * Le second enregistrement, audio seul (arbitrage 94).
+ *
+ * Deux heures pèsent ~60 Mo contre ~1,3 Go pour la vidéo. Sur les connexions
+ * que sert la plateforme, c'est la différence entre un replay qu'on écoute et
+ * un replay qu'on ne charge jamais. Son échec n'a aucune conséquence : le
+ * replay vidéo, lui, est déjà là.
+ */
+export async function startAudioRecording(
+  roomName: string,
+  s3Key: string,
+): Promise<string | null> {
+  return startFileEgress(roomName, s3Key, true)
+}
+
+/**
+ * Une seule définition, volontairement modeste (arbitrage 94) : 1 280 × 720 à
+ * 24 images et 1 200 kbit/s.
+ *
+ * Le défaut de LiveKit est 1080p à 4 500 kbit/s — trois fois plus d'octets pour
+ * une séance qui est, l'essentiel du temps, des visages et des diapositives. Ce
+ * sont ces octets-là qui remplissent le quota du formateur et qu'il faut
+ * ensuite lui vendre : les produire par défaut reviendrait à lui facturer notre
+ * propre réglage.
+ */
+function encodingOptions(audioOnly: boolean): EncodingOptions {
+  return new EncodingOptions(
+    audioOnly
+      ? { audioBitrate: 64 }
+      : { width: 1280, height: 720, framerate: 24, videoBitrate: 1200, audioBitrate: 96 },
+  )
+}
+
+async function startFileEgress(
+  roomName: string,
+  s3Key: string,
+  audioOnly: boolean,
+): Promise<string | null> {
   const client = egress()
   if (!client) return null
 
@@ -206,7 +247,7 @@ export async function startRecording(
 
   try {
     const output = new EncodedFileOutput({
-      fileType: EncodedFileType.MP4,
+      fileType: audioOnly ? EncodedFileType.OGG : EncodedFileType.MP4,
       filepath: s3Key,
       output: {
         case: 's3',
@@ -221,10 +262,13 @@ export async function startRecording(
       },
     })
 
-    const info = await client.startRoomCompositeEgress(roomName, output)
+    const info = await client.startRoomCompositeEgress(roomName, output, {
+      encodingOptions: encodingOptions(audioOnly),
+      audioOnly,
+    })
     return info.egressId
   } catch (err) {
-    console.error('[LIVEKIT:EGRESS_START]', { roomName, error: String(err) })
+    console.error('[LIVEKIT:EGRESS_START]', { roomName, audioOnly, error: String(err) })
     return null
   }
 }
@@ -232,9 +276,11 @@ export async function startRecording(
 /**
  * Pousse la composition de la salle vers une ingestion RTMP — celle de Mux.
  *
- * Préféré au dépôt de fichier quand Mux est configuré : l'enregistrement, son
- * encodage et sa diffusion adaptative deviennent son affaire, et le replay ne
- * pèse pas sur le quota du formateur.
+ * **Ce n'est plus le chemin par défaut** (arbitrage 94) : à tarifs publics, deux
+ * heures de séance coûtent ~3 700 FCFA sur 24 mois chez Mux contre ~290 FCFA
+ * dans le seau, la sortie de données y étant gratuite. Mux reste appelable —
+ * son encodage adaptatif n'a pas d'équivalent ici — mais il se demande
+ * explicitement, par `REPLAY_RECORDER=MUX`.
  */
 export async function startStreamRecording(
   roomName: string,

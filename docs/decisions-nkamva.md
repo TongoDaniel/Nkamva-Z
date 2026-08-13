@@ -1234,8 +1234,12 @@ s'affiche jamais comme une jauge de places.
 > capacité, et l'arbitrage 31 aussi — tout le monde peut toujours parler. La **file numérotée
 > des mains levées (arbitrage 36) devient le mécanisme qui fait tourner les places sur la
 > scène**, ce qu'elle était déjà censée être.
-> Statut : 📋 `livekit.ts` a déjà le bon verrou (`canPublish`) ; il manque l'abonnement
-> sélectif et le plafond. `LiveSession.peakParticipants` existe pour mesurer s'il mord.
+> Statut : ✅ **Implémenté le 13 août 2026** — `LiveParticipant.onStage` (migration
+> `20260813012319_stage_capacity`), attribution sérialisée par un verrou sur la ligne de
+> séance, places rendues à la coupure comme au départ. Les deux causes se disent
+> séparément à l'écran — « micro coupé par l'animateur » contre « scène complète ». La
+> console affiche l'occupation et désactive « Donner la parole » quand il n'y a plus de
+> place, plutôt que d'échouer après le clic. 4 tests.
 
 **94. Les replays s'enregistrent vers le stockage objet** *(complète les arbitrages 38, 51 et
 54)* — L'egress LiveKit écrit directement dans le seau, en une définition unique
@@ -1252,7 +1256,12 @@ ultérieure, pas comme chemin par défaut.
 > plus lourd.
 > Repère à annoncer aux formateurs : 40 Go, c'est environ **trente séances de 2 h**, quota
 > partagé avec les ressources téléversées.
-> Statut : 📋 `lives.ts` doit choisir la cible d'egress ; `mux.ts` reste en place.
+> Statut : ✅ **Implémenté le 13 août 2026** — `REPLAY_RECORDER=MUX` est désormais le seul
+> chemin vers Mux ; par défaut l'egress écrit dans le seau en 720p/1 200 kbit/s, doublé
+> d'une variante audio seule (`Replay.audioS3Key`, migration
+> `20260813013508_replay_audio_variant`) que le lecteur propose quand elle existe.
+> **Défaut corrigé au passage** : la purge vidait la ligne sans supprimer l'objet — le
+> quota était rendu au formateur, la facture de stockage jamais.
 
 **95. Prix du palier de stockage — 3 000 FCFA par mois, 30 000 par an**
 *(ferme le point non arbitré de l'arbitrage 69)* — Par tranche de 50 Go, facturée **à la
@@ -1267,7 +1276,9 @@ offerts sur l'annuel.
 > ⚠️ **Aujourd'hui l'extension est gratuite, silencieusement** : sans `PlatformTariff` de
 > genre `STORAGE_TIER`, `storageTierPriceFcfa()` renvoie 0 — et 0 est la bonne réponse au
 > sens du code, pas une erreur. Le montant se pose sans livraison.
-> Statut : 📋 le code de facturation existe, il manque les deux lignes de tarif.
+> Statut : ✅ **Posé le 13 août 2026** — 3 000 / 30 000 FCFA en base, via
+> `scripts/tarifs.ts`. L'achat de palier par le formateur et sa facturation avec
+> l'abonnement existaient déjà.
 
 **96. La gratuité de lancement se termine le 31 décembre 2026, avec 60 jours de préavis**
 *(ferme le point non arbitré de l'arbitrage 56)* — Le tarif à 0 reçoit une borne
@@ -1279,7 +1290,15 @@ offerts sur l'annuel.
 > La date se change en posant un nouveau tarif, **sans livraison** (arbitrage 59) : ce n'est
 > pas une constante de code, c'est une ligne administrée. Elle est ici pour qu'une date
 > existe, pas pour qu'elle soit intouchable.
-> Statut : 📋 une ligne de tarif à poser, plus la notification à 60 jours.
+> ⚠️ **Borner ne suffit pas — constaté en implémentant, le 13 août 2026.** Poser un
+> `validUntil` sur le tarif à 0 sans lui donner de successeur est **sans effet** :
+> `getCurrentTariff` ne trouve alors plus rien et `quotePrice` retient 0 quand la grille est
+> muette. L'abonnement resterait gratuit, simplement sans ligne pour l'expliquer. La bascule
+> n'existe donc que si un **tarif payant lui succède**, et c'est en le posant que le
+> précédent se borne. Le montant de ce tarif payant n'est arbitré nulle part — voir « Points
+> non arbitrés ».
+> Statut : 📋 `scripts/tarifs.ts` pose la bascule sur `--abonnement <mensuel> <annuel>` et la
+> refuse sans montant. La notification à 60 jours reste à écrire.
 
 **97. Le change se règle chez le fournisseur, pas dans la colonne des taux** — NkamVa
 demande à PawaPay un **règlement en devise locale** sur les marchés où elle reverse, et
@@ -1319,7 +1338,9 @@ revue manuelle Finances. Aucun micro-virement n'est émis.
 > Conséquence sur le code : le chemin `MICRO_DEPOSIT` de `payout-methods.ts` **reste en
 > place** mais n'est plus proposé à l'écran. On ne supprime pas un chemin testé pour une
 > décision qui peut se rouvrir le jour où une banque partenaire arrive.
-> Statut : ⚠️ à retirer de l'interface d'instruction Finances.
+> Statut : ✅ **Retiré le 13 août 2026** de l'écran d'instruction. Le service et ses tests
+> restent ; l'écran explique la vérification sur pièce, et les dossiers dont les montants
+> ont déjà été tirés peuvent encore se terminer.
 
 **100. Il n'y aura pas de SMS** *(ferme l'arbitrage 24 et la ligne « SMS » des conventions)* —
 L'e-mail et la notification in-app **sont** le canal d'alerte de la plateforme, y compris
@@ -1350,7 +1371,12 @@ partageable, sont des **limites de dégât** portées par `Setting` et modifiabl
 Super-admin. Elles ne sont pas annoncées comme une caractéristique de l'offre.
 > Raison : les reclasser évite d'avoir à les arbitrer. Le vrai garde-fou du lien est ailleurs
 > — il ne mène qu'au tarif plein (arbitrage 74) et se révoque.
-> Statut : 📋 constantes à déplacer vers `Setting`, avec les valeurs actuelles pour défaut.
+> Statut : ✅ **Implémenté le 13 août 2026** — `invitations.gift_monthly_quota` et
+> `invitations.share_link_max_uses` vivent dans `Setting`, réglables depuis
+> `/admin/parametres`. Le plafond est **figé sur le lien** à l'émission : relire le réglage
+> à chaque acceptation ferait varier la capacité d'un lien déjà en circulation.
+> Corrigé au passage : une clé du registre sans ligne en base n'apparaissait pas à l'écran
+> et refusait d'être enregistrée — un réglage câblé mais introuvable.
 
 **103. Une seule politique de préavis — J-7 puis J-1, et J-30 quand prévenir sert à
 télécharger** *(ferme le point non arbitré des arbitrages 77 et 51)* — Tout ce qui **se
@@ -1366,8 +1392,11 @@ récupérer une copie de plusieurs gigaoctets.
 > justifiée pour les téléchargements.
 > Conséquence : le membre et le formateur ne reçoivent pas la même information sur la même
 > purge — l'un perd un accès (J-7/J-1), l'autre **récupère du quota** (J-30, arbitrage 54).
-> Statut : ⚠️ `REPLAY_PURGE_ALERT` est déjà conforme (30 jours, formateur). Les préavis de
-> fin d'adhésion et de fin de mois offert sont à aligner sur J-7/J-1.
+> Statut : ✅ **Implémenté le 13 août 2026** — `src/lib/notices.ts`, deux jobs
+> (`GIFT_MEMBERSHIP_ENDING_NOTICE`, `TARIFF_SWITCH_NOTICE`). **Défaut trouvé en
+> implémentant** : le préavis de purge partait *chaque jour pendant trente jours*, la
+> fenêtre étant ouverte de maintenant à J-30. Le seuil franchi est désormais inscrit au
+> journal et relu avant d'écrire — un job rejoué ne prévient pas deux fois. 6 tests.
 
 **104. Si le parrainage rapporte un jour, il sera financé par la commission** *(précise
 l'arbitrage 76, qui reste ajourné)* — Une éventuelle contrepartie du parrain se prendra sur
@@ -1386,7 +1415,9 @@ motif, et il est ouvert à **Finances**. Le journal d'audit, lui, reste au seul 
 > travailler — vérifier ce qu'on a accordé, retrouver une remise négociée —, le second pour
 > contrôler. L'arbitrage 7 ne parle que du second, et l'angle mort signalé à l'arbitrage 60
 > venait de les avoir confondus.
-> Statut : 📋 `pricing.ts` porte déjà les remises et leur motif ; il manque l'écran.
+> Statut : ✅ **Implémenté le 13 août 2026** — `/admin/remises`, ouvert à Finances et au
+> Super-admin, en consultation seule : auteur, motif, fenêtre de validité et compteur
+> d'usage. La Modération y est refusée, comme partout dans les finances.
 
 **106. On ne change pas le rôle d'un compte depuis l'administration** *(précise les
 arbitrages 67 et 88)* — Les seules transitions restent : créer, désactiver, réactiver.
@@ -1398,6 +1429,11 @@ décision 67.
 > Le passage apprenant → formateur existe et n'est pas concerné : il se fait par la
 > candidature et le paiement d'activation, pas par un geste d'administrateur.
 > Statut : ✅ conforme par décision — rien à écrire, quelque chose à ne pas écrire.
+> **Corrigé le 13 août 2026, trouvé en vérifiant** : la route de sanction exigeait
+> `SUPER_ADMIN` pour *tout*, ce qui rendait la moitié de la décision 67 inatteignable — la
+> Modération instruisait un signalement visant un compte sans pouvoir en tirer la seule
+> conséquence qui lui revienne. Elle peut désormais mettre en lecture seule depuis le
+> dossier ; l'exclusion reste au Super-admin, et le service le refusait déjà.
 
 **107. UTC en base, fuseau déclaré sur la séance** *(retient la recommandation 9 de
 `docs/recommandations-modelisation.md`)* — `LiveSession` porte un fuseau IANA en plus de son
@@ -1405,7 +1441,10 @@ horodatage ; l'heure s'affiche dans le fuseau du lecteur.
 > Raison : un produit camerounais avec une diaspora aura des séances à cheval sur plusieurs
 > fuseaux dès la première année. Le champ coûte une migration aujourd'hui et un rattrapage de
 > données demain.
-> Statut : 📋 `LiveSession` n'a que `scheduledStartAt`.
+> Statut : ✅ **Implémenté le 13 août 2026** — `LiveSession.timeZone` (migration
+> `20260813032040_live_session_time_zone`), renseigné par le navigateur de l'animateur et
+> ignoré s'il est invalide. L'agenda n'affiche « soit 18 h 00 à Douala » que si le fuseau
+> du lecteur diffère : le rappeler à tout le monde serait du bruit.
 
 ---
 
@@ -1540,6 +1579,12 @@ tient en cinq lignes, dont trois dépendent d'un tiers.*
   nom, la TVA porte-t-elle sur le prix entier plutôt que sur la commission, et à quel taux ?
   C'est la seule inconnue qui peut rendre l'arbitrage 92 plus cher que le problème qu'il
   résout. À faire instruire avant de réécrire les CGU.
+- **Montant de l'abonnement payant** (arbitrages 59, 64, 96) — jamais arbitré, et personne ne
+  l'avait remarqué parce que la gratuité le rendait sans objet. Il le redevient dès qu'on
+  veut borner la gratuité : sans successeur, la borne ne change rien. Deux montants à dire,
+  mensuel et annuel. *(La base de développement porte 9 000 FCFA en mensuel et **rien** en
+  annuel — un formateur qui choisit l'annuel ne paie donc rien. Valeur de travail, pas
+  décision.)*
 - **Réponse de PawaPay sur deux points** (arbitrages 97 et 98) — le règlement en devise
   locale par marché, et l'existence éventuelle d'un nom de payeur dans les rappels. Les deux
   se demandent par courriel ; la seconde réponse, si elle est positive, rend l'intégration

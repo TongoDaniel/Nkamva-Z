@@ -108,6 +108,12 @@ export interface ReportTargetSummary {
    * sens.
    */
   removed?: boolean
+  /**
+   * Renseigné pour USER — décision 67. L'écran d'instruction doit savoir où en
+   * est le compte : proposer « mettre en lecture seule » à quelqu'un qui l'est
+   * déjà ferait répondre `SANCTION_UNCHANGED` après le clic.
+   */
+  sanctionLevel?: 'NONE' | 'RESTRICTED' | 'BANNED'
 }
 
 /**
@@ -142,7 +148,7 @@ export async function resolveReportTarget(
     case 'USER': {
       const user = await db.user.findUnique({
         where: { id: targetId },
-        select: { id: true, email: true, fullName: true },
+        select: { id: true, email: true, fullName: true, sanctionLevel: true },
       })
       // Pas de lien, et ce n'est pas un oubli : décision 7, la Modération n'a
       // pas accès à l'annuaire des utilisateurs — `/admin/utilisateurs` la
@@ -154,6 +160,11 @@ export async function resolveReportTarget(
             label: user.fullName ? `${user.fullName} — ${user.email}` : user.email,
             href: null,
             exists: true,
+            // Décision 67 — la sanction se décide depuis ce dossier, il faut
+            // donc savoir où en est le compte. Sans ce niveau, l'écran
+            // proposerait « mettre en lecture seule » à quelqu'un qui l'est
+            // déjà, et le service répondrait `SANCTION_UNCHANGED`.
+            sanctionLevel: user.sanctionLevel,
           }
         : { label: 'Compte introuvable', href: null, exists: false }
     }
