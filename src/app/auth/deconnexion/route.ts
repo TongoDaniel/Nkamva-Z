@@ -72,7 +72,27 @@ export async function GET(request: NextRequest) {
     headers: { Location: `/auth/connexion${query ? `?${query}` : ''}` },
   })
   for (const cookie of stale) {
-    response.cookies.set(cookie.name, '', { path: '/', maxAge: 0 })
+    // `secure` n'est pas décoratif : le préfixe `__Secure-` est une règle du
+    // navigateur, et **tout `Set-Cookie` qui le porte sans l'attribut `Secure`
+    // est rejeté d'office**. Sans lui, l'effacement ne prenait pas sous HTTPS :
+    // le cookie mort survivait, le middleware continuait de le juger bon, et la
+    // boucle que cette route existe pour rompre se refermait
+    // (ERR_TOO_MANY_REDIRECTS, constaté sur le staging le 13 août 2026).
+    //
+    // `curl` ne voit pas ce défaut — il n'applique pas la règle du préfixe et
+    // supprime le cookie de son bac quoi qu'il arrive. Il faut un vrai
+    // navigateur, ou `scripts/smoke-session-morte.ts` sur une origine HTTPS.
+    //
+    // Le drapeau suit le nom plutôt que l'environnement : c'est le préfixe qui
+    // impose la contrainte, et lui seul dit laquelle des deux formes du cookie
+    // NextAuth on est en train d'effacer.
+    response.cookies.set(cookie.name, '', {
+      path: '/',
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: cookie.name.startsWith('__Secure-'),
+    })
   }
 
   return response
