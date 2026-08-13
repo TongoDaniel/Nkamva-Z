@@ -109,10 +109,26 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
           <section className="mt-9">
             <h2 className="mb-5 text-[21px] font-extrabold">Ses ressources</h2>
             {trainer.courses.length === 0 ? (
+              /* Un formateur peut être visible par sa seule communauté : sa
+                 fiche s'ouvre alors sur une section vide, ce qui ressemble à
+                 une page cassée si on ne dit pas ce qu'il y a à la place. Le
+                 renvoi vers la communauté n'apparaît que s'il en anime une —
+                 sinon l'état vide se contente de constater. */
               <EmptyState
                 icon={<Library />}
                 title="Aucune ressource publiée"
-                description="Ce formateur n'a pas encore de ressource au catalogue."
+                description={
+                  trainer.community
+                    ? "Ce formateur anime une communauté ; ses ressources arriveront au catalogue."
+                    : "Ce formateur n'a pas encore de ressource au catalogue."
+                }
+                action={
+                  trainer.community ? (
+                    <BtnLink href={routes.community(trainer.community.slug)} variant="o">
+                      Voir sa communauté
+                    </BtnLink>
+                  ) : undefined
+                }
               />
             ) : (
               <div className="grid gap-[18px] sm:grid-cols-2">
