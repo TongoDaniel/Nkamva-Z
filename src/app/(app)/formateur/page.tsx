@@ -22,10 +22,11 @@ import { EmptyState } from "@/components/nk/empty-state";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
 import { listTrainerCourses } from "@/lib/courses";
-import { getTrainerOverview, getSalesByCourse } from "@/lib/trainer-stats";
+import { getTrainerOverview, getSalesByCourse, getTrainerWallet } from "@/lib/trainer-stats";
 import { fmtFcfa, fmtNumber } from "@/lib/format";
 import { COURSE_STATUS } from "./ressources/course-status";
 import { TRAINER_SECTIONS } from "./sections";
+import { walletTileLabel } from "./wallet-label";
 
 export const dynamic = "force-dynamic";
 
@@ -52,10 +53,11 @@ export default async function FormateurPage() {
   if (!auth?.user.trainerId) return null;
   const trainerId = auth.user.trainerId;
 
-  const [overview, courses, sales] = await Promise.all([
+  const [overview, courses, sales, wallet] = await Promise.all([
     getTrainerOverview(trainerId),
     listTrainerCourses(trainerId),
     getSalesByCourse(trainerId),
+    getTrainerWallet(trainerId),
   ]);
 
   const best = [...courses]
@@ -100,13 +102,9 @@ export default async function FormateurPage() {
         <StatTile
           icon={<Wallet />}
           tone="gold"
-          value={fmtNumber(overview.walletBalanceFcfa)}
+          value={fmtNumber(wallet.withdrawableFcfa)}
           suffix="FCFA"
-          label={
-            overview.walletReservedFcfa > 0
-              ? `solde · ${fmtNumber(overview.walletReservedFcfa)} réservés`
-              : "solde disponible"
-          }
+          label={walletTileLabel(wallet)}
         />
       </div>
 
