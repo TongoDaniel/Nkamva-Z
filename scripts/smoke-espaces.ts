@@ -107,6 +107,68 @@ async function main() {
     )
   }
 
+  /**
+   * Fil d'Ariane — le catalogue doit porter le même nom d'où qu'on le regarde.
+   *
+   * La fiche écrivait son premier maillon en dur (« Ressources », vers
+   * `routes.catalog`) : elle sautait le parent propre à l'espace et nommait
+   * autrement un écran que le catalogue lui-même intitule « Le catalogue ». Le
+   * connecté lisait donc « Mes ressources › Le catalogue » sur `/catalogue`, et
+   * « Ressources › … » sur la fiche — pour la même destination.
+   *
+   * L'assertion ne fige pas les libellés : elle compare la tête du fil de la
+   * fiche à celui du catalogue **du même espace**. Un futur renommage reste
+   * libre, tant qu'il vaut des deux côtés.
+   */
+  console.log('\nFil d’Ariane : le catalogue porte le même nom des deux côtés')
+  {
+    /** Maillons rendus, lus sur les `href` — les libellés seuls sont hachés par les marqueurs RSC. */
+    const crumbs = (html: string) => {
+      const nav =
+        html.match(/<nav aria-label="Fil d&#x27;Ariane"[\s\S]*?<\/nav>/)?.[0] ??
+        html.match(/<nav aria-label="Fil d'Ariane"[\s\S]*?<\/nav>/)?.[0]
+      if (!nav) return []
+      return [
+        ...nav.matchAll(
+          /<(?:a[^>]*href="([^"]*)"|span[^>]*aria-current="page")[^>]*>([\s\S]*?)<\/(?:a|span)>/g,
+        ),
+      ].map((m) => ({
+        href: m[1] ?? null,
+        label: m[2].replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, '').trim(),
+      }))
+    }
+
+    for (const [espace, authenticated, catalogPath] of [
+      ['visiteur', false, '/ressources'],
+      ['connecté', true, '/catalogue'],
+    ] as [string, boolean, string][]) {
+      if (!course) continue
+      const fichePath =
+        catalogPath === '/ressources'
+          ? `/ressources/${course.slug}`
+          : `/catalogue/ressource/${course.slug}`
+      const cat = crumbs((await get(catalogPath, authenticated)).html)
+      const fiche = crumbs((await get(fichePath, authenticated)).html)
+
+      const montre = (c: { label: string; href: string | null }[]) =>
+        c.map((x) => x.label).join(' › ') || '(vide)'
+
+      check(
+        `${espace} — parent identique`,
+        cat.length >= 2 &&
+          fiche.length >= 2 &&
+          fiche[0].label === cat[0].label &&
+          fiche[0].href === cat[0].href,
+        `catalogue « ${montre(cat)} » vs fiche « ${montre(fiche)} »`,
+      )
+      check(
+        `${espace} — le catalogue nommé pareil, et cliquable depuis la fiche`,
+        cat.length >= 2 && fiche.length >= 2 && fiche[1].label === cat[1].label && fiche[1].href === catalogPath,
+        fiche.length >= 2 ? `fiche → ${fiche[1].label} (${fiche[1].href ?? 'sans lien'})` : 'fil absent',
+      )
+    }
+  }
+
   console.log('\nLiens : aucune fuite vers l\'espace visiteur')
   for (const path of ['/accueil', '/catalogue', '/mes-ressources', '/mes-achats', '/favoris']) {
     const { status, html } = await get(path, true)
