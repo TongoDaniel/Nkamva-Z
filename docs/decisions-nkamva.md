@@ -317,15 +317,14 @@ jamais un score partiel.
 **24. Modification du RIB** — Re-vérification complète. Le RIB repasse à 0 point, la
 carence de 72 h redémarre, et une notification est envoyée à l'ancienne adresse email
 **et** à l'ancien numéro enregistré, avec un lien de signalement.
-> ⚠️ **Écart temporaire, toujours actif** — aucun provider SMS n'est configuré ; la
-> notification à l'ancien numéro n'est pas envoyée. **Nouvel écart constaté cette
-> session** : la notification à l'ancienne adresse email n'est pas non plus envoyée —
-> `createPayoutMethod` archive l'ancien moyen de paiement mais n'notifie personne.
-> Statut : ⚠️ Archive ancien + crée nouveau + relance la carence 72h : ✅
-> (`createPayoutMethod`, transaction atomique). Notification à l'ancien email/téléphone
-> avec lien de signalement : ❌ non implémentée. `trainerEmailSnapshot` et
-> `trainerPhoneSnapshot` sont bien capturés sur chaque `PayoutMethod` (schéma) mais rien
-> ne les lit pour notifier.
+> ⚠️ ~~**Écart temporaire, toujours actif**~~ — **refermé le 13 août 2026, par les deux
+> bouts.** La notification à l'ancienne adresse e-mail **est envoyée** (`createPayoutMethod`
+> appelle `sendEmail` sur `trainerEmailSnapshot`) ; celle à l'ancien **numéro** ne le sera
+> jamais — non par manque de provider, mais **par décision** : voir l'arbitrage 100.
+> Statut : ✅ Archive l'ancien, crée le nouveau, relance la carence de 72 h
+> (`createPayoutMethod`, transaction atomique) et alerte l'ancienne adresse e-mail avec un
+> lien de signalement. `trainerPhoneSnapshot` reste capturé sur chaque `PayoutMethod` pour
+> documenter le dossier, pas pour notifier.
 
 **25. Premier retrait** — Toujours en revue manuelle Finances, quel que soit le score
 KYC. L'auto-approbation à ≥ 80 ne s'applique qu'à partir du deuxième retrait.
@@ -1168,6 +1167,248 @@ même nature que les autres :
 
 ---
 
+## Arbitrages 91-107 — Conformité, coût du direct, tarification des paliers
+
+*Tranchés le 13 août 2026, après une instruction qui est allée chercher les chiffres et les
+textes à l'extérieur du dépôt. Deux d'entre eux (91, 92) ne répondent à aucune question
+posée dans les documents précédents : ils sont nés de la recherche, pas de l'inventaire.
+Statut de tous, sauf mention contraire : 📋 rien n'existe en base ni en code.*
+
+**91. La conformité « données personnelles » est un lot de travail, pas une page de
+confidentialité** — La loi camerounaise n° 2024/017 du 23 décembre 2024 impose un registre
+des traitements, la notification des violations à l'autorité **et** aux personnes
+concernées, et une **autorisation préalable de l'APDP pour tout transfert hors du
+Cameroun**. Sa période de mise en conformité s'est achevée le 23 juin 2026 — elle est donc
+déjà derrière nous. NkamVa transfère hors du pays vers cinq sous-traitants : la base
+(Supabase, Francfort), les fichiers (Cloudflare R2), les courriels (Resend), et les
+paiements (Stripe, PawaPay). L'un d'eux porte des **pièces d'identité** et des coordonnées
+bancaires.
+> Conséquence, dans l'ordre : (1) constituer le registre des traitements — il est déjà écrit
+> à 80 %, éparpillé dans `docs/` et dans les commentaires du schéma ; (2) déposer la demande
+> d'autorisation de transfert, en listant les cinq sous-traitants et les catégories de
+> données de chacun ; (3) écrire la procédure de notification de violation, avec un
+> destinataire nommé ; (4) faire relire par un conseil camerounais — le texte est trop
+> récent pour que la pratique de l'autorité soit connue.
+> À faire valoir dans le dossier, parce que c'est là-dessus qu'il se juge : la purge des
+> pièces d'identité à 90 jours (`purgeExpiredTrainerDocuments`), celle des adresses invitées
+> à 90 jours (arbitrage 80), l'export RGPD et l'effacement de compte **existent déjà et sont
+> testés**. Les mécanismes précèdent la demande.
+> ⚠️ Sanctions annoncées : jusqu'à 100 000 000 FCFA et des peines privatives de liberté.
+> Statut : 📋 aucun effet sur le code. C'est du document et de la procédure.
+
+**92. Le portefeuille formateur n'est pas un compte de paiement — il faut que ce soit vrai
+en droit, pas seulement dans notre tête** — En zone CEMAC, fournir des services de paiement
+suppose un agrément (établissement de crédit, EMF, ou établissement de paiement — ce dernier
+exigeant une SA OHADA et **500 millions de FCFA de capital libéré**). La réforme en cours
+crée au **1er janvier 2027** une catégorie d'opérateurs visant explicitement l'**acquisition
+et l'agrégation de paiement**, avec agrément COBAC et cantonnement des fonds de clients. Une
+place de marché qui encaisse pour le compte de vendeurs tiers y tombe naturellement, et
+notre `Wallet` — qui encaisse, retient (`reservedBalance`), débite et reverse — ressemble
+davantage à un compte de paiement qu'à un compte fournisseur.
+> **Décision : viser la qualification, pas l'agrément.** NkamVa vend **en nom propre** —
+> l'apprenant achète à NkamVa, le formateur est un fournisseur rémunéré sur facture. Le
+> portefeuille devient un compte de dettes fournisseurs, ce qui n'est pas un service de
+> paiement. `Invoice` et `InvoiceCounter` portent déjà la moitié du chemin.
+> Deux conditions, sans lesquelles la décision ne vaut rien : réécrire les CGU en ce sens, et
+> **faire instruire la conséquence fiscale** — la TVA porterait alors sur le prix entier et
+> non sur la commission.
+> Repli si cette voie est écartée : le **bac à sable réglementaire** prévu par la réforme,
+> douze mois renouvelables une fois, sous plafonds. L'agrément à 500 M FCFA n'est pas une
+> option à ce stade.
+> ⚠️ Ce qui ne change pas : les invariants financiers, le partage 85/15 et la commission
+> restent identiques. C'est la **qualification juridique** du même flux qui bouge, pas le
+> flux.
+> Statut : 📋 nul si la qualification change ; considérable sinon (cantonnement, comptes
+> séparés, reporting).
+
+**93. La salle n'a pas de jauge, la scène a un plafond** *(précise les arbitrages 31 et 46)*
+— Neuf publieurs vidéo simultanés au maximum ; le reste de la salle est en audio et en
+réception. Le plafond est **technique et global**, il ne se règle pas par session et ne
+s'affiche jamais comme une jauge de places.
+> Raison, chiffrée : la bande descendante croît avec le **carré** du nombre de participants
+> quand chacun reçoit tous les autres. À 30 personnes, une séance de 2 h coûte environ
+> 270 FCFA par participant-heure, soit près de la moitié d'un abonnement communautaire
+> mensuel à 5 000 FCFA — pour une seule séance. Scène plafonnée, on retombe à ~60 FCFA par
+> participant-heure, et le coût redevient linéaire.
+> Conséquence : l'arbitrage 46 tient entier — personne n'est jamais refusé pour cause de
+> capacité, et l'arbitrage 31 aussi — tout le monde peut toujours parler. La **file numérotée
+> des mains levées (arbitrage 36) devient le mécanisme qui fait tourner les places sur la
+> scène**, ce qu'elle était déjà censée être.
+> Statut : 📋 `livekit.ts` a déjà le bon verrou (`canPublish`) ; il manque l'abonnement
+> sélectif et le plafond. `LiveSession.peakParticipants` existe pour mesurer s'il mord.
+
+**94. Les replays s'enregistrent vers le stockage objet** *(complète les arbitrages 38, 51 et
+54)* — L'egress LiveKit écrit directement dans le seau, en une définition unique
+(800 kbit/s à 1,5 Mbit/s) plus une variante audio seule pour les connexions faibles.
+L'adaptateur Mux est **conservé** — il est écrit et propre — comme option d'une offre
+ultérieure, pas comme chemin par défaut.
+> Raison n° 1, le prix : un replay de 2 h coûte ~3 700 FCFA sur 24 mois chez Mux (encodage
+> du direct à 0,025 $/min, stockage à 0,0024 $/min/mois, remises « froid » comprises) contre
+> ~290 FCFA en stockage objet, la sortie de données y étant gratuite. Avec un live
+> hebdomadaire, l'écart annuel est d'environ 175 000 FCFA **par communauté**.
+> Raison n° 2, moins visible et plus grave : le quota de l'arbitrage 54 se compte en
+> **octets**, Mux facture à la **minute**. Tant que les replays passent par Mux, le quota ne
+> mesure pas ce que le formateur coûte, et l'arbitrage 54 est inapplicable à son poste le
+> plus lourd.
+> Repère à annoncer aux formateurs : 40 Go, c'est environ **trente séances de 2 h**, quota
+> partagé avec les ressources téléversées.
+> Statut : 📋 `lives.ts` doit choisir la cible d'egress ; `mux.ts` reste en place.
+
+**95. Prix du palier de stockage — 3 000 FCFA par mois, 30 000 par an**
+*(ferme le point non arbitré de l'arbitrage 69)* — Par tranche de 50 Go, facturée **à la
+cadence de l'abonnement du formateur**, avec le même geste commercial que lui : deux mois
+offerts sur l'annuel.
+> Raison : le stockage objet coûte 0,015 $ par Go et par mois, sortie comprise — un palier
+> de 50 Go nous coûte donc ~450 FCFA par mois. Les plateformes comparables incluent 10 Go sur
+> leur entrée de gamme et 200 Go sur une formule à plusieurs centaines de dollars : nos 40 Go
+> inclus sont généreux, c'est le palier qui doit rapporter.
+> Une cadence propre au palier créerait un **second calendrier de facturation** pour rien ; le
+> renouvellement sait déjà résoudre un tarif daté.
+> ⚠️ **Aujourd'hui l'extension est gratuite, silencieusement** : sans `PlatformTariff` de
+> genre `STORAGE_TIER`, `storageTierPriceFcfa()` renvoie 0 — et 0 est la bonne réponse au
+> sens du code, pas une erreur. Le montant se pose sans livraison.
+> Statut : 📋 le code de facturation existe, il manque les deux lignes de tarif.
+
+**96. La gratuité de lancement se termine le 31 décembre 2026, avec 60 jours de préavis**
+*(ferme le point non arbitré de l'arbitrage 56)* — Le tarif à 0 reçoit une borne
+(`validUntil`), et la bascule est annoncée deux mois avant.
+> Le préavis est long **parce que la bascule prend effet à l'échéance de chacun**
+> (arbitrage 61) : un formateur entré en annuel gratuit ne paiera pas avant douze mois, et la
+> recette n'arrive de toute façon pas d'un coup. Prévenir tard n'accélère rien et surprend
+> tout le monde.
+> La date se change en posant un nouveau tarif, **sans livraison** (arbitrage 59) : ce n'est
+> pas une constante de code, c'est une ligne administrée. Elle est ici pour qu'une date
+> existe, pas pour qu'elle soit intouchable.
+> Statut : 📋 une ligne de tarif à poser, plus la notification à 60 jours.
+
+**97. Le change se règle chez le fournisseur, pas dans la colonne des taux** — NkamVa
+demande à PawaPay un **règlement en devise locale** sur les marchés où elle reverse, et
+n'ouvre les reversements hors zone franc que là où cette réponse est acquise.
+> Raison : le même `unitsPerXaf` encaisse et reverse — aucune marge sur le taux ne couvre le
+> spread, le calcul du 12 août l'a montré (1 % de spread ≈ 12 % de la commission). PawaPay
+> propose bien un règlement *local*, vers un compte bancaire de la même juridiction que
+> l'encaissement, distinct du règlement transfrontalier ; devises et frais ne sont pas
+> publiés et se négocient, comme les taux.
+> Tant que ce n'est pas acquis, la position honnête reste celle d'aujourd'hui : **vendre
+> partout, reverser en zone franc**. Si un marché devient significatif sans règlement local,
+> alors seulement scinder `fx_rates` en taux d'encaissement et taux de reversement — un seul
+> chiffre ne peut pas être juste dans les deux sens.
+> SLE reste fermé : 7,8 % d'écart entre agrégateurs, aucune source de référence.
+> Statut : 📋 démarche commerciale ; le code ne bouge que dans l'hypothèse de la scission.
+
+**98. Le name lookup passera par MTN MoMo** *(rouvre la couche (a) de l'arbitrage 22)* —
+L'API MTN MoMo expose `GET /collection/v1_0/accountholder/msisdn/{numéro}/basicuserinfo`,
+qui retourne le nom du titulaire. C'est le seul chemin public existant : il devient la
+première implémentation de `fetchOperatorAccountName()`. Partout ailleurs, la revue manuelle
+Finances reste la règle.
+> Conséquence : un compte marchand MTN, distinct de PawaPay, avec ses propres identifiants de
+> production délivrés après KYC. **Avant d'ouvrir ce chantier, demander à PawaPay s'ils
+> exposent le nom du payeur** — ils répondent par courriel, et une réponse positive
+> économiserait toute l'intégration.
+> Ce qui ne change pas : `AUTO_VERIFIED` n'est atteignable que sur un `MATCH` renvoyé par une
+> vraie API, et la comparaison locale reste interdite (arbitrage 22).
+> Statut : 📋 `name-match.ts` est écrit et testé ; seul le point d'entrée externe manque.
+
+**99. Le micro-virement IBAN est abandonné** *(ferme la couche (c) de l'arbitrage 22)* — La
+vérification d'un compte bancaire se fait **sur pièce** : RIB fourni, comparaison de nom en
+revue manuelle Finances. Aucun micro-virement n'est émis.
+> Raison : aucun équivalent des agrégateurs bancaires (type Plaid) n'existe en zone CEMAC ;
+> émettre de vrais micro-virements suppose une banque et une opération manuelle par dossier.
+> Décider de ne pas le faire vaut mieux qu'un écart permanent qui donne l'illusion d'une
+> vérification.
+> Conséquence sur le code : le chemin `MICRO_DEPOSIT` de `payout-methods.ts` **reste en
+> place** mais n'est plus proposé à l'écran. On ne supprime pas un chemin testé pour une
+> décision qui peut se rouvrir le jour où une banque partenaire arrive.
+> Statut : ⚠️ à retirer de l'interface d'instruction Finances.
+
+**100. Il n'y aura pas de SMS** *(ferme l'arbitrage 24 et la ligne « SMS » des conventions)* —
+L'e-mail et la notification in-app **sont** le canal d'alerte de la plateforme, y compris
+pour le changement de moyen de paiement. Aucun provider SMS ne sera intégré.
+> Raison, opérationnelle plus que tarifaire : Orange Cameroun vend par paquets prépayés **qui
+> expirent** (22 FCFA l'unité à 1 000, 16 FCFA à 50 000), plafonnés à 100 000 FCFA d'achat par
+> jour et par SIM, à 5 messages par seconde ; MTN valide les identifiants d'expéditeur à la
+> main. Pour quelques alertes de changement de RIB par mois, l'exploitation coûte plus que le
+> risque couvert — et un canal qu'on oublie de recharger est un canal qui ment.
+> Conséquence : `trainerPhoneSnapshot` reste capturé sur `PayoutMethod` (il documente le
+> dossier), mais **plus rien n'est censé le lire pour notifier**. L'écart signalé depuis le
+> Lot 3 cesse d'en être un.
+> Statut : ✅ conforme par décision — la notification à l'ancienne adresse e-mail existe déjà
+> (`createPayoutMethod`).
+
+**101. Le SLA de revue est de 48 heures calendaires** *(corrige l'arbitrage 23)* — Le mot
+« ouvrées » disparaît.
+> Raison : le code, les écrans et l'alerte SLA sont calendaires depuis l'origine. Modéliser un
+> calendrier ouvré camerounais pour un délai indicatif ajouterait une table, des jours fériés
+> à maintenir, et zéro garantie supplémentaire au formateur.
+> Statut : ✅ conforme par décision — `PAYOUT_REVIEW_SLA_HOURS = 48`, définition unique dans
+> `payout-methods.ts`.
+
+**102. Quota d'invitations et plafond du lien sont des réglages, pas des règles produit**
+*(ferme deux points non arbitrés des arbitrages 71-75)* — Les 20 invitations offertes par
+communauté et par 30 jours glissants, comme les 25 acceptations / 90 jours du lien
+partageable, sont des **limites de dégât** portées par `Setting` et modifiables par le
+Super-admin. Elles ne sont pas annoncées comme une caractéristique de l'offre.
+> Raison : les reclasser évite d'avoir à les arbitrer. Le vrai garde-fou du lien est ailleurs
+> — il ne mène qu'au tarif plein (arbitrage 74) et se révoque.
+> Statut : 📋 constantes à déplacer vers `Setting`, avec les valeurs actuelles pour défaut.
+
+**103. Une seule politique de préavis — J-7 puis J-1, et J-30 quand prévenir sert à
+télécharger** *(ferme le point non arbitré des arbitrages 77 et 51)* — Tout ce qui **se
+termine** prévient à J-7 puis à J-1 : fin d'une adhésion offerte, fin d'adhésion, échéance
+d'abonnement. Le préavis long, à J-30, est réservé au cas où l'avertissement appelle un
+**geste coûteux** : la purge d'un replay prévenue au formateur, qui doit avoir le temps d'en
+récupérer une copie de plusieurs gigaoctets.
+> Raison : trois valeurs choisies au hasard (3 jours ici, autre chose là) se contrediront à
+> l'écran et ne se retiendront pas. Mais uniformiser jusqu'à l'absurde serait pire — le
+> `REPLAY_PURGE_ALERT` prévient déjà à 30 jours, et c'est **délibéré** : sept jours ne
+> suffisent pas à télécharger deux ans d'enregistrements sur une connexion camerounaise.
+> La règle est donc : un seul rythme pour les fins d'accès, une exception nommée et
+> justifiée pour les téléchargements.
+> Conséquence : le membre et le formateur ne reçoivent pas la même information sur la même
+> purge — l'un perd un accès (J-7/J-1), l'autre **récupère du quota** (J-30, arbitrage 54).
+> Statut : ⚠️ `REPLAY_PURGE_ALERT` est déjà conforme (30 jours, formateur). Les préavis de
+> fin d'adhésion et de fin de mois offert sont à aligner sur J-7/J-1.
+
+**104. Si le parrainage rapporte un jour, il sera financé par la commission** *(précise
+l'arbitrage 76, qui reste ajourné)* — Une éventuelle contrepartie du parrain se prendra sur
+la part NkamVa, **jamais sur les 85 % du formateur**.
+> Raison : le formateur n'a pas décidé du parrainage. Lui faire payer une acquisition qu'il
+> n'a pas choisie casserait l'invariant du partage, et rendrait sa marge dépendante des
+> gestes d'un tiers.
+> Statut : 📋 rien à faire tant que la contrepartie n'existe pas. `CommunitySubscription.
+> invitationId` conserve déjà l'attribution.
+
+**105. Le registre des remises est distinct du journal d'audit** *(ferme le point non arbitré
+de l'arbitrage 60)* — Un écran « Remises » liste les `PlatformDiscount`, leur auteur et leur
+motif, et il est ouvert à **Finances**. Le journal d'audit, lui, reste au seul Super-admin
+(arbitrage 7).
+> Raison : un registre métier n'est pas un journal d'audit. Le premier se consulte pour
+> travailler — vérifier ce qu'on a accordé, retrouver une remise négociée —, le second pour
+> contrôler. L'arbitrage 7 ne parle que du second, et l'angle mort signalé à l'arbitrage 60
+> venait de les avoir confondus.
+> Statut : 📋 `pricing.ts` porte déjà les remises et leur motif ; il manque l'écran.
+
+**106. On ne change pas le rôle d'un compte depuis l'administration** *(précise les
+arbitrages 67 et 88)* — Les seules transitions restent : créer, désactiver, réactiver.
+`/admin/utilisateurs` demeure en consultation, augmentée des deux niveaux de sanction de la
+décision 67.
+> Raison : c'est déjà la logique de l'arbitrage 88 — la frontière administrateur / non-
+> administrateur ne se franchit dans aucun sens. L'écrire évite qu'un contributeur pressé
+> prenne l'absence de bouton pour un oubli et l'ajoute.
+> Le passage apprenant → formateur existe et n'est pas concerné : il se fait par la
+> candidature et le paiement d'activation, pas par un geste d'administrateur.
+> Statut : ✅ conforme par décision — rien à écrire, quelque chose à ne pas écrire.
+
+**107. UTC en base, fuseau déclaré sur la séance** *(retient la recommandation 9 de
+`docs/recommandations-modelisation.md`)* — `LiveSession` porte un fuseau IANA en plus de son
+horodatage ; l'heure s'affiche dans le fuseau du lecteur.
+> Raison : un produit camerounais avec une diaspora aura des séances à cheval sur plusieurs
+> fuseaux dès la première année. Le champ coûte une migration aujourd'hui et un rattrapage de
+> données demain.
+> Statut : 📋 `LiveSession` n'a que `scheduledStartAt`.
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |
@@ -1182,7 +1423,7 @@ même nature que les autres :
 | Montants | FCFA en `Int`. EUR en `Decimal @db.Decimal(10,2)`. **Jamais de Float sur de la monnaie** | ✅ Schéma : `amountFcfa Int`, `amountEur Decimal? @db.Decimal(10, 2)`. Inchangé. |
 | Audit | Écriture durable **dans la transaction** métier. Pas de fire-and-forget | ✅ `audit.ts` : `audit(tx, params)` prend une `PrismaTransaction`, utilisé dans toutes les transitions d'état des Lots 1-3. `auditStandalone(params)` pour les actions hors transaction (listes, consultations). |
 | Email | Resend + react-email | ⚠️ Inchangé. `resend` installé, `email.ts` a `sendEmail()`. `react-email` **toujours pas installé** ; les emails des Lots 1-3 sont du HTML inline minimal, pas de templates react-email. |
-| SMS | Non implémenté. Arbitrage 24 en email + in-app | ⚠️ Conforme pour l'absence de SMS, mais **la notification email de l'arbitrage 24 elle-même n'est pas envoyée non plus** (voir décision 24 ci-dessus). |
+| SMS | **Aucun provider, par décision** — arbitrage 100 du 13 août 2026. L'e-mail et la notification in-app sont le canal d'alerte, y compris pour l'arbitrage 24 | ✅ Conforme par décision. La notification à l'ancienne adresse e-mail est bien envoyée (`createPayoutMethod`, `sendEmail` sur `trainerEmailSnapshot`) ; `trainerPhoneSnapshot` reste capturé pour documenter le dossier, plus rien ne doit le lire pour notifier. |
 | Stockage objet | Cloudflare R2 (API S3-compatible). Pas de server access logs → journalisation uniquement applicative | ✅ `s3.ts` implémente R2 avec `@aws-sdk/client-s3`, plus `isS3Configured()` ajouté cette session pour le repli dev sans R2 dans `trainer-documents.ts`. Journalisation applicative via `TRAINER_DOCUMENT_VIEW` (audit). |
 | Hachage mot de passe | argon2id (`@node-rs/argon2`) | ✅ Inchangé — `password.ts` utilise `@node-rs/argon2` |
 | Auth | NextAuth v4. Invalidation ciblée via `User.sessionsValidAfter` | ✅ Inchangé côté `auth.ts`. `sessionsValidAfter` est désormais aussi bumpé par les transitions de rôle des Lots 1-3 (T2/T3/T6/T8 candidature). Le point de montage `/api/auth/[...nextauth]/route.ts` **n'existe toujours pas** — `isPublicRoute` gère déjà `/api/auth/*` par (méthode, préfixe) explicite, sans bypass, mais rien ne répond encore sur ce chemin. |
@@ -1290,60 +1531,64 @@ negativeSince non null  ⟺  solde retirable < 0
 
 ## Points non arbitrés
 
-- **Quota d'invitations offertes** (arbitrages 71-75) — `INVITATION_GIFT_MONTHLY_QUOTA = 20`
-  par communauté et par 30 jours glissants. Valeur de sécurité, pas règle produit : faut-il
-  un quota du tout, ou la commission perdue est-elle l'affaire du seul formateur ?
-- **Plafond du lien de parrainage** (arbitrage 74) — 25 acceptations, 90 jours. Aucune
-  justification produit : uniquement la maîtrise du dégât si le lien fuite.
-- **Préavis avant la fin des mois offerts** (arbitrage 77) — 3 jours retenus, jamais
-  discutés. Même question ouverte que le préavis de purge d'un replay (arbitrage 51).
-- **Contrepartie du parrain** (arbitrage 76) — ajournée. Elle suppose de dire qui la
-  finance : la part du formateur, ou la commission NkamVa.
-- **Délai de grâce avant suspension** (arbitrage 70) — 14 jours retenus par défaut dans
-  `SUBSCRIPTION_GRACE_DAYS`, jamais arbitrés. La valeur est nommée et isolée pour être
-  discutée, pas découverte au fond d'une condition.
-- ~~**Provider d'abonnement**~~ — **tranché le 12 août 2026.** Aucun fournisseur
-  d'abonnement récurrent n'est branché, et il n'en faut pas : le prélèvement porte sur le
-  **solde NkamVa** du formateur, et le règlement manuel passe par Stripe et PawaPay, la
-  même porte que les achats. Le constat de Finances subsiste comme filet. Voir
-  `docs/abonnement-formateur.md`.
-- ~~**Retour au catalogue après régularisation**~~ — **tranché le 12 août 2026** : le
-  règlement republie automatiquement (arbitrage 12). La décision 68 est amendée en
-  conséquence.
-- **Prix du palier de 50 Go** (arbitrage 69) — le pas est tranché, le montant non. Reste
-  aussi à dire si l'extension suit la cadence de l'abonnement du formateur (mensuelle ou
-  annuelle) ou se facture à part.
-- **Changement de rôle d'un compte** — la suspension est arbitrée (décision 67), pas le
-  passage d'un rôle à un autre depuis l'administration. `/admin/utilisateurs` reste donc
-  en lecture seule sur ce point.
-- **Durée de la période de lancement** (arbitrage 56) — la gratuité est un tarif daté,
-  mais aucune date de fin n'est fixée. Tant qu'elle ne l'est pas, la cohorte de lancement
-  reste gratuite indéfiniment.
-- **Cumul des réductions** (arbitrage 62) — campagne, remise formateur et code promo
-  s'additionnent-ils, ou la plus favorable l'emporte-t-elle ? Faut-il un plancher (jamais
-  en dessous de X FCFA) ? C'est le seul point qui peut mener un abonnement à zéro sans
-  décision explicite.
-- **Contrôle des remises accordées par Finances** (arbitrage 60) — le journal d'audit
-  étant réservé au Super-admin (arbitrage 7), Finances ne peut relire ni ses remises ni
-  celles de ses collègues. Faut-il une vue restreinte, limitée aux remises, ou est-ce
-  volontaire ?
-- **Sort du formateur qui ne paie pas à la bascule** (arbitrages 56 et 59) — `PAST_DUE`
-  puis `SUSPENDED` (les valeurs existent déjà sur `TrainerSubscriptionStatus`), mais avec
-  quelles conséquences exactes sur ses contenus déjà en ligne et sur ses apprenants ?
-  Voir la recommandation 2 de `docs/recommandations-modelisation.md`.
-- **Prix de l'extension de stockage** (arbitrage 54) — le pas de facturation (par 10 Go ?
-  par 100 Go ?), le prix, et si l'extension suit la cadence de l'abonnement du formateur.
-- **Prévenir avant la purge d'un replay** (arbitrage 51) — le membre reçoit-il une
-  notification à l'approche des 24 mois ? Le formateur, lui, a intérêt à être prévenu :
-  la purge lui rend du quota (arbitrage 54).
-- Provider SMS (Twilio, Vonage, ou provider local africain) — voir arbitrage 24. Toujours
-  non résolu.
-- Provider bancaire pour le micro-virement IBAN — voir arbitrage 22c. Toujours non
-  résolu ; les montants sont générés et stockés en clair côté NkamVa, aucun virement
-  bancaire réel n'est déclenché.
-- Disponibilité réelle des API de name lookup par opérateur mobile money — toujours non
-  résolu, mais désormais correctement modélisé comme indisponible (`UNAVAILABLE`) plutôt
-  que masqué par une comparaison locale trompeuse (voir décision 22).
+*Liste recalée le 13 août 2026. Les arbitrages 91-107 en ont fermé onze ; ce qui reste
+tient en cinq lignes, dont trois dépendent d'un tiers.*
+
+**Encore ouverts**
+
+- **Conséquence fiscale de la vente en nom propre** (arbitrage 92) — si NkamVa vend en son
+  nom, la TVA porte-t-elle sur le prix entier plutôt que sur la commission, et à quel taux ?
+  C'est la seule inconnue qui peut rendre l'arbitrage 92 plus cher que le problème qu'il
+  résout. À faire instruire avant de réécrire les CGU.
+- **Réponse de PawaPay sur deux points** (arbitrages 97 et 98) — le règlement en devise
+  locale par marché, et l'existence éventuelle d'un nom de payeur dans les rappels. Les deux
+  se demandent par courriel ; la seconde réponse, si elle est positive, rend l'intégration
+  MTN de l'arbitrage 98 inutile.
+- **Redirection de l'espace visiteur** — un connecté navigue librement dans `(public)`.
+  **Ajourné volontairement** : deux arbitrages doivent précéder toute ligne de code, le
+  périmètre (`/recherche` n'a pas de jumeau connecté et deviendrait inaccessible) et
+  l'échappatoire « voir la fiche publique » pour le formateur qui inspecte sa vitrine.
+- **Rappel avant une séance** (recommandation 8) — ajourné : une préférence utilisateur pour
+  un produit qui n'a pas encore tenu son premier live est une hypothèse, pas un besoin. La
+  notification in-app suffira jusqu'à ce que quelqu'un se plaigne.
+- **Inscription à une séance, distincte de la présence** — ajourné pour la même raison, et
+  l'arbitrage 46 a retiré la seule chose qui l'aurait rendue nécessaire : la jauge.
+
+**Fermés depuis la version précédente de cette liste**
+
+- ~~Quota d'invitations offertes~~ · ~~Plafond du lien de parrainage~~ — **arbitrage 102** :
+  ce sont des réglages de sécurité portés par `Setting`, pas des règles produit.
+- ~~Préavis avant la fin des mois offerts~~ · ~~Prévenir avant la purge d'un replay~~ —
+  **arbitrage 103** : J-7 puis J-1 pour toute fin d'accès, J-30 quand prévenir sert à
+  télécharger (purge d'un replay, côté formateur — déjà conforme).
+- ~~Contrepartie du parrain~~ — **arbitrage 104** : toujours ajournée, mais si elle arrive
+  elle se finance sur la commission NkamVa, jamais sur la part du formateur.
+- ~~Délai de grâce avant suspension~~ — **arbitré le 12 août 2026** (arbitrage 14 de
+  `docs/abonnement-formateur.md`) : 14 jours, avec rejeu nocturne du prélèvement.
+- ~~Provider d'abonnement~~ — **tranché le 12 août 2026.** Aucun fournisseur d'abonnement
+  récurrent n'est branché, et il n'en faut pas : le prélèvement porte sur le **solde NkamVa**
+  du formateur, et le règlement manuel passe par Stripe et PawaPay, la même porte que les
+  achats. Le constat de Finances subsiste comme filet. Voir `docs/abonnement-formateur.md`.
+- ~~Retour au catalogue après régularisation~~ — **tranché le 12 août 2026** : le règlement
+  republie automatiquement (arbitrage 12). La décision 68 est amendée en conséquence.
+- ~~Prix du palier de 50 Go~~ · ~~Prix de l'extension de stockage~~ — **arbitrage 95** :
+  3 000 FCFA/mois ou 30 000 FCFA/an par tranche, à la cadence de l'abonnement.
+- ~~Durée de la période de lancement~~ — **arbitrage 96** : borne au 31 décembre 2026,
+  préavis de 60 jours, date modifiable sans livraison.
+- ~~Changement de rôle d'un compte~~ — **arbitrage 106** : interdit, dans les deux sens.
+- ~~Contrôle des remises accordées par Finances~~ — **arbitrage 105** : un registre des
+  remises ouvert à Finances, distinct du journal d'audit.
+- ~~Cumul des réductions~~ — **tranché le 3 août 2026** par l'arbitrage 65 : la plus
+  favorable l'emporte, jamais l'addition.
+- ~~Sort du formateur qui ne paie pas à la bascule~~ — **tranché** par la décision 68
+  (sortie du catalogue, lecture jamais coupée) et l'arbitrage 12 de
+  `docs/abonnement-formateur.md` (le règlement republie).
+- ~~Provider SMS~~ — **arbitrage 100** : il n'y en aura pas. L'e-mail et l'in-app sont le
+  canal d'alerte.
+- ~~Provider bancaire pour le micro-virement IBAN~~ — **arbitrage 99** : abandonné,
+  vérification sur pièce.
+- ~~Disponibilité des API de name lookup~~ — **arbitrage 98** : MTN MoMo expose
+  `basicuserinfo`, c'est le chemin retenu. Ailleurs, revue manuelle.
 
 ~~Format exact du payload de notification CinetPay~~ — **résolu cette session** :
 vérifié contre `docs.cinetpay.com` (checkout/notification, /hmac, /verification).
