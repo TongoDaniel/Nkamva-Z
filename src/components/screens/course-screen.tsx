@@ -69,8 +69,15 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
   return (
     <div className="nk-wrap pb-16">
       <PageHead
+        // Même lignée que `community-screen.tsx` : le parent propre à l'espace,
+        // puis l'écran de destination sous le nom qu'il se donne lui-même. Le
+        // premier maillon disait « Ressources » et pointait vers un écran
+        // intitulé « Le catalogue », en sautant le parent — si bien que le
+        // connecté lisait « Mes ressources › Le catalogue » sur le catalogue,
+        // et « Ressources › … » sur la fiche, pour la même destination.
         crumbs={[
-          { label: "Ressources", href: routes.catalog },
+          routes.catalogParent,
+          { label: "Le catalogue", href: routes.catalog },
           { label: course.category, href: routes.catalogCategory(course.category) },
           { label: course.title },
         ]}

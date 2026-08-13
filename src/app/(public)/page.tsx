@@ -74,7 +74,7 @@ const PRODUCT_ROWS = [
     body: "Contenu détaillé, format, nombre de pages ou durée : chaque fiche annonce exactement ce que contient la ressource, avant le paiement.",
     cta: null,
     shot: "/shots/fiche-new.png",
-    alt: "Écran réel d'une fiche ressource : description, format et avis",
+    alt: "Écran réel d'une fiche ressource : format, durée et prix annoncés avant le paiement",
     url: "nkamva.com/ressource",
     reversed: true,
   },
