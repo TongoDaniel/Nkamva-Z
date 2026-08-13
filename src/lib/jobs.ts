@@ -16,6 +16,7 @@ import { expirePayoutMethodCarence, alertPayoutMethodSlaBreaches } from './payou
 import { alertPayoutSlaBreaches } from './payouts'
 import { purgeDeletedAccounts } from './jobs/purge-deleted-accounts'
 import { remindPendingDeletions } from './jobs/remind-pending-deletions'
+import { purgeAuditLog } from './jobs/purge-audit-log'
 import {
   renewDueSubscriptions, suspendOverdueSubscriptions, alertUpcomingSuspensions,
   retryAutoRenewDebits, endCanceledSubscriptions, closeDormantSpaces,
@@ -209,6 +210,18 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'TARIFF_SWITCH_NOTICE',
     schedule: '15 8 * * *',
     run: async () => ({ ...(await noticeTariffSwitch()) }),
+  },
+  {
+    // Le journal d'audit n'avait aucune durée de conservation — un registre
+    // sans durée est une conservation illimitée. Trois régimes : les décisions
+    // financières et d'identité sont conservées, les traces de machine partent
+    // à 12 mois, le reste à 36. Voir `docs/registre-des-traitements.md`.
+    //
+    // Hebdomadaire et non quotidien : rien ne devient urgent en un jour, et la
+    // suppression de masse a moins d'occasions de croiser une nuit chargée.
+    name: 'AUDIT_LOG_PURGE',
+    schedule: '45 3 * * 0',
+    run: async () => ({ ...(await purgeAuditLog()) }),
   },
 ]
 
