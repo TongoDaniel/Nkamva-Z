@@ -1474,6 +1474,129 @@ page d'accueil formateur lui dit laquelle des deux lui manque.
 
 ---
 
+## Arbitrages 108-117 — Mobile first
+
+> Rendus le 14 août 2026, à l'ouverture du chantier mobile first. Diagnostic
+> complet dans `docs/mobile-first-analyse.md`, backlog dans
+> `docs/mobile-first-implementation.md`.
+>
+> **Ces dix décisions ont été prises par défaut, faute d'arbitrage explicite du
+> propriétaire, pour ne pas bloquer le chantier.** Chacune est réversible ; celles
+> marquées 🔁 changent significativement le volume de travail si on les inverse.
+
+**108. Lecture retenue de « mobile first »** — UX + produit (lectures B et C de
+l'analyse) : le téléphone est la maquette de référence, et l'app se comporte comme
+une app (barre d'onglets basse, feuilles glissantes, historique respecté). Le CSS
+mobile first (lecture A) suit mécaniquement, il n'est pas un objectif en soi.
+Raison : le public paie en mobile money, sur Android d'entrée de gamme, en 3G
+facturée au mégaoctet. La lecture A seule serait cosmétique pour lui.
+
+**109. 🔁 L'administration est hors périmètre** — Les 24 écrans `/admin` ne sont
+pas repris pour le mobile. Ils héritent seulement de ce qui est gratuit : échelle
+de seuils, `dvh`, chaîne d'image. `DataTable` garde son défilement horizontal.
+Raison : usage bureau, et l'audit ne relève **aucun débordement** sur ces écrans —
+ils sont utilisables, simplement pas optimisés. Les inclure ajouterait un lot XL
+pour un gain nul.
+> Conséquence : les tâches L3-23 à L3-25 du backlog sont retirées.
+
+**110. Échelle de points de rupture : celle de Tailwind** — `sm` 640 · `md` 768 ·
+`lg` 1024 · `xl` 1280. Aucun seuil arbitraire nouveau. Table de migration des sept
+seuils actuels :
+
+| Seuil actuel | Devient | Ce qu'il commande |
+|---|---|---|
+| 640 | `sm` | rythme vertical de la vitrine |
+| 767 / 768 | `md` | plancher de 16 px sur les champs |
+| 820 | `lg` | bascule de navigation |
+| 860 / 861 | `lg` | barre latérale admin, blocage de défilement |
+| 900 | `lg` | colonne de filtres du catalogue |
+
+Raison : 331 usages Tailwind contre 36 arbitraires. On ramène les 36 vers les 331.
+Conséquence assumée : sous 1024 px, **les tablettes reçoivent la disposition
+tactile** — c'est le sens du chantier, pas un effet de bord.
+
+**111. Barre d'onglets basse — 4 destinations, plus « Plus »**
+
+| Espace | Entrées |
+|---|---|
+| Visiteur | Accueil · Catalogue · Communautés · Se connecter |
+| Apprenant | Accueil · Mes ressources · Catalogue · Mes communautés · Plus |
+| Formateur | Accueil · Espace formateur · Mes ressources · Catalogue · Plus |
+
+Cinq emplacements maximum, le cinquième ouvrant une feuille glissante. Un
+formateur reste un apprenant : sa barre ajoute, elle ne remplace pas — c'est la
+règle déjà tenue par `TRAINER_NAV`.
+
+**112. Duplication DOM : on mutualise la source, pas les rendus** — Une liste
+d'entrées unique, deux rendus (barre haute bureau, barre basse mobile). Pas de
+refonte des coquilles. Raison : le risque réel est la divergence des données, pas
+le coût du double rendu.
+
+**113. Budgets chiffrés**
+
+| Sujet | Budget |
+|---|---|
+| Appareil de référence | Android entrée de gamme, 360–375 px de large |
+| Réseau de référence | 3G rapide — 1,6 Mb/s descendant, 300 ms de latence |
+| Transfert au premier rendu | ≤ 300 Ko hors polices |
+| Images par écran de liste | ≤ 120 Ko cumulés |
+| Une couverture servie sur mobile | ≤ 60 Ko |
+| LCP | ≤ 3 s sur le profil ci-dessus |
+| Chrome vertical | ≤ 22 % de la hauteur visible (≤ 178 px à 812 px) |
+
+**Point de départ mesuré** (build de production du 14 août 2026, avant tout
+travail) : **1 080 Ko de JavaScript client gzippé** répartis sur 93 fragments,
+dont un **socle commun de 157 Ko chargé sur chaque page**. Le budget de 300 Ko au
+premier rendu est donc déjà consommé à plus de la moitié par le socle avant
+d'afficher quoi que ce soit — il est tenable, mais il ne laisse pas de marge pour
+une dépendance lourde supplémentaire. C'est aussi ce qui justifie l'arbitrage 109
+(ne pas ouvrir l'admin) et le ménage des dépendances mortes du lot 1.
+
+**114. L'orientation n'est plus verrouillée** — `orientation: "portrait-primary"`
+est retiré du manifeste au profit de `"any"`. Raison : quatre lecteurs vidéo se
+battaient contre le verrou dans la PWA installée, et le plein écran paysage est le
+geste naturel pour regarder un cours. Les écrans supportent la rotation — l'audit
+ne relève aucun débordement.
+
+**115. Le tunnel de paiement déroge à la sobriété réseau** — Sur la seule
+confirmation d'achat : vérification immédiate au retour de focus (dérogation
+explicite au `refetchOnWindowFocus: false` global), et plafond de sondage porté de
+**120 s à 300 s**. Raison : une saisie de code USSD sur réseau lent dépasse
+couramment deux minutes ; l'utilisateur revenait sur un sondage arrêté.
+
+**116. Plancher typographique** — Aucun texte sous **13 px**. Tout texte porteur
+d'une information nécessaire à l'action : **14 px** minimum. Le corps reste à
+15 px. Les tailles à 11 et 12 px de la vitrine sont donc à reprendre.
+
+**117. Le fil d'Ariane cède la place au retour sur mobile** — Sous `md`, un retour
+explicite vers le parent remplace le fil complet, qui réapparaît au-dessus.
+Raison : en `flex flex-wrap` il s'enroulait sur deux à trois lignes, au prix du
+budget vertical de l'arbitrage 113.
+
+### Les onze règles d'expérience — critères opposables
+
+Toute livraison du chantier mobile se juge sur cette liste. Elle est vérifiée par
+`scripts/smoke-mobile.ts` (lot 4).
+
+1. Toute couche superposée est une entrée d'historique — le retour la ferme, il ne
+   quitte jamais l'écran.
+2. Toute action donne un retour en moins de 100 ms, et **jamais** un retour
+   contradictoire (succès annoncé pendant que la liste montre l'ancien état).
+3. Toute destination principale est atteignable en un appui, dans le tiers bas.
+4. Toute cible tactile fait au moins 44 × 44 px de zone utile.
+5. Tout champ déclare son clavier : `type`, `inputMode`, `autoComplete`,
+   `enterKeyHint`.
+6. À la soumission, le focus va au premier champ en défaut.
+7. Aucun texte porteur de sens sous 13 px (arbitrage 116).
+8. Le chrome reste sous le plafond de l'arbitrage 113.
+9. Le contenu est lisible avant que le JavaScript ait fini — aucune animation
+   d'apparition ne retient du contenu.
+10. Aucune page authentifiée n'est mise en cache — le téléphone est partagé.
+11. Rien ne consomme de données sans demande, **sauf** sur le tunnel de paiement
+    (arbitrage 115).
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |
