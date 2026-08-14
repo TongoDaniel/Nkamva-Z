@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * ce qui garde le composant lisible sans perception des couleurs.
  */
 export const stPillVariants = cva(
-  "inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-bold",
+  "inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] font-bold",
   {
     variants: {
       tone: {

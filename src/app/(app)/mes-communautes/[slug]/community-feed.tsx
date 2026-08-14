@@ -359,7 +359,7 @@ function Composer({
         className="w-full resize-y rounded-nk border border-line bg-paper px-3.5 py-2.5 text-[14.5px] leading-relaxed outline-none placeholder:text-ink-3 focus-visible:border-brand"
       />
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-[12px] text-ink-3">
+        <span className="text-[13px] text-ink-3">
           {body.length > MAX_LENGTH - 500 ? `${body.length} / ${MAX_LENGTH}` : ""}
         </span>
         <Btn type="submit" size="sm" loading={publish.pending} disabled={!body.trim()}>
@@ -409,12 +409,12 @@ function PostCard({
               </Chip>
             ) : null}
             {post.pinned ? (
-              <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand">
+              <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-brand">
                 <Pin className="size-3.5" aria-hidden="true" /> Épinglé
               </span>
             ) : null}
           </p>
-          <p className="text-[12.5px] text-ink-3">{fmtRelative(post.createdAt)}</p>
+          <p className="text-[13px] text-ink-3">{fmtRelative(post.createdAt)}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
@@ -491,7 +491,7 @@ function PostCard({
                       Animateur
                     </Chip>
                   ) : null}
-                  <span className="font-normal text-[12px] text-ink-3">
+                  <span className="font-normal text-[13px] text-ink-3">
                     {fmtRelative(r.createdAt)}
                   </span>
                 </p>

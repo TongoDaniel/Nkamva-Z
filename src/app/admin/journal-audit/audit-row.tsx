@@ -51,7 +51,7 @@ export function AuditRow({
         <b className="text-[14px] font-bold text-ink">{actionLabel}</b>
         <span className="text-[13px] text-ink-2">{actorLabel}</span>
         {actorRole ? (
-          <span className="text-[12px] font-bold uppercase tracking-wide text-ink-3">
+          <span className="text-[13px] font-bold uppercase tracking-wide text-ink-3">
             {actorRole}
           </span>
         ) : null}
@@ -60,14 +60,14 @@ export function AuditRow({
         <time
           dateTime={createdAtIso}
           title={createdAtIso}
-          className="ml-auto whitespace-nowrap text-[12.5px] tabular-nums text-ink-3"
+          className="ml-auto whitespace-nowrap text-[13px] tabular-nums text-ink-3"
         >
           {createdAt}
         </time>
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-3">
-        <code className="rounded bg-paper px-1.5 py-0.5 font-mono text-[11.5px] text-ink-3">
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
+        <code className="rounded bg-paper px-1.5 py-0.5 font-mono text-[13px] text-ink-3">
           {action}
         </code>
 
@@ -108,7 +108,7 @@ export function AuditRow({
       </div>
 
       {open && hasMeta ? (
-        <pre className="mt-2 overflow-x-auto rounded-nk-sm bg-paper p-3 text-[12px] leading-relaxed text-ink-2">
+        <pre className="mt-2 overflow-x-auto rounded-nk-sm bg-paper p-3 text-[13px] leading-relaxed text-ink-2">
           {JSON.stringify(meta, null, 2)}
         </pre>
       ) : null}

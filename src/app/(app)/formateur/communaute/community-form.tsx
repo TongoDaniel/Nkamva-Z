@@ -100,7 +100,7 @@ function TextArea({
         {...props}
       />
       {hint ? (
-        <p id={`${id}-hint`} className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
+        <p id={`${id}-hint`} className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
           {hint}
         </p>
       ) : null}
@@ -311,7 +311,7 @@ export function CommunityForm({
           className={cn("mb-[18px]", shows("identity") && "border-t border-line-2 pt-5")}
         >
           <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Salons ouverts</legend>
-          <p className="mb-3 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mb-3 text-[13px] leading-relaxed text-ink-3">
             Fermer un salon le retire aux membres sans rien effacer : les messages déjà écrits
             restent, ils cessent seulement d&apos;être alimentés.
           </p>
@@ -323,7 +323,7 @@ export function CommunityForm({
                   onCheckedChange={(next) => set(salon.key, next)}
                   label={salon.label}
                 />
-                <p className="ml-[30px] text-[12.5px] leading-relaxed text-ink-3">{salon.hint}</p>
+                <p className="ml-[30px] text-[13px] leading-relaxed text-ink-3">{salon.hint}</p>
               </li>
             ))}
           </ul>
@@ -403,7 +403,7 @@ export function VisibilityToggle({
               : "Votre communauté est retirée de l'annuaire, de la recherche et de votre fiche formateur. On n'y entre plus que sur invitation nominative."}
           </p>
           {isPublic ? (
-            <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">
+            <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
               La fermer révoquera vos liens de parrainage en circulation : ils cesseront de
               fonctionner, définitivement.
             </p>

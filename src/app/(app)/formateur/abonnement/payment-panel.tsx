@@ -178,7 +178,7 @@ export function PaymentPanel({
       ) : null}
 
       {lastFailureCode ? (
-        <p className="mt-3 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] leading-relaxed text-ink">
+        <p className="mt-3 rounded-xl bg-danger/5 px-4 py-3 text-[13px] leading-relaxed text-ink">
           <b className="font-bold">Dernière tentative refusée.</b>{" "}
           {paymentFailureMessage(lastFailureCode)}
         </p>
@@ -211,7 +211,7 @@ export function PaymentPanel({
                   <span className="min-w-0">
                     <b className="block text-[14px]">{option.label}</b>
                     {option.detail ? (
-                      <small className="text-[12px] text-ink-3">{option.detail}</small>
+                      <small className="text-[13px] text-ink-3">{option.detail}</small>
                     ) : null}
                   </span>
                 </label>

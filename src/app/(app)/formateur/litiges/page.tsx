@@ -72,7 +72,7 @@ export default async function FormateurLitigesPage() {
                         {dispute.purchase.course?.title ?? "Ressource retirée"}
                       </Link>
                     </h2>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-ink-2">
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] text-ink-2">
                       <StPill tone={state.tone}>{state.label}</StPill>
                       <span>{TRAINER_REASON_LABELS[dispute.reason] ?? dispute.reason}</span>
                       <span>Ouvert le {fmtDate(dispute.openedAt)}</span>

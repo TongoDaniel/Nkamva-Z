@@ -60,16 +60,16 @@ export default async function RemboursementsPage() {
                     <b className="block truncate text-sm font-bold">
                       {task.dispute.purchase?.course?.title ?? "Ressource retirée"}
                     </b>
-                    <small className="block truncate text-[12.3px] text-ink-3">
+                    <small className="block truncate text-[13px] text-ink-3">
                       {learner} · {task.provider} · ouvert le {fmtDate(task.createdAt)}
                     </small>
                     {task.errorMessage ? (
-                      <small className="mt-1 block text-[12.3px] text-danger">
+                      <small className="mt-1 block text-[13px] text-danger">
                         Échec : {task.errorMessage}
                       </small>
                     ) : null}
                     {task.notes ? (
-                      <small className="mt-1 block text-[12.3px] text-ink-3">{task.notes}</small>
+                      <small className="mt-1 block text-[13px] text-ink-3">{task.notes}</small>
                     ) : null}
                   </div>
 
@@ -80,13 +80,13 @@ export default async function RemboursementsPage() {
                       <dd className="font-display text-[17px] font-extrabold">
                         {fmtFcfa(task.refundAmountFcfa)}
                       </dd>
-                      <dt className="text-[12px] text-ink-3">À rembourser</dt>
+                      <dt className="text-[13px] text-ink-3">À rembourser</dt>
                     </div>
                     <div>
                       <dd className="font-display text-[17px] font-extrabold">
                         {fmtFcfa(task.trainerDebitFcfa)}
                       </dd>
-                      <dt className="text-[12px] text-ink-3">Débit formateur</dt>
+                      <dt className="text-[13px] text-ink-3">Débit formateur</dt>
                     </div>
                   </dl>
 
@@ -97,7 +97,7 @@ export default async function RemboursementsPage() {
                       trainerDebitFcfa={task.trainerDebitFcfa}
                     />
                   ) : task.completedAt ? (
-                    <span className="text-[12.5px] text-ink-3">{fmtDate(task.completedAt)}</span>
+                    <span className="text-[13px] text-ink-3">{fmtDate(task.completedAt)}</span>
                   ) : null}
                 </li>
               );

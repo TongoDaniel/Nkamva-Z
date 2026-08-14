@@ -124,7 +124,7 @@ export function ReconcileButton({
             </div>
           </dl>
 
-          <p className="mb-4 rounded-xl bg-gold-tint px-4 py-3 text-[12.5px] leading-relaxed text-gold-ink">
+          <p className="mb-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
             La correction remplace la valeur stockée par la valeur recalculée. Elle ne crée ni
             vente ni retrait : elle ne fait qu&apos;aligner le solde sur ce que les
             réservations et les versements en cours établissent déjà.
@@ -146,7 +146,7 @@ export function ReconcileButton({
             aria-describedby="reconcile-reason-hint"
             className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
           />
-          <p id="reconcile-reason-hint" className="mb-4 mt-1.5 text-[12.5px] text-ink-3">
+          <p id="reconcile-reason-hint" className="mb-4 mt-1.5 text-[13px] text-ink-3">
             {reason.trim().length < MIN_REASON
               ? `Encore ${MIN_REASON - reason.trim().length} caractères.`
               : "Il est conservé avec votre identité et reste lisible dans le journal d'audit."}

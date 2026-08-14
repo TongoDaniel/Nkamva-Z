@@ -132,7 +132,7 @@ export default async function AbonnementsPage({
                   <Avatar name={name} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
-                    <small className="block truncate text-[12.3px] text-ink-3">
+                    <small className="block truncate text-[13px] text-ink-3">
                       {CADENCE_LABELS[charge.cadence]} · {fmtDate(charge.periodStart)} →{" "}
                       {fmtDate(charge.periodEnd)}
                       {charge.discountLabel ? ` · ${charge.discountLabel}` : ""}
@@ -144,7 +144,7 @@ export default async function AbonnementsPage({
                       {charge.amountDueFcfa === 0 ? "Offerte" : fmtFcfa(charge.amountDueFcfa)}
                     </b>
                     {charge.discountFcfa > 0 ? (
-                      <span className="text-[11.5px] text-ink-3">
+                      <span className="text-[13px] text-ink-3">
                         remise {fmtFcfa(charge.discountFcfa)}
                       </span>
                     ) : null}
@@ -163,7 +163,7 @@ export default async function AbonnementsPage({
                   </StPill>
 
                   {charge.status === "DUE" && suspensionAt ? (
-                    <span className="text-[12px] text-ink-3">
+                    <span className="text-[13px] text-ink-3">
                       suspension le {fmtDate(suspensionAt)}
                     </span>
                   ) : null}
@@ -202,7 +202,7 @@ export default async function AbonnementsPage({
         ) : null}
       </AdminCard>
 
-      <p className="mt-5 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-5 text-[13px] leading-relaxed text-ink-3">
         Un formateur suspendu voit ses ressources retirées du catalogue, jamais l&apos;accès de
         ceux qui les ont achetées. Constater un règlement le remet en règle, mais{" "}
         <b className="font-bold text-ink-2">ne republie rien</b> : ses ressources sont sorties du

@@ -180,7 +180,7 @@ export function AttachmentPicker({
               <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-brand-dark">
                 {attachment.fileName}
               </span>
-              <span className="shrink-0 text-[11.5px] text-brand-dark/70">
+              <span className="shrink-0 text-[13px] text-brand-dark/70">
                 {fmtSize(attachment.sizeBytes)}
               </span>
               <button
@@ -213,12 +213,12 @@ export function AttachmentPicker({
 
       {pending ? <UploadBar progress={progress} label={current || "Envoi…"} /> : null}
 
-      <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
         PNG, JPEG, WebP ou PDF · 5 Mo par fichier · {MAX_ATTACHMENTS} au maximum. Elles ne sont
         lues que par le support.
       </p>
       {error ? (
-        <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-danger">
+        <p role="alert" className="mt-1.5 text-[13px] font-semibold text-danger">
           {error}
         </p>
       ) : null}

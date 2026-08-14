@@ -178,7 +178,7 @@ export function TrainerDirectory({
                   </p>
                 ) : null}
 
-                <dl className="mt-auto flex flex-wrap gap-x-5 gap-y-1 border-t border-line-2 pt-4 text-[12.5px] text-ink-3">
+                <dl className="mt-auto flex flex-wrap gap-x-5 gap-y-1 border-t border-line-2 pt-4 text-[13px] text-ink-3">
                   {/* Un formateur entre aussi dans l'annuaire par sa communauté
                       seule. Sa carte annoncerait alors « 0 ressource », ce qui
                       décrit ce qui manque au lieu de ce qu'il propose : on

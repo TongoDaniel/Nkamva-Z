@@ -108,7 +108,7 @@ function Tile({
           <Avatar name={name} size="lg" />
         </span>
       )}
-      <span className="absolute bottom-1.5 left-2 max-w-[80%] truncate rounded-full bg-black/50 px-2 py-0.5 text-[11.5px] font-semibold text-white">
+      <span className="absolute bottom-1.5 left-2 max-w-[80%] truncate rounded-full bg-black/50 px-2 py-0.5 text-[13px] font-semibold text-white">
         {name}
       </span>
     </div>
@@ -471,7 +471,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                   </Btn>
                 </form>
               ) : (
-                <p className="text-[12.5px] text-ink-3">
+                <p className="text-[13px] text-ink-3">
                   Vous lisez le salon sans y écrire.
                 </p>
               )}
@@ -491,7 +491,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                       <Avatar name={p.name ?? "Membre"} size="sm" />
                       {p.handPosition ? (
                         <span
-                          className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-brand text-[10.5px] font-extrabold text-white"
+                          className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-brand text-[13px] font-extrabold text-white"
                           aria-hidden="true"
                         >
                           {p.handPosition}
@@ -536,7 +536,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                 placeholder="Ce que vous voulez retenir de la session…"
                 className="w-full resize-y rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[14.5px] leading-relaxed outline-none placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
               />
-              <p className="mt-2 text-[12.5px] text-ink-3">
+              <p className="mt-2 text-[13px] text-ink-3">
                 Ces notes restent dans cet onglet : elles ne quittent pas votre navigateur.
               </p>
             </>

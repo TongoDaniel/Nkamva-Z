@@ -51,7 +51,7 @@ export function DataTable<T>({
                 scope="col"
                 style={col.width ? { width: col.width } : undefined}
                 className={cn(
-                  "px-1 pb-2.5 text-[11px] font-extrabold uppercase tracking-[0.06em] text-ink-3",
+                  "px-1 pb-2.5 text-[13px] font-extrabold uppercase tracking-[0.06em] text-ink-3",
                   col.align === "right" && "text-right",
                   col.align === "center" && "text-center",
                   col.hideOnMobile && "hidden md:table-cell",
@@ -104,7 +104,7 @@ export function CellUser({
       {avatar}
       <div className="min-w-0 flex-1">
         <b className="block truncate text-sm font-bold">{title}</b>
-        {subtitle ? <small className="block truncate text-[12.3px] text-ink-3">{subtitle}</small> : null}
+        {subtitle ? <small className="block truncate text-[13px] text-ink-3">{subtitle}</small> : null}
       </div>
     </div>
   );

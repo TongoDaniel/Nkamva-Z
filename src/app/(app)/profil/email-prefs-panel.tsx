@@ -53,7 +53,7 @@ export function EmailPrefsPanel({ profile }: { profile: ProfileView }) {
           name="subscriptionNoticeEmails"
           label="Changements de tarif de l'abonnement formateur"
         />
-        <p className="mt-1.5 max-w-[60ch] text-[12.5px] leading-relaxed text-ink-2">
+        <p className="mt-1.5 max-w-[60ch] text-[13px] leading-relaxed text-ink-2">
           L&apos;annonce quand une nouvelle grille est publiée, et le rappel à l&apos;échéance qui
           l&apos;applique. Désactivé, l&apos;avis reste consultable dans vos notifications.
         </p>

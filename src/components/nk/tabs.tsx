@@ -148,7 +148,7 @@ export function Tabs({
             {typeof item.count === "number" && item.count > 0 ? (
               <span
                 className={cn(
-                  "ml-1.5 rounded-full px-2 py-0.5 text-xs font-bold",
+                  "ml-1.5 rounded-full px-2 py-0.5 text-[13px] font-bold",
                   active && variant === "underline"
                     ? "bg-brand-tint text-brand"
                     : active

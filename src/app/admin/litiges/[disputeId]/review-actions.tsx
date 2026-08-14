@@ -96,12 +96,12 @@ export function DisputeActions({
       </div>
 
       {providerDisputeActive ? (
-        <p className="mt-3 max-w-[60ch] text-[12.5px] leading-relaxed text-danger">
+        <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-danger">
           Un chargeback est en cours chez l&apos;opérateur : rembourser ici débiterait deux fois le
           formateur.
         </p>
       ) : overrideNeeded && !isSuperAdmin ? (
-        <p className="mt-3 max-w-[60ch] text-[12.5px] leading-relaxed text-gold-ink">
+        <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-gold-ink">
           Ce dossier est hors barème (14 jours / 30 %). Seul un super-administrateur peut le
           rembourser, avec justification.
         </p>

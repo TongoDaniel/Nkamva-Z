@@ -543,7 +543,7 @@ export function TrainerSignupWizard({
                 <p
                   id="trainer-description-hint"
                   className={cn(
-                    "mt-1.5 text-[12.5px]",
+                    "mt-1.5 text-[13px]",
                     fieldErrors.description ? "font-semibold text-danger" : "text-ink-3",
                   )}
                 >
@@ -582,9 +582,9 @@ export function TrainerSignupWizard({
                     );
                   })}
                 </div>
-                <p className="mt-2 text-[12.5px] text-ink-3">Cinq au maximum.</p>
+                <p className="mt-2 text-[13px] text-ink-3">Cinq au maximum.</p>
                 {fieldErrors.domains ? (
-                  <p className="mt-1.5 text-[12.5px] font-semibold text-danger">
+                  <p className="mt-1.5 text-[13px] font-semibold text-danger">
                     {fieldErrors.domains}
                   </p>
                 ) : null}
@@ -640,7 +640,7 @@ export function TrainerSignupWizard({
                 votre premier retrait.
               </InfoBox>
               {missingDocuments > 0 ? (
-                <p className="mb-1 text-right text-[12.5px] text-ink-3">
+                <p className="mb-1 text-right text-[13px] text-ink-3">
                   {missingDocuments} pièce{missingDocuments > 1 ? "s" : ""} encore attendue
                   {missingDocuments > 1 ? "s" : ""}.
                 </p>

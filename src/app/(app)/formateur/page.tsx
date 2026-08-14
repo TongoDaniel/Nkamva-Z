@@ -142,7 +142,7 @@ export default async function FormateurPage() {
                         aria-hidden="true"
                       />
                     </b>
-                    <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-2">
+                    <span className="mt-1 block text-[13px] leading-relaxed text-ink-2">
                       {section.description}
                     </span>
                   </span>
@@ -158,7 +158,7 @@ export default async function FormateurPage() {
           <h2 id="meilleures" className="text-[17px] font-bold">
             Vos ressources
           </h2>
-          <Link href="/formateur/ressources" className="text-[13px] font-bold text-brand">
+          <Link href="/formateur/ressources" className="nk-tap text-[13px] font-bold text-brand">
             Tout gérer
           </Link>
         </div>
@@ -201,7 +201,7 @@ export default async function FormateurPage() {
                         {course.title}
                       </Link>
                     </h3>
-                    <p className="flex flex-wrap items-center gap-3 text-[12.5px] text-ink-2">
+                    <p className="flex flex-wrap items-center gap-3 text-[13px] text-ink-2">
                       <StPill tone={status.tone}>{status.label}</StPill>
                       <span>{formatLabel(course.format)}</span>
                       <span>{fmtFcfa(course.priceFcfa)}</span>
@@ -234,7 +234,7 @@ export default async function FormateurPage() {
           Votre solde est crédité à chaque vente confirmée. Les retraits passent par un
           compte vérifié et votre score de confiance.
         </span>
-        <Link href="/formateur/portefeuille" className="font-bold text-brand">
+        <Link href="/formateur/portefeuille" className="nk-tap font-bold text-brand">
           Ouvrir le portefeuille
         </Link>
       </p>

@@ -64,7 +64,7 @@ export function DateBlock({ top, bottom }: { top: string; bottom: string }) {
       aria-hidden="true"
     >
       <b className="font-display text-[19px] font-extrabold">{top}</b>
-      <small className="text-[11px] font-semibold uppercase text-ink-3">{bottom}</small>
+      <small className="text-[13px] font-semibold uppercase text-ink-3">{bottom}</small>
     </span>
   );
 }
@@ -99,7 +99,7 @@ export function LiveSessionRow({
           · {timeLabel(session.startsAt)} · {session.durationMinutes} min
         </p>
         {hostTimeLabel(session.startsAt, session.timeZone) ? (
-          <p className="mt-0.5 truncate text-[12.5px] text-ink-3">
+          <p className="mt-0.5 truncate text-[13px] text-ink-3">
             soit {hostTimeLabel(session.startsAt, session.timeZone)}
           </p>
         ) : null}

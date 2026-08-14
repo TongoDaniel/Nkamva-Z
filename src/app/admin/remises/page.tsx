@@ -81,20 +81,20 @@ export default async function RemisesPage() {
                   className="flex flex-col gap-1.5 border-b border-line-2 py-3 last:border-b-0"
                 >
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="w-[130px] shrink-0 text-[12.5px] font-bold text-ink-2">
+                    <span className="w-[130px] shrink-0 text-[13px] font-bold text-ink-2">
                       {KIND_LABELS[r.kind] ?? r.kind}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold">
                       {r.label}
                       {r.code ? (
-                        <code className="ml-2 rounded bg-paper px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
+                        <code className="ml-2 rounded bg-paper px-1.5 py-0.5 font-mono text-[13px] text-ink-3">
                           {r.code}
                         </code>
                       ) : null}
                     </span>
                     <span className="text-[13.5px] font-bold">−{fmtFcfa(r.amountFcfa)}</span>
                     {r.maxUses !== null ? (
-                      <span className="text-[12px] tabular-nums text-ink-3">
+                      <span className="text-[13px] tabular-nums text-ink-3">
                         {r.usedCount}/{r.maxUses}
                       </span>
                     ) : null}
@@ -105,7 +105,7 @@ export default async function RemisesPage() {
                     )}
                   </div>
 
-                  <p className="text-[12.5px] leading-relaxed text-ink-3">
+                  <p className="text-[13px] leading-relaxed text-ink-3">
                     Accordée le {fmtDate(r.createdAt)}
                     {r.grantedBy ? ` par ${r.grantedBy.name ?? r.grantedBy.email}` : ""}
                     {r.trainer ? ` · pour ${r.trainer.name ?? r.trainer.email}` : ""}
@@ -115,17 +115,17 @@ export default async function RemisesPage() {
                   {/* Une remise nominative contourne la grille : son motif est
                       exigé à la création (décision 62), et c'est ici qu'il sert. */}
                   {r.reason ? (
-                    <p className="rounded-nk-sm bg-paper px-3 py-2 text-[12.5px] leading-relaxed text-ink-2">
+                    <p className="rounded-nk-sm bg-paper px-3 py-2 text-[13px] leading-relaxed text-ink-2">
                       {r.reason}
                     </p>
                   ) : r.kind === "TRAINER" ? (
-                    <p className="text-[12.5px] text-ink-3">Aucun motif enregistré.</p>
+                    <p className="text-[13px] text-ink-3">Aucun motif enregistré.</p>
                   ) : null}
                 </li>
               ))}
             </ul>
 
-            <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+            <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
               Cumul : <b className="font-bold text-ink-2">la plus favorable l&apos;emporte</b>{" "}
               (arbitrage 65). Trois remises ne s&apos;empilent pas — l&apos;addition mènerait un
               abonnement à zéro sans que personne l&apos;ait décidé.

@@ -143,10 +143,10 @@ export default async function UtilisateursPage({
                   <Avatar name={name} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
-                    <small className="block truncate text-[12.3px] text-ink-3">{user.email}</small>
+                    <small className="block truncate text-[13px] text-ink-3">{user.email}</small>
                   </div>
 
-                  <span className="text-[12.5px] font-bold text-ink-2">
+                  <span className="text-[13px] font-bold text-ink-2">
                     {ROLE_LABELS[user.role] ?? user.role}
                     {user.adminRole ? ` · ${user.adminRole}` : ""}
                   </span>
@@ -163,7 +163,7 @@ export default async function UtilisateursPage({
                     <StPill tone="muted">E-mail non vérifié</StPill>
                   )}
 
-                  <span className="text-[12.5px] text-ink-2">
+                  <span className="text-[13px] text-ink-2">
                     Inscrit le {fmtDate(user.createdAt)}
                   </span>
 
@@ -202,7 +202,7 @@ export default async function UtilisateursPage({
         ) : null}
       </AdminCard>
 
-      <p className="mt-5 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-5 text-[13px] leading-relaxed text-ink-3">
         Une restriction écarte la parole sans retirer l&apos;accès. Une exclusion coupe la
         connexion et retire les ressources déjà payées : elle est réservée au Super-admin, et
         sa levée aussi. Changer un rôle reste impossible depuis cet écran.

@@ -144,7 +144,7 @@ export function CoursePlayer({
             {durationSeconds ? `sur ${fmtDuration(durationSeconds)}` : "consultées"}
           </p>
         </div>
-        <p className="mt-5 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-5 text-[13px] leading-relaxed text-ink-3">
           Votre position est enregistrée automatiquement. Vous reprendrez ici à votre prochaine
           visite, sur n&apos;importe quel appareil.
         </p>
@@ -152,7 +152,7 @@ export function CoursePlayer({
           Retour à mes ressources
         </BtnLink>
         {format !== "video" ? (
-          <p className="mt-4 text-[12.5px] text-ink-3">
+          <p className="mt-4 text-[13px] text-ink-3">
             Format « {format} » : si la lecture intégrée ne convient pas, téléchargez la ressource
             depuis la liste.
           </p>

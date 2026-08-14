@@ -116,7 +116,7 @@ export function ApplicationWizard({
             </Btn>
           </div>
           {!ready ? (
-            <p className="mt-3 text-right text-[12.5px] text-ink-3">
+            <p className="mt-3 text-right text-[13px] text-ink-3">
               {application?.missingDocuments.length ?? 3} pièce
               {(application?.missingDocuments.length ?? 3) > 1 ? "s" : ""} encore attendue
               {(application?.missingDocuments.length ?? 3) > 1 ? "s" : ""}.

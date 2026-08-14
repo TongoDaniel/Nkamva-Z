@@ -144,7 +144,7 @@ export function PricingActions() {
         }
       >
         {error ? (
-          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] font-semibold text-danger">
+          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[13px] font-semibold text-danger">
             {error}
           </p>
         ) : null}
@@ -162,7 +162,7 @@ export function PricingActions() {
             <option value="SUBSCRIPTION">Abonnement formateur</option>
             <option value="STORAGE_TIER">Palier de stockage (50 Go)</option>
           </select>
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
             {storageTier
               ? "Le palier se facture avec l'abonnement, à sa cadence. Tant qu'aucun prix n'est posé, un palier ne facture rien."
               : "Les deux grilles sont indépendantes : poser l'une ne clôt pas l'autre."}
@@ -229,7 +229,7 @@ export function PricingActions() {
         }
       >
         {error ? (
-          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] font-semibold text-danger">
+          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[13px] font-semibold text-danger">
             {error}
           </p>
         ) : null}

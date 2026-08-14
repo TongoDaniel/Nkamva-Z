@@ -114,9 +114,9 @@ export default async function RecherchePage({
                           </Link>
                         </h3>
                         {trainer.slogan ? (
-                          <p className="truncate text-[12.5px] text-ink-2">{trainer.slogan}</p>
+                          <p className="truncate text-[13px] text-ink-2">{trainer.slogan}</p>
                         ) : null}
-                        <p className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-3">
+                        <p className="mt-1 flex items-center gap-1.5 text-[13px] text-ink-3">
                           <GraduationCap className="size-3.5" aria-hidden="true" />
                           {trainer.publishedCount} ressource{trainer.publishedCount > 1 ? "s" : ""}
                         </p>
@@ -156,7 +156,7 @@ export default async function RecherchePage({
                       </p>
                     ) : null}
                     <div className="mt-auto flex items-center justify-between border-t border-line-2 pt-3">
-                      <span className="flex items-center gap-1.5 text-[12px] text-ink-3">
+                      <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
                         <Users className="size-3.5" aria-hidden="true" />
                         {fmtNumber(community.membersCount)}
                       </span>

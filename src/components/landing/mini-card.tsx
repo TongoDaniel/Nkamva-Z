@@ -47,7 +47,7 @@ export function MiniCard({
             </Link>
           )}
         </h3>
-        <div className="flex items-center justify-between text-[12.5px] font-medium text-ink-2">
+        <div className="flex items-center justify-between text-[13px] font-medium text-ink-2">
           <Chip tone={categoryTone(course.category)}>{course.category}</Chip>
           <Price amountFcfa={course.priceFcfa} className="text-base" />
         </div>

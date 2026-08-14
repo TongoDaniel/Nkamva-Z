@@ -75,7 +75,7 @@ export default async function AdminMonComptePage() {
             title="Nom"
             description={profile.fullName ?? "Non renseigné"}
             action={
-              <span className="text-[12.5px] font-semibold text-ink-3">
+              <span className="text-[13px] font-semibold text-ink-3">
                 Modification par un Super-admin
               </span>
             }
@@ -99,7 +99,7 @@ export default async function AdminMonComptePage() {
                 : "Aucun sous-rôle"
             }
             action={
-              <span className="text-[12.5px] font-semibold text-ink-3">
+              <span className="text-[13px] font-semibold text-ink-3">
                 Attribué à l&apos;ouverture
               </span>
             }

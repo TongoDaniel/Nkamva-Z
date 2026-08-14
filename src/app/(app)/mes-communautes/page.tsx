@@ -83,7 +83,7 @@ export default async function MesCommunautesPage() {
                 ) : (
                   <StPill tone="ok">Membre</StPill>
                 )}
-                <span className="text-[12.5px] text-ink-3">
+                <span className="text-[13px] text-ink-3">
                   {m.canceledAt ? "Prend fin le " : "Prochaine échéance le "}
                   {fmtDate(m.periodEnd)}
                 </span>

@@ -119,13 +119,13 @@ export default async function SignalementsPage({
                       {TARGET_LABELS[report.targetType] ?? report.targetType} ·{" "}
                       {REASON_LABELS[report.reason] ?? report.reason}
                     </b>
-                    <small className="block truncate text-[12.3px] text-ink-3">
+                    <small className="block truncate text-[13px] text-ink-3">
                       Signalé par {name}
                       {report.detail ? ` — ${report.detail}` : ""}
                     </small>
                   </div>
                   <StPill tone={state.tone}>{state.label}</StPill>
-                  <span className="text-[12.5px] text-ink-2">{fmtDate(report.createdAt)}</span>
+                  <span className="text-[13px] text-ink-2">{fmtDate(report.createdAt)}</span>
                   <BtnLink href={`/admin/signalements/${report.id}`} variant="o" size="sm">
                       <ScanSearch aria-hidden="true" />
                       Instruire

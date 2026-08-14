@@ -129,7 +129,7 @@ export default async function RetraitsPage({
                   <Avatar name={name} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
-                    <small className="block truncate text-[12.3px] text-ink-3">
+                    <small className="block truncate text-[13px] text-ink-3">
                       {PAYOUT_METHOD_TYPE_LABELS[payout.payoutMethod.type] ?? payout.payoutMethod.type}
                       {payout.isFirstPayout ? " · premier retrait" : ""}
                     </small>
@@ -139,7 +139,7 @@ export default async function RetraitsPage({
                   </b>
                   <StPill tone={state.tone}>{state.label}</StPill>
                   <span
-                    className={late ? "text-[12.5px] font-bold text-danger" : "text-[12.5px] text-ink-2"}
+                    className={late ? "text-[13px] font-bold text-danger" : "text-[13px] text-ink-2"}
                   >
                     {late ? "Hors délai · " : ""}
                     {formatAge(age)}

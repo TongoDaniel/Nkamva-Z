@@ -294,7 +294,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                       <Avatar name={tile.isLocal ? "Vous" : tile.name} size="lg" />
                     </span>
                   )}
-                  <span className="absolute bottom-1.5 left-2 max-w-[80%] truncate rounded-full bg-black/50 px-2 py-0.5 text-[11.5px] font-semibold text-white">
+                  <span className="absolute bottom-1.5 left-2 max-w-[80%] truncate rounded-full bg-black/50 px-2 py-0.5 text-[13px] font-semibold text-white">
                     {tile.isLocal ? "Vous" : tile.name}
                   </span>
                 </div>
@@ -369,7 +369,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
               pas seulement dans l'infobulle : une infobulle suppose de survoler
               ce qu'on a déjà pris pour cassé. */}
           {controlsReason ? (
-            <p className="w-full text-center text-[12.5px] text-[#8fa6c0]">{controlsReason}</p>
+            <p className="w-full text-center text-[13px] text-[#8fa6c0]">{controlsReason}</p>
           ) : null}
         </div>
 
@@ -382,7 +382,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
               : `${lockedCount} micro${lockedCount > 1 ? "s" : ""} coupé${lockedCount > 1 ? "s" : ""} par vous.`}
             {/* Arbitrage 93 — l'occupation de la scène, pas une jauge de places
                 dans la salle : personne n'est refusé à l'entrée. */}
-            <span className="mt-0.5 block text-[12.5px] text-[#8fa6c0]">
+            <span className="mt-0.5 block text-[13px] text-[#8fa6c0]">
               Scène : {room.stage.taken} sur {room.stage.capacity} à l&apos;antenne
               {room.stage.full ? " — complète, coupez un micro pour libérer une place." : "."}
             </span>
@@ -446,7 +446,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                       className="flex flex-wrap items-center gap-2.5 rounded-nk border border-line px-3 py-2.5"
                     >
                       <span
-                        className="grid size-7 shrink-0 place-items-center rounded-full bg-brand text-[12.5px] font-extrabold text-white"
+                        className="grid size-7 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-extrabold text-white"
                         aria-hidden="true"
                       >
                         {index + 1}
@@ -461,7 +461,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                             — position {index + 1} dans la file de parole
                           </span>
                         </b>
-                        <small className="block text-[12.5px] text-ink-3">
+                        <small className="block text-[13px] text-ink-3">
                           {clock === null
                             ? "main levée"
                             : `main levée depuis ${waitedLabel(p.handRaisedAt!, clock)}`}
@@ -569,7 +569,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                         <Avatar name={p.name ?? "Membre"} size="sm" />
                         {p.handPosition ? (
                           <span
-                            className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-brand text-[10.5px] font-extrabold text-white"
+                            className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-brand text-[13px] font-extrabold text-white"
                             aria-hidden="true"
                           >
                             {p.handPosition}
@@ -610,7 +610,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
               {/* Arbitrage 40 : la console ne sait que couper un micro. Exclure
                   quelqu'un d'une session est un autre geste, qui relève du
                   bannissement de communauté — ne pas l'ajouter ici. */}
-              <p className="mt-3 border-t border-line-2 pt-3 text-[12.5px] leading-relaxed text-ink-3">
+              <p className="mt-3 border-t border-line-2 pt-3 text-[13px] leading-relaxed text-ink-3">
                 Vous pouvez couper un micro, pas retirer quelqu&apos;un de la session : exclure
                 relève du bannissement de la communauté.
               </p>
@@ -673,7 +673,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                 </Btn>
               </form>
               {/* Arbitrage 42 : le salon survit à la session, attaché au replay. */}
-              <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+              <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
                 Ce salon est conservé et rattaché au replay : ce qui s&apos;écrit ici reste lisible
                 après la session.
               </p>

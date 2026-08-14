@@ -147,7 +147,7 @@ export function LoginForm() {
               value={totp}
               onChange={(e) => setTotp(e.target.value)}
             />
-            <p className="-mt-2 text-[12.5px] leading-relaxed text-ink-2">
+            <p className="-mt-2 text-[13px] leading-relaxed text-ink-2">
               Ouvrez votre application d&apos;authentification. Vous pouvez aussi saisir l&apos;un de
               vos codes de secours.
             </p>

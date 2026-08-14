@@ -182,14 +182,14 @@ export function ConversationPane({
                     </small>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1 self-start">
-                    <time className="text-[11.5px] text-ink-3">
+                    <time className="text-[13px] text-ink-3">
                       {conversation.lastMessage
                         ? fmtRelative(conversation.lastMessage.createdAt)
                         : ""}
                     </time>
                     {conversation.unreadCount > 0 ? (
                       <span
-                        className="grid min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white"
+                        className="grid min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[13px] font-bold text-white"
                         aria-label={`${conversation.unreadCount} message(s) non lu(s)`}
                       >
                         {conversation.unreadCount}
@@ -221,7 +221,7 @@ export function ConversationPane({
               <Avatar name={peerName(thread)} />
               <div className="min-w-0">
                 <b className="block truncate text-[15px] font-bold">{peerName(thread)}</b>
-                <small className="block truncate text-[12.5px] text-ink-2">
+                <small className="block truncate text-[13px] text-ink-2">
                   {thread.communityName}
                 </small>
               </div>
@@ -250,7 +250,7 @@ export function ConversationPane({
                   return (
                     <React.Fragment key={message.id}>
                       {newDay ? (
-                        <p className="my-1.5 text-center text-[12px] font-semibold text-ink-3">
+                        <p className="my-1.5 text-center text-[13px] font-semibold text-ink-3">
                           {dayLabel(message.createdAt)}
                         </p>
                       ) : null}
@@ -276,7 +276,7 @@ export function ConversationPane({
                           {message.deleted ? "Ce message a été retiré." : message.body}
                           <time
                             className={cn(
-                              "mt-1 block text-[11.5px]",
+                              "mt-1 block text-[13px]",
                               message.mine && !message.deleted ? "text-white/70" : "text-ink-3",
                             )}
                             dateTime={new Date(message.createdAt).toISOString()}

@@ -136,7 +136,7 @@ export function ReportButton({
         <span className="sr-only">Signalement transmis à la modération.</span>
       </span>
     ) : (
-      <p className={cn("flex items-center gap-2 text-[12.5px] font-semibold text-ink-3", className)}>
+      <p className={cn("flex items-center gap-2 text-[13px] font-semibold text-ink-3", className)}>
         <Flag className="size-3.5 shrink-0" aria-hidden="true" />
         Signalement transmis à la modération.
       </p>
@@ -162,7 +162,7 @@ export function ReportButton({
           type="button"
           onClick={() => setOpen(true)}
           className={cn(
-            "inline-flex cursor-pointer items-center gap-1.5 text-[12.5px] font-semibold text-ink-3 hover:text-danger",
+            "inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-semibold text-ink-3 hover:text-danger",
             className,
           )}
         >
@@ -215,19 +215,19 @@ export function ReportButton({
               placeholder="Ce qui vous a alerté, et où le retrouver."
               className="w-full resize-y rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
             />
-            <p className="mt-1 text-right text-[11.5px] text-ink-3">{detail.length}/2000</p>
+            <p className="mt-1 text-right text-[13px] text-ink-3">{detail.length}/2000</p>
           </div>
 
           {/* Le rappel du litige ne vaut que là où il y a eu un paiement :
               sous un message de fil, il n'aurait aucun sens. */}
           {targetType === "COURSE" || targetType === "COMMUNITY" ? (
-            <p className="mb-4 text-[12.5px] leading-relaxed text-ink-3">
+            <p className="mb-4 text-[13px] leading-relaxed text-ink-3">
               Un signalement n&apos;est pas une demande de remboursement : si vous avez acheté
               cette ressource et qu&apos;elle ne correspond pas, ouvrez un litige depuis
               « Mes achats ».
             </p>
           ) : (
-            <p className="mb-4 text-[12.5px] leading-relaxed text-ink-3">
+            <p className="mb-4 text-[13px] leading-relaxed text-ink-3">
               L&apos;auteur du message n&apos;est pas prévenu de votre signalement.
             </p>
           )}

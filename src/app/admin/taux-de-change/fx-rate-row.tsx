@@ -55,7 +55,7 @@ export function FxRateRow({
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5 border-b border-line-2 py-3 last:border-b-0">
       <dt className="w-full shrink-0 sm:w-[220px]">
         <span className="font-mono text-[13.5px] font-bold text-ink">{currency}</span>
-        <span className="mt-0.5 block text-[11.5px] text-ink-3">{countries.join(" · ")}</span>
+        <span className="mt-0.5 block text-[13px] text-ink-3">{countries.join(" · ")}</span>
       </dt>
       <dd className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -70,7 +70,7 @@ export function FxRateRow({
                 aria-label={`Unités de ${currency} pour 1 FCFA`}
                 className="w-[140px] rounded-lg border-[1.5px] border-line bg-card px-2.5 py-1.5 text-[13.5px] font-bold text-ink outline-none focus:border-brand"
               />
-              <span className="text-[12px] text-ink-3">{currency} pour 1 FCFA</span>
+              <span className="text-[13px] text-ink-3">{currency} pour 1 FCFA</span>
               <button
                 type="button"
                 onClick={submit}
@@ -113,7 +113,7 @@ export function FxRateRow({
             </>
           )}
         </div>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-ink-3">
+        <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
           {preview === null
             ? "Sans taux, aucun achat ne peut aboutir dans cette devise : l'opérateur n'est même pas proposé à l'apprenant."
             : `Une ressource à ${fmtNumber(sample)} FCFA sera débitée ${fmtNumber(Math.round(preview))} ${currency}.`}

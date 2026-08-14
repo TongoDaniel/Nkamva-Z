@@ -91,7 +91,7 @@ export default async function TauxDeChangePage() {
           </li>
         </ul>
         {coverage.some((c) => c.updatedAt) ? (
-          <p className="mt-3 text-[12px] text-ink-3">
+          <p className="mt-3 text-[13px] text-ink-3">
             Dernière modification :{" "}
             {fmtDate(
               coverage

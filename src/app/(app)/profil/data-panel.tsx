@@ -91,7 +91,7 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
           }
         />
         {profile.gdprExportRequestedAt ? (
-          <p className="pt-1 text-[12.5px] text-ink-3">
+          <p className="pt-1 text-[13px] text-ink-3">
             Dernier export le {fmtDate(profile.gdprExportRequestedAt)}.
           </p>
         ) : null}

@@ -105,7 +105,7 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
                   </p>
                 ) : null}
 
-                <dl className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line-2 pt-4 text-[12.5px] text-ink-3">
+                <dl className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line-2 pt-4 text-[13px] text-ink-3">
                   <div className="flex items-center gap-3.5">
                     <span className="flex items-center gap-1.5">
                       <Users className="size-3.5" aria-hidden="true" />
@@ -120,7 +120,7 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
                   </div>
                   <span>
                     <Price amountFcfa={community.priceFcfa} className="text-[16px]" />
-                    <small className="ml-1 text-xs font-semibold text-ink-3">/ mois</small>
+                    <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
                   </span>
                 </dl>
               </div>

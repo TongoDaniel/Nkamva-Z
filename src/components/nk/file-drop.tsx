@@ -137,7 +137,7 @@ export function FileDrop({
       </label>
 
       {error ? (
-        <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-danger">
+        <p role="alert" className="mt-1.5 text-[13px] font-semibold text-danger">
           {error}
         </p>
       ) : null}

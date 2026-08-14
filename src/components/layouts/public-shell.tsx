@@ -98,7 +98,7 @@ export function PublicFooter() {
         </div>
         {FOOTER_COLUMNS.map((col) => (
           <div key={col.title}>
-            <h2 className="mb-3.5 mt-1.5 font-sans text-xs font-bold uppercase tracking-[0.12em] text-ink-3">
+            <h2 className="mb-3.5 mt-1.5 font-sans text-[13px] font-bold uppercase tracking-[0.12em] text-ink-3">
               {col.title}
             </h2>
             <ul className="grid gap-2.5">

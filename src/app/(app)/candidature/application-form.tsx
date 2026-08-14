@@ -158,13 +158,13 @@ export function ApplicationForm({
             fieldErrors.description && "border-danger",
           )}
         />
-        <p id="app-description-hint" className="mt-1.5 text-[12.5px] text-ink-3">
+        <p id="app-description-hint" className="mt-1.5 text-[13px] text-ink-3">
           {remaining > 0
             ? `Encore ${remaining} caractères avant le minimum requis.`
             : "C'est ce texte que l'équipe de modération lira en premier."}
         </p>
         {fieldErrors.description ? (
-          <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{fieldErrors.description}</p>
+          <p className="mt-1.5 text-[13px] font-semibold text-danger">{fieldErrors.description}</p>
         ) : null}
       </div>
 
@@ -194,9 +194,9 @@ export function ApplicationForm({
             );
           })}
         </div>
-        <p className="mt-2 text-[12.5px] text-ink-3">Cinq au maximum.</p>
+        <p className="mt-2 text-[13px] text-ink-3">Cinq au maximum.</p>
         {fieldErrors.domains ? (
-          <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{fieldErrors.domains}</p>
+          <p className="mt-1.5 text-[13px] font-semibold text-danger">{fieldErrors.domains}</p>
         ) : null}
       </fieldset>
 

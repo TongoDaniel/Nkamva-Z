@@ -259,7 +259,7 @@ export function InvitationsPanel({
           </Btn>
         </div>
         {isPrivate ? (
-          <p className="mt-2.5 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-2.5 text-[13px] leading-relaxed text-ink-3">
             Votre salon est fermé : on n&apos;y entre que sur invitation nominative, le lien de
             parrainage y est interdit.
           </p>
@@ -343,7 +343,7 @@ export function InvitationsPanel({
                       ? `Lien de parrainage · ${row.usesCount}/${row.maxUses} utilisations`
                       : (row.email ?? "adresse effacée")}
                   </p>
-                  <p className="mt-0.5 text-[12.5px] text-ink-3">
+                  <p className="mt-0.5 text-[13px] text-ink-3">
                     {row.grant === "GIFT" ? `${row.giftMonths} mois offerts · ` : "Tarif plein · "}
                     {row.issuerRole === "MEMBER"
                       ? `partagé par ${row.issuerName ?? "un membre"} · `

@@ -426,6 +426,15 @@
      fin. L'ancienne version faisait l'inverse (`pointer: coarse, max-width`),
      ce qui laissait sans zone étendue tout ce qui se trouvait sur un écran de
      bureau tactile étroit. */
+  /* Le pseudo-élément est positionné en absolu : sans repère, il se cale sur le
+     premier ancêtre positionné et la zone atterrit n'importe où. La classe pose
+     donc elle-même le repère, plutôt que d'obliger chaque appelant à se souvenir
+     d'ajouter `relative` — un oubli qui ne se voit pas, puisque la zone étendue
+     est invisible. */
+  .nk-tap {
+    position: relative;
+  }
+
   .nk-tap::after {
     content: "";
     position: absolute;

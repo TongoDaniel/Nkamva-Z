@@ -98,7 +98,7 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
 
         <div className="mb-6 flex items-center gap-4">
           <Avatar name={draft.fullName || profile.email} size="lg" alt="Votre avatar" />
-          <p className="text-[12.5px] leading-relaxed text-ink-2">
+          <p className="text-[13px] leading-relaxed text-ink-2">
             Votre avatar est généré à partir de vos initiales.
             <br />
             L&apos;envoi d&apos;une photo arrivera avec le stockage de fichiers.
@@ -160,7 +160,7 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
             className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none transition placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
           />
           {fieldErrors.bio ? (
-            <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{fieldErrors.bio}</p>
+            <p className="mt-1.5 text-[13px] font-semibold text-danger">{fieldErrors.bio}</p>
           ) : null}
         </div>
       </SettingCard>
@@ -182,7 +182,7 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
             <dd className="font-bold">{fmtDate(profile.createdAt)}</dd>
           </div>
         </dl>
-        <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
           Le changement d&apos;adresse e-mail suppose une vérification de la nouvelle adresse : il
           arrivera avec cette étape.
         </p>

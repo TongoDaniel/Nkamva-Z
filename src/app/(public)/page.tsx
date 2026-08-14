@@ -457,7 +457,7 @@ export default async function LandingPage() {
           </div>
           <PayChips markets={markets} size="lg" className="mt-[34px] justify-center" />
           {markets.countries.length ? (
-            <p className="mt-4 text-[12.5px] font-semibold text-[#8ba3c0]">
+            <p className="mt-4 text-[13px] font-semibold text-[#8ba3c0]">
               {countriesLabel(markets)}
             </p>
           ) : null}

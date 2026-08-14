@@ -70,7 +70,7 @@ export function SettleAction({
           placeholder="VIR-2026-08-0117"
           hint="Facultative, mais c'est elle qui permet de retrouver l'opération en cas de contestation."
         />
-        <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
           S&apos;il reste une période impayée plus ancienne, le formateur ne redevient pas actif :
           régler la dernière ne solde pas un arriéré.
         </p>

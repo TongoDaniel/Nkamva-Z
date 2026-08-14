@@ -36,7 +36,7 @@ export function ProgressRing({
         ) : value >= 100 ? (
           <Check className="size-[17px]" />
         ) : (
-          <span className="text-[11px] font-bold">{value}%</span>
+          <span className="text-[13px] font-bold">{value}%</span>
         )}
       </span>
     </span>

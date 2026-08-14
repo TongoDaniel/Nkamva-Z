@@ -30,7 +30,7 @@ export function UploadBar({
 
   return (
     <div className={cn("mt-3", className)}>
-      <p className="mb-1.5 flex items-baseline justify-between gap-3 text-[12.5px] text-ink-2">
+      <p className="mb-1.5 flex items-baseline justify-between gap-3 text-[13px] text-ink-2">
         <span className="font-semibold">{label}</span>
         {progress && progress.total > 0 ? (
           <span className="tabular-nums text-ink-3">

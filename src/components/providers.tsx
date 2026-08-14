@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FocusFirstError } from "@/components/nk/focus-first-error";
 import { Toaster } from "@/components/nk/toast";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker";
@@ -45,6 +46,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         {children}
+        <FocusFirstError />
         <Toaster />
         <ServiceWorkerRegistration />
         <InstallPrompt />

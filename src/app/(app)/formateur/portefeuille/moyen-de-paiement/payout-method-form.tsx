@@ -199,7 +199,7 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
                 {n.icon}
               </span>
               <b className="block text-[14px] font-bold text-ink">{n.label}</b>
-              <span className="mt-0.5 block text-[12.5px] leading-relaxed text-ink-2">
+              <span className="mt-0.5 block text-[13px] leading-relaxed text-ink-2">
                 {n.help}
               </span>
             </button>
@@ -355,7 +355,7 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
                 error={fieldErrors.twoFactorCode}
                 onChange={(e) => setTwoFactorCode(e.target.value)}
               />
-              <p className="-mt-2 text-[12.5px] leading-relaxed text-ink-2">
+              <p className="-mt-2 text-[13px] leading-relaxed text-ink-2">
                 On ne pointe pas de l&apos;argent vers un nouveau compte sans preuve que vous êtes
                 bien là. Un code de secours convient aussi. Si vous n&apos;avez pas encore activé
                 la double authentification,{" "}

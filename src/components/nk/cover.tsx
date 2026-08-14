@@ -178,7 +178,7 @@ export function Cover({
         </span>
       )}
       {typeLabel ? (
-        <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-2.5 py-1.5 text-[11px] font-bold leading-none tracking-[0.06em] text-paper backdrop-blur-[3px]">
+        <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-2.5 py-1.5 text-[13px] font-bold leading-none tracking-[0.06em] text-paper backdrop-blur-[3px]">
           {typeLabel}
         </span>
       ) : null}

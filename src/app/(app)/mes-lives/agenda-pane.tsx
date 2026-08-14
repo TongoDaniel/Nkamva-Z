@@ -97,7 +97,7 @@ function MonthGrid({
             <button
               type="button"
               onClick={() => setOffset(0)}
-              className="nk-tap cursor-pointer rounded-nk-sm px-2 py-1 text-[12px] font-bold text-brand hover:bg-brand-tint"
+              className="nk-tap cursor-pointer rounded-nk-sm px-2 py-1 text-[13px] font-bold text-brand hover:bg-brand-tint"
             >
               Ce mois
             </button>
@@ -124,7 +124,7 @@ function MonthGrid({
           et le mois occupait un écran entier. */}
       <div className="grid grid-cols-7 gap-1 text-center">
         {DAY_NAMES.map((d) => (
-          <span key={d} className="py-1 text-[11px] font-bold uppercase text-ink-3">
+          <span key={d} className="py-1 text-[13px] font-bold uppercase text-ink-3">
             {d}
           </span>
         ))}
@@ -201,7 +201,7 @@ function MonthGrid({
         })}
       </div>
 
-      <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
         Cliquez un jour marqué pour n&apos;afficher que ce qu&apos;il porte.
       </p>
     </section>
@@ -327,7 +327,7 @@ export function AgendaPane({
             <button
               type="button"
               onClick={() => setDay(null)}
-              className="nk-tap inline-flex cursor-pointer items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[12.5px] font-bold text-ink-2 transition hover:border-ink-3 hover:text-ink"
+              className="nk-tap inline-flex cursor-pointer items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[13px] font-bold text-ink-2 transition hover:border-ink-3 hover:text-ink"
             >
               <X className="size-3.5" aria-hidden="true" />
               Tout le mois

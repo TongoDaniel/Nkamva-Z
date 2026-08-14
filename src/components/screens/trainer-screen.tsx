@@ -166,7 +166,7 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
                   </p>
                 ) : null}
                 {trainer.community.membersCount > 0 ? (
-                  <p className="mt-2 text-[12.5px] text-ink-3">
+                  <p className="mt-2 text-[13px] text-ink-3">
                     {fmtNumber(trainer.community.membersCount)} membre
                     {trainer.community.membersCount > 1 ? 's' : ''}
                   </p>
@@ -174,7 +174,7 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
                 <div className="mt-4 flex items-center justify-between border-t border-line-2 pt-4">
                   <span>
                     <Price amountFcfa={trainer.community.priceFcfa} className="text-[17px]" />
-                    <small className="ml-1 text-xs font-semibold text-ink-3">/ mois</small>
+                    <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
                   </span>
                   <BtnLink href={routes.community(trainer.community.slug)} size="sm">
                     Rejoindre

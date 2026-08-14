@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /** Pastille de catégorie — port de `.chip` / `.chip-clay|gold|blue|mut`. */
 export const chipVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold",
+  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-bold",
   {
     variants: {
       tone: {

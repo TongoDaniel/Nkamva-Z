@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line-2 py-2.5 last:border-b-0">
-      <dt className="w-full shrink-0 text-[12.5px] font-bold text-ink-3 sm:w-[220px]">{label}</dt>
+      <dt className="w-full shrink-0 text-[13px] font-bold text-ink-3 sm:w-[220px]">{label}</dt>
       <dd className="min-w-0 flex-1 text-[14px] text-ink">{children}</dd>
     </div>
   );
@@ -127,7 +127,7 @@ export default async function MoyenDePaiementDetailPage({
                     {/* Sans ce libellé, la forme normalisée se lit collée au nom :
                         « Sarr Formation SARLformation sarr ». */}
                     <span className="sr-only"> — forme normalisée : </span>
-                    <code className="ml-2 rounded bg-paper px-1.5 py-0.5 text-[12px] text-ink-3">
+                    <code className="ml-2 rounded bg-paper px-1.5 py-0.5 text-[13px] text-ink-3">
                       {comparison.expectedNormalized}
                     </code>
                   </>
@@ -138,7 +138,7 @@ export default async function MoyenDePaiementDetailPage({
                   <>
                     {comparison.operatorName}
                     <span className="sr-only"> — forme normalisée : </span>
-                    <code className="ml-2 rounded bg-paper px-1.5 py-0.5 text-[12px] text-ink-3">
+                    <code className="ml-2 rounded bg-paper px-1.5 py-0.5 text-[13px] text-ink-3">
                       {comparison.operatorNormalized}
                     </code>
                   </>
@@ -158,7 +158,7 @@ export default async function MoyenDePaiementDetailPage({
             </dl>
 
             {comparison.businessIsSoleTrader ? (
-              <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[12.5px] leading-relaxed text-gold-ink">
+              <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
                 <b className="font-extrabold">La dénomination sociale est le nom du formateur.</b>{" "}
                 C&apos;est le cas d&apos;une entreprise individuelle : légitime, mais le compte
                 « de la société » est en pratique celui de la personne. Les documents doivent le
@@ -232,13 +232,13 @@ export default async function MoyenDePaiementDetailPage({
                           </a>
                         </Btn>
                       ) : (
-                        <span className="text-[12.5px] font-semibold text-danger">Absent</span>
+                        <span className="text-[13px] font-semibold text-danger">Absent</span>
                       )}
                     </li>
                   );
                 })}
               </ul>
-              <p className="mt-4 text-[12px] leading-relaxed text-ink-3">
+              <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
                 Chaque ouverture est journalisée avec votre identité.
               </p>
             </AdminCard>
@@ -290,12 +290,12 @@ export default async function MoyenDePaiementDetailPage({
                               METHOD_STATUS[event.toStatus]?.label ?? event.toStatus
                             }`}
                       </b>
-                      <span className="ml-2 text-[12.5px] text-ink-3">
+                      <span className="ml-2 text-[13px] text-ink-3">
                         {event.actorRole} · {fmtDate(event.createdAt)}
                       </span>
                     </p>
                     {event.note ? (
-                      <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-2">{event.note}</p>
+                      <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{event.note}</p>
                     ) : null}
                   </li>
                 ))}

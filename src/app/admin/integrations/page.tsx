@@ -54,7 +54,7 @@ function CheckRow({ check }: { check: IntegrationCheck }) {
       </dt>
       <dd className="min-w-0 flex-1">
         <StPill tone={STATE_TONES[check.state]}>{STATE_LABELS[check.state]}</StPill>
-        <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-2">{check.detail}</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{check.detail}</p>
       </dd>
     </div>
   );
@@ -74,13 +74,13 @@ function EnvRow({ variable }: { variable: EnvVarStatus }) {
 
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-line-2 py-2 last:border-b-0">
-      <code className="w-full shrink-0 font-mono text-[12px] text-ink-2 sm:w-[260px]">
+      <code className="w-full shrink-0 font-mono text-[13px] text-ink-2 sm:w-[260px]">
         {variable.name}
       </code>
       <StPill tone={tone}>{variable.present ? "posée" : "absente"}</StPill>
-      <span className="text-[11.5px] text-ink-3">{REQUIREMENT_LABELS[variable.requirement]}</span>
+      <span className="text-[13px] text-ink-3">{REQUIREMENT_LABELS[variable.requirement]}</span>
       {variable.note ? (
-        <span className="w-full text-[11.5px] leading-relaxed text-ink-3 sm:w-auto sm:flex-1">
+        <span className="w-full text-[13px] leading-relaxed text-ink-3 sm:w-auto sm:flex-1">
           {variable.note}
         </span>
       ) : null}
@@ -94,7 +94,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
       title={integration.name}
       action={
         <div className="flex items-center gap-3">
-          <span className="text-[11.5px] text-ink-3">{integration.elapsedMs} ms</span>
+          <span className="text-[13px] text-ink-3">{integration.elapsedMs} ms</span>
           <StPill tone={STATE_TONES[integration.state]}>
             {STATE_LABELS[integration.state]}
           </StPill>
@@ -109,7 +109,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         ))}
       </dl>
 
-      <p className="mb-1 mt-5 text-[11.5px] font-bold uppercase tracking-wide text-ink-3">
+      <p className="mb-1 mt-5 text-[13px] font-bold uppercase tracking-wide text-ink-3">
         Variables lues
       </p>
       <div>
@@ -118,7 +118,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         ))}
       </div>
 
-      <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[12.5px] leading-relaxed text-ink-2">
+      <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
         <b className="font-extrabold text-ink">Sans lui</b> — {integration.whenAbsent}
       </p>
     </AdminCard>
@@ -159,7 +159,7 @@ export default async function IntegrationsPage() {
             {counts.warn} avec réserve
           </StPill>
         ) : null}
-        <span className="text-[12px] text-ink-3">Sondé le {fmtDateTime(report.probedAt)}</span>
+        <span className="text-[13px] text-ink-3">Sondé le {fmtDateTime(report.probedAt)}</span>
       </div>
 
       {report.paymentSimulation.declared ? (
@@ -182,7 +182,7 @@ export default async function IntegrationsPage() {
         ))}
       </div>
 
-      <p className="mt-5 flex items-start gap-2 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-5 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
         <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         Aucune sonde n&apos;écrit ni ne facture : elles lisent un solde, une
         configuration, une liste. Aucune valeur de secret ne traverse cet écran — la
@@ -190,7 +190,7 @@ export default async function IntegrationsPage() {
         d&apos;erreur du fournisseur sont expurgés avant affichage. Les sondes qui
         écrivent — dont le droit de créer un direct chez Mux, qui ne se vérifie
         qu&apos;en ouvrant un flux facturable — restent dans{" "}
-        <code className="font-mono text-[11.5px]">scripts/probe-integrations.ts</code>,
+        <code className="font-mono text-[13px]">scripts/probe-integrations.ts</code>,
         lancé à la main.
       </p>
     </>

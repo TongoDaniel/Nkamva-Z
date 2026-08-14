@@ -45,7 +45,7 @@ export function ContestForm({ disputeId }: { disputeId: string }) {
         aria-describedby="contest-hint"
         className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
       />
-      <p id="contest-hint" className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
+      <p id="contest-hint" className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
         {reason.trim().length < MIN
           ? `Encore ${MIN - reason.trim().length} caractères.`
           : "Ces éléments ne sont lus que par l'équipe de modération."}

@@ -192,7 +192,7 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
                   type="button"
                   onClick={() => setVariant((v) => (v === "audio" ? "video" : "audio"))}
                   aria-pressed={variant === "audio"}
-                  className="cursor-pointer rounded-full border border-white/25 px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-white/15"
+                  className="cursor-pointer rounded-full border border-white/25 px-3 py-1.5 text-[13px] font-bold text-white transition hover:bg-white/15"
                 >
                   {variant === "audio" ? "Revenir à la vidéo" : "Audio seul"}
                 </button>
@@ -291,7 +291,7 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
             placeholder="Un passage à revoir, une idée à appliquer…"
             className="w-full resize-y rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[14.5px] leading-relaxed outline-none placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
           />
-          <p className="mt-2 text-[12.5px] text-ink-3">
+          <p className="mt-2 text-[13px] text-ink-3">
             Ces notes restent dans cet onglet : elles ne quittent pas votre navigateur.
           </p>
         </section>

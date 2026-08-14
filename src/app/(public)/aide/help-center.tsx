@@ -309,7 +309,7 @@ export function HelpCenter({
         ) : (
           filtered.map((group) => (
             <div key={group.id} id={group.id} className="mb-9 scroll-mt-24">
-              <p className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.1em] text-ink-3">
+              <p className="mb-3 font-sans text-[13px] font-bold uppercase tracking-[0.1em] text-ink-3">
                 {group.title}
               </p>
               {group.items.map((item) => {

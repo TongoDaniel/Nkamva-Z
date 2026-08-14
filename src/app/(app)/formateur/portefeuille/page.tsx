@@ -200,7 +200,7 @@ export default async function PortefeuillePage() {
               {active ? (
                 <Link
                   href="/formateur/portefeuille/moyen-de-paiement"
-                  className="text-[13px] font-bold text-brand"
+                  className="nk-tap text-[13px] font-bold text-brand"
                 >
                   Le remplacer
                 </Link>
@@ -215,19 +215,19 @@ export default async function PortefeuillePage() {
                     {PAYOUT_METHOD_STATUS[active.verificationStatus]?.label ?? active.verificationStatus}
                   </StPill>
                 </p>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-ink-3">
+                <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
                   {ACCOUNT_NATURE_LABELS[active.accountNature]} ·{" "}
                   {PAYOUT_METHOD_STATUS[active.verificationStatus]?.help}
                 </p>
 
                 {active.rejectionReason ? (
-                  <p className="mt-3 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] leading-relaxed text-ink">
+                  <p className="mt-3 rounded-xl bg-danger/5 px-4 py-3 text-[13px] leading-relaxed text-ink">
                     <b className="font-bold">Motif du refus.</b> {active.rejectionReason}
                   </p>
                 ) : null}
 
                 {active.carenceUntil && new Date(active.carenceUntil) > new Date() ? (
-                  <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+                  <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
                     Délai de sécurité de 72 h en cours jusqu&apos;au {fmtDate(active.carenceUntil)}.
                   </p>
                 ) : null}
@@ -262,7 +262,7 @@ export default async function PortefeuillePage() {
                   {archived.map((m) => (
                     <li
                       key={m.id}
-                      className="flex flex-wrap items-center justify-between gap-2 text-[12.5px] text-ink-3"
+                      className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-ink-3"
                     >
                       <span>{describeMethod(m)}</span>
                       <span>Remplacé le {fmtDate(m.updatedAt)}</span>
@@ -306,13 +306,13 @@ export default async function PortefeuillePage() {
                         <b className="block font-display text-[16px] font-extrabold text-ink">
                           {fmtFcfa(p.amountFcfa)}
                         </b>
-                        <span className="text-[12.5px] text-ink-3">
+                        <span className="text-[13px] text-ink-3">
                           Demandé le {fmtDate(p.createdAt)}
                         </span>
                       </span>
                       <span className="text-right">
                         <StPill tone={status.tone}>{status.label}</StPill>
-                        <span className="mt-0.5 block max-w-[38ch] text-[12px] leading-relaxed text-ink-3">
+                        <span className="mt-0.5 block max-w-[38ch] text-[13px] leading-relaxed text-ink-3">
                           {p.status === "REJECTED" && p.rejectionReason
                             ? p.rejectionReason
                             : status.help}
@@ -338,7 +338,7 @@ export default async function PortefeuillePage() {
             {blocker ? (
               <>
                 <p className="text-[13.5px] font-bold text-ink">{blocker.title}</p>
-                <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">{blocker.body}</p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">{blocker.body}</p>
                 {blocker.action ? (
                   <BtnLink href={blocker.action.href} block className="mt-4">
                     {blocker.action.label}

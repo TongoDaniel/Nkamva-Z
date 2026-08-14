@@ -98,7 +98,7 @@ export default async function AnalyticsPage() {
             <Row label="Part NkamVa">{fmtFcfa(overview.sales.platformShareFcfa)}</Row>
             <Row label="Sur 30 jours">{fmtFcfa(overview.sales.last30DaysFcfa)}</Row>
           </dl>
-          <p className="mt-4 text-[12px] leading-relaxed text-ink-3">
+          <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
             Remboursements exclus. Les parts sont celles snapshotées à la vente : un changement
             de taux ne réécrit pas le passé.
           </p>
@@ -152,11 +152,11 @@ export default async function AnalyticsPage() {
                   key={trainer.trainerId}
                   className="flex flex-wrap items-center gap-3 border-b border-line-2 py-2.5 last:border-b-0"
                 >
-                  <span className="w-5 shrink-0 text-[12.5px] font-bold text-ink-3">{i + 1}</span>
+                  <span className="w-5 shrink-0 text-[13px] font-bold text-ink-3">{i + 1}</span>
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold">
                     {trainer.name}
                   </span>
-                  <span className="text-[12.5px] text-ink-3">
+                  <span className="text-[13px] text-ink-3">
                     {fmtNumber(trainer.salesCount)} vente{trainer.salesCount > 1 ? "s" : ""}
                   </span>
                   <span className="text-[13.5px] font-bold">{fmtFcfa(trainer.netRevenueFcfa)}</span>
