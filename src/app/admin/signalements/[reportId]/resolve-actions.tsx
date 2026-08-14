@@ -81,7 +81,7 @@ export function ResolveActions({
       </div>
 
       {!hideable ? (
-        <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
           Aucun retrait n&apos;est possible sur cet objet — soit il est déjà retiré, soit il
           n&apos;appartient pas à la Modération de le faire : suspendre un compte revient au
           Super-admin, et fermer une communauté coupe des adhésions payées. Retenir le
@@ -120,7 +120,7 @@ export function ResolveActions({
             />
             <span>
               <b className="block text-[13.5px] font-bold text-ink">{removalAction}</b>
-              <span className="mt-0.5 block text-[12.5px] leading-relaxed text-ink-2">
+              <span className="mt-0.5 block text-[13px] leading-relaxed text-ink-2">
                 {removalEffect}
               </span>
             </span>

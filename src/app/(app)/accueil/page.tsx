@@ -77,7 +77,7 @@ function NextLives({ sessions }: { sessions: AgendaSession[] }) {
         <h2 id="prochains-directs" className="text-[17px] font-bold">
           Prochains directs
         </h2>
-        <Link href="/mes-lives" className="text-[13px] font-bold text-brand">
+        <Link href="/mes-lives" className="nk-tap text-[13px] font-bold text-brand">
           Mon agenda
         </Link>
       </div>
@@ -128,7 +128,7 @@ function ResumeList({ items }: { items: ResourceItem[] }) {
                   {course.title}
                 </Link>
               </h3>
-              <p className="truncate text-[12.5px] text-ink-2">{formatLabel(course.format)}</p>
+              <p className="truncate text-[13px] text-ink-2">{formatLabel(course.format)}</p>
             </div>
             <ProgressRing
               percent={consumptionPercent(item.courseView, course.format, course.durationSeconds)}
@@ -150,7 +150,7 @@ function Novelties({ courses }: { courses: CourseListItem[] }) {
         <h2 id="suggestions" className="text-[17px] font-bold">
           Nouveautés du catalogue
         </h2>
-        <Link href={routes.catalog} className="text-[13px] font-bold text-brand">
+        <Link href={routes.catalog} className="nk-tap text-[13px] font-bold text-brand">
           Tout le catalogue
         </Link>
       </div>
@@ -359,7 +359,7 @@ export default async function AccueilPage({
             <h2 id="reprendre" className="text-[17px] font-bold">
               Reprendre
             </h2>
-            <Link href="/mes-ressources" className="text-[13px] font-bold text-brand">
+            <Link href="/mes-ressources" className="nk-tap text-[13px] font-bold text-brand">
               Tout voir
             </Link>
           </div>
@@ -648,7 +648,7 @@ export default async function AccueilPage({
                 <h2 id="publications" className="text-[17px] font-bold">
                   Vos publications
                 </h2>
-                <Link href="/formateur/ressources" className="text-[13px] font-bold text-brand">
+                <Link href="/formateur/ressources" className="nk-tap text-[13px] font-bold text-brand">
                   Tout gérer
                 </Link>
               </div>
@@ -675,7 +675,7 @@ export default async function AccueilPage({
                             {course.title}
                           </Link>
                         </h3>
-                        <p className="flex flex-wrap items-center gap-3 text-[12.5px] text-ink-2">
+                        <p className="flex flex-wrap items-center gap-3 text-[13px] text-ink-2">
                           <StPill tone={status.tone}>{status.label}</StPill>
                           <span>{formatLabel(course.format)}</span>
                           <span>{fmtFcfa(course.priceFcfa)}</span>
@@ -712,7 +712,7 @@ export default async function AccueilPage({
               <h2 id="reprendre" className="text-[17px] font-bold">
                 Reprendre
               </h2>
-              <Link href="/mes-ressources" className="text-[13px] font-bold text-brand">
+              <Link href="/mes-ressources" className="nk-tap text-[13px] font-bold text-brand">
                 Tout voir
               </Link>
             </div>

@@ -111,7 +111,7 @@ function FiltersPanel({
       </div>
 
       <fieldset className="mb-3 border-b border-line-2 pb-4">
-        <legend className="mb-3 mt-1.5 font-sans text-xs font-bold uppercase tracking-[0.1em] text-ink-3">
+        <legend className="mb-3 mt-1.5 font-sans text-[13px] font-bold uppercase tracking-[0.1em] text-ink-3">
           Catégorie
         </legend>
         {categories.length ? (
@@ -129,7 +129,7 @@ function FiltersPanel({
       </fieldset>
 
       <fieldset className="pb-4">
-        <legend className="mb-3 mt-1.5 font-sans text-xs font-bold uppercase tracking-[0.1em] text-ink-3">
+        <legend className="mb-3 mt-1.5 font-sans text-[13px] font-bold uppercase tracking-[0.1em] text-ink-3">
           Format
         </legend>
         {formats.length ? (
@@ -214,7 +214,7 @@ export function CatalogToolbar({
           <SlidersHorizontal aria-hidden="true" />
           Filtres
           {activeFilters.length > 0 ? (
-            <span className="rounded-full bg-brand px-1.5 text-[11px] text-white">
+            <span className="rounded-full bg-brand px-1.5 text-[13px] text-white">
               {activeFilters.length}
               <span className="sr-only"> filtres actifs</span>
             </span>

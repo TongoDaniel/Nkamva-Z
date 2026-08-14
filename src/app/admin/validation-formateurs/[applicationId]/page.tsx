@@ -144,7 +144,7 @@ export default async function ApplicationDetailPage({
                       <b className="block text-[14px]">
                         {DOCUMENT_LABELS[document.type] ?? document.type}
                       </b>
-                      <small className="block truncate text-[12.3px] text-ink-3">
+                      <small className="block truncate text-[13px] text-ink-3">
                         {document.originalFileName ?? document.mimeType}
                         {document.sizeBytes ? ` · ${fmtNumber(Math.round(document.sizeBytes / 1024))} Ko` : ""}
                         {document.resubmissionCount > 0
@@ -152,14 +152,14 @@ export default async function ApplicationDetailPage({
                           : ""}
                       </small>
                       {document.rejectionReason ? (
-                        <small className="mt-1 block text-[12.3px] text-danger">
+                        <small className="mt-1 block text-[13px] text-danger">
                           Motif : {document.rejectionReason}
                         </small>
                       ) : null}
                     </div>
                     <StPill tone={docState.tone}>{docState.label}</StPill>
                     {document.purgedAt ? (
-                      <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-3">
+                      <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-3">
                         <FileWarning className="size-4" aria-hidden="true" />
                         Effacée
                       </span>
@@ -180,7 +180,7 @@ export default async function ApplicationDetailPage({
                 );
               })}
             </ul>
-            <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+            <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
               Chaque ouverture est journalisée. Les pièces sont effacées 90 jours après la
               décision.
             </p>
@@ -198,16 +198,16 @@ export default async function ApplicationDetailPage({
                     {APPLICATION_STATUS[event.fromStatus]?.label ?? event.fromStatus} →{" "}
                     {APPLICATION_STATUS[event.toStatus]?.label ?? event.toStatus}
                   </b>
-                  <small className="block text-[12.3px] text-ink-3">
+                  <small className="block text-[13px] text-ink-3">
                     {fmtDate(event.createdAt)}
                   </small>
                   {event.reason ? (
-                    <small className="mt-1 block text-[12.5px] leading-relaxed text-ink-2">
+                    <small className="mt-1 block text-[13px] leading-relaxed text-ink-2">
                       {event.reason}
                     </small>
                   ) : null}
                   {event.rejectedDocIds.length > 0 ? (
-                    <small className="mt-1 block text-[12.3px] text-ink-3">
+                    <small className="mt-1 block text-[13px] text-ink-3">
                       {event.rejectedDocIds.length} pièce
                       {event.rejectedDocIds.length > 1 ? "s" : ""} refusée
                       {event.rejectedDocIds.length > 1 ? "s" : ""}

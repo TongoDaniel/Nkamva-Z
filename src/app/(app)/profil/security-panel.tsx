@@ -18,7 +18,7 @@ export function SecurityPanel({ profile }: { profile: ProfileView }) {
           title="Adresse e-mail"
           description={profile.email}
           action={
-            <span className="text-[12.5px] font-semibold text-ink-3">
+            <span className="text-[13px] font-semibold text-ink-3">
               Modification à venir
             </span>
           }
@@ -32,7 +32,7 @@ export function SecurityPanel({ profile }: { profile: ProfileView }) {
           }
           action={
             profile.emailVerifiedAt ? (
-              <span className="text-[12.5px] font-semibold text-brand-dark">Vérifiée</span>
+              <span className="text-[13px] font-semibold text-brand-dark">Vérifiée</span>
             ) : (
               <Btn asChild variant="o" size="sm">
                 <a href={`/auth/verifier-code?email=${encodeURIComponent(profile.email)}`}>

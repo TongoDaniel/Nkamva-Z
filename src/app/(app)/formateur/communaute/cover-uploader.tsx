@@ -155,7 +155,7 @@ export function CommunityCoverUploader({
       {send.pending ? (
         <UploadBar progress={progress} label="Envoi de la bannière…" />
       ) : null}
-      <p className="mt-2 text-[12.5px] text-ink-3">
+      <p className="mt-2 text-[13px] text-ink-3">
         PNG, JPEG ou WebP, 5 Mo maximum — l&apos;image est réduite à {IMAGE_MAX_WIDTH} px avant
         l&apos;envoi. Elle compte dans votre stockage. À défaut, un dégradé
         est affiché.

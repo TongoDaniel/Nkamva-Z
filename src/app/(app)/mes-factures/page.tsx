@@ -137,7 +137,7 @@ export default async function MesFacturesPage() {
             rows={invoices}
             getRowKey={(row) => row.id}
           />
-          <p className="mt-5 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-5 text-[13px] leading-relaxed text-ink-3">
             Les cent dernières factures sont listées. Le PDF est regénéré à chaque
             téléchargement plutôt que conservé : aucune de ses données ne peut bouger, deux
             rendus donnent la même pièce.

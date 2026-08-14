@@ -138,7 +138,7 @@ export default async function StatutCandidaturePage() {
                   <div className="min-w-0">
                     <b className="block text-[14.5px]">{slot.label}</b>
                     {document?.originalFileName ? (
-                      <small className="block truncate text-[12.5px] text-ink-3">
+                      <small className="block truncate text-[13px] text-ink-3">
                         {document.originalFileName}
                       </small>
                     ) : null}
@@ -152,7 +152,7 @@ export default async function StatutCandidaturePage() {
               );
             })}
           </ul>
-          <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
             Vos pièces ne sont consultables que par l&apos;équipe de modération, et sont effacées
             90 jours après la décision.
           </p>

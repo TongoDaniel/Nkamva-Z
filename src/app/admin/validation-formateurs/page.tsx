@@ -112,13 +112,13 @@ export default async function ValidationFormateursPage({
                   <Avatar name={name} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
-                    <small className="block truncate text-[12.3px] text-ink-3">
+                    <small className="block truncate text-[13px] text-ink-3">
                       {application.user.email}
                       {application.domains.length ? ` · ${application.domains.join(", ")}` : ""}
                     </small>
                   </div>
                   <StPill tone={state.tone}>{state.label}</StPill>
-                  <span className="text-[12.5px] text-ink-2">
+                  <span className="text-[13px] text-ink-2">
                     {application.submittedAt
                       ? `Soumis le ${fmtDate(application.submittedAt)}`
                       : `Créé le ${fmtDate(application.createdAt)}`}

@@ -104,7 +104,7 @@ export default async function MesAchatsPage({
                 "Ressource retirée du catalogue"
               )}
             </b>
-            <small className="block text-[12.3px] text-ink-3">
+            <small className="block text-[13px] text-ink-3">
               {formatLabel(row.course?.format)}
             </small>
           </div>

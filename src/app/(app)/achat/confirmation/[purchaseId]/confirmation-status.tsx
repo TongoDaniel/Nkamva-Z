@@ -24,7 +24,17 @@ export interface ConfirmationCommunity {
 
 /** Convention Lot 0 : polling TanStack Query, pas de WebSocket. */
 const POLL_INTERVAL_MS = 8_000;
-const POLL_TIMEOUT_MS = 120_000;
+/**
+ * Arbitrage 115 — porté de 120 s à 300 s.
+ *
+ * Le parcours réel sur ce marché n'est pas un aller-retour d'une minute : on
+ * quitte le navigateur, on ouvre l'application de mobile money ou on compose un
+ * code USSD, on saisit un code secret sur un réseau lent, puis on revient. Deux
+ * minutes couvraient à peine le cas favorable ; au-delà, la personne retrouvait
+ * un sondage **arrêté** et croyait son paiement perdu, alors qu'il était en
+ * cours.
+ */
+const POLL_TIMEOUT_MS = 300_000;
 
 const PROVIDER_LABEL: Record<PaymentProvider, string> = {
   PAWAPAY: "Mobile money",
@@ -89,6 +99,20 @@ export function ConfirmationStatus({
       if (status && status !== "PENDING") return false;
       return timedOut ? false : POLL_INTERVAL_MS;
     },
+    // Arbitrage 115 — la **seule** dérogation à `refetchOnWindowFocus: false`,
+    // qui est posé globalement dans `providers.tsx` par sobriété réseau.
+    //
+    // Ici la sobriété a tort : le retour de focus est le signal le plus fiable
+    // dont on dispose. La personne revient de son application de mobile money,
+    // et c'est exactement l'instant où le statut a changé. Sans ça elle
+    // attendait jusqu'à huit secondes de plus devant un écran qui disait encore
+    // « en attente » — le moment précis où l'on doute d'avoir payé deux fois.
+    refetchOnWindowFocus: true,
+    // `staleTime` vaut 30 s par défaut (`providers.tsx`) : sans ce zéro, un
+    // retour dans les trente secondes suivant le dernier sondage serait
+    // considéré comme frais et **ne redemanderait rien** — soit exactement le
+    // cas d'une confirmation rapide.
+    staleTime: 0,
   });
 
   const status = data?.status ?? initialStatus;
@@ -172,7 +196,7 @@ export function ConfirmationStatus({
                 reste la seule prise pour le support — et il évite de laisser
                 l'apprenant devant une phrase creuse. */}
             {failureCode && !failureMessage ? (
-              <p className="mb-6 -mt-4 text-[12.5px] text-ink-3">
+              <p className="mb-6 -mt-4 text-[13px] text-ink-3">
                 Motif communiqué : <code>{failureCode}</code>
               </p>
             ) : null}
@@ -253,7 +277,7 @@ export function ConfirmationStatus({
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-ink-2">Référence</dt>
-            <dd className="font-mono text-[12px] font-bold">{purchaseId.slice(0, 8)}</dd>
+            <dd className="font-mono text-[13px] font-bold">{purchaseId.slice(0, 8)}</dd>
           </div>
         </dl>
       </aside>

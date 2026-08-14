@@ -146,7 +146,7 @@ export default async function JournalAuditPage({
       {target ? (
         <p className="mb-5 flex flex-wrap items-center gap-3 rounded-nk-lg border border-line bg-paper px-4 py-3 text-[13px]">
           <span className="text-ink-2">
-            Filtré sur l&apos;objet <code className="font-mono text-[12.5px]">{target}</code>
+            Filtré sur l&apos;objet <code className="font-mono text-[13px]">{target}</code>
           </span>
           <Link
             href={`/admin/journal-audit?groupe=${group}`}
@@ -188,7 +188,7 @@ export default async function JournalAuditPage({
       />
 
       {invertedRange ? (
-        <p role="alert" className="mb-5 rounded-xl bg-gold-tint px-4 py-3 text-[12.5px] text-gold-ink">
+        <p role="alert" className="mb-5 rounded-xl bg-gold-tint px-4 py-3 text-[13px] text-gold-ink">
           La date de début est postérieure à la date de fin : aucune entrée ne peut tomber dans
           cet intervalle.
         </p>
@@ -198,7 +198,7 @@ export default async function JournalAuditPage({
         title={`${fmtNumber(result.total)} entrée${result.total > 1 ? "s" : ""}`}
         action={
           filtered ? (
-            <span className="text-[12.5px] text-ink-3">
+            <span className="text-[13px] text-ink-3">
               sur {fmtNumber(stats.total)} au total
             </span>
           ) : null
@@ -269,7 +269,7 @@ export default async function JournalAuditPage({
         ) : null}
       </AdminCard>
 
-      <p className="mt-5 flex items-start gap-2 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-5 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
         <FileClock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         Le journal n&apos;expose aucune action de modification : il n&apos;a de valeur que si
         personne ne peut le retoucher, pas même depuis cet écran. Filtrer ne cache rien —

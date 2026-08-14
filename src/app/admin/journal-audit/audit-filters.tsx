@@ -11,7 +11,7 @@ import {
 
 const FIELD =
   "w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[13.5px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25";
-const LABEL = "mb-1.5 block text-[11.5px] font-bold uppercase tracking-wide text-ink-3";
+const LABEL = "mb-1.5 block text-[13px] font-bold uppercase tracking-wide text-ink-3";
 
 export interface AuditFilterValues {
   q: string;
@@ -101,7 +101,7 @@ export function AuditFilters({
               className={`${FIELD} pl-10`}
             />
           </div>
-          <p className="mt-1 text-[11.5px] leading-relaxed text-ink-3">
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
             Cherche à la fois dans le libellé français, le code de l&apos;action,
             l&apos;identifiant de l&apos;objet et le nom ou l&apos;email de l&apos;acteur.
           </p>

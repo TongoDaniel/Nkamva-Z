@@ -108,14 +108,14 @@ export function ReviewActions({
       </div>
 
       {wireable ? (
-        <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
           Le formateur n&apos;est <b className="font-bold text-ink-2">pas encore débité</b> : le
           montant est immobilisé, et il ne quitte son solde qu&apos;au constat du versement.
         </p>
       ) : null}
 
       {failed && !isSuperAdmin ? (
-        <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
           L&apos;engagement est retombé et le solde du formateur est intact. Seul un Super-admin
           peut remettre cette demande en instruction.
         </p>
@@ -149,7 +149,7 @@ export function ReviewActions({
         }
       >
         {withdrawableFcfa < amountFcfa ? (
-          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] leading-relaxed text-ink">
+          <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[13px] leading-relaxed text-ink">
             <b className="font-extrabold">Le solde retirable ne couvre plus ce montant</b> —{" "}
             {fmtFcfa(withdrawableFcfa)} disponible contre {fmtFcfa(amountFcfa)} demandés.
             L&apos;API refusera l&apos;approbation.
@@ -289,7 +289,7 @@ export function ReviewActions({
           placeholder="Le compte a été rejeté par la banque du bénéficiaire : coordonnées à vérifier."
           className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
         />
-        <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
           Écrivez-le pour le formateur, pas pour un dossier bancaire : c&apos;est lui qui devra
           agir.
         </p>

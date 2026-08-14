@@ -111,20 +111,20 @@ export default async function AdminLitigesPage({
                     <b className="block truncate text-sm font-bold">
                       {dispute.purchase.course?.title ?? "Ressource retirée"}
                     </b>
-                    <small className="block truncate text-[12.3px] text-ink-3">
+                    <small className="block truncate text-[13px] text-ink-3">
                       {name} · {REASON_LABELS[dispute.reason] ?? dispute.reason}
                     </small>
                   </div>
                   <StPill tone={state.tone}>{state.label}</StPill>
                   {unread > 0 ? (
-                    <span className="rounded-full bg-gold px-2 py-0.5 text-[11px] font-extrabold text-[#241a02]">
+                    <span className="rounded-full bg-gold px-2 py-0.5 text-[13px] font-extrabold text-[#241a02]">
                       {unread} non lu{unread > 1 ? "s" : ""}
                     </span>
                   ) : null}
-                  <span className="whitespace-nowrap text-[12.5px] text-ink-2">
+                  <span className="whitespace-nowrap text-[13px] text-ink-2">
                     {fmtFcfa(dispute.disputedAmountFcfa)}
                   </span>
-                  <span className="whitespace-nowrap text-[12.5px] text-ink-3">
+                  <span className="whitespace-nowrap text-[13px] text-ink-3">
                     {fmtDate(dispute.lastActivityAt)}
                   </span>
                   <BtnLink href={`/admin/litiges/${dispute.id}`} variant="o" size="sm">

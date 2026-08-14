@@ -57,7 +57,7 @@ export function MicroDepositForm({
   return (
     <form onSubmit={onSubmit} noValidate className="mt-4 border-t border-line pt-4">
       <h3 className="mb-1.5 text-[14px] font-bold">Confirmez les deux micro-virements</h3>
-      <p className="mb-4 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mb-4 text-[13px] leading-relaxed text-ink-3">
         Deux petits montants ont été envoyés sur votre compte
         {reference ? (
           <>
@@ -97,7 +97,7 @@ export function MicroDepositForm({
       <Btn type="submit" loading={confirm.pending}>
         Confirmer le compte
       </Btn>
-      <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
         Après trois saisies erronées, la vérification est suspendue et reprise par un
         responsable.
       </p>

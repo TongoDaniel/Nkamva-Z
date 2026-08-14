@@ -57,13 +57,13 @@ export default async function MesLitigesPage() {
                       {dispute.purchase.course?.title ?? "Ressource retirée du catalogue"}
                     </Link>
                   </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-ink-2">
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] text-ink-2">
                     <StPill tone={state.tone}>{state.label}</StPill>
                     <span>Ouverte le {fmtDate(dispute.openedAt)}</span>
                     <span>{fmtFcfa(dispute.disputedAmountFcfa)}</span>
                   </p>
                   {dispute.status === "WAITING_LEARNER" && dispute.learnerDeadlineAt ? (
-                    <p className="mt-1.5 text-[12.5px] font-semibold text-gold-ink">
+                    <p className="mt-1.5 text-[13px] font-semibold text-gold-ink">
                       Réponse attendue avant le {fmtDate(dispute.learnerDeadlineAt)}.
                     </p>
                   ) : null}

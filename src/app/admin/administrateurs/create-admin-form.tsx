@@ -110,7 +110,7 @@ export function CreateAdminForm() {
                 />
                 <span>
                   <span className="block text-[14px] font-bold text-ink">{option.label}</span>
-                  <span className="block text-[12.5px] leading-relaxed text-ink-2">{option.hint}</span>
+                  <span className="block text-[13px] leading-relaxed text-ink-2">{option.hint}</span>
                 </span>
               </label>
             ))}

@@ -74,7 +74,7 @@ export function PayoutRequestForm({
       <Btn type="submit" block loading={request.pending}>
         Demander le retrait
       </Btn>
-      <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
         Le montant est immobilisé dès la demande, mais votre solde n&apos;est débité
         qu&apos;au versement effectif. Une seule demande à la fois.
       </p>

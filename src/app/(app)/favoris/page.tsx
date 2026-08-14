@@ -114,13 +114,13 @@ export default async function FavorisPage() {
                     </p>
                   ) : null}
                   <div className="mt-auto flex items-center justify-between border-t border-line-2 pt-3.5">
-                    <span className="flex items-center gap-1.5 text-[12.5px] text-ink-3">
+                    <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
                       <Users className="size-3.5" aria-hidden="true" />
                       {fmtNumber(community.membersCount)}
                     </span>
                     <span>
                       <Price amountFcfa={community.priceFcfa} className="text-[15px]" />
-                      <small className="ml-1 text-xs font-semibold text-ink-3">/ mois</small>
+                      <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
                     </span>
                   </div>
                 </div>

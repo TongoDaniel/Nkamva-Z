@@ -183,7 +183,7 @@ export function ScheduleLive({
             </label>
           </div>
 
-          <p className="text-[12.5px] leading-relaxed text-ink-3">
+          <p className="text-[13px] leading-relaxed text-ink-3">
             La séance sera enregistrée automatiquement : vous n&apos;avez rien à déclencher, et il
             n&apos;y a pas de case à cocher. Le replay portera la date de la session.
           </p>

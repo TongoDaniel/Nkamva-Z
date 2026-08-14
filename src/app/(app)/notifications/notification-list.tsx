@@ -60,7 +60,7 @@ function Row({ item, onRead }: { item: NotificationItem; onRead: (id: string) =>
           {item.title}
         </b>
         <small className="mt-0.5 block text-[13.5px] leading-relaxed text-ink-2">{item.body}</small>
-        <small className="mt-1 block text-[12.5px] text-ink-3">{fmtRelative(item.createdAt)}</small>
+        <small className="mt-1 block text-[13px] text-ink-3">{fmtRelative(item.createdAt)}</small>
       </span>
       {unread ? (
         <span

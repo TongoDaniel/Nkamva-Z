@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line-2 py-2.5 last:border-b-0">
-      <dt className="w-full shrink-0 text-[12.5px] font-bold text-ink-3 sm:w-[220px]">{label}</dt>
+      <dt className="w-full shrink-0 text-[13px] font-bold text-ink-3 sm:w-[220px]">{label}</dt>
       <dd className="min-w-0 flex-1 text-[14px] text-ink">{children}</dd>
     </div>
   );
@@ -107,7 +107,7 @@ export default async function RetraitDetailPage({
               <Row label="Réservé par des litiges">{fmtFcfa(wallet?.reservedBalance ?? 0)}</Row>
               <Row label="Immobilisé par des retraits">
                 {fmtFcfa(wallet?.pendingPayoutBalance ?? 0)}
-                <span className="ml-2 text-[12.5px] text-ink-3">
+                <span className="ml-2 text-[13px] text-ink-3">
                   dont {fmtFcfa(payout.amountFcfa)} pour cette demande
                 </span>
               </Row>
@@ -124,7 +124,7 @@ export default async function RetraitDetailPage({
             </dl>
 
             {withdrawable < 0 ? (
-              <p className="mt-4 rounded-xl bg-danger/5 px-4 py-3 text-[12.5px] leading-relaxed text-ink">
+              <p className="mt-4 rounded-xl bg-danger/5 px-4 py-3 text-[13px] leading-relaxed text-ink">
                 <b className="font-extrabold">Le solde retirable est négatif.</b> Décision 13 — un
                 remboursement a été prélevé sur un solde déjà engagé. Aucune approbation
                 n&apos;est possible tant qu&apos;il n&apos;est pas revenu au-dessus de zéro ; les
@@ -144,9 +144,9 @@ export default async function RetraitDetailPage({
                 <b className="font-display text-[18px] font-extrabold">
                   {payout.kycScoreSnapshot ?? "—"}
                 </b>
-                <span className="ml-1 text-[12.5px] text-ink-3">sur 100</span>
+                <span className="ml-1 text-[13px] text-ink-3">sur 100</span>
                 {payout.kycBadgeSnapshot ? (
-                  <span className="ml-3 text-[12.5px] text-ink-2">{payout.kycBadgeSnapshot}</span>
+                  <span className="ml-3 text-[13px] text-ink-2">{payout.kycBadgeSnapshot}</span>
                 ) : null}
               </Row>
               <Row label="Critères">
@@ -247,12 +247,12 @@ export default async function RetraitDetailPage({
                         {PAYOUT_STATUS[event.fromStatus]?.label ?? event.fromStatus} →{" "}
                         {PAYOUT_STATUS[event.toStatus]?.label ?? event.toStatus}
                       </b>
-                      <span className="ml-2 text-[12.5px] text-ink-3">
+                      <span className="ml-2 text-[13px] text-ink-3">
                         {event.actorRole} · {fmtDate(event.createdAt)}
                       </span>
                     </p>
                     {event.note ? (
-                      <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-2">{event.note}</p>
+                      <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{event.note}</p>
                     ) : null}
                   </li>
                 ))}

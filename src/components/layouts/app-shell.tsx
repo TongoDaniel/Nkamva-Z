@@ -29,7 +29,7 @@ function UnreadBadge({ count }: { count: number }) {
   if (count === 0) return null;
   return (
     <span
-      className="ml-auto grid min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white"
+      className="ml-auto grid min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[13px] font-bold text-white"
       aria-label={`${count} non lu${count > 1 ? "s" : ""}`}
     >
       {count > 99 ? "99+" : count}
@@ -78,7 +78,7 @@ function AccountMenu({
         >
           <div className="mb-1.5 border-b border-line-2 px-3 pb-3.5 pt-3">
             <b className="block font-display text-[14.5px]">{name}</b>
-            <small className="block truncate text-[12.5px] text-ink-3">{email}</small>
+            <small className="block truncate text-[13px] text-ink-3">{email}</small>
           </div>
           {links.map(({ href, label, icon: Icon }) => (
             <DropdownMenu.Item key={href} asChild>
@@ -223,7 +223,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         <div className="nk-wrap flex flex-wrap items-center gap-4.5 py-6.5">
           <Logo className="text-base" />
           <p className="text-[13px] text-ink-3">© {new Date().getFullYear()} NkamVa</p>
-          <Link href="/aide" className="ml-auto text-[13px] font-semibold text-ink-2 hover:text-brand">
+          <Link href="/aide" className="nk-tap ml-auto text-[13px] font-semibold text-ink-2 hover:text-brand">
             Aide
           </Link>
         </div>

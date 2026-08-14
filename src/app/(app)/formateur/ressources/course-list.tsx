@@ -165,7 +165,7 @@ export function TrainerCourseList({
                       {course.title}
                     </Link>
                   </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-ink-2">
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] text-ink-2">
                     <StPill tone={state.tone}>{state.label}</StPill>
                     <span>
                       {formatLabel(course.format)}
@@ -181,13 +181,13 @@ export function TrainerCourseList({
                     <dd className="font-display text-[17px] font-extrabold">
                       {fmtNumber(course.salesCount)}
                     </dd>
-                    <dt className="text-[12px] text-ink-3">Ventes</dt>
+                    <dt className="text-[13px] text-ink-3">Ventes</dt>
                   </div>
                   <div>
                     <dd className="font-display text-[17px] font-extrabold">
                       {fmtNumber(course.netRevenueFcfa)}
                     </dd>
-                    <dt className="text-[12px] text-ink-3">Net (FCFA)</dt>
+                    <dt className="text-[13px] text-ink-3">Net (FCFA)</dt>
                   </div>
                 </dl>
 

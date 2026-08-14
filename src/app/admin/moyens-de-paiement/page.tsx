@@ -123,7 +123,7 @@ export default async function MoyensDePaiementPage({
                   <Avatar name={name} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
-                    <small className="block truncate text-[12.3px] text-ink-3">
+                    <small className="block truncate text-[13px] text-ink-3">
                       {NATURE_LABELS[method.accountNature]} ·{" "}
                       {method.type === "BANK_IBAN"
                         ? "Virement bancaire"
@@ -135,8 +135,8 @@ export default async function MoyensDePaiementPage({
                   <span
                     className={
                       late
-                        ? "text-[12.5px] font-bold text-danger"
-                        : "text-[12.5px] text-ink-2"
+                        ? "text-[13px] font-bold text-danger"
+                        : "text-[13px] text-ink-2"
                     }
                   >
                     {late ? "Hors délai · " : ""}

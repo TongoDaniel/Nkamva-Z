@@ -117,7 +117,7 @@ export function ReviewActions({
           l'ont été doivent pouvoir se terminer : le formateur peut encore
           saisir ses deux montants. */}
       {microDepositIssued ? (
-        <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[12.5px] leading-relaxed text-gold-ink">
+        <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
           <b className="font-extrabold">Des micro-virements sont en attente.</b> Virez les deux
           montants affichés, puis attendez que le formateur les confirme. On ne les retire pas une
           seconde fois : les nouveaux ne correspondraient plus à ce que vous avez envoyé. Ce mode de
@@ -126,7 +126,7 @@ export function ReviewActions({
       ) : null}
 
       {instructible && type === "BANK_IBAN" && !microDepositIssued ? (
-        <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
           Un compte bancaire se vérifie <b className="font-bold text-ink-2">sur pièce</b> — RIB au
           nom du titulaire, comparé au nom légal vérifié. Le micro-virement a été abandonné : aucun
           service ne permet de l&apos;émettre automatiquement dans la zone.
@@ -134,7 +134,7 @@ export function ReviewActions({
       ) : null}
 
       {instructible ? (
-        <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
           {rejectionCount > 0 ? (
             <>
               Ce formateur compte déjà <b className="font-bold text-ink-2">{rejectionCount} refus</b>{" "}
@@ -241,7 +241,7 @@ export function ReviewActions({
           placeholder="Le nom du titulaire ne correspond pas à l'identité vérifiée."
           className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
         />
-        <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
           Décision 30 — jamais un rejet opaque. Dites ce qui ne correspond pas, sans recopier le
           nom légal vérifié dans le message.
         </p>
@@ -316,7 +316,7 @@ export function ReviewActions({
                   />
                   <b className="text-[14px] font-bold text-ink">{option.label}</b>
                 </span>
-                <span className="mt-1 block pl-6.5 text-[12.5px] leading-relaxed text-ink-2">
+                <span className="mt-1 block pl-6.5 text-[13px] leading-relaxed text-ink-2">
                   {option.help}
                 </span>
               </label>
@@ -339,7 +339,7 @@ export function ReviewActions({
       </Modal>
 
       {escalated && !isSuperAdmin ? (
-        <p className="mt-3 flex items-start gap-2 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-3 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
           <Undo2 className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           Seul un Super-admin peut trancher une escalade.
         </p>

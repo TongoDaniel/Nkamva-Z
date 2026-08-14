@@ -14,7 +14,7 @@ export function Price({ amountFcfa, className }: { amountFcfa: number; className
   return (
     <span className={cn("font-display text-[19px] font-extrabold tracking-[-0.01em]", className)}>
       {fmtNumber(amountFcfa)}
-      <small className="ml-[3px] text-xs font-bold text-ink-3">FCFA</small>
+      <small className="ml-[3px] text-[13px] font-bold text-ink-3">FCFA</small>
     </span>
   );
 }
@@ -86,7 +86,7 @@ export function ResourceCard({
         </h3>
         <p className="flex items-center gap-2 text-[13px] font-medium text-ink-2">
           <span
-            className="grid size-[22px] shrink-0 place-items-center rounded-full bg-brand-tint-2 text-[10px] font-bold text-brand-dark"
+            className="grid size-[22px] shrink-0 place-items-center rounded-full bg-brand-tint-2 text-[13px] font-bold text-brand-dark"
             aria-hidden="true"
           >
             {initials(trainerName)}
@@ -94,7 +94,7 @@ export function ResourceCard({
           {trainerName}
         </p>
         {course.trainerProfile?.ratingCount > 0 ? (
-          <p className="flex items-center gap-1 text-[12.5px] font-medium text-ink-3">
+          <p className="flex items-center gap-1 text-[13px] font-medium text-ink-3">
             <Star className="size-3.5 fill-gold text-gold" aria-hidden="true" />
             {course.trainerProfile.ratingAverage.toFixed(1)}
             <span className="sr-only">sur 5,</span>

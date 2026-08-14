@@ -72,7 +72,7 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+      <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
         {fmtBytes(storage.includedBytes)} inclus dans votre abonnement, puis {fmtBytes(storage.tierBytes)}{" "}
         par palier à {fmtFcfa(storage.tierPriceFcfa)} l&apos;échéance.
       </p>
@@ -82,7 +82,7 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
           <p className="text-[13.5px] font-bold text-ink">
             {tiers} palier{tiers > 1 ? "s" : ""}
           </p>
-          <p className="text-[12px] text-ink-3">
+          <p className="text-[13px] text-ink-3">
             {monthly > 0 ? `+ ${fmtFcfa(monthly)} à chaque échéance` : "Aucun palier payant"}
           </p>
         </div>
@@ -92,7 +92,7 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
             onClick={() => setTiers((t) => Math.max(storage.minimumTiers, t - 1))}
             disabled={tiers <= storage.minimumTiers}
             aria-label="Retirer un palier"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-ink-3 disabled:cursor-not-allowed disabled:opacity-40"
+            className="nk-tap grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-ink-3 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Minus className="size-4" aria-hidden="true" />
           </button>
@@ -102,7 +102,7 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
             onClick={() => setTiers((t) => Math.min(20, t + 1))}
             disabled={tiers >= 20}
             aria-label="Ajouter un palier"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-ink-3 disabled:cursor-not-allowed disabled:opacity-40"
+            className="nk-tap grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-ink-3 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="size-4" aria-hidden="true" />
           </button>
@@ -110,7 +110,7 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
       </div>
 
       {storage.minimumTiers > storage.tiers ? (
-        <p className="mt-3 text-[12px] leading-relaxed text-danger">
+        <p className="mt-3 text-[13px] leading-relaxed text-danger">
           Ce que vous stockez dépasse déjà votre quota inclus : {storage.minimumTiers} palier
           {storage.minimumTiers > 1 ? "s" : ""} au minimum.
         </p>
@@ -122,7 +122,7 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
         </Btn>
       ) : null}
 
-      <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
         Le changement prend effet à votre prochain renouvellement, comme votre cadence
         d&apos;abonnement : rien n&apos;est facturé aujourd&apos;hui.
       </p>

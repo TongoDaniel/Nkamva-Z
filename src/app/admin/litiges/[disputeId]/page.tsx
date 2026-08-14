@@ -119,7 +119,7 @@ export default async function DisputeReviewPage({
                     key={message.id}
                     className={cn("flex flex-col gap-1", fromSupport ? "items-end" : "items-start")}
                   >
-                    <span className="text-[12px] font-semibold text-ink-3">
+                    <span className="text-[13px] font-semibold text-ink-3">
                       {AUTHOR_LABEL[message.authorRole]} · {fmtDate(message.createdAt)}
                     </span>
                     <p
@@ -153,7 +153,7 @@ export default async function DisputeReviewPage({
                       <b className="text-[13.5px]">
                         {ticket.trainer.fullName ?? ticket.trainer.email}
                       </b>
-                      <span className="text-[12px] text-ink-3">{fmtDate(ticket.createdAt)}</span>
+                      <span className="text-[13px] text-ink-3">{fmtDate(ticket.createdAt)}</span>
                     </div>
                     <p className="whitespace-pre-line text-[14px] leading-relaxed text-ink">
                       {ticket.reason}
@@ -171,7 +171,7 @@ export default async function DisputeReviewPage({
                 ))}
               </ol>
             )}
-            <p className="mt-4 text-[12.5px] leading-relaxed text-ink-3">
+            <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
               Ce canal est séparé du fil : l&apos;acheteur n&apos;y a pas accès.
             </p>
           </AdminCard>
@@ -187,9 +187,9 @@ export default async function DisputeReviewPage({
                       {DISPUTE_STATUS[event.fromStatus]?.label ?? event.fromStatus} →{" "}
                       {DISPUTE_STATUS[event.toStatus]?.label ?? event.toStatus}
                     </b>
-                    <small className="block text-[12.3px] text-ink-3">{fmtDate(event.createdAt)}</small>
+                    <small className="block text-[13px] text-ink-3">{fmtDate(event.createdAt)}</small>
                     {event.note ? (
-                      <small className="mt-1 block text-[12.5px] leading-relaxed text-ink-2">
+                      <small className="mt-1 block text-[13px] leading-relaxed text-ink-2">
                         {event.note}
                       </small>
                     ) : null}
@@ -239,7 +239,7 @@ export default async function DisputeReviewPage({
                 <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2">
                   {dispute.reasonDetail}
                 </p>
-                <p className="mt-2 text-[12px] text-ink-3">
+                <p className="mt-2 text-[13px] text-ink-3">
                   Ce détail n&apos;est jamais transmis au formateur.
                 </p>
               </div>
@@ -313,7 +313,7 @@ export default async function DisputeReviewPage({
             )}
 
             {dispute.manualRefundTask ? (
-              <p className="mt-4 border-t border-line-2 pt-4 text-[12.5px] leading-relaxed text-ink-2">
+              <p className="mt-4 border-t border-line-2 pt-4 text-[13px] leading-relaxed text-ink-2">
                 Remboursement à exécuter à la main chez {dispute.manualRefundTask.provider} —{" "}
                 {fmtFcfa(dispute.manualRefundTask.refundAmountFcfa)}. Il figure dans la file des
                 finances.
@@ -321,7 +321,7 @@ export default async function DisputeReviewPage({
             ) : null}
 
             {dispute.overrideJustification ? (
-              <p className="mt-4 rounded-nk bg-gold-tint px-4 py-3 text-[12.5px] leading-relaxed text-gold-ink">
+              <p className="mt-4 rounded-nk bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
                 <b>Dérogation au barème :</b> {dispute.overrideJustification}
               </p>
             ) : null}

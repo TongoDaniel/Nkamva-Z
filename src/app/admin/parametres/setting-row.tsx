@@ -57,11 +57,11 @@ export function SettingRow({
 
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5 border-b border-line-2 py-2.5 last:border-b-0">
-      <dt className="w-full shrink-0 font-mono text-[12.5px] text-ink-2 sm:w-[280px]">
+      <dt className="w-full shrink-0 font-mono text-[13px] text-ink-2 sm:w-[280px]">
         {settingKey}
-        {description ? <span className="mt-0.5 block text-[11.5px] text-ink-3">{description}</span> : null}
+        {description ? <span className="mt-0.5 block text-[13px] text-ink-3">{description}</span> : null}
         {bounded ? (
-          <span className="mt-0.5 block text-[11.5px] text-ink-3">
+          <span className="mt-0.5 block text-[13px] text-ink-3">
             Entier de {min} à {max}.
           </span>
         ) : null}
@@ -114,9 +114,9 @@ export function SettingRow({
           )}
         </div>
         {effect ? (
-          <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-3">{effect}</p>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-3">{effect}</p>
         ) : (
-          <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-3">
+          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-3">
             Aucun écran ne relit cette clé : la modifier change ce qui est stocké, pas ce que
             fait la plateforme.
           </p>

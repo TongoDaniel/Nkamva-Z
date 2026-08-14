@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line-2 py-2.5 last:border-b-0">
-      <dt className="w-full shrink-0 text-[12.5px] font-bold text-ink-3 sm:w-[200px]">{label}</dt>
+      <dt className="w-full shrink-0 text-[13px] font-bold text-ink-3 sm:w-[200px]">{label}</dt>
       <dd className="min-w-0 flex-1 text-[14px] text-ink">{children}</dd>
     </div>
   );
@@ -131,7 +131,7 @@ export default async function SignalementDetailPage({
             </dl>
 
             {!report.target.exists ? (
-              <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[12.5px] leading-relaxed text-ink-2">
+              <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
                 L&apos;objet visé n&apos;est plus consultable. Le signalement reste instruisible :
                 il documente ce qui s&apos;est passé, même si la cible a disparu.
               </p>

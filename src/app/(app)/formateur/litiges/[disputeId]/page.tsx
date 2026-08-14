@@ -79,7 +79,7 @@ export default async function TrainerDisputePage({
                     <li key={ticket.id} className="rounded-nk border border-line p-4">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <StPill tone={ticketState.tone}>{ticketState.label}</StPill>
-                        <span className="text-[12px] text-ink-3">{fmtDate(ticket.createdAt)}</span>
+                        <span className="text-[13px] text-ink-3">{fmtDate(ticket.createdAt)}</span>
                       </div>
                       <p className="whitespace-pre-line text-[14px] leading-relaxed text-ink">
                         {ticket.reason}
@@ -170,7 +170,7 @@ export default async function TrainerDisputePage({
             </div>
           ) : null}
 
-          <p className="mt-5 border-t border-line-2 pt-4 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-5 border-t border-line-2 pt-4 text-[13px] leading-relaxed text-ink-3">
             L&apos;identité de l&apos;acheteur et le détail qu&apos;il a rédigé ne vous sont pas
             communiqués.
           </p>

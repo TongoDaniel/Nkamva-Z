@@ -129,7 +129,7 @@ export function DisputeButton({
             <span>
               {INELIGIBILITY[refusal] ?? "Cet achat ne peut pas être contesté."}
               {eligibility?.assessment.ruleApplies ? (
-                <span className="mt-2 block text-[12.5px]">
+                <span className="mt-2 block text-[13px]">
                   Part consultée relevée : {eligibility.assessment.consumptionPercent} %.
                 </span>
               ) : null}
@@ -183,7 +183,7 @@ export function DisputeButton({
               aria-describedby="dispute-detail-hint"
               className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
             />
-            <p id="dispute-detail-hint" className="mb-4.5 mt-1.5 text-[12.5px] text-ink-3">
+            <p id="dispute-detail-hint" className="mb-4.5 mt-1.5 text-[13px] text-ink-3">
               {detail.trim().length < MIN_DETAIL
                 ? `Encore ${MIN_DETAIL - detail.trim().length} caractères.`
                 : "Ce texte n'est lu que par vous et par le support — jamais par le formateur."}

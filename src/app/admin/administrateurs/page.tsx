@@ -50,7 +50,7 @@ export default async function AdministrateursPage() {
                   <Avatar name={name} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
-                    <small className="block truncate text-[12.3px] text-ink-3">{admin.email}</small>
+                    <small className="block truncate text-[13px] text-ink-3">{admin.email}</small>
                   </div>
 
                   <StPill tone={admin.adminRole === "SUPER_ADMIN" ? "info" : "muted"}>
@@ -59,12 +59,12 @@ export default async function AdministrateursPage() {
 
                   {active ? null : <StPill tone="bad">Compte fermé</StPill>}
 
-                  <span className="text-[12.5px] text-ink-2">
+                  <span className="text-[13px] text-ink-2">
                     Depuis le {fmtDate(admin.createdAt)}
                   </span>
 
                   {admin.adminRole === "SUPER_ADMIN" ? (
-                    <span className="text-[12px] text-ink-3">Sous-rôle immuable</span>
+                    <span className="text-[13px] text-ink-3">Sous-rôle immuable</span>
                   ) : (
                     <AdminActions
                       userId={admin.id}

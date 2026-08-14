@@ -61,7 +61,7 @@ export function SanctionTarget({
 
   return (
     <div className="mt-4 border-t border-line-2 pt-4">
-      <p className="mb-3 text-[12.5px] font-bold text-ink-3">Le compte signalé</p>
+      <p className="mb-3 text-[13px] font-bold text-ink-3">Le compte signalé</p>
 
       <div className="grid gap-2.5">
         {currentLevel === "NONE" ? (
@@ -85,15 +85,15 @@ export function SanctionTarget({
       </div>
 
       {currentLevel === "RESTRICTED" ? (
-        <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
           Ce compte est déjà en lecture seule : il se connecte, il ne publie plus.
         </p>
       ) : currentLevel === "BANNED" ? (
-        <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
           Ce compte est fermé. Seul un Super-admin peut lui rendre l&apos;accès.
         </p>
       ) : !isSuperAdmin ? (
-        <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
           Couper la connexion retire l&apos;accès à des ressources payées : cette décision revient
           au Super-admin.
         </p>
@@ -144,7 +144,7 @@ export function SanctionTarget({
           placeholder="Ce que ce compte a fait, et ce qui a été vérifié."
           className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
         />
-        <p className="mt-2 text-[12px] text-ink-3">Dix caractères au minimum.</p>
+        <p className="mt-2 text-[13px] text-ink-3">Dix caractères au minimum.</p>
       </Modal>
     </div>
   );

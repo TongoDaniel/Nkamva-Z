@@ -114,7 +114,7 @@ export default async function TransactionsPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left">
               <thead>
-                <tr className="border-b border-line text-[12px] font-bold uppercase tracking-wide text-ink-3">
+                <tr className="border-b border-line text-[13px] font-bold uppercase tracking-wide text-ink-3">
                   <th scope="col" className="py-2 pr-4">Date</th>
                   <th scope="col" className="py-2 pr-4">Acheteur</th>
                   <th scope="col" className="py-2 pr-4">Objet</th>
@@ -126,14 +126,14 @@ export default async function TransactionsPage({
               <tbody>
                 {result.items.map((purchase) => (
                   <tr key={purchase.id} className="border-b border-line-2 last:border-b-0">
-                    <td className="py-3 pr-4 text-[12.5px] text-ink-2">
+                    <td className="py-3 pr-4 text-[13px] text-ink-2">
                       {fmtDate(purchase.createdAt)}
                     </td>
                     <td className="py-3 pr-4">
                       <span className="block max-w-[22ch] truncate text-[13.5px] font-bold">
                         {purchase.learner.fullName ?? purchase.learner.email}
                       </span>
-                      <span className="block max-w-[22ch] truncate text-[12px] text-ink-3">
+                      <span className="block max-w-[22ch] truncate text-[13px] text-ink-3">
                         {purchase.trainerProfile.user.fullName ??
                           purchase.trainerProfile.user.email}
                       </span>
@@ -149,7 +149,7 @@ export default async function TransactionsPage({
                     </td>
                     <td className="py-3 pr-4 text-right text-[13px] text-ink-2">
                       {fmtFcfa(purchase.platformShareFcfa)}
-                      <span className="ml-1 text-[11.5px] text-ink-3">
+                      <span className="ml-1 text-[13px] text-ink-3">
                         {Math.round(purchase.commissionRate * 100)} %
                       </span>
                     </td>

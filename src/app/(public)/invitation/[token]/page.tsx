@@ -154,7 +154,7 @@ export default async function InvitationPage({
                 >
                   Rejoindre la communauté
                 </BtnLink>
-                <p className="mt-3 text-[12.5px] text-ink-3">
+                <p className="mt-3 text-[13px] text-ink-3">
                   Vous serez redirigé vers le paiement. Rien n&apos;est prélevé avant votre
                   confirmation.
                 </p>
@@ -162,7 +162,7 @@ export default async function InvitationPage({
             )}
           </div>
 
-          <p className="mt-7 flex items-start gap-2.5 border-t border-line-2 pt-5 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-7 flex items-start gap-2.5 border-t border-line-2 pt-5 text-[13px] leading-relaxed text-ink-3">
             <Users className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             Vous recevez cette invitation parce que quelqu&apos;un a saisi votre adresse. Aucun
             compte n&apos;a été créé à votre nom, et l&apos;ignorer n&apos;a aucune conséquence.

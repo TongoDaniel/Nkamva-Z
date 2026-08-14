@@ -103,7 +103,7 @@ export function MobileMoneyFields({
               </option>
             ))}
           </select>
-          <p className="mt-1.5 text-[12.5px] text-ink-3">
+          <p className="mt-1.5 text-[13px] text-ink-3">
             Le pays de votre numéro, pas celui où vous vivez.
           </p>
         </div>

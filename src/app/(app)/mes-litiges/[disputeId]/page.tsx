@@ -104,7 +104,7 @@ export default async function DisputeDetailPage({
                       key={message.id}
                       className={cn("flex flex-col gap-1", mine ? "items-end" : "items-start")}
                     >
-                      <span className="text-[12px] font-semibold text-ink-3">
+                      <span className="text-[13px] font-semibold text-ink-3">
                         {AUTHOR_LABEL[message.authorRole] ?? message.authorRole} ·{" "}
                         {fmtDate(message.createdAt)}
                       </span>
@@ -187,7 +187,7 @@ export default async function DisputeDetailPage({
             ) : null}
           </dl>
 
-          <p className="mt-5 border-t border-line-2 pt-4 text-[12.5px] leading-relaxed text-ink-3">
+          <p className="mt-5 border-t border-line-2 pt-4 text-[13px] leading-relaxed text-ink-3">
             {dispute.purchase.accessSuspended
               ? "Votre accès à la ressource est suspendu le temps de l'examen."
               : "Votre accès à la ressource est actif."}

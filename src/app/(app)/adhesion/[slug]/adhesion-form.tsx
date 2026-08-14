@@ -156,7 +156,7 @@ export function AdhesionForm({
               <Icon className="size-5 shrink-0 text-brand" aria-hidden="true" />
               <span className="min-w-0">
                 <b className="block text-[15px]">{label}</b>
-                <small className="block text-[12.5px] text-ink-2">{detail}</small>
+                <small className="block text-[13px] text-ink-2">{detail}</small>
               </span>
             </label>
           ))}

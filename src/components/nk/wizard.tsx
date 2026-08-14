@@ -47,7 +47,7 @@ export function WizardSteps({
               >
                 <span
                   className={cn(
-                    "grid size-[26px] place-items-center rounded-full text-[12.5px]",
+                    "grid size-[26px] place-items-center rounded-full text-[13px]",
                     active && "bg-brand text-white",
                     done && "bg-brand-dark text-white",
                     !active && !done && "bg-line-2 text-ink-3",

@@ -225,7 +225,7 @@ export function ContentUploader({
             >
               Annuler
             </button>
-            <span className="text-[12.5px] text-ink-3">
+            <span className="text-[13px] text-ink-3">
               Le fichier sera définitivement effacé. La ressource repassera en brouillon.
             </span>
           </div>
@@ -241,13 +241,13 @@ export function ContentUploader({
       ) : null}
 
       {currentKey && sold ? (
-        <p className="text-[12.5px] leading-relaxed text-ink-3">
+        <p className="text-[13px] leading-relaxed text-ink-3">
           Cette ressource a été achetée : son contenu doit rester accessible à ses acheteurs et ne
           peut plus être supprimé. En contrepartie, il ne compte plus dans votre quota de stockage.
         </p>
       ) : null}
 
-      <p className="text-[12.5px] text-ink-3">
+      <p className="text-[13px] text-ink-3">
         Stockage restant : {fmtBytes(remainingBytes)}
       </p>
       <input

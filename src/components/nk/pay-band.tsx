@@ -59,7 +59,7 @@ function TextChip({
       className={cn(
         "flex flex-none items-center whitespace-nowrap border border-line bg-white font-bold tracking-[0.02em] text-ink-2",
         SIZES[size].box,
-        size === "sm" ? "text-[11px]" : "text-[13.5px]",
+        size === "sm" ? "text-[13px]" : "text-[13.5px]",
       )}
     >
       {label}
@@ -142,7 +142,7 @@ export function PayBand({ markets }: { markets: PayableMarkets }) {
       <div className="nk-wrap flex flex-col items-start gap-3.5 py-5 sm:flex-row sm:items-center sm:gap-[26px]">
         <h2
           id="nk-payband"
-          className="max-w-[150px] flex-none font-sans text-xs font-bold uppercase leading-normal tracking-[0.12em] text-ink-3"
+          className="max-w-[150px] flex-none font-sans text-[13px] font-bold uppercase leading-normal tracking-[0.12em] text-ink-3"
         >
           Paiements acceptés
         </h2>

@@ -57,8 +57,31 @@ export interface FieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   containerClassName?: string;
 }
 
+/**
+ * Touche d'action du clavier mobile — règle 5 des onze règles d'expérience.
+ *
+ * Le clavier affichait « Entrée » sur les 55 champs du produit : `enterKeyHint`
+ * n'était utilisé **nulle part**. Sur un formulaire long — candidature, moyen de
+ * paiement, création de ressource —, savoir si la touche enchaîne ou valide
+ * change la façon dont on le remplit.
+ *
+ * Le défaut est « suivant », parce qu'un champ appartient presque toujours à une
+ * suite ; le dernier champ d'un formulaire passe `enterKeyHint="go"` ou `"send"`
+ * à la main. Une recherche est reconnue à son type.
+ */
+function defaultEnterKeyHint(
+  type: React.HTMLInputTypeAttribute | undefined,
+): React.HTMLAttributes<HTMLInputElement>["enterKeyHint"] | undefined {
+  if (type === "search") return "search";
+  // Les champs qui n'ouvrent pas de clavier textuel n'ont rien à annoncer.
+  if (type && ["checkbox", "radio", "range", "color", "file", "date", "time"].includes(type)) {
+    return undefined;
+  }
+  return "next";
+}
+
 export const Field = React.forwardRef<HTMLInputElement, FieldProps>(function Field(
-  { label, hint, error, id, className, containerClassName, ...props },
+  { label, hint, error, id, className, containerClassName, enterKeyHint, ...props },
   ref,
 ) {
   const autoId = React.useId();
@@ -75,6 +98,7 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(function Fie
       <input
         ref={ref}
         id={inputId}
+        enterKeyHint={enterKeyHint ?? defaultEnterKeyHint(props.type)}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
         className={cn(
@@ -87,12 +111,12 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(function Fie
         {...props}
       />
       {hint ? (
-        <p id={hintId} className="mt-1.5 text-[12.5px] text-ink-3">
+        <p id={hintId} className="mt-1.5 text-[13px] text-ink-3">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} className="mt-1.5 text-[12.5px] font-semibold text-danger">
+        <p id={errorId} className="mt-1.5 text-[13px] font-semibold text-danger">
           {error}
         </p>
       ) : null}
@@ -193,12 +217,12 @@ export const PasswordField = React.forwardRef<HTMLInputElement, PasswordFieldPro
           </>
         ) : null}
         {hint ? (
-          <p id={hintId} className="mt-1.5 text-[12.5px] text-ink-3">
+          <p id={hintId} className="mt-1.5 text-[13px] text-ink-3">
             {hint}
           </p>
         ) : null}
         {error ? (
-          <p id={errorId} className="mt-1.5 text-[12.5px] font-semibold text-danger">
+          <p id={errorId} className="mt-1.5 text-[13px] font-semibold text-danger">
             {error}
           </p>
         ) : null}
@@ -302,7 +326,7 @@ export function OtpInput({
         ))}
       </div>
       {error ? (
-        <p id={`${groupId}-error`} className="mt-2 text-center text-[12.5px] font-semibold text-danger">
+        <p id={`${groupId}-error`} className="mt-2 text-center text-[13px] font-semibold text-danger">
           {error}
         </p>
       ) : null}
@@ -361,7 +385,7 @@ export function CheckOption({
       </span>
       <span className="flex-1">{label}</span>
       {typeof count === "number" ? (
-        <span className="text-[12.5px] font-bold text-ink-3">{count}</span>
+        <span className="text-[13px] font-bold text-ink-3">{count}</span>
       ) : null}
     </label>
   );

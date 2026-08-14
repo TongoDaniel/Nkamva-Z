@@ -267,12 +267,12 @@ export function MembersPanel({
                       </span>
                     ) : null}
                   </p>
-                  <p className="mt-0.5 text-[12.5px] text-ink-3">
+                  <p className="mt-0.5 text-[13px] text-ink-3">
                     {row.canceledAt ? "Résiliée · accès jusqu'au " : "Échéance le "}
                     {fmtDate(row.periodEnd)}
                   </p>
                   {isBanned && row.bannedReason ? (
-                    <p className="mt-1 max-w-[60ch] text-[12.5px] leading-relaxed text-danger">
+                    <p className="mt-1 max-w-[60ch] text-[13px] leading-relaxed text-danger">
                       {row.bannedReason}
                     </p>
                   ) : null}
@@ -350,7 +350,7 @@ export function MembersPanel({
           placeholder="Ce qui a été constaté, et ce qui avait déjà été demandé."
           className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none transition placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
         />
-        <p className="mt-1.5 text-[12.5px] text-ink-3">Dix caractères au minimum.</p>
+        <p className="mt-1.5 text-[13px] text-ink-3">Dix caractères au minimum.</p>
         <div className="mt-5 flex flex-wrap justify-end gap-3">
           <Btn variant="o" disabled={action.busy} onClick={() => setTarget(null)}>
             Annuler

@@ -213,7 +213,13 @@ le retour d'Android ne quitte jamais l'écran tant qu'une couche est ouverte ✅
 
 ---
 
-## Lot 3 — Les écrans (86 pages)
+## Lot 3 — Les écrans (62 pages, admin retiré) — **partiel**
+
+> **État réel : les règles transversales sont posées, les écrans ne sont pas
+> repris un par un.** Ce qui est fait vaut pour tous les écrans à la fois
+> (plancher typographique, focus d'erreur, clavier, orientation, historique) ;
+> ce qui reste est la reprise écran par écran de la §3.1 à la §3.6, c'est-à-dire
+> le gros du volume. Le détail par tâche est marqué ci-dessous.
 
 Méthode invariante, à appliquer à chaque écran touché :
 
@@ -224,13 +230,21 @@ Méthode invariante, à appliquer à chaque écran touché :
 
 ### 3.1 — Parcours d'achat *(en premier : c'est là que l'argent se joue)* — 4 écrans
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L3-1** | Fiche ressource | `(public)/ressources/[slug]/page.tsx`, `screens/course-screen.tsx` | M |
-| **L3-2** | Écran de paiement | `(app)/achat/[slug]/{page,checkout-form}.tsx` | M |
-| **L3-3** | **Reprise au retour dans l'app** : vérification immédiate au retour de focus sur la confirmation, et plafond de sondage recalé sur la latence opérateur réelle (aujourd'hui 8 s / 120 s, `refetchOnWindowFocus: false` global) | `achat/confirmation/[purchaseId]/confirmation-status.tsx`, `components/providers.tsx` | M |
-| **L3-4** | Adhésion communauté (même tunnel) | `(app)/adhesion/[slug]/{page,adhesion-form}.tsx` | M |
-| **L3-5** | Champs mobile money : cibles tactiles (sélecteur d'indicatif mesuré à 64 × 42), clavier, format | `nk/mobile-money-fields.tsx` | S |
+| **L3-1** | Fiche ressource | `screens/course-screen.tsx` | ⚠️ hérite du socle, pas de reprise dédiée |
+| **L3-2** | Écran de paiement | `(app)/achat/[slug]/**` | ❌ non fait |
+| **L3-3** | **Reprise au retour dans l'app** | `confirmation-status.tsx` | ✅ |
+| **L3-4** | Adhésion communauté | `(app)/adhesion/[slug]/**` | ❌ non fait |
+| **L3-5** | Champs mobile money | `nk/mobile-money-fields.tsx` | ✅ cible « MT » passée de 64×42 à conforme |
+
+**L3-3** applique l'arbitrage 115 : plafond de sondage porté de 120 s à 300 s — une
+saisie de code USSD sur réseau lent dépasse couramment deux minutes, et la
+personne retrouvait un sondage **arrêté** en croyant son paiement perdu. Et
+`refetchOnWindowFocus: true` sur cette seule requête, avec `staleTime: 0` : sans
+ce zéro, le `staleTime` global de 30 s aurait considéré comme frais un retour
+survenu juste après le dernier sondage — soit exactement le cas d'une
+confirmation rapide.
 
 ### 3.2 — Catalogue et recherche — 6 écrans
 
@@ -244,8 +258,8 @@ Méthode invariante, à appliquer à chaque écran touché :
 
 | # | Tâche | Fichiers | Taille |
 |---|---|---|---|
-| **L3-9** | Lecteur de cours + **orientation paysage en plein écran** (le manifeste verrouille `portrait-primary`, arbitrage L0-1 n° 7) | `mes-ressources/[courseId]/course-player.tsx`, `app/manifest.ts` | M |
-| **L3-10** | Mêmes réglages d'orientation pour les 3 autres lecteurs | `mes-lives/replay/[replayId]/replay-player.tsx`, `mes-lives/live/[sessionId]/live-room.tsx`, `formateur/lives/.../live-console.tsx` | M |
+| **L3-9** | Orientation : le verrou `portrait-primary` du manifeste saute | `app/manifest.ts` | ✅ arbitrage 114 |
+| **L3-10** | Les 4 lecteurs profitent du déverrouillage | — | ✅ par L3-9 |
 | **L3-11** | Mes ressources, mes communautés, mes achats, factures, litiges, favoris, notifications | ~10 pages sous `(app)/` | L |
 | **L3-12** | Messagerie : passage deux volets → un volet sur mobile, avec retour | `messagerie/{page,conversation-pane}.tsx` | M |
 | **L3-13** | Agenda des lives (`grid-cols-7` figé dès 375 px) | `mes-lives/agenda-pane.tsx` | S |
@@ -283,15 +297,38 @@ chaîne d'image). `DataTable` garde son défilement horizontal.
 
 Économie : un lot XL. À rouvrir si l'arbitrage 109 est inversé.
 
-### 3.8 — Règles transversales, appliquées au fil des écrans
+### 3.8 — Règles transversales
 
-| # | Tâche | Portée | Taille |
+| # | Tâche | Portée | État |
 |---|---|---|---|
-| **L3-26** | `enterKeyHint` sur les 55 champs (0 usage aujourd'hui) | 33 fichiers de formulaire | M |
-| **L3-27** | Focus sur le premier champ en défaut à la soumission — de préférence dans une primitive partagée plutôt que 33 fois | `nk/input.tsx` ou `hooks/use-action.ts` + 33 formulaires | M |
-| **L3-28** | Compléter `inputMode` / `autoComplete` (25 et 39 usages pour 55 champs) | 33 fichiers de formulaire | S |
-| **L3-29** | Plancher typographique décidé en L0-1 n° 9 : reprendre les tailles à 11 / 12 / 12,5 px | vitrine + composants `nk/` | M |
-| **L3-30** | Appliquer `.nk-tap` partout où une cible passe sous 44 px (28 usages aujourd'hui, dans 16 fichiers seulement) | écrans connectés surtout | M |
+| **L3-26** | `enterKeyHint` | défaut dans `nk/input.tsx` | ✅ |
+| **L3-27** | Focus sur le premier champ en défaut | nouveau `nk/focus-first-error.tsx` | ✅ |
+| **L3-28** | Compléter `inputMode` / `autoComplete` | 33 fichiers | ❌ non fait |
+| **L3-29** | Plancher typographique de 13 px | 142 fichiers | ✅ |
+| **L3-30** | `.nk-tap` sur les cibles sous 44 px | 5 fichiers + `globals.css` | ⚠️ écrans vérifiés |
+
+**L3-27 est un écouteur global, pas un hook appelé 33 fois.** Un hook aurait été
+oublié au 34ᵉ formulaire ; la règle est transversale et vaut pour ce qui n'existe
+pas encore. Le repère est déjà uniforme — `Field` et `PasswordField` posent
+`aria-invalid` dès qu'ils portent une erreur, et c'est aussi ce que lisent les
+lecteurs d'écran.
+
+Défaut trouvé en vérifiant : la première version enchaînait deux
+`requestAnimationFrame`. Elle restait muette dans le panneau navigateur, **qui ne
+compose pas de frames**. Le diagnostic vaut au-delà de l'outil : un onglet en
+arrière-plan ne reçoit pas de frames non plus, et le focus est un comportement de
+correction, pas une animation. Réécrit sur des minuteries — ce qui le rend aussi
+vérifiable.
+
+**L3-29** remonte 350 occurrences réparties sur 142 fichiers (11, 11,3, 11,5, 12,
+12,3, 12,5 px et `text-xs`). Vérifié : plus aucun texte sous 13 px sur la vitrine
+ni sur `/accueil`, et aucun débordement introduit.
+
+**L3-30** est traitée sur les écrans mesurés, pas balayée à l'aveugle : une cible
+ne se juge qu'au rendu. `.nk-tap` pose désormais elle-même `position: relative` —
+sans repère, la zone étendue se calait sur un ancêtre quelconque, et l'oubli
+était invisible puisque la zone l'est. `/accueil` et `/formateur/portefeuille` ne
+comptent plus aucune cible sous 44 px.
 
 ---
 

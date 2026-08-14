@@ -115,18 +115,18 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
                 <b className={c.done ? "text-[13.5px] font-bold text-ink" : "text-[13.5px] font-bold text-ink-2"}>
                   {c.label}
                 </b>
-                <span className="text-[12px] font-semibold text-ink-3">
+                <span className="text-[13px] font-semibold text-ink-3">
                   {c.done ? `+${c.weight}` : `${c.weight} pts`}
                 </span>
               </span>
-              <span className="block text-[12.5px] leading-relaxed text-ink-3">{c.detail}</span>
+              <span className="block text-[13px] leading-relaxed text-ink-3">{c.detail}</span>
             </span>
             <span className="sr-only">{c.done ? "Acquis" : "Non acquis"}</span>
           </li>
         ))}
       </ul>
 
-      <p className="mt-5 border-t border-line pt-4 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-5 border-t border-line pt-4 text-[13px] leading-relaxed text-ink-3">
         {kyc.firstPayout ? (
           <>
             Votre <b className="font-bold text-ink-2">premier retrait passe toujours en revue

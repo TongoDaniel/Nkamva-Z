@@ -199,20 +199,20 @@ export function ReviewActions({
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <b className="text-[14px]">{DOCUMENT_LABELS[document.type] ?? document.type}</b>
                   {document.resubmissionCount > 0 ? (
-                    <span className="text-[12px] text-ink-3">
+                    <span className="text-[13px] text-ink-3">
                       renvoi {document.resubmissionCount}/{maxResubmissions}
                     </span>
                   ) : null}
                 </div>
                 {exhausted ? (
-                  <p className="text-[12.5px] leading-relaxed text-danger">
+                  <p className="text-[13px] leading-relaxed text-danger">
                     Cette pièce a épuisé ses renvois : le dossier doit être tranché définitivement.
                   </p>
                 ) : (
                   <>
                     <label
                       htmlFor={`reason-${document.id}`}
-                      className="mb-1.5 block text-[12.5px] font-bold text-ink-2"
+                      className="mb-1.5 block text-[13px] font-bold text-ink-2"
                     >
                       Motif du refus (laisser vide pour valider cette pièce)
                     </label>
@@ -228,7 +228,7 @@ export function ReviewActions({
                       className="w-full rounded-xl border-[1.5px] border-line bg-card px-3 py-2 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
                     />
                     {value.trim().length > 0 && value.trim().length < 10 ? (
-                      <p className="mt-1 text-[12px] font-semibold text-danger">
+                      <p className="mt-1 text-[13px] font-semibold text-danger">
                         Motif trop court pour être utile au candidat.
                       </p>
                     ) : null}

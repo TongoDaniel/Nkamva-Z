@@ -34,7 +34,7 @@ export function BrowserFrame({
         <i className="size-[9px] rounded-full bg-line" />
         <i className="size-[9px] rounded-full bg-line" />
         <i className="size-[9px] rounded-full bg-line" />
-        <span className="ml-2.5 rounded-full border border-line-2 bg-paper px-3 py-[3px] font-sans text-[11px] font-semibold text-ink-3">
+        <span className="ml-2.5 rounded-full border border-line-2 bg-paper px-3 py-[3px] font-sans text-[13px] font-semibold text-ink-3">
           {url}
         </span>
       </div>

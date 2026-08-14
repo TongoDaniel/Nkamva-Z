@@ -109,7 +109,7 @@ export function DocumentUpload({
       </div>
 
       {current?.originalFileName ? (
-        <p className="mt-3 truncate text-[12.5px] text-ink-3">{current.originalFileName}</p>
+        <p className="mt-3 truncate text-[13px] text-ink-3">{current.originalFileName}</p>
       ) : null}
 
       {rejected && current?.rejectionReason ? (
@@ -153,7 +153,7 @@ export function DocumentUpload({
           {send.pending ? (
             <UploadBar progress={sent} label={progress ?? "Envoi…"} />
           ) : (
-            <p className="mt-2 text-[12px] text-ink-3">{slot.maxLabel}</p>
+            <p className="mt-2 text-[13px] text-ink-3">{slot.maxLabel}</p>
           )}
         </div>
       ) : null}

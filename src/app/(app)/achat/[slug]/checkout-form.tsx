@@ -148,7 +148,7 @@ export function CheckoutForm({
               <Icon className="size-5 shrink-0 text-brand" aria-hidden="true" />
               <span className="min-w-0">
                 <b className="block text-[15px]">{label}</b>
-                <small className="block text-[12.5px] text-ink-2">
+                <small className="block text-[13px] text-ink-2">
                   {value === "PAWAPAY" ? operatorsLabel(providers) : detail}
                 </small>
               </span>

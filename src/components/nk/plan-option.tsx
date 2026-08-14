@@ -69,7 +69,7 @@ export function PlanOptions({
                 ) : (
                   <>
                     {fmtNumber(option.amountFcfa)} FCFA
-                    <small className="text-xs font-semibold text-ink-3">/{option.period}</small>
+                    <small className="text-[13px] font-semibold text-ink-3">/{option.period}</small>
                   </>
                 )}
               </span>

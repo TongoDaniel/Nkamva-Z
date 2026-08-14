@@ -126,13 +126,13 @@ function SlotRow({
       </div>
 
       {state?.fileName ? (
-        <p className="mt-2.5 truncate text-[12.5px] text-ink-3">{state.fileName}</p>
+        <p className="mt-2.5 truncate text-[13px] text-ink-3">{state.fileName}</p>
       ) : null}
 
       {state?.error ? (
         <p
           role="alert"
-          className="mt-2.5 flex items-start gap-2 rounded-nk-sm bg-danger-tint px-3.5 py-2.5 text-[12.5px] leading-relaxed font-semibold text-danger"
+          className="mt-2.5 flex items-start gap-2 rounded-nk-sm bg-danger-tint px-3.5 py-2.5 text-[13px] leading-relaxed font-semibold text-danger"
         >
           <CircleAlert className="mt-px size-4 shrink-0" aria-hidden="true" />
           <span>{state.error}</span>
@@ -167,7 +167,7 @@ function SlotRow({
         {pending ? (
           <UploadBar progress={sent} label={phase ?? "Envoi…"} />
         ) : (
-          <p className="mt-2 text-[12px] text-ink-3">{slot.maxLabel}</p>
+          <p className="mt-2 text-[13px] text-ink-3">{slot.maxLabel}</p>
         )}
       </div>
     </div>

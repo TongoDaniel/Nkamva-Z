@@ -6,7 +6,7 @@ export function Kicker({ children, className }: { children: React.ReactNode; cla
   return (
     <p
       className={cn(
-        "mb-3.5 font-sans text-xs font-bold uppercase tracking-[0.14em] text-clay-ink",
+        "mb-3.5 font-sans text-[13px] font-bold uppercase tracking-[0.14em] text-clay-ink",
         className,
       )}
     >

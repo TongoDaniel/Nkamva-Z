@@ -20,7 +20,7 @@ export function PasswordChecklist({ value, className }: { value: string; classNa
           <li
             key={rule.id}
             className={cn(
-              "flex items-center gap-1.5 text-[12.5px]",
+              "flex items-center gap-1.5 text-[13px]",
               ok ? "font-semibold text-brand" : "text-ink-3",
             )}
           >

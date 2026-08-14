@@ -161,8 +161,8 @@ export function DocumentField({
       {send.pending ? (
         <UploadBar progress={progress} label="Envoi du document…" />
       ) : null}
-      <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">{hint}</p>
-      {shown ? <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{shown}</p> : null}
+      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">{hint}</p>
+      {shown ? <p className="mt-1.5 text-[13px] font-semibold text-danger">{shown}</p> : null}
     </div>
   );
 }

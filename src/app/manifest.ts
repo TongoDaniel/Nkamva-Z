@@ -11,6 +11,12 @@ import type { MetadataRoute } from "next";
  *   middleware, donc l'entrée reste correcte dans les deux cas.
  * - `display: "standalone"` — sans barre d'URL, l'app se comporte comme une
  *   application native. `browser` annulerait tout l'intérêt de l'installation.
+ * - `orientation: "any"` — arbitrage 114. Le manifeste verrouillait
+ *   `portrait-primary`, ce qui se battait avec les **quatre lecteurs vidéo** du
+ *   produit (cours, replay, direct apprenant, console formateur) : le plein
+ *   écran paysage est le geste naturel pour regarder un cours, et c'est
+ *   précisément ce que le verrou empêchait dans la PWA installée. Les écrans
+ *   supportent la rotation — l'audit mobile ne relève aucun débordement.
  * - deux jeux d'icônes : `any` garde les coins arrondis du logo, `maskable`
  *   laisse Android recadrer dans sa propre forme sans rogner le dessin.
  */
@@ -23,7 +29,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/accueil",
     scope: "/",
     display: "standalone",
-    orientation: "portrait-primary",
+    orientation: "any",
     background_color: "#f6f3ec",
     theme_color: "#022342",
     lang: "fr",

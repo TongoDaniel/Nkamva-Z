@@ -45,7 +45,7 @@ export function SettingRow({
       <div className="min-w-0 flex-1">
         <b className={cn("block text-[14.5px]", danger && "text-danger")}>{title}</b>
         {description ? (
-          <small className="mt-0.5 block max-w-[52ch] text-[12.5px] leading-relaxed text-ink-2">
+          <small className="mt-0.5 block max-w-[52ch] text-[13px] leading-relaxed text-ink-2">
             {description}
           </small>
         ) : null}

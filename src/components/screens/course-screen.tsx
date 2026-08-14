@@ -299,7 +299,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
             ) : null}
 
             {isAuthor ? null : (
-              <p className="mt-4 text-xs font-semibold text-ink-3">
+              <p className="mt-4 text-[13px] font-semibold text-ink-3">
                 Orange Money · MTN MoMo · Wave · Airtel Money · M-Pesa · carte bancaire
               </p>
             )}

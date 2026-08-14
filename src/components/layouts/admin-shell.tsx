@@ -240,7 +240,7 @@ export function AdminShell({
         <div className="flex flex-1 flex-col gap-4 px-3.5 pb-3.5">
           {visibleNav.map((group) => (
             <div key={group.title} className="flex flex-col gap-0.5">
-              <h2 className="mb-1.5 px-2.5 font-sans text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#98a49b]">
+              <h2 className="mb-1.5 px-2.5 font-sans text-[13px] font-extrabold uppercase tracking-[0.14em] text-[#98a49b]">
                 {group.title}
               </h2>
               {group.items.map(({ href, label, icon: Icon, badge }) => {
@@ -261,7 +261,7 @@ export function AdminShell({
                     {badge ? (
                       <span
                         className={cn(
-                          "ml-auto min-w-4 rounded-full px-1 text-center text-[10px] font-extrabold leading-4",
+                          "ml-auto min-w-4 rounded-full px-1 text-center text-[13px] font-extrabold leading-4",
                           active ? "bg-white text-brand-dark" : "bg-gold text-[#241a02]",
                         )}
                       >
@@ -285,7 +285,7 @@ export function AdminShell({
             <Avatar name={name} size="sm" />
             <div className="min-w-0">
               <b className="block truncate text-[13.3px] text-white">{name}</b>
-              <small className="block truncate text-[11.3px] text-[#98a49b]">
+              <small className="block truncate text-[13px] text-[#98a49b]">
                 {adminRole ?? email}
               </small>
             </div>

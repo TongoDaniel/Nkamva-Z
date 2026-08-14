@@ -25,7 +25,7 @@ export default function GlobalError({
           Le problème a été enregistré. Vous pouvez réessayer ou revenir à l&apos;accueil.
         </p>
         {error.digest ? (
-          <p className="mt-2 font-mono text-xs text-ink-3">Référence : {error.digest}</p>
+          <p className="mt-2 font-mono text-[13px] text-ink-3">Référence : {error.digest}</p>
         ) : null}
       </div>
       <div className="flex gap-3">

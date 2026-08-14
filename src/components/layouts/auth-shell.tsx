@@ -131,7 +131,7 @@ export function AuthIllustration({
           {quote}
           {" »"}
         </p>
-        <span className="text-[12.5px] text-[#dfe7e2]">{author}</span>
+        <span className="text-[13px] text-[#dfe7e2]">{author}</span>
       </div>
     </div>
   );

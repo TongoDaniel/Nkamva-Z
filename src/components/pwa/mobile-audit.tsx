@@ -179,11 +179,11 @@ export function MobileAudit() {
               {ok ? "aucun défaut" : `${total} point(s) à voir`}
             </span>
           </b>
-          <span className="text-[11px] font-bold text-ink-3">{open ? "▼" : "▲"}</span>
+          <span className="text-[13px] font-bold text-ink-3">{open ? "▼" : "▲"}</span>
         </button>
 
         {open ? (
-          <div className="mt-3 grid gap-3 text-[12px] leading-snug">
+          <div className="mt-3 grid gap-3 text-[13px] leading-snug">
             <Section
               titre={`Débordement horizontal : ${report.debordement}px`}
               items={report.coupables}
@@ -212,7 +212,7 @@ export function MobileAudit() {
 function Section({ titre, items, vide }: { titre: string; items: Finding[]; vide: boolean }) {
   return (
     <div>
-      <b className="block border-b border-line pb-1 text-[12px]">{titre}</b>
+      <b className="block border-b border-line pb-1 text-[13px]">{titre}</b>
       {vide ? (
         <p className="pt-1 text-ink-3">rien à signaler</p>
       ) : (

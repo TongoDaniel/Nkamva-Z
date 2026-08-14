@@ -100,7 +100,7 @@ export default async function MoyenDePaiementPage() {
           <PayoutMethodForm replacing={Boolean(active)} />
         </section>
 
-        <p className="mt-5 text-center text-[12.5px] leading-relaxed text-ink-3">
+        <p className="mt-5 text-center text-[13px] leading-relaxed text-ink-3">
           Une question sur ces règles ?{" "}
           <Link href="/aide" className="font-bold text-brand">
             Consultez l&apos;aide

@@ -103,7 +103,7 @@ export const IconBtn = React.forwardRef<
       {children}
       {badge ? (
         <span
-          className="absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-paper bg-clay px-[5px] text-center text-[10.5px] font-bold leading-[18px] text-white"
+          className="absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-paper bg-clay px-[5px] text-center text-[13px] font-bold leading-[18px] text-white"
           aria-hidden="true"
         >
           {badge > 99 ? "99+" : badge}

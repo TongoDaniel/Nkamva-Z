@@ -57,7 +57,7 @@ export function StatTile({
       <span className="min-w-0">
         <b className="block font-display text-[26px] font-extrabold leading-none">
           {value}
-          {suffix ? <small className="ml-1 text-[12.5px] font-bold text-ink-3">{suffix}</small> : null}
+          {suffix ? <small className="ml-1 text-[13px] font-bold text-ink-3">{suffix}</small> : null}
         </b>
         <small className="text-[13px] text-ink-2">{label}</small>
       </span>

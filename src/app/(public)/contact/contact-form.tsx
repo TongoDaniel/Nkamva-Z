@@ -171,13 +171,13 @@ export function ContactForm({ responseHours }: { responseHours: number }) {
         aria-invalid={fieldErrors.message ? true : undefined}
         className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none transition placeholder:text-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/25"
       />
-      <p id="contact-message-hint" className="mt-1.5 text-[12.5px] text-ink-3">
+      <p id="contact-message-hint" className="mt-1.5 text-[13px] text-ink-3">
         {message.trim().length < MIN_MESSAGE
           ? `Encore ${MIN_MESSAGE - message.trim().length} caractères.`
           : "Plus votre message est précis, plus notre réponse le sera."}
       </p>
       {fieldErrors.message ? (
-        <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{fieldErrors.message}</p>
+        <p className="mt-1.5 text-[13px] font-semibold text-danger">{fieldErrors.message}</p>
       ) : null}
 
       <Btn

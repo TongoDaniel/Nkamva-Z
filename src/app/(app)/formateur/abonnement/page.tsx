@@ -170,7 +170,7 @@ export default async function AbonnementPage() {
                         <b className="block font-display text-[16px] font-extrabold text-ink">
                           {fmtFcfa(charge.amountDueFcfa)}
                         </b>
-                        <span className="text-[12.5px] text-ink-3">
+                        <span className="text-[13px] text-ink-3">
                           Du {fmtDate(charge.periodStart)} au {fmtDate(charge.periodEnd)}
                           {charge.storageFcfa > 0
                             ? ` · dont ${fmtFcfa(charge.storageFcfa)} de stockage`
@@ -180,7 +180,7 @@ export default async function AbonnementPage() {
                       <span className="text-right">
                         <StPill tone={tone}>{label}</StPill>
                         {charge.settledAt ? (
-                          <span className="mt-0.5 block text-[12px] text-ink-3">
+                          <span className="mt-0.5 block text-[13px] text-ink-3">
                             le {fmtDate(charge.settledAt)}
                           </span>
                         ) : null}

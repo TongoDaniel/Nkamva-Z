@@ -63,7 +63,7 @@ function ListField({
   return (
     <fieldset className="mb-[18px]">
       <legend className="mb-1.5 text-[13.5px] font-bold text-ink">{legend}</legend>
-      {hint ? <p className="mb-2.5 text-[12.5px] text-ink-3">{hint}</p> : null}
+      {hint ? <p className="mb-2.5 text-[13px] text-ink-3">{hint}</p> : null}
       <ul className="grid gap-2.5">
         {values.map((value, i) => (
           <li key={i} className="flex items-center gap-2">
@@ -135,11 +135,11 @@ function TextArea({
         {...props}
       />
       {hint ? (
-        <p id={`${id}-hint`} className="mt-1.5 text-[12.5px] text-ink-3">
+        <p id={`${id}-hint`} className="mt-1.5 text-[13px] text-ink-3">
           {hint}
         </p>
       ) : null}
-      {error ? <p className="mt-1.5 text-[12.5px] font-semibold text-danger">{error}</p> : null}
+      {error ? <p className="mt-1.5 text-[13px] font-semibold text-danger">{error}</p> : null}
     </div>
   );
 }
@@ -336,7 +336,7 @@ export function CourseForm({
                 </option>
               ))}
             </select>
-            <p id="nk-format-hint" className="mt-1.5 text-[12.5px] text-ink-3">
+            <p id="nk-format-hint" className="mt-1.5 text-[13px] text-ink-3">
               La vidéo est lue en ligne avec suivi de progression ; les autres formats sont
               téléchargés.
             </p>
@@ -401,7 +401,7 @@ export function CourseForm({
             {mode === "create" ? "Créer le brouillon" : "Enregistrer"}
           </Btn>
           {mode === "create" ? (
-            <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+            <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
               La ressource est créée en brouillon : rien n&apos;apparaît au catalogue avant que vous
               ne la publiiez.
             </p>

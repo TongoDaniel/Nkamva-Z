@@ -78,7 +78,7 @@ export function SanctionActions({
                 Rétablir
               </Btn>
             ) : (
-              <span className="text-[12px] text-ink-3">Levée réservée au Super-admin</span>
+              <span className="text-[13px] text-ink-3">Levée réservée au Super-admin</span>
             )}
             {level === "RESTRICTED" && isSuperAdmin ? (
               <Btn size="sm" variant="danger" onClick={() => setDialog("BANNED")}>

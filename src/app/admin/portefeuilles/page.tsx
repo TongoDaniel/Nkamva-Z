@@ -88,7 +88,7 @@ export default async function PortefeuillesPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <b className="block truncate text-sm font-bold">{row.trainerName}</b>
-                      <small className="text-[12.5px] text-ink-3">
+                      <small className="text-[13px] text-ink-3">
                         {FIELD_LABELS[d.field] ?? d.field} · stocké {fmtFcfa(d.storedValue)} ·
                         recalculé {fmtFcfa(d.expectedValue)}
                       </small>
@@ -130,7 +130,7 @@ export default async function PortefeuillesPage() {
               >
                 <div className="min-w-0 flex-1">
                   <b className="block truncate text-sm font-bold">{row.trainerName}</b>
-                  <small className="text-[12.5px] text-ink-3">
+                  <small className="text-[13px] text-ink-3">
                     Solde {fmtFcfa(row.balance)} · réservé {fmtFcfa(row.reservedBalance)} · retraits
                     en cours {fmtFcfa(row.pendingPayoutBalance)}
                   </small>
@@ -174,7 +174,7 @@ export default async function PortefeuillesPage() {
               >
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <b className="text-sm font-bold">{r.trainerName}</b>
-                  <span className="text-[12.5px] text-ink-2">
+                  <span className="text-[13px] text-ink-2">
                     {FIELD_LABELS[r.field] ?? r.field}
                   </span>
                   <span className="text-[13px] font-bold">
@@ -184,19 +184,19 @@ export default async function PortefeuillesPage() {
                     {r.delta > 0 ? "+" : ""}
                     {fmtFcfa(r.delta)}
                   </StPill>
-                  <span className="ml-auto whitespace-nowrap text-[12.5px] text-ink-3">
+                  <span className="ml-auto whitespace-nowrap text-[13px] text-ink-3">
                     {fmtDate(r.createdAt)}
                     {r.reconciledBy ? ` · ${r.reconciledBy}` : ""}
                   </span>
                 </div>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">{r.reason}</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{r.reason}</p>
               </li>
             ))}
           </ul>
         </AdminCard>
       ) : null}
 
-      <p className="mt-5 flex items-start gap-2 text-[12.5px] leading-relaxed text-ink-3">
+      <p className="mt-5 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
         <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         Le solde retirable vaut le solde moins les montants réservés par un litige et les
         retraits déjà engagés. Un solde négatif est autorisé (décision 13) ; passé soixante
