@@ -159,7 +159,7 @@ export function MobileAudit() {
 
   return (
     <div className="nk-above-tabbar nk-safe-b fixed inset-x-0 bottom-0 z-[9999] p-2 font-sans">
-      <div className="max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-ink bg-card p-3 shadow-nk-lg">
+      <div className="max-h-[70dvh] overflow-y-auto rounded-2xl border-2 border-ink bg-card p-3 shadow-nk-lg">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}

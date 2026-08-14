@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "check:orphans": "bun scripts/orphans.ts",
+    "check:mobile": "bun scripts/smoke-mobile.ts",
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
