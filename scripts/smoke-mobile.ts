@@ -207,12 +207,22 @@ async function sessionCookie(kind: 'formateur' | 'apprenant') {
   return `next-auth.session-token=${token}`
 }
 
+/**
+ * `status: 0` quand le serveur ne répond pas du tout — `fetch` **lève** sur une
+ * connexion refusée, il ne renvoie pas un code. Sans ce filet, lancer le script
+ * sans serveur faisait tomber tout le garde-fou en pile d'appels, y compris la
+ * partie statique qui n'a besoin de rien.
+ */
 async function get(path: string, cookie?: string) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: cookie ? { cookie } : {},
-    redirect: 'manual',
-  })
-  return { status: res.status, html: res.status === 200 ? await res.text() : '' }
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: cookie ? { cookie } : {},
+      redirect: 'manual',
+    })
+    return { status: res.status, html: res.status === 200 ? await res.text() : '' }
+  } catch {
+    return { status: 0, html: '' }
+  }
 }
 
 /**
@@ -233,7 +243,10 @@ async function renderChecks() {
 
   const home = await get('/')
   if (home.status !== 200) {
-    console.log(`  (serveur injoignable sur ${BASE} — partie 2 sautée)`)
+    console.log(
+      `  (serveur injoignable sur ${BASE}${home.status ? ` — HTTP ${home.status}` : ''} — partie 2 sautée)`,
+    )
+    console.log('  lancez `bun dev`, puis relancez ; les règles du code, elles, ont bien tourné.')
     return false
   }
 
