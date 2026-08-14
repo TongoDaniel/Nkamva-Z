@@ -334,16 +334,58 @@ comptent plus aucune cible sous 44 px.
 
 ## Lot 4 — Le garde-fou
 
-| # | Tâche | Fichiers | Taille |
+| # | Tâche | Fichiers | État |
 |---|---|---|---|
-| **L4-1** ⛔ | Promouvoir la sonde en script de smoke non interactif, en 375 px, avec session forgée — c'est une promotion, pas une écriture | `pwa/mobile-audit.tsx` → `scripts/smoke-mobile.ts` | M |
-| **L4-2** | Assertions structurelles : débordement = 0, cibles ≥ 44 px, champs ≥ 16 px, texte ≥ plancher, hauteur de chrome, poids d'image | `scripts/smoke-mobile.ts` | M |
-| **L4-3** | Assertion de comportement : le retour ferme la couche ouverte au lieu de quitter l'écran | `scripts/smoke-mobile.ts` | M |
-| **L4-4** | Assertion de non-régression : aucun `router.refresh()` non attendu ne réapparaît (le défaut avait 63 occurrences) | test statique ou lint | S |
-| **L4-5** | Lister les écrans couverts et brancher au même endroit que les 30 autres smokes | `scripts/` | S |
-| **L4-6** | Vérifier le budget de L0-3 sur build de production, pas en dev | — | S |
+| **L4-1** ⛔ | Script de smoke non interactif | nouveau `scripts/smoke-mobile.ts`, `bun run check:mobile` | ✅ |
+| **L4-2** | Assertions structurelles | idem | ⚠️ règles oui, géométrie non |
+| **L4-3** | Assertion de comportement sur le retour | idem | ⚠️ statique seulement |
+| **L4-4** | Cliquet sur `router.refresh()` | idem | ✅ |
+| **L4-5** | Branché au même endroit que les autres smokes | `package.json` | ✅ |
+| **L4-6** | Budgets sur build de production | — | ❌ bloqué |
 
-**Fin de lot :** une régression mobile échoue en test avant d'être livrée.
+**Ce que le garde-fou vérifie**, en deux parties de nature différente :
+
+1. **Les règles du code**, par balayage statique — un seuil arbitraire, un
+   `max-*:`, un `100vh` ou un texte sous le plancher qui réapparaît est une
+   régression de *règle*, pas d'affichage : elle se voit dans le source, sans
+   serveur, en une seconde. S'y ajoute la vérification que `useHistoryLayer`
+   reste branché sur les couches superposées — rien ne signalerait sa
+   disparition, et le bouton retour redeviendrait destructeur en silence.
+2. **Le rendu des coquilles**, par requêtes HTTP avec session forgée — la barre
+   d'onglets porte-t-elle les bonnes entrées selon le rôle, la place est-elle
+   réservée, le burger est-il bien mort, le manifeste a-t-il lâché le verrou
+   d'orientation.
+
+**Ce qu'il ne vérifie pas, et pourquoi.** La géométrie : une cible de 44 px, un
+débordement horizontal ou une hauteur de chrome ne se mesurent qu'au rendu, et le
+projet n'embarque **aucune automatisation de navigateur**. La sonde
+`src/components/pwa/mobile-audit.tsx` reste l'outil pour ça (`?audit=1` sur
+n'importe quel écran, en dev). L'automatiser demanderait d'ajouter Playwright —
+une décision à prendre à part, pas à glisser dans ce lot.
+
+De même, L4-3 ne teste que la présence du branchement, pas le comportement du
+retour : celui-ci a été vérifié à la main au navigateur (modale, tiroir, feuille).
+
+**Ce que le garde-fou a trouvé à son premier passage** — quatre choses, dont
+trois vraies :
+
+- `max-h-[88vh]` dans `nk/modal.tsx` et `max-h-[70vh]` dans la sonde : le
+  balayage `dvh` du lot 1 n'avait pris que `min-h-screen`, pas les hauteurs en
+  `vh` arbitraires ;
+- deux libellés à **9 px** dans la coquille admin, sous le radar du balayage
+  typographique qui ne couvrait que 10 à 12 px ;
+- une règle mal écrite de ma part (elle exigeait `useHistoryLayer` dans
+  `app-shell`, qui n'a plus de couche à lui depuis que le burger est mort).
+
+Le cliquet sur `router.refresh()` n'est pas un verdict : on ne sait pas
+distinguer statiquement un usage légitime d'un fautif. C'est un plafond au compte
+du jour — s'il est dépassé, quelqu'un a ajouté un rafraîchissement et il faut
+aller voir s'il est attendu.
+
+**L4-6 est bloqué** par le défaut de build Windows relevé au lot 0.
+
+**Fin de lot :** une régression des *règles* échoue avant d'être livrée ✅ ; une
+régression de *géométrie* demande encore un passage à la main.
 
 ---
 

@@ -61,7 +61,7 @@ export function Modal({
         <Dialog.Overlay className="fixed inset-0 z-200 bg-ink/45 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
         <Dialog.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-200 max-h-[88vh] w-[calc(100vw-2.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto",
+            "fixed left-1/2 top-1/2 z-200 max-h-[88dvh] w-[calc(100vw-2.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto",
             "rounded-nk-lg bg-card p-7 shadow-nk-lg outline-none",
             "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
             "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",

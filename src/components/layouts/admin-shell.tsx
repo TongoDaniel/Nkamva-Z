@@ -188,7 +188,7 @@ export function AdminShell({
         <b className="font-display text-base font-extrabold tracking-[-0.01em]">
           Nkam<em className="not-italic">Va</em>
         </b>
-        <span className="rounded-md bg-paper px-1.5 py-1 text-[9px] font-extrabold tracking-[0.12em] text-ink-3">
+        <span className="rounded-md bg-paper px-1.5 py-1 text-[13px] font-extrabold tracking-[0.12em] text-ink-3">
           ADMIN
         </span>
       </div>
@@ -224,7 +224,7 @@ export function AdminShell({
           <b className="font-display text-[17px] font-extrabold tracking-[-0.01em] text-white">
             Nkam<em className="not-italic text-[#7fd4b4]">Va</em>
           </b>
-          <span className="ml-auto rounded-md bg-white/10 px-1.5 py-1 text-[9.5px] font-extrabold tracking-[0.13em] text-[#98a49b]">
+          <span className="ml-auto rounded-md bg-white/10 px-1.5 py-1 text-[13px] font-extrabold tracking-[0.13em] text-[#98a49b]">
             ADMIN
           </span>
           <button
