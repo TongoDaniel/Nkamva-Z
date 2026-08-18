@@ -1,5 +1,5 @@
 // Lot 4 — Formateur : publier un cours
-import { success, error, requireTrainer } from '@/lib/api'
+import { success, requireTrainer, errorFromException } from '@/lib/api'
 import { publishCourse } from '@/lib/courses'
 
 export async function POST(_req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -10,10 +10,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ course
   try {
     const course = await publishCourse(courseId, ctx.user.trainerId!, ctx.user.id)
     return success(course)
-  } catch (err: any) {
-    if (err.message === 'COURSE_NOT_FOUND') return error('COURSE_NOT_FOUND', 'Introuvable', 404)
-    if (err.message === 'NOT_OWNER') return error('NOT_OWNER', 'Non possédé', 403)
-    if (err.message === 'ALREADY_PUBLISHED') return error('ALREADY_PUBLISHED', 'Déjà publié', 409)
-    return error('INTERNAL_ERROR', 'Erreur', 500)
+  } catch (err) {
+    // Cette liste écrite à la main s'arrêtait aux trois premiers refus et
+    // oubliait les deux derniers que `publishCourse` lève pourtant —
+    // `CONTENT_REQUIRED` et `SUBSCRIPTION_SUSPENDED`. Le formateur qui publiait
+    // un brouillon sans contenu lisait « Erreur » en 500 : le seul motif qui
+    // lui disait quoi faire était justement celui qu'on écrasait.
+    return errorFromException(err)
   }
 }
