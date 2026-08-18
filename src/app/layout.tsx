@@ -19,7 +19,7 @@ const instrument = Instrument_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "NkamVa — le savoir africain, à l'unité et en FCFA",
+    default: "NkamVa — Prêt à apprendre ou à transmettre ?",
     template: "%s — NkamVa",
   },
   description:

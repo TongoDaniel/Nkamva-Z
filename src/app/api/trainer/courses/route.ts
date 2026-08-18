@@ -1,5 +1,5 @@
 // Lot 4 — Formateur : CRUD cours
-import { success, error, requireTrainer, parseBody } from '@/lib/api'
+import { success, error, requireTrainer, parseBody, errorFromException } from '@/lib/api'
 import { createCourse, listTrainerCourses, updateCourse } from '@/lib/courses'
 import { z } from 'zod'
 
@@ -35,8 +35,12 @@ export async function POST(request: Request) {
   try {
     const course = await createCourse(ctx.user.trainerId!, ctx.user.id, parsed.data)
     return success(course, {}, 201)
-  } catch (err: any) {
-    if (err.message === 'PRICE_TOO_LOW') return error('PRICE_TOO_LOW', 'Prix minimum 500 FCFA', 400)
-    return error('INTERNAL_ERROR', 'Erreur', 500)
+  } catch (err) {
+    if (err instanceof Error && err.message === 'PRICE_TOO_LOW') {
+      return error('PRICE_TOO_LOW', 'Prix minimum 500 FCFA', 400)
+    }
+    // Même oubli que sur la route de publication : `createCourse` refuse aussi
+    // en `SUBSCRIPTION_SUSPENDED`, et ce motif-là tombait en 500 « Erreur ».
+    return errorFromException(err)
   }
 }
