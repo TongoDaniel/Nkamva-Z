@@ -8,7 +8,7 @@
 // L'acceptation, elle, exige une session : elle ouvre une adhésion, donc elle
 // désigne quelqu'un.
 
-import { success, error, requireAuth, requireLearner, getAuthContext } from '@/lib/api'
+import { success, error, requireAuth, requireLearner, getAuthContext, domainErrorResponse } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 import { previewInvitation, acceptGiftInvitation } from '@/lib/invitations'
 
@@ -57,7 +57,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       MEMBERSHIP_BANNED: ['Vous avez été banni de cette communauté.', 403],
       ACCOUNT_BANNED: ['Votre compte ne permet pas de rejoindre une communauté.', 403],
     }
-    const [message, status] = messages[code] ?? ['L’invitation n’a pas pu être acceptée.', 500]
-    return error(code, message, status)
+    const local = messages[code]
+    if (local) return error(code, local[0], local[1])
+    // Les refus venus de plus loin que cette table — le compte introuvable, par
+    // exemple — passaient pour une panne. Le repli maison reste pour le reste.
+    return domainErrorResponse(err) ?? error('INTERNAL_ERROR', 'L’invitation n’a pas pu être acceptée.', 500)
   }
 }

@@ -4,7 +4,7 @@
 // Finances : le formateur recevait un avis « votre abonnement est à régler »
 // sans aucun bouton pour le régler.
 import { z } from 'zod'
-import { success, error, requireTrainer, parseBody } from '@/lib/api'
+import { success, error, requireTrainer, parseBody, domainErrorResponse } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { MobileMoneyPayerSchema } from '@/lib/payment-input'
 import { db } from '@/lib/db'
@@ -96,6 +96,8 @@ export async function POST(request: Request) {
     if (code === 'PROVIDER_NOT_SUPPORTED') {
       return error('PROVIDER_NOT_SUPPORTED', "Cet opérateur n'est pas pris en charge.", 422)
     }
+    const translated = domainErrorResponse(err)
+    if (translated) return translated
     console.error('[API:SUBSCRIPTION_PAYMENT]', err)
     return error('INTERNAL_ERROR', 'Erreur', 500)
   }

@@ -1,5 +1,5 @@
 // Lot 4 — Achat : initier un paiement
-import { success, error, requireLearner, parseBody } from '@/lib/api'
+import { success, error, requireLearner, parseBody, errorFromException } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiatePurchase } from '@/lib/purchases'
 import { MobileMoneyPayerSchema } from '@/lib/payment-input'
@@ -64,6 +64,9 @@ export async function POST(request: Request) {
     if (err.message === 'ADMIN_CANNOT_ACT_AS_LEARNER') {
       return error('ADMIN_CANNOT_ACT_AS_LEARNER', "Un compte d'administration ne peut pas acheter.", 403)
     }
-    return error('INTERNAL_ERROR', 'Erreur', 500)
+    // Tout le mobile money manquait à l'appel — opérateur indisponible, montant
+    // hors bornes, numéro invalide, devise sans taux ouvert. L'acheteur lisait
+    // « Erreur » là où la table sait dire lequel des quatre le bloque.
+    return errorFromException(err)
   }
 }

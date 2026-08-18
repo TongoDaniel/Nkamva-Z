@@ -1,6 +1,6 @@
 // Règlement du premier abonnement — ouvre le paiement qui ouvrira l'espace.
 import { z } from 'zod'
-import { success, error, requireAuth, parseBody } from '@/lib/api'
+import { success, error, requireAuth, parseBody, domainErrorResponse } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { MobileMoneyPayerSchema } from '@/lib/payment-input'
 import {
@@ -105,6 +105,10 @@ export async function POST(request: Request) {
     if (code === 'PROVIDER_NOT_SUPPORTED') {
       return error('PROVIDER_NOT_SUPPORTED', "Cet opérateur n'est pas pris en charge.", 422)
     }
+    // Bornes de l'opérateur, numéro invalide, devise sans taux ouvert : autant
+    // de refus que la table nomme et que ce repli avalait.
+    const translated = domainErrorResponse(err)
+    if (translated) return translated
     console.error('[API:TRAINER_ACTIVATION]', err)
     return error('INTERNAL_ERROR', 'Erreur', 500)
   }

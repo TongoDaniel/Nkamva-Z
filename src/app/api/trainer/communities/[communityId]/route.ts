@@ -5,7 +5,7 @@
 // circulation (arbitrage 81). Écrire `visibility` à la main laisserait ces
 // liens vivants — et une communauté privée ouverte à qui détient l'URL.
 
-import { success, error, requireTrainer, parseBody } from '@/lib/api'
+import { success, error, requireTrainer, parseBody, domainErrorResponse } from '@/lib/api'
 import {
   updateCommunity,
   COMMUNITY_NAME_MAX,
@@ -67,6 +67,6 @@ export async function PATCH(
       return error('PRICE_TOO_LOW', `Le prix d'adhésion minimum est de ${COMMUNITY_MIN_PRICE_FCFA} FCFA.`, 400)
     }
     if (code === 'COMMUNITY_CLOSED') return error('COMMUNITY_CLOSED', 'Cette communauté est close.', 409)
-    return error('INTERNAL_ERROR', 'La modification n’a pas pu être enregistrée.', 500)
+    return domainErrorResponse(err) ?? error('INTERNAL_ERROR', 'La modification n’a pas pu être enregistrée.', 500)
   }
 }
