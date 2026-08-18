@@ -1,5 +1,5 @@
 // Lot 4 — Accès au contenu d'un cours acheté
-import { success, error, requireAuth } from '@/lib/api'
+import { success, error, requireAuth, errorFromException } from '@/lib/api'
 import { getCourseContentUrl } from '@/lib/access'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -11,10 +11,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ courseI
   try {
     const result = await getCourseContentUrl(courseId, ctx.user.id)
     return success(result)
-  } catch (err: any) {
-    if (err.message === 'NOT_PURCHASED') return error('NOT_PURCHASED', 'Vous n\'avez pas acheté ce cours', 403)
-    if (err.message === 'ACCESS_SUSPENDED') return error('ACCESS_SUSPENDED', 'Accès suspendu suite à un litige', 403)
-    if (err.message === 'COURSE_NOT_FOUND') return error('COURSE_NOT_FOUND', 'Cours introuvable', 404)
-    return error('INTERNAL_ERROR', 'Erreur', 500)
+  } catch (err) {
+    const code = err instanceof Error ? err.message : ''
+    if (code === 'NOT_PURCHASED') return error('NOT_PURCHASED', 'Vous n\'avez pas acheté ce cours', 403)
+    if (code === 'ACCESS_SUSPENDED') return error('ACCESS_SUSPENDED', 'Accès suspendu suite à un litige', 403)
+    if (code === 'COURSE_NOT_FOUND') return error('COURSE_NOT_FOUND', 'Cours introuvable', 404)
+    // `CONTENT_UNAVAILABLE` manquait : l'acheteur d'une ressource dont le
+    // formateur a supprimé le fichier lisait « Erreur », comme une panne.
+    return errorFromException(err)
   }
 }

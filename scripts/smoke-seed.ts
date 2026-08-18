@@ -47,7 +47,7 @@ interface Check { path: string; as?: string; expect: string[]; status?: number }
 
 const CHECKS: Check[] = [
   // Public
-  { path: '/', expect: ['Le savoir africain', 'Pipelines de données'] },
+  { path: '/', expect: ['Prêt à apprendre', 'Pipelines de données'] },
   { path: '/ressources', expect: ['Kofi Mensah', 'Modèle Notion', 'Pagination du catalogue'] },
   { path: '/ressources/grille-de-revue-de-code', expect: ['Awa Sarr', 'Acheter maintenant'] },
   // Nadège n'a rien publié : `listPublicTrainers` l'écarte, et c'est voulu —

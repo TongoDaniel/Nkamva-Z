@@ -4,7 +4,7 @@
 // adhésions, les salons, la messagerie, les lives et les invitations
 // reposaient tous sur un objet qu'aucun formateur ne pouvait faire naître.
 
-import { success, error, requireTrainer, parseBody } from '@/lib/api'
+import { success, error, requireTrainer, parseBody, domainErrorResponse } from '@/lib/api'
 import {
   createCommunity,
   getMyCommunity,
@@ -55,6 +55,9 @@ export async function POST(request: Request) {
       return error('PRICE_TOO_LOW', `Le prix d'adhésion minimum est de ${COMMUNITY_MIN_PRICE_FCFA} FCFA.`, 400)
     }
     if (code === 'NAME_REQUIRED') return error('NAME_REQUIRED', 'Donnez un nom à votre communauté.', 400)
-    return error('INTERNAL_ERROR', 'La communauté n’a pas pu être créée.', 500)
+    // Les dépassements de longueur restaient muets. Le repli maison est gardé
+    // pour ce qui est vraiment une panne : il dit mieux qu'« Erreur interne »
+    // ce qui vient d'échouer.
+    return domainErrorResponse(err) ?? error('INTERNAL_ERROR', 'La communauté n’a pas pu être créée.', 500)
   }
 }

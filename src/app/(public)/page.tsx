@@ -176,8 +176,8 @@ export default async function LandingPage() {
           </Reveal>
           <Reveal delay={0.8}>
             <h1 className="mx-auto mb-4 text-[clamp(34px,4.6vw,54px)] font-extrabold leading-[1.04] text-balance">
-              Le savoir africain, à l&apos;unité et{" "}
-              <em className="not-italic text-brand">en FCFA</em>
+              Prêt à apprendre{" "}
+              <em className="not-italic text-brand">ou à transmettre ?</em>
             </h1>
           </Reveal>
           <Reveal delay={1.6}>

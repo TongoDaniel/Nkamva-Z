@@ -385,12 +385,59 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
     message: 'Valeur refusée : un entier est attendu, dans les bornes affichées sous le réglage',
     status: 422,
   },
+  // --- Refus qui n'atteignaient personne ---
+  //
+  // Ces codes existaient dans les services depuis toujours, mais aucune route ne
+  // les traduisait : ils tombaient dans un repli 500 et se lisaient « Erreur ».
+  // Les montants et longueurs ne sont pas recopiés ici — ils vivent dans les
+  // constantes des services, et un message n'est pas l'endroit où les dupliquer.
+  PAWAPAY_NOT_CONFIGURED: {
+    message: 'Le paiement mobile est momentanément indisponible',
+    status: 503,
+  },
+  PAYMENT_PROVIDER_UNAVAILABLE: {
+    message: "Le moyen de paiement choisi n'est pas disponible pour le moment",
+    status: 503,
+  },
+  INVALID_PHONE_NUMBER: {
+    message: 'Numéro de téléphone invalide pour cet opérateur',
+    status: 422,
+  },
+  DEPOSIT_NOT_FOUND: { message: 'Encaissement introuvable chez l’opérateur', status: 404 },
+  // Les frais sont retenus sur le montant : sous ce seuil, le transfert coûte
+  // plus qu'il ne rend.
+  AMOUNT_BELOW_FEES: {
+    message: 'Montant trop faible : il ne couvre pas les frais de versement',
+    status: 422,
+  },
+  NOT_CLOSING: { message: 'Ce versement de clôture suppose un abonnement résilié', status: 409 },
+  NOT_ENDED: { message: 'Votre abonnement n’est pas résilié : il n’y a rien à réactiver', status: 409 },
+  // Filets : les schémas Zod des routes plafonnent déjà ces champs avec les
+  // mêmes constantes. Ces codes ne remontent que d'un appel direct au service.
+  NAME_TOO_LONG: { message: 'Nom trop long', status: 422 },
+  DESCRIPTION_TOO_LONG: { message: 'Description trop longue', status: 422 },
+  RULES_TOO_LONG: { message: 'Règles trop longues', status: 422 },
+}
+
+/**
+ * Traduit un refus métier, ou rend `null` quand le code est inconnu.
+ *
+ * Sert les routes qui tiennent à leur propre message de repli — « La liste n'a
+ * pas pu être chargée. » dit mieux qu'« Erreur interne » ce qui vient d'échouer.
+ * Elles gardent ce message pour les vraies pannes, sans plus avaler au passage
+ * les refus que la table sait nommer :
+ *
+ *     return domainErrorResponse(err) ?? error('INTERNAL_ERROR', '…', 500)
+ */
+export function domainErrorResponse(err: unknown): NextResponse | null {
+  const code = err instanceof Error ? err.message : ''
+  const known = DOMAIN_ERRORS[code]
+  return known ? error(code, known.message, known.status) : null
 }
 
 export function errorFromException(err: unknown): NextResponse {
-  const code = err instanceof Error ? err.message : ''
-  const known = DOMAIN_ERRORS[code]
-  if (known) return error(code, known.message, known.status)
+  const translated = domainErrorResponse(err)
+  if (translated) return translated
   console.error('[API:UNEXPECTED_ERROR]', err)
   return error('INTERNAL_ERROR', 'Erreur interne', 500)
 }
