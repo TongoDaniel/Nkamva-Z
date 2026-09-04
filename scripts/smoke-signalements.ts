@@ -190,12 +190,14 @@ async function main() {
     if (peerMessage) {
       // Ouvrir le fil du côté qui n'a pas écrit le message : c'est là que le
       // bouton doit apparaître.
-      const learnerEmail = peerMessage.conversation.learner.email
+      // `learner` est nul sur un groupe (arbitrage 126) ; ce chemin ne traite que
+      // les fils privés, d'où la garde plutôt qu'un accès direct.
+      const learnerEmail = peerMessage.conversation.learner?.email ?? null
       const trainerEmail = peerMessage.conversation.trainerProfile.user.email
       const sender = await db.user.findUniqueOrThrow({
         where: { id: peerMessage.senderId }, select: { email: true },
       })
-      const viewerEmail = sender.email === learnerEmail ? trainerEmail : learnerEmail
+      const viewerEmail = sender.email === learnerEmail ? trainerEmail : (learnerEmail ?? trainerEmail)
       // `?fil=` est indispensable : sans lui la page rend la liste et un
       // « Choisissez une conversation », donc aucune bulle à signaler.
       const pane = readable(
