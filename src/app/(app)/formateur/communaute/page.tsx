@@ -21,7 +21,22 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function MaCommunautePage() {
+const ONGLETS = ['publique', 'salons', 'invitations', 'membres'] as const;
+type Onglet = (typeof ONGLETS)[number];
+
+export default async function MaCommunautePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onglet?: string }>;
+}) {
+  // `?onglet=invitations` — ce que pointent les notifications d'invitation.
+  // Une valeur inconnue retombe sur la fiche publique : une URL bricolée ne
+  // doit pas produire un écran vide.
+  const { onglet } = await searchParams;
+  const initialTab: Onglet = (ONGLETS as readonly string[]).includes(onglet ?? '')
+    ? (onglet as Onglet)
+    : 'publique';
+
   const auth = await getAuthContext();
   if (!auth?.user.trainerId) return null;
 
@@ -101,6 +116,7 @@ export default async function MaCommunautePage() {
       {/* Les tuiles restent au-dessus des onglets : c'est l'état de santé du
           salon, pas le contenu d'une rubrique. */}
       <CommunityTabs
+        initialTab={initialTab}
         membersCount={members.length}
         publique={
           <>

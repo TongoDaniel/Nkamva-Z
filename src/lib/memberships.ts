@@ -370,10 +370,35 @@ export async function initiateMembershipPayment(
     // Deux onglets, deux clics : l'index tranche, le perdant retombe sur le
     // paiement du gagnant plutôt que d'en ouvrir un second.
     if ((err as { code?: string })?.code !== 'P2002') throw err
+
+    // Sans filtre de statut, à dessein. L'index unique est **partiel** : il ne
+    // couvre que `PENDING`, donc il tranche au moment du conflit — mais le
+    // gagnant peut avoir été réglé dans l'intervalle, et il l'est
+    // systématiquement quand le règlement est immédiat (simulation, mobile
+    // money instantané). Chercher `providerStatus: 'PENDING'` ne rendait alors
+    // rien, et le perdant recevait une erreur là où l'accès venait justement de
+    // s'ouvrir pour lui. `initiatePurchase` prenait déjà les deux statuts sur le
+    // chemin des ressources ; c'est ici que la règle manquait.
     const winner = await db.purchase.findFirst({
-      where: { learnerId, communityId, providerStatus: 'PENDING' },
+      where: { learnerId, communityId, providerStatus: { in: ['PENDING', 'SUCCEEDED'] } },
+      orderBy: { createdAt: 'desc' },
     })
     if (!winner?.providerTransactionId) throw err
+
+    // Déjà payé pendant que ce second onglet cliquait : il n'y a rien à
+    // reprendre, l'adhésion existe. On le dit plutôt que de rouvrir un tunnel.
+    if (winner.providerStatus === 'SUCCEEDED') {
+      return {
+        purchaseId: winner.id,
+        providerTransactionId: winner.providerTransactionId,
+        provider: winner.provider,
+        nextStep: 'ALREADY_SETTLED',
+        amountFcfa: winner.amountFcfa,
+        periodStart: winner.periodStart!,
+        periodEnd: winner.periodEnd!,
+        kind: open ? 'DUE' : 'JOIN',
+      }
+    }
     // L'URL de la session appartient à l'onglet gagnant, peut-être déjà parti
     // chez Stripe. Même règle que dans `initiatePurchase`.
     if (isCheckoutSession(winner.providerTransactionId)) {

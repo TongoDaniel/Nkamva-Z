@@ -24,6 +24,8 @@ export interface ProfileView {
   isTrainer: boolean
   /** Emails d'information sur l'abonnement — voir `User.subscriptionNoticeEmails`. */
   subscriptionNoticeEmails: boolean
+  /** Emails de la vie relationnelle — voir `User.relationalEmails`. */
+  relationalEmails: boolean
   createdAt: string
   gdprExportRequestedAt: string | null
   deletionRequestedAt: string | null
@@ -38,6 +40,7 @@ export async function getProfile(userId: string): Promise<ProfileView | null> {
       id: true, email: true, emailVerifiedAt: true, fullName: true, preferredName: true,
       phone: true, countryCode: true, bio: true, role: true, createdAt: true,
       subscriptionNoticeEmails: true,
+      relationalEmails: true,
       gdprExportRequestedAt: true, deletionRequestedAt: true,
       trainerProfile: { select: { id: true } },
     },
@@ -60,6 +63,7 @@ export async function getProfile(userId: string): Promise<ProfileView | null> {
     role: user.role,
     isTrainer: Boolean(user.trainerProfile),
     subscriptionNoticeEmails: user.subscriptionNoticeEmails,
+    relationalEmails: user.relationalEmails,
     createdAt: user.createdAt.toISOString(),
     gdprExportRequestedAt: user.gdprExportRequestedAt?.toISOString() ?? null,
     deletionRequestedAt: user.deletionRequestedAt?.toISOString() ?? null,
@@ -74,6 +78,7 @@ export interface ProfileUpdate {
   countryCode?: string | null
   bio?: string | null
   subscriptionNoticeEmails?: boolean
+  relationalEmails?: boolean
 }
 
 export async function updateProfile(userId: string, data: ProfileUpdate): Promise<ProfileView> {
@@ -88,6 +93,7 @@ export async function updateProfile(userId: string, data: ProfileUpdate): Promis
       ...(data.subscriptionNoticeEmails !== undefined && {
         subscriptionNoticeEmails: data.subscriptionNoticeEmails,
       }),
+      ...(data.relationalEmails !== undefined && { relationalEmails: data.relationalEmails }),
     },
   })
 

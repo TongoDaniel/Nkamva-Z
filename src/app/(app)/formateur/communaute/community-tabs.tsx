@@ -27,6 +27,7 @@ export function CommunityTabs({
   membres,
   membersCount,
   invitationsCount,
+  initialTab = "publique",
 }: {
   publique: React.ReactNode;
   salons: React.ReactNode;
@@ -35,8 +36,17 @@ export function CommunityTabs({
   membersCount: number;
   /** Invitations encore en attente — les seules qui appellent une action. */
   invitationsCount: number;
+  /**
+   * Rubrique ouverte à l'arrivée, lue de l'URL par la page serveur.
+   *
+   * Sans elle, une notification ne pouvait mener qu'à la fiche publique : il
+   * fallait deviner qu'une invitation acceptée se regarde deux onglets plus
+   * loin. La rubrique reste un état local — changer d'onglet ne recharge rien
+   * et ne perd pas une saisie en cours —, l'URL ne fait que dire par où entrer.
+   */
+  initialTab?: Panel;
 }) {
-  const [tab, setTab] = React.useState<Panel>("publique");
+  const [tab, setTab] = React.useState<Panel>(initialTab);
 
   const panels: Array<{ value: Panel; node: React.ReactNode }> = [
     { value: "publique", node: publique },

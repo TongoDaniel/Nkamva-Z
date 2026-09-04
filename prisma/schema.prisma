@@ -279,6 +279,16 @@ model User {
   /// jamais été prévenu. La notification in-app, elle, part toujours : c'est la
   /// trace, l'email n'est que le porte-voix.
   subscriptionNoticeEmails   Boolean                 @default(true)
+  /// Emails de la vie relationnelle (arbitrage 119) : nouveau message,
+  /// invitation acceptée. Désactivable depuis « Profil & paramètres ».
+  ///
+  /// La seconde et **dernière** préférence d'email. Les cinq événements de
+  /// F12.5 se rangent en deux catégories, pas cinq : ce qui est relationnel se
+  /// coupe d'un geste, et ce qui est transactionnel — un reçu, une facture, un
+  /// accès qui s'ouvre — ne se coupe pas du tout, parce que ce sont des preuves
+  /// et non des annonces. Un écran de réglages avec un interrupteur par
+  /// événement serait pire que le problème qu'il prétend résoudre.
+  relationalEmails           Boolean                 @default(true)
   gdprExportRequestedAt      DateTime?
   gdprExportS3Key            String?
   deletionRequestedAt        DateTime?

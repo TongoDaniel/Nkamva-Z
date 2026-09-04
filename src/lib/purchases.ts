@@ -21,7 +21,7 @@ import { db } from './db'
 import { auditStandalone } from './audit'
 import { assertCanActAsLearner } from './roles'
 import { creditWalletOnPurchase } from './wallet'
-import { issueInvoiceQuietly } from './invoices'
+import { onPurchaseSettled } from './purchase-settled'
 import { getStripe } from './stripe'
 import {
   assertWithinBounds, checkDeposit, isPawaPayConfigured,
@@ -109,7 +109,7 @@ export function purchaseSubject(purchaseId: string): PaymentSubject {
       const credit = await db.$transaction((tx) =>
         creditWalletOnPurchase(tx, providerTransactionId, provider),
       )
-      if (credit.credited && credit.purchaseId) await issueInvoiceQuietly(credit.purchaseId)
+      if (credit.credited && credit.purchaseId) await onPurchaseSettled(credit.purchaseId)
     },
   }
 }
@@ -631,7 +631,7 @@ export async function reconcilePurchase(
     creditWalletOnPurchase(tx, settledId, purchase.provider),
   )
   if (credit.credited && credit.purchaseId) {
-    await issueInvoiceQuietly(credit.purchaseId)
+    await onPurchaseSettled(credit.purchaseId)
     await auditStandalone({
       action: 'PURCHASE_RECONCILED', targetType: 'Purchase', targetId: purchase.id,
       // Les deux numéros : celui par lequel on est arrivé, et celui sous lequel
