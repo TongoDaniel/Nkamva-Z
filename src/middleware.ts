@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { isSessionRevoked } from '@/lib/session-validity'
+import { safeCallbackUrl } from '@/lib/callback-url'
 
 /** Préfixes de pages qui exigent une session valide. */
 const PROTECTED_PREFIXES = [
@@ -91,7 +92,20 @@ export async function middleware(request: NextRequest) {
   // dans un espace qui le renverrait aussitôt vers `/admin`, soit deux
   // redirections et un écran qui clignote pour rien.
   if (authenticated && AUTH_PAGES.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
-    return NextResponse.redirect(new URL(homeFor(token?.role), request.url))
+    // ...sauf s'il portait une action à reprendre (F1.6). Le cas se présente
+    // dès qu'une session s'ouvre ailleurs que sur ce formulaire — un second
+    // onglet, un lien d'invitation gardé de côté — et l'envoyer à l'accueil
+    // reviendrait à perdre l'achat ou l'invitation à l'étape même où le compte
+    // vient de naître.
+    //
+    // Réservé aux non-administrateurs : la destination reprise appartient à
+    // l'espace apprenant, où un administrateur n'a rien à faire (arbitrage 87).
+    // L'y envoyer ne ferait que déclencher le renvoi vers `/admin` juste en
+    // dessous, soit deux redirections et un écran qui clignote.
+    const resume = token?.role === 'ADMIN'
+      ? null
+      : safeCallbackUrl(request.nextUrl.searchParams.get('callbackUrl'))
+    return NextResponse.redirect(new URL(resume ?? homeFor(token?.role), request.url))
   }
 
   // Le cloisonnement de l'administration se décide AVANT le test « cette page

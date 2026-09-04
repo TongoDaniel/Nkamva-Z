@@ -2,16 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Btn } from "@/components/nk/button";
 import { Field, PasswordField } from "@/components/nk/input";
 import { PasswordChecklist } from "@/components/nk/password-checklist";
 import { AuthHeading, FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
+import { withCallbackUrl } from "@/lib/callback-url";
 import { EMAIL_ERROR, isValidEmail, passwordError } from "@/lib/validation";
 
 export function RegisterForm() {
   const router = useRouter();
+  // La destination de reprise traverse l'inscription (F1.6) : on la reçoit du
+  // lien qui a mené ici, on la repasse à la vérification par code, et le lien
+  // vers la connexion la porte aussi — quelqu'un qui se découvre déjà inscrit
+  // ne doit pas perdre son achat en changeant d'écran.
+  const callbackUrl = useSearchParams().get("callbackUrl");
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -68,7 +74,7 @@ export function RegisterForm() {
         email: email.trim().toLowerCase(),
         purpose: "EMAIL_VERIFICATION",
       });
-      router.push(`/auth/verifier-code?${target.toString()}`);
+      router.push(withCallbackUrl(`/auth/verifier-code?${target.toString()}`, callbackUrl));
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.details?.length) {
@@ -168,7 +174,10 @@ export function RegisterForm() {
       </form>
       <p className="mt-5 text-center text-sm text-ink-2">
         Déjà un compte ?{" "}
-        <Link href="/auth/connexion" className="font-bold text-brand hover:text-brand-dark">
+        <Link
+          href={withCallbackUrl("/auth/connexion", callbackUrl)}
+          className="font-bold text-brand hover:text-brand-dark"
+        >
           Se connecter
         </Link>
       </p>

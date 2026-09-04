@@ -8,6 +8,7 @@ import { OtpInput } from "@/components/nk/input";
 import { toast } from "@/components/nk/toast";
 import { AuthHeading, AuthBackLink, FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
+import { withCallbackUrl } from "@/lib/callback-url";
 import { fmtCountdown } from "@/lib/format";
 
 const RESEND_SECONDS = 600;
@@ -21,6 +22,11 @@ export function VerifyCodeForm() {
   const params = useSearchParams();
   const email = params.get("email") ?? "";
   const purpose = params.get("purpose") === "PASSWORD_RESET" ? "PASSWORD_RESET" : "EMAIL_VERIFICATION";
+  // Deuxième relais de la destination de reprise (F1.6). Elle ne concerne que la
+  // vérification d'adresse : une réinitialisation de mot de passe part vers
+  // l'écran du nouveau mot de passe, qui n'a aucune action en attente derrière
+  // lui.
+  const callbackUrl = params.get("callbackUrl");
 
   const [code, setCode] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -47,7 +53,7 @@ export function VerifyCodeForm() {
         sessionStorage.setItem(RESET_CODE_KEY, JSON.stringify({ email, code }));
         router.push("/auth/nouveau-mot-de-passe");
       } else {
-        router.push("/auth/connexion?verified=1");
+        router.push(withCallbackUrl("/auth/connexion?verified=1", callbackUrl));
       }
     } catch (err) {
       setError(

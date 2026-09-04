@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AuthShell, AuthIllustration } from "@/components/layouts/auth-shell";
 import { RegisterForm } from "./register-form";
@@ -19,7 +20,9 @@ export default function InscriptionPage() {
         />
       }
     >
-      <RegisterForm />
+      <Suspense fallback={<div className="h-96" aria-hidden="true" />}>
+        <RegisterForm />
+      </Suspense>
     </AuthShell>
   );
 }
