@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeCallbackUrl } from '@/lib/callback-url'
 
 /**
  * Sortie de secours des gardes serveur : efface le cookie de session, puis
@@ -26,16 +27,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 /** Préfixes de cookie de session NextAuth v4 : en clair, et en `__Secure-` sous HTTPS. */
 const SESSION_COOKIE_PREFIXES = ['next-auth.session-token', '__Secure-next-auth.session-token']
-
-/**
- * Ne renvoie la destination demandée que si c'est un chemin interne. Un
- * `callbackUrl` arrive de l'URL, donc de n'importe qui : `//evil.com` est une
- * URL absolue pour le navigateur et ferait de cette route un tremplin.
- */
-function safeCallbackUrl(raw: string | null): string | null {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null
-  return raw
-}
 
 export async function GET(request: NextRequest) {
   const callbackUrl = safeCallbackUrl(request.nextUrl.searchParams.get('callbackUrl'))

@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { Btn } from "@/components/nk/button";
 import { Field, PasswordField } from "@/components/nk/input";
 import { AuthHeading, FormError, FormNotice } from "@/components/layouts/auth-shell";
+import { DEFAULT_CALLBACK_URL, safeCallbackUrl, withCallbackUrl } from "@/lib/callback-url";
 import { EMAIL_ERROR, isValidEmail } from "@/lib/validation";
 
 /** Messages d'erreur renvoyés par NextAuth dans `?error=` ou par `signIn`. */
@@ -36,7 +37,11 @@ function loginErrorMessage(code?: string | null): string | null {
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") || "/accueil";
+  // Dernier relais de la destination de reprise (F1.6), et le seul qui la
+  // consomme. Elle est revalidée ici : ce formulaire est atteignable
+  // directement, avec la requête que le visiteur veut.
+  const requested = params.get("callbackUrl");
+  const callbackUrl = safeCallbackUrl(requested) ?? DEFAULT_CALLBACK_URL;
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -94,7 +99,11 @@ export function LoginForm() {
         setError(loginErrorMessage(res?.error ?? "CredentialsSignin"));
         return;
       }
-      router.push(res.url ?? callbackUrl);
+      // Notre destination validée, et non `res.url` : NextAuth reconstruit
+      // celle-ci en absolu sur `NEXTAUTH_URL`, qui sous une sortie standalone
+      // ne porte pas forcément l'hôte public (voir §8.3). Un chemin relatif ne
+      // peut pas se tromper d'environnement.
+      router.push(callbackUrl);
       router.refresh();
     } catch {
       setError("La connexion a échoué. Vérifiez votre connexion réseau.");
@@ -165,7 +174,10 @@ export function LoginForm() {
       </form>
       <p className="mt-5 text-center text-sm text-ink-2">
         Pas encore de compte ?{" "}
-        <Link href="/auth/inscription" className="font-bold text-brand hover:text-brand-dark">
+        <Link
+          href={withCallbackUrl("/auth/inscription", requested)}
+          className="font-bold text-brand hover:text-brand-dark"
+        >
           Créer un compte
         </Link>
       </p>
