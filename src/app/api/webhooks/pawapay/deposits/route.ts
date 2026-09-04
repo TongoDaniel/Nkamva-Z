@@ -6,7 +6,7 @@
 import { db } from '@/lib/db'
 import { auditStandalone } from '@/lib/audit'
 import { creditWalletOnPurchase } from '@/lib/wallet'
-import { issueInvoiceQuietly } from '@/lib/invoices'
+import { onPurchaseSettled } from '@/lib/purchase-settled'
 import { acknowledge, readSignedCallback } from '@/lib/pawapay-callbacks'
 import { failActivationPayment, settleActivationPayment } from '@/lib/trainer-activation'
 import { failSubscriptionPayment, settleSubscriptionPayment } from '@/lib/subscription-payment'
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       // La facture s'émet après le commit, et son échec ne remonte pas au
       // fournisseur : un callback en erreur serait rejoué, et l'accès de
       // l'apprenant ne doit pas dépendre d'une pièce comptable.
-      if (credit.credited && credit.purchaseId) await issueInvoiceQuietly(credit.purchaseId)
+      if (credit.credited && credit.purchaseId) await onPurchaseSettled(credit.purchaseId)
       break
     }
 

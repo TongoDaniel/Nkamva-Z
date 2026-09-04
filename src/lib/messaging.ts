@@ -23,7 +23,7 @@
 
 import { db } from './db'
 import { audit } from './audit'
-import { notify, deliverSideEffects } from './notification'
+import { notifyWithEmail, deliverSideEffects, absoluteUrl } from './notification'
 
 export const MESSAGE_MAX_LENGTH = 5000
 
@@ -393,13 +393,35 @@ export async function sendMessage(
     return created
   })
 
+  // Un extrait, pas le message entier : l'aperçu doit donner envie d'ouvrir le
+  // fil, pas s'y substituer — et une boîte mail n'est pas l'endroit où déverser
+  // une conversation privée.
+  const extrait = body.length > 140 ? `${body.slice(0, 140)}…` : body
+
   await deliverSideEffects('MESSAGE_SENT', { type: 'Conversation', id: conversationId }, () =>
-    notify(recipientId, {
-      type: 'MESSAGE',
-      title: `Nouveau message · ${conversation.community.name}`,
-      body: body.length > 140 ? `${body.slice(0, 140)}…` : body,
-      link: `/messagerie?fil=${conversationId}`,
-    }),
+    notifyWithEmail(
+      recipientId,
+      {
+        type: 'MESSAGE',
+        title: `Nouveau message · ${conversation.community.name}`,
+        body: extrait,
+        link: `/messagerie?fil=${conversationId}`,
+      },
+      {
+        subject: `NkamVa — nouveau message dans ${conversation.community.name}`,
+        title: 'Vous avez reçu un message',
+        paragraphs: [
+          'Bonjour,',
+          `Un nouveau message vous attend dans ${conversation.community.name} :`,
+          `« ${extrait} »`,
+        ],
+        cta: {
+          label: 'Ouvrir la conversation',
+          url: absoluteUrl(`/messagerie?fil=${conversationId}`),
+        },
+      },
+      'relationalEmails',
+    ),
   )
 
   return { id: message.id }

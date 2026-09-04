@@ -19,6 +19,7 @@ const UpdateSchema = z.object({
   // Préférence d'envoi, pas une donnée de profil : elle passe par la même route
   // parce qu'elle vit sur le même enregistrement et suit le même audit.
   subscriptionNoticeEmails: z.boolean().optional(),
+  relationalEmails: z.boolean().optional(),
 })
 
 export async function GET() {

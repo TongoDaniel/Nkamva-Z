@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { creditWalletOnPurchase } from '@/lib/wallet'
 import { auditStandalone } from '@/lib/audit'
 import { getStripe } from '@/lib/stripe'
-import { issueInvoiceQuietly } from '@/lib/invoices'
+import { onPurchaseSettled } from '@/lib/purchase-settled'
 import { promoteCheckoutSession } from '@/lib/purchases'
 import { promoteActivationCheckoutSession, settleActivationPayment } from '@/lib/trainer-activation'
 import { promoteSubscriptionCheckoutSession, settleSubscriptionPayment } from '@/lib/subscription-payment'
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
         return creditWalletOnPurchase(tx, intentId, 'STRIPE')
       })
       if (credit.credited && credit.purchaseId) {
-        await issueInvoiceQuietly(credit.purchaseId)
+        await onPurchaseSettled(credit.purchaseId)
       }
       break
     }
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       // d'erreur au provider : un webhook en échec est rejoué, et l'accès de
       // l'apprenant ne doit pas dépendre d'une pièce comptable.
       if (credit.credited && credit.purchaseId) {
-        await issueInvoiceQuietly(credit.purchaseId)
+        await onPurchaseSettled(credit.purchaseId)
       }
       break
     }

@@ -39,7 +39,7 @@ import type {
 } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
-import { notify, deliverSideEffects, absoluteUrl } from './notification'
+import { notify, notifyWithEmail, deliverSideEffects, absoluteUrl, TRANSACTIONAL } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
 import { assertCanActAsLearner } from './roles'
@@ -746,20 +746,57 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
   })
 
   await deliverSideEffects('INVITATION_ACCEPTED', { type: 'CommunityInvitation', id: invitation.id }, async () => {
-    await notify(userId, {
-      type: 'MEMBERSHIP_STARTED',
-      title: `Bienvenue dans ${invitation.community.name}`,
-      body: `${giftMonths} mois offerts, jusqu'au ${periodEnd.toLocaleDateString('fr-FR')}. Rien ne vous sera prélevé : une adhésion offerte ne se reconduit pas.`,
-      link: `/mes-communautes/${invitation.community.slug}`,
-    })
-    await notify(invitation.issuerId, {
-      type: 'INVITATION_ACCEPTED',
-      title: `Votre invitation à ${invitation.community.name} a été acceptée`,
-      body: invitation.email
-        ? `${invitation.email} a rejoint la communauté.`
-        : 'Un nouvel invité a rejoint la communauté.',
-      link: '/formateur/invitations',
-    })
+    // Un accès qui s'ouvre est transactionnel : il ne se coupe pas. Le pendant
+    // payant de cette annonce vit dans `purchase-settled.ts` — les deux chemins
+    // ne se croisent jamais, une adhésion est offerte ou réglée, pas les deux.
+    const terme = periodEnd.toLocaleDateString('fr-FR')
+    const lienMembre = `/mes-communautes/${invitation.community.slug}`
+
+    await notifyWithEmail(
+      userId,
+      {
+        type: 'MEMBERSHIP_STARTED',
+        title: `Bienvenue dans ${invitation.community.name}`,
+        body: `${giftMonths} mois offerts, jusqu'au ${terme}. Rien ne vous sera prélevé : une adhésion offerte ne se reconduit pas.`,
+        link: lienMembre,
+      },
+      {
+        subject: `NkamVa — bienvenue dans ${invitation.community.name}`,
+        title: `Bienvenue dans ${invitation.community.name}`,
+        paragraphs: [
+          'Bonjour,',
+          `Votre invitation est acceptée : ${giftMonths} mois vous sont offerts, jusqu'au ${terme}.`,
+          "Rien ne vous sera prélevé — une adhésion offerte ne se reconduit pas d'elle-même. Vous serez prévenu avant son terme.",
+        ],
+        cta: { label: 'Ouvrir la communauté', url: absoluteUrl(lienMembre) },
+      },
+      TRANSACTIONAL,
+    )
+    // `/formateur/invitations` n'a jamais existé : la notification menait donc à
+    // un 404, ce que le formateur lisait comme « l'acceptation n'a rien fait ».
+    // Le panneau est une rubrique de la page communauté, et l'URL l'ouvre
+    // désormais directement.
+    const lien = '/formateur/communaute?onglet=invitations'
+    const qui = invitation.email
+      ? `${invitation.email} a rejoint la communauté.`
+      : 'Un nouvel invité a rejoint la communauté.'
+
+    await notifyWithEmail(
+      invitation.issuerId,
+      {
+        type: 'INVITATION_ACCEPTED',
+        title: `Votre invitation à ${invitation.community.name} a été acceptée`,
+        body: qui,
+        link: lien,
+      },
+      {
+        subject: `NkamVa — votre invitation à ${invitation.community.name} a été acceptée`,
+        title: 'Votre invitation a été acceptée',
+        paragraphs: ['Bonjour,', qui, `Communauté : ${invitation.community.name}.`],
+        cta: { label: 'Voir mes invitations', url: absoluteUrl(lien) },
+      },
+      'relationalEmails',
+    )
   })
 
   return {
@@ -927,6 +964,13 @@ interface InvitationEmailParams {
  * destinataire n'a rien demandé et n'a peut-être aucun compte (arbitrage 80).
  * Lui dire qu'aucun compte n'a été créé, et d'où vient son adresse, est le
  * minimum dû à quelqu'un qu'on sollicite sans son accord préalable.
+ *
+ * **C'est le seul des cinq e-mails de F12.5 qui ne passe pas par
+ * `notifyWithEmail`, et c'est voulu.** Le canal unique écrit d'abord une
+ * notification in-app, donc il lui faut un `userId` — or on écrit ici à une
+ * adresse, pour quelqu'un qui n'a précisément pas encore de compte. C'est aussi
+ * pourquoi F12.5 range l'invitation « hors préférence » : il n'existe aucun
+ * réglage à consulter, et l'envoi est systématique. Ne pas « uniformiser » ceci.
  */
 export async function sendInvitationEmail(params: InvitationEmailParams): Promise<void> {
   const who = params.trainerName ?? 'Un formateur'
