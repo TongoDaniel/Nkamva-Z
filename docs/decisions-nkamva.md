@@ -1694,6 +1694,73 @@ une vente à 2 000 doit retrouver les 300 retenus sans les calculer lui-même.
 
 ---
 
+## Arbitrages 126-130 — La messagerie unifiée
+
+> Rendus le 4 septembre 2026, à la demande du propriétaire. Spécification
+> complète : voir l'artefact « Messagerie unifiée ».
+>
+> Point de départ : un apprenant jongle entre l'écran des messages et la page de
+> chaque communauté pour suivre ce qui s'y dit. Les deux surfaces sont pourtant
+> de même nature — des gens qui se parlent — et rien ne justifiait qu'elles
+> vivent à deux endroits.
+
+**126. Le fil de discussion d'une communauté devient un groupe de la
+messagerie** — Flux plat, comme une conversation privée, l'auteur nommé sur
+chaque message. La liste des conversations mêle groupes et fils privés.
+Livraison **en deux temps** : d'abord la messagerie accueille les groupes et le
+fil historique reste lisible en place, ensuite seulement l'historique bascule.
+Raison : le second temps est irréversible — des réponses aplaties ne se
+ré-imbriquent pas, l'ordre chronologique ne dit plus qui répondait à qui — et
+rien ne justifie de migrer des données avant d'avoir vu l'écran vivre.
+> Écarté : garder le forum imbriqué derrière une entrée unique. La gêne de
+> navigation disparaissait, la gêne de forme restait.
+
+**127. « Salon » est retiré du produit, « groupe » le remplace** — Le mot
+désignait **trois** choses : la communauté vue comme un lieu (« salon public »,
+qui est en fait sa visibilité), une des cinq fonctionnalités activables
+(« salons ouverts »), et la discussion d'une séance live. Désormais :
+**communauté** pour l'entité payante, **groupe** pour le fil collectif dans la
+messagerie, « ce qui est ouvert » pour les interrupteurs, « la discussion de la
+séance » pour le live. Raison : un écran qui fusionne deux surfaces ne peut pas
+garder un mot qui en désigne trois — chaque phrase demanderait deux lectures.
+
+**128. L'annonce est un message épinglé qui notifie** — Le salon « Annonces »
+disparaît, et `Community.broadcastEnabled` avec lui : il ne reste que quatre
+interrupteurs. Annoncer devient un geste dans le groupe — le formateur marque
+son message, ce qui l'épingle en tête **et** déclenche la notification à tous
+les membres (F12.5). Raison : la demande était « l'annonce se gère au niveau des
+notifications », mais la liste des notifications est plafonnée à cinquante
+lignes — une annonce importante en sortirait au bout de cinquante événements,
+alors qu'elle reste aujourd'hui dans le salon aussi longtemps que la communauté.
+Le message épinglé garde la relecture, la notification garde l'alerte.
+
+**129. L'ancien membre garde le groupe en lecture seule** — Il le lit, il n'y
+écrit plus. Aligne le groupe sur l'arbitrage 39, qui laisse déjà le fil privé
+lisible après la fin de l'adhésion. Raison : c'est le seul changement de droit
+de ce chantier, et il est imposé par la fusion elle-même — dans une liste
+unique, un ancien membre aurait vu son fil ouvert et un groupe verrouillé côte à
+côte, sans que rien n'explique la différence.
+
+**130. Une seule liste, trois filtres, une recherche** — Ordre : le groupe de sa
+propre communauté épinglé d'office pour le formateur qui l'anime, puis les
+conversations épinglées à la main par date d'épinglage, puis tout le reste par
+dernier message. Filtres **Toutes / Non lues / Groupes**. Recherche sur le nom
+de la personne, le nom du groupe **et le corps des messages**.
+> Pas de filtre « Privées » : il se déduit de « Groupes » et n'ajouterait qu'un
+> onglet à balayer. La recherche couvre le corps des messages parce que chercher
+> un mot dit dans une conversation dont on a oublié le nom est le cas courant —
+> s'en tenir aux titres ferait un annuaire, pas une recherche.
+
+### Ce que ces décisions laissent ouvert
+
+| Point | Ce qu'il faut décider |
+|---|---|
+| Le formateur dans les groupes qu'il a rejoints comme apprenant | Rien ne s'y oppose, mais son nom y apparaît sans distinction de rôle |
+| `Community.messagesPerDay` | La colonne existe et n'est lue par personne. Un groupe actif est le premier endroit où un plafond servirait |
+| Cadence de sondage d'un groupe | Le §4.2 fixe 8 s sur un fil et 15 s sur une liste, pensés pour du 1 à 1. Un groupe n'a pas le même débit, et la règle 11 du §10.2 interdit de consommer des données sans demande. **À trancher au lot 4**, qui attend donc ce chantier |
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |

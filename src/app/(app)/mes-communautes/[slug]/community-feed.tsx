@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CornerDownRight, Library, MessageSquareOff, Pin, Radio, Trash2 } from "lucide-react";
+import { CornerDownRight, Library, MessageSquare, MessageSquareOff, Pin, Radio, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Tabs } from "@/components/nk/tabs";
 import { Chip } from "@/components/nk/chip";
@@ -130,13 +131,14 @@ export function CommunityFeed({
   // Écrire un billet n'est ouvert que là où le salon l'autorise : une annonce
   // appartient à l'animateur, une discussion à tout membre qui a la parole. Les
   // ressources ne se composent pas ici : elles se rattachent depuis la console.
-  const canPost =
-    canSpeak &&
-    (salon === "RESOURCES" || salon === "SESSIONS"
-      ? false
-      : salon === "ANNOUNCEMENT"
-        ? isTrainer && broadcastEnabled
-        : forumEnabled);
+  //
+  // **Temps 1 de la messagerie unifiée (arbitrage 126)** : on n'écrit plus ici.
+  // Le fil de discussion et les annonces ont rejoint le groupe de la
+  // communauté ; ce qui a déjà été écrit reste lisible en place, le temps que
+  // l'historique bascule. Laisser la saisie ouverte ferait vivre deux
+  // conversations parallèles sur la même communauté, ce qui est précisément le
+  // problème qu'on résout.
+  const canPost = false;
 
   if (salons.length === 0) {
     return (
@@ -208,7 +210,23 @@ export function CommunityFeed({
                 slug={slug}
                 kind={salon as "ANNOUNCEMENT" | "DISCUSSION"}
               />
-            ) : null}
+            ) : (
+              // Le renvoi remplace la saisie : dire « c'est fermé » sans dire où
+              // c'est ouvert laisserait chercher.
+              <p className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-nk-lg border border-line bg-brand-tint/40 px-4 py-3 text-[13.5px] leading-relaxed text-ink-2">
+                <span className="flex items-start gap-2.5">
+                  <MessageSquare className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
+                  <span>
+                    Les échanges de cette communauté se passent désormais dans{" "}
+                    <b className="text-ink">son groupe</b>, avec vos autres conversations. Ce qui a
+                    été écrit ici reste lisible.
+                  </span>
+                </span>
+                <Link href="/messagerie" className="nk-tap shrink-0 font-bold text-brand">
+                  Ouvrir le groupe
+                </Link>
+              </p>
+            )}
 
             {posts.length === 0 ? (
               <EmptyState

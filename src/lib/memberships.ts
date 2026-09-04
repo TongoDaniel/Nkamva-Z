@@ -379,11 +379,28 @@ export async function initiateMembershipPayment(
     // rien, et le perdant recevait une erreur là où l'accès venait justement de
     // s'ouvrir pour lui. `initiatePurchase` prenait déjà les deux statuts sur le
     // chemin des ressources ; c'est ici que la règle manquait.
-    const winner = await db.purchase.findFirst({
-      where: { learnerId, communityId, providerStatus: { in: ['PENDING', 'SUCCEEDED'] } },
-      orderBy: { createdAt: 'desc' },
-    })
-    if (!winner?.providerTransactionId) throw err
+    // Le gagnant peut exister **sans encore porter son identifiant de
+    // transaction** : il est écrit après l'aller-retour chez le fournisseur, et
+    // la fenêtre entre les deux est exactement celle où le perdant arrive ici.
+    // Une lecture unique y trouvait une ligne inexploitable et relançait
+    // l'erreur Prisma brute — un 500 pour un double clic.
+    //
+    // On laisse donc au gagnant le temps d'écrire, brièvement et un nombre borné
+    // de fois. Attendre indéfiniment transformerait un double clic en requête
+    // suspendue ; ne pas attendre du tout rend le rattrapage inutile la moitié
+    // du temps.
+    let winner = null as Awaited<ReturnType<typeof db.purchase.findFirst>>
+    for (let essai = 0; essai < 10; essai++) {
+      winner = await db.purchase.findFirst({
+        where: { learnerId, communityId, providerStatus: { in: ['PENDING', 'SUCCEEDED'] } },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (winner?.providerTransactionId) break
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    // Toujours rien après une seconde : le gagnant a probablement échoué chez le
+    // fournisseur. Le dire plutôt que de laisser filer une erreur de base.
+    if (!winner?.providerTransactionId) throw new Error('PAYMENT_IN_PROGRESS')
 
     // Déjà payé pendant que ce second onglet cliquait : il n'y a rien à
     // reprendre, l'adhésion existe. On le dit plutôt que de rouvrir un tunnel.

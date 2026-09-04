@@ -19,6 +19,12 @@
 > §10.1 (budget par route), §13 et §14. Trois d'entre elles ne font que
 > réaffirmer une règle déjà écrite mais jamais implémentée.
 >
+> **Complété le 4 septembre 2026** par les arbitrages 126-130 — la messagerie
+> unifiée : le fil collectif d'une communauté devient un **groupe** de la
+> messagerie, le mot « salon » est retiré du produit, et l'annonce devient un
+> message épinglé qui notifie. Touche F5, F12, §4.2, §7, §13, §14 et le
+> glossaire.
+>
 > **Hiérarchie des sources en cas de divergence** : le code du dépôt, puis
 > `docs/decisions-nkamva.md`, puis ce document, puis les autres documents
 > `docs/`. Une divergence constatée est un défaut à corriger, pas une
@@ -69,7 +75,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 
 | Document | Ce qu'il porte |
 |---|---|
-| `docs/decisions-nkamva.md` | Les 125 arbitrages produit, avec leur statut d'implémentation |
+| `docs/decisions-nkamva.md` | Les 130 arbitrages produit, avec leur statut d'implémentation |
 | `docs/abonnement-formateur.md` | Les 19 arbitrages du cycle de vie de l'abonnement formateur (A1-A19) |
 | `docs/invitations.md` | Spécification complète des invitations aux communautés |
 | `docs/registre-des-traitements.md` | Registre des traitements de données personnelles |
@@ -178,7 +184,7 @@ notifications et préavis · conformité des données personnelles · mobile fir
 | **Paliers d'abonnement `STARTER` / `PRO` / `EXPERT`** | Arbitrage 66 — remplacés par deux cadences |
 | **Jauge de places d'un live** | Arbitrage 46 — la communauté est sa propre limite |
 | **Multilingue** | Monolingue français ; `next-intl` présent mais non utilisé |
-| **WebSocket** | Temps réel par sondage TanStack Query — 8 s sur un fil, 15 s sur une liste |
+| **WebSocket** | Temps réel par sondage TanStack Query — 8 s sur un fil, 15 s sur une liste. Ces deux cadences ont été pensées pour du 1 à 1 : celle d'un **groupe** reste à fixer (§14) |
 | **Optimisation mobile de l'administration** | Arbitrage 109 — les 24 écrans `/admin` héritent du socle, rien de plus |
 | **Contrepartie du parrain** | Arbitrage 76, ajourné ; si elle arrive, financée sur la commission NkamVa (arbitrage 104) |
 | **Refusion des espaces visiteur / connecté** | Décision assumée : deux arborescences, décrites dans `src/lib/spaces.ts` |
@@ -418,6 +424,18 @@ mobile money) → paiement chez le fournisseur → retour → confirmation.
    s'il est **membre** de sa communauté. Un achat à l'unité n'ouvre aucun droit
    de conversation. À la fin de l'adhésion, l'écriture cesse mais **le fil reste
    lisible** (arbitrages 33, 39).
+2 bis. **Le fil collectif d'une communauté est un groupe de la messagerie**
+   (arbitrage 126). Flux plat, auteur nommé sur chaque message, listé avec les
+   conversations privées — un membre ne jongle pas entre deux écrans pour suivre
+   ce qui se dit. Le mot **« salon » n'est plus employé** : *communauté* pour
+   l'entité payante, *groupe* pour le fil collectif (arbitrage 127).
+
+   Un **ancien membre lit le groupe sans y écrire** (arbitrage 129), comme il
+   garde son fil privé lisible. C'est la même règle, appliquée aux deux.
+
+   Le reste des droits d'écriture est celui du fil privé : un membre banni de la
+   communauté et un compte restreint lisent sans écrire ; le formateur garde la
+   parole en toutes circonstances (arbitrages 40, 63).
 3. **Accès après résiliation** (arbitrage 34) : le membre sortant conserve les
    replays et les ressources **intégrés pendant son adhésion**. Pour un replay,
    **c'est la date du live qui fait foi**, pas celle de la mise en ligne.
@@ -704,6 +722,16 @@ journal d'audit.
 
 8. Le **rappel avant une séance en direct reste ajourné** — voir §14. Son
    absence de cette liste est une décision, pas un oubli.
+9. **L'annonce d'un formateur est un message de son groupe, marqué comme tel**
+   (arbitrage 128). Le marquage fait deux choses : il **épingle** le message en
+   tête du groupe, et il **notifie tous les membres**, in-app et par e-mail selon
+   leur préférence relationnelle.
+
+   Les deux moitiés sont nécessaires. Une notification seule perdrait la
+   relecture — la liste est plafonnée à cinquante lignes, et une annonce
+   importante en sortirait au bout de cinquante événements. Un message seul ne
+   préviendrait personne. `Community.broadcastEnabled` disparaît : il ne reste
+   que quatre interrupteurs de communauté.
 
 ---
 
@@ -769,7 +797,7 @@ soixantaine de modèles. Vue d'ensemble par agrégat :
 | Formateur | `TrainerProfile`, `TrainerApplication`, `TrainerDocument`, `TrainerActivationPayment`, `*ReviewEvent` |
 | Contenu | `Course`, `CommunityCourse`, `Favorite`, `CourseView`, `PendingAttachment` |
 | Communauté | `Community`, `CommunitySubscription`, `CommunityInvitation`, `CommunityPost`, `CommunityPostReply` |
-| Échanges | `Conversation`, `Message` |
+| Échanges | `Conversation` (directe ou de groupe), `Message`, `ConversationRead` |
 | Direct | `LiveSession`, `LiveParticipant`, `LiveMessage`, `Replay` |
 | Argent | `Purchase`, `Invoice`, `InvoiceCounter`, `Wallet`, `WalletDebit`, `WalletReconciliation`, `FxRate` |
 | Versements | `PayoutMethod`, `Payout`, `*ReviewEvent` |
@@ -1087,7 +1115,11 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 1. **Les trois points bloquants du §11.3** — identité de l'éditeur, conditions
    générales contradictoires, autorisation de transfert. Rien ne se met en ligne
    publiquement avant.
-2. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
+2. **La messagerie unifiée** — le fil de discussion d'une communauté devient un
+   groupe de la messagerie (arbitrages 126-130). Deux temps : la messagerie
+   accueille les groupes, puis l'historique bascule. **Précède le lot 4**, dont
+   le sondage serait à refaire autrement.
+3. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
    mené sur `develop`, tel que servi par staging. Neuf constats sont confirmés
    par le code, un attend une reproduction. Dans l'ordre d'exécution : reprise
    de l'action après authentification (F1.6) · notifications et e-mails (F12.5
@@ -1100,21 +1132,21 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    Deux de ces lots sont **bloqués par un arbitrage** listé au §14 : le sort
    d'une ressource incluse quand sa communauté ferme, et la portée de
    `resourcesEnabled`.
-3. **Mobile first, lot 3** — les écrans, partiellement livré : 62 pages,
+4. **Mobile first, lot 3** — les écrans, partiellement livré : 62 pages,
    administration retirée du périmètre. C'est le gros du chantier restant.
-4. **Montant de l'abonnement payant** — jamais arbitré. Sans successeur, borner
+5. **Montant de l'abonnement payant** — jamais arbitré. Sans successeur, borner
    la gratuité au 31 décembre 2026 ne change rien. Deux montants à dire.
    **Conséquence désormais visible en vitrine** : `/tarifs` annonce « 9 000
    FCFA/mois » et « 0 FCFA/an » — la paire est incohérente pour qui la lit.
-5. **Réponse de PawaPay** sur le règlement en devise locale par marché et sur la
+6. **Réponse de PawaPay** sur le règlement en devise locale par marché et sur la
    présence éventuelle d'un nom de payeur dans les rappels — la seconde réponse,
    si elle est positive, rend l'intégration MTN inutile.
-6. **Écarts résiduels connus** : notification de résolution de litige au
+7. **Écarts résiduels connus** : notification de résolution de litige au
    formateur ; distinction `INDIVIDUAL` / `BUSINESS` dans la vérification ;
    limitations de débit définies mais non branchées sur toutes les routes ;
    `negativeSince` non recalculé lors d'un débit de remboursement ;
    `react-email` non installé ; couche « name lookup » opérateur inactive.
-7. **Redirection de l'espace visiteur** — un utilisateur connecté navigue
+8. **Redirection de l'espace visiteur** — un utilisateur connecté navigue
    librement dans l'espace public. **Ajourné volontairement** : deux arbitrages
    doivent précéder toute ligne de code (le périmètre, puisque `/recherche` n'a
    pas de jumeau connecté et deviendrait inaccessible ; et l'échappatoire « voir
@@ -1135,7 +1167,10 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **Budget mobile déjà à moitié consommé** | Performance | Aucune dépendance lourde dans le socle ni sur une route de parcours. Sur une route terminale, elle est admise aux trois conditions du §10.1 — import dynamique, hors parcours d'acquisition, poids mesuré et consigné |
 | **Rappel avant une séance** | Produit | **Ajournement confirmé le 4 septembre 2026.** L'audit du 1er septembre l'énumère parmi les notifications attendues, mais personne n'a constaté son absence comme un défaut : il reste une hypothèse tant que le premier live réel n'a pas eu lieu. Son absence de F12.5 est donc une décision, pas un oubli — et l'outillage existe déjà (préavis J-7/J-1, tâches planifiées) le jour où elle sera prise |
 | **Ressource incluse dans une communauté qui ferme** | Produit, bloquant pour F3.10 | La bascule vendue → incluse est à sens unique : la ressource ne peut pas retourner au catalogue. Reste-t-elle servie aux membres entrés, disparaît-elle, ou le formateur récupère-t-il un droit de republication ? |
-| **Le salon des ressources éteint vaut-il « fermé » ?** | Produit, bloquant pour F3.10 | `resourcesEnabled` à faux sur une communauté par ailleurs active : peut-on encore y associer une ressource ? Le contrôle porte aujourd'hui sur `status` seul |
+| **Les ressources incluses éteintes valent-elles « fermé » ?** | Produit, bloquant pour F3.10 | `resourcesEnabled` à faux sur une communauté par ailleurs active : peut-on encore y associer une ressource ? Le contrôle porte aujourd'hui sur `status` seul |
+| **Cadence de sondage d'un groupe** | Performance, bloquant pour le lot 4 | Les 8 s et 15 s du §4.2 ont été pensées pour du 1 à 1. Un groupe n'a pas le même débit, et la règle 11 du §10.2 interdit de consommer des données sans demande |
+| **Le formateur dans les groupes qu'il a rejoints** | Produit | Rien ne lui interdit d'y écrire comme apprenant, mais son nom y apparaît sans distinction de rôle |
+| **`Community.messagesPerDay`** | Produit | La colonne existe et n'est lue par personne. Un groupe actif est le premier endroit où un plafond servirait |
 | **Inscription à une séance, distincte de la présence** | Produit | Ajourné — l'absence de jauge a retiré ce qui la rendait nécessaire |
 | **Contrepartie du parrain** | Produit | Ajournée ; financée sur la commission NkamVa si elle arrive |
 
@@ -1203,6 +1238,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **Ressource** | Un contenu pédagogique vendu à l'unité ou inclus dans une communauté |
 | **Circuit** | Le mode de distribution d'une ressource : marketplace ou communauté |
 | **Communauté** | L'espace payant par abonnement d'un formateur |
+| **Groupe** | Le fil collectif d'une communauté, dans la messagerie. Remplace « salon » (arbitrage 127) |
 | **Replay** | L'enregistrement automatique d'une session en direct |
 | **Portefeuille** | Le solde du formateur chez NkamVa : crédité, réservé, immobilisé, retirable |
 | **Solde réservé** | La part immobilisée par un litige en cours |

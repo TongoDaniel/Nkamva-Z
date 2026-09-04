@@ -309,6 +309,7 @@ model User {
   reportsFiled               Report[]                @relation("ReportsFiled")
   reportsReviewed            Report[]                @relation("ReportsReviewed")
   emailOtps                  EmailOtp[]
+  conversationReads          ConversationRead[]
   invitationsIssued          CommunityInvitation[]   @relation("InvitationsIssued")
   createdAt                  DateTime                @default(now())
   updatedAt                  DateTime                @updatedAt
@@ -759,23 +760,70 @@ model CommunityPostReply {
 // Le fil survit à l'adhésion (arbitrage 39) : quand elle s'arrête, l'écriture
 // cesse mais l'historique reste lisible, pour que le membre le retrouve s'il
 // revient. Il n'est donc jamais supprimé avec la souscription.
+/// Arbitrage 126 — une conversation est **directe** ou **de groupe**. Le fil
+/// collectif d'une communauté a rejoint la messagerie ; il n'a plus de raison
+/// de vivre dans un modèle à part, et le mêler aux fils privés est précisément
+/// ce qui permet de les lister ensemble.
+enum ConversationKind {
+  /// Un membre et le formateur. `learnerId` non nul (arbitrages 33, 39).
+  DIRECT
+  /// Tous les membres d'une communauté. `learnerId` nul : il n'y a personne en
+  /// face, il y a une communauté.
+  GROUP
+}
+
 model Conversation {
-  id             String         @id @default(uuid())
+  id             String           @id @default(uuid())
+  kind           ConversationKind @default(DIRECT)
   communityId    String
-  community      Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  learnerId      String
-  learner        User           @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  community      Community        @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  /// Nul pour un groupe. Les deux index d'unicité qui le gouvernent sont
+  /// **partiels** et vivent en SQL brut : un par communauté pour le groupe, un
+  /// par (communauté, membre) pour le direct.
+  learnerId      String?
+  learner        User?            @relation(fields: [learnerId], references: [id], onDelete: Restrict)
   trainerId      String
-  trainerProfile TrainerProfile @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  trainerProfile TrainerProfile   @relation(fields: [trainerId], references: [id], onDelete: Restrict)
   lastMessageAt  DateTime?
   messages       Message[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  reads          ConversationRead[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  @@unique([communityId, learnerId])
   @@index([learnerId, lastMessageAt])
   @@index([trainerId, lastMessageAt])
+  @@index([communityId, kind])
   @@map("conversations")
+}
+
+/// Ce que **cette personne** a fait de **cette conversation** : où elle en est
+/// de sa lecture, et si elle l'a épinglée (arbitrage 130).
+///
+/// `Message.readAt` ne pouvait pas servir un groupe : il porte « lu par le
+/// destinataire », ce qui a un sens à deux et aucun à deux cents — il n'y a pas
+/// un destinataire, il y en a autant que de membres. Le compte de non-lues
+/// devient donc « messages postés après mon curseur ».
+///
+/// Une seule table pour les deux besoins, parce que ce sont deux facettes de la
+/// même chose. La ligne naît à la première lecture ou à la première épingle ;
+/// son absence signifie « jamais ouvert », ce qui est une information exacte et
+/// non un trou.
+model ConversationRead {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+  /// Épingle posée par la personne. L'épingle du formateur sur le groupe qu'il
+  /// anime n'est pas ici : elle est systématique, donc déduite et non stockée.
+  pinnedAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([conversationId, userId])
+  @@index([userId, pinnedAt])
+  @@map("conversation_reads")
 }
 
 model Message {
@@ -785,7 +833,13 @@ model Message {
   senderId       String
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
   body           String
-  /// Lu par le destinataire, jamais par l'expéditeur.
+  /// Arbitrage 128 — l'annonce du formateur. Elle épingle le message en tête du
+  /// groupe **et** notifie tous les membres (F12.9). Toujours faux sur une
+  /// conversation directe : on n'annonce rien à une seule personne.
+  announcement   Boolean      @default(false)
+  /// Lu par le destinataire, jamais par l'expéditeur. **Conversation directe
+  /// uniquement** : un groupe se lit par `ConversationRead`, un champ unique ne
+  /// pouvant pas porter la lecture de N membres.
   readAt         DateTime?
   /// Retrait par la Modération à la clôture d'un signalement. Effacer la ligne
   /// ferait disparaître la preuve de ce qui a été instruit.

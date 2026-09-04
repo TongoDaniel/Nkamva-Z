@@ -4,7 +4,8 @@ import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
-import { listMyConversations, getConversation } from "@/lib/messaging";
+import { listMyConversations, getConversation, ensureCommunityGroup } from "@/lib/messaging";
+import { db } from "@/lib/db";
 import { ConversationPane } from "./conversation-pane";
 import { routesOf } from "@/lib/spaces";
 
@@ -27,6 +28,26 @@ export default async function MessageriePage({
   if (!auth) return null;
 
   const { fil } = await searchParams;
+
+  // Le groupe de sa propre communauté est créé au premier passage plutôt que par
+  // une migration : une communauté ouverte demain aurait eu besoin du même
+  // geste, et une migration ne l'aurait pas couverte.
+  if (auth.user.trainerId) {
+    const community = await db.community.findFirst({
+      where: { trainerId: auth.user.trainerId, status: "active" },
+      select: { id: true },
+    });
+    if (community) await ensureCommunityGroup(community.id);
+  }
+  // Idem pour les communautés rejointes : le groupe naît à la première visite
+  // de l'un de ses membres, quel qu'il soit.
+  const joined = await db.communitySubscription.findMany({
+    where: { learnerId: auth.user.id, community: { status: "active" } },
+    select: { communityId: true },
+    distinct: ["communityId"],
+  });
+  await Promise.all(joined.map((s) => ensureCommunityGroup(s.communityId)));
+
   const conversations = await listMyConversations(auth.user.id, auth.user.trainerId);
 
   // Le fil demandé — celui d'une notification — est chargé côté serveur ; les
@@ -43,8 +64,8 @@ export default async function MessageriePage({
         title="Messages"
         lead={
           auth.user.trainerId
-            ? "Vos échanges avec les membres de votre communauté et avec les formateurs que vous suivez."
-            : "Vos échanges avec les formateurs des communautés que vous avez rejointes."
+            ? "Le groupe de votre communauté, vos échanges privés avec ses membres, et les communautés que vous suivez."
+            : "Les groupes de vos communautés et vos échanges privés avec leurs formateurs, au même endroit."
         }
       />
 
@@ -53,7 +74,7 @@ export default async function MessageriePage({
           className="mt-6"
           icon={<MessageSquare />}
           title="Aucune conversation"
-          description="Échanger avec un formateur suppose d'être membre de sa communauté : l'achat d'une ressource à l'unité n'ouvre pas de fil."
+          description="Rejoindre une communauté ouvre son groupe et un fil privé avec son formateur. L'achat d'une ressource à l'unité n'en ouvre aucun."
           action={
             <BtnLink href={routes.communities} size="lg">Voir les communautés</BtnLink>
           }

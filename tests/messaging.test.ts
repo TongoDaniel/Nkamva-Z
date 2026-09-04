@@ -120,11 +120,11 @@ describe('Messagerie 1 à 1', () => {
 
     const asMember = await getConversation(id, member.id, null)
     expect(asMember.messages.map((m) => m.mine)).toEqual([true, false])
-    expect(asMember.peer.fullName).toBe('Awa Sarr')
+    expect(asMember.peer?.fullName).toBe('Awa Sarr')
 
     const asTrainer = await getConversation(id, trainerUser.id, trainer.id)
     expect(asTrainer.messages.map((m) => m.mine)).toEqual([false, true])
-    expect(asTrainer.peer.fullName).toBe('Koffi N\'Da')
+    expect(asTrainer.peer?.fullName).toBe('Koffi N\'Da')
   })
 
   it('un tiers ne lit pas le fil des autres', async () => {
@@ -267,7 +267,7 @@ describe('Messagerie 1 à 1', () => {
     // Le formateur voit le même fil depuis son bord.
     const theirs = await listMyConversations(trainerUser.id, trainer.id)
     expect(theirs.map((c) => c.id)).toEqual([id])
-    expect(theirs[0].peer.fullName).toBe('Koffi N\'Da')
+    expect(theirs[0].peer?.fullName).toBe('Koffi N\'Da')
   })
 
   // --- Le formateur aborde aussi ---

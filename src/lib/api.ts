@@ -212,12 +212,20 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
     message: 'Cette séance n\'a pas de version audio seule',
     status: 409,
   },
-  // --- Messagerie 1 à 1 (arbitrages 33 et 39) ---
+  // --- Messagerie : fils privés et groupes (arbitrages 33, 39, 126, 128-130) ---
   CONVERSATION_NOT_FOUND: { message: 'Conversation introuvable', status: 404 },
-  MESSAGING_DISABLED: { message: 'La messagerie n\'est pas ouverte dans cette communauté', status: 422 },
+  MESSAGING_DISABLED: { message: 'Cette conversation n\'est plus ouverte dans cette communauté', status: 422 },
   MEMBERSHIP_ENDED: {
-    message: 'Votre adhésion est terminée : le fil reste lisible, mais vous ne pouvez plus y écrire',
+    message: 'Votre adhésion est terminée : la conversation reste lisible, mais vous ne pouvez plus y écrire',
     status: 403,
+  },
+  ANNOUNCEMENT_NOT_ALLOWED: {
+    message: 'Seul le formateur annonce, et seulement dans le groupe de sa communauté',
+    status: 403,
+  },
+  PIN_IS_SYSTEM: {
+    message: 'Le groupe de votre communauté reste en tête : son épingle ne se retire pas',
+    status: 422,
   },
   // --- Sanctions de compte (arbitrage 63) ---
   SANCTION_FORBIDDEN: { message: 'Cette sanction est réservée au Super-admin', status: 403 },
