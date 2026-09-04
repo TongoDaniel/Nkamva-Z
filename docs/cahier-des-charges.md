@@ -11,6 +11,14 @@
 > `develop`, commit `a91b7fe`) : 1 866 lignes de schéma Prisma, 128 routes API,
 > 84 pages, 80 modules de service, 57 fichiers de test, 24 tâches planifiées.
 >
+> **Révisé le 4 septembre 2026**, après l'audit fonctionnel du 1er septembre
+> mené sur `develop`. Neuf décisions y ont été prises ; elles touchent F1
+> (reprise de l'action), F3 (durée mesurée, association à une communauté
+> ouverte, consultation d'une ressource achetée), F5 (lecture d'un lien
+> partageable), F7 (historique des ventes), F12 (e-mails et préférences),
+> §10.1 (budget par route), §13 et §14. Trois d'entre elles ne font que
+> réaffirmer une règle déjà écrite mais jamais implémentée.
+>
 > **Hiérarchie des sources en cas de divergence** : le code du dépôt, puis
 > `docs/decisions-nkamva.md`, puis ce document, puis les autres documents
 > `docs/`. Une divergence constatée est un défaut à corriger, pas une
@@ -61,7 +69,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 
 | Document | Ce qu'il porte |
 |---|---|
-| `docs/decisions-nkamva.md` | Les 117 arbitrages produit, avec leur statut d'implémentation |
+| `docs/decisions-nkamva.md` | Les 125 arbitrages produit, avec leur statut d'implémentation |
 | `docs/abonnement-formateur.md` | Les 19 arbitrages du cycle de vie de l'abonnement formateur (A1-A19) |
 | `docs/invitations.md` | Spécification complète des invitations aux communautés |
 | `docs/registre-des-traitements.md` | Registre des traitements de données personnelles |
@@ -195,6 +203,7 @@ d'erreur retournés par l'API.
 - **Double authentification** (TOTP) optionnelle, avec codes de récupération.
 - Profil : identité affichée, avatar, préférences de notification.
 - **Export des données personnelles** et **suppression de compte** à la demande.
+- **Reprendre l'action que l'authentification a interrompue**, sans la refaire.
 
 **Règles opposables**
 
@@ -218,6 +227,20 @@ d'erreur retournés par l'API.
 4. La suppression acceptée est **différée** : rappel programmé, puis purge par
    tâche planifiée (`PENDING_DELETION_REMINDER`, `DELETED_ACCOUNT_PURGE`).
 5. L'âge minimum de 16 ans est **déclaratif** — signalé comme tel au §11.
+6. **Reprise de l'action interrompue.** Une action engagée sans compte — acheter,
+   adhérer, accepter une invitation, ouvrir une ressource — est **reprise
+   automatiquement** une fois l'authentification faite. La destination voyage
+   dans `callbackUrl` et **traverse toute la chaîne** : inscription →
+   vérification par code → connexion. Aucune étape n'a le droit de la laisser
+   tomber ; le point d'arrivée par défaut (`/accueil`) n'est qu'un repli.
+
+   La destination vient de l'URL, donc de n'importe qui : elle est **validée par
+   un garde-fou unique et partagé** avant d'être suivie — chemin interne
+   uniquement, jamais une origine externe. Un `callbackUrl` refusé retombe sur
+   le repli, il ne provoque pas d'erreur.
+
+   Cette règle généralise ce que F5 imposait déjà au seul cas de l'invitation,
+   où l'adresse invitée est préremplie et verrouillée à l'inscription.
 
 ### F2 — Devenir formateur
 
@@ -250,7 +273,7 @@ abonnement** → ouverture de l'espace formateur. Le RIB n'est **jamais** demand
 **Retour d'un ancien formateur** (A7) — réactivation possible, **pièces
 revérifiées**. Un dossier ancien ne vaut pas preuve d'aujourd'hui.
 
-### F3 — Ressources : création, publication, catalogue
+### F3 — Ressources : création, publication, catalogue, consultation
 
 **Ce que le produit doit faire**
 
@@ -258,6 +281,7 @@ revérifiées**. Un dossier ancien ne vaut pas preuve d'aujourd'hui.
   couverture), téléverser son contenu, la publier, l'archiver.
 - La rendre découvrable : catalogue filtrable (catégorie, format, niveau, prix),
   recherche transversale, fiches publiques et connectées, favoris.
+- **La donner à consulter** une fois achetée, en gardant la position atteinte.
 
 **Règles opposables**
 
@@ -280,6 +304,71 @@ revérifiées**. Un dossier ancien ne vaut pas preuve d'aujourd'hui.
 7. Le dépassement de quota **bloque le téléversement** et **ne supprime rien** :
    aucun contenu en ligne ne disparaît pour une raison de facturation
    (arbitrage 54).
+8. **Ce qui est vérifiable est mesuré, pas déclaré.** La **durée d'une vidéo**
+   est lue sur l'objet téléversé, à la confirmation du téléversement, au même
+   endroit et pour la même raison que sa taille : un chiffre que le formateur
+   saisit lui-même n'engage rien et ne peut contredire personne. Elle n'est
+   donc **plus un champ du formulaire**.
+
+   La lecture se fait par intervalles sur l'objet, sans le rapatrier. Si elle
+   échoue, la durée reste **vide** et **la publication n'est pas bloquée** :
+   une métadonnée illisible ne vaut pas une vente refusée.
+
+   Le **nombre de sessions annoncé disparaît**. Une ressource est un fichier
+   unique, le mode école est hors périmètre (arbitrage 4), et rien dans le
+   système ne peut confronter ce nombre au contenu réel : c'est exactement
+   l'incohérence qu'un fichier « à une session » déposé sous une annonce « deux
+   sessions » a laissé passer.
+9. Le **format d'une ressource est identifiable sans l'ouvrir**, dans le
+   catalogue comme dans l'espace de l'acheteur — une vidéo se reconnaît à sa
+   vignette et à son libellé, pas en cliquant.
+10. **On n'associe une ressource qu'à une communauté ouverte.** *Ouverte* et
+    *visible* sont deux choses (arbitrage 81) : `status` dit que la communauté
+    **vit**, `visibility` dit qu'on peut la **trouver**. Une communauté privée
+    reste ouverte — elle est fermée au public, pas close. Le contrôle porte donc
+    sur `status`, jamais sur la visibilité : un formateur qui met sa communauté
+    en privé continue d'y inclure des ressources.
+
+    La règle est **bornée à l'instant de l'association**, et elle l'est par la
+    règle 2 : la bascule vendue → incluse étant à sens unique, une ressource
+    déjà incluse ne peut pas retourner au catalogue si la communauté ferme
+    ensuite. Ce que devient une ressource incluse quand sa communauté se ferme
+    (F9.9) **n'est pas arbitré** : voir §14.
+11. **Une ressource incluse dit à quelle communauté elle appartient.** Dans
+    l'espace de l'acheteur, elle porte un lien qui **ouvre directement** cette
+    communauté. « Mes communautés » reste la vue dédiée — elle ne doit
+    simplement plus être le seul endroit d'où l'on retrouve une communauté liée
+    à une ressource.
+
+**Consultation d'une ressource achetée**
+
+L'accès est à vie ; il doit aussi être **repris là où il s'est arrêté**. Une
+ressource longue se consulte en plusieurs fois, souvent depuis un téléphone,
+souvent sur une connexion qui se coupe.
+
+1. **La position est enregistrée, et elle est réelle.** Ce n'est pas un
+   pourcentage estimé : c'est **une seconde** pour une vidéo, **une page** pour
+   un document. Elle est sauvegardée pendant la consultation, et au plus tard
+   quand l'onglet est masqué ou fermé — on ne perd pas ce qui a été lu parce que
+   la personne a fermé son navigateur.
+2. **Toute ressource lisible en ligne est lue en ligne, dans son format.** Un
+   document n'est pas rendu par un lecteur vidéo : chaque format a le rendu qui
+   lui correspond, faute de quoi l'écran est vide et rien n'est mesuré. Le
+   visualiseur nécessaire est chargé **sur la seule route de lecture**, aux
+   conditions du §10.1.
+3. **Ce qui ne se rend pas en ligne se marque.** Les archives — kit, tableur,
+   modèle — n'ont pas de position possible : elles portent un marqueur
+   **ouvert / terminé** que l'apprenant pose lui-même, et le téléchargement les
+   compte comme consultées.
+4. **La reprise vaut sur tous les appareils** : elle est portée par le compte,
+   pas par le navigateur. Fermer l'onglet, se déconnecter, changer de téléphone
+   ne la perdent pas.
+5. La **progression affichée** se dérive de cette position. Quand la longueur de
+   la ressource est inconnue, on affiche l'avancement **sans pourcentage**
+   plutôt qu'un zéro trompeur : un anneau à 0 % sur une ressource lue à moitié
+   fait croire que rien n'a été enregistré.
+6. Cette position est **la même donnée** que celle qui alimente le seuil de
+   consommation des litiges (F8.1) : il n'en existe pas deux.
 
 ### F4 — Achat et paiement
 
@@ -356,6 +445,18 @@ mobile money) → paiement chez le fournisseur → retour → confirmation.
      exception : l'adresse discordante est signalée, masquée (`j••••@exemple.com`).
    - Le formateur ne voit **qu'un statut d'invitation**, jamais un statut de
      personne — sans quoi sa liste devient une sonde d'énumération d'adresses.
+   - **Les deux formes ne se lisent pas de la même façon.** Une invitation
+     **nominative** est à usage unique : elle a un statut binaire, en attente ou
+     acceptée. Un **lien partageable** est multi-usage par conception — jusqu'à
+     25 acceptations sur 90 jours glissants — et n'a donc pas de statut
+     « accepté » : il affiche un **compteur d'usages** (`n / maximum`), et ne
+     devient terminal qu'épuisé, expiré ou révoqué. Lui appliquer la pastille
+     binaire le laisse indéfiniment « en attente » alors que des membres sont
+     entrés, ce qui est faux et ce que le formateur lit comme une panne.
+   - Toute notification touchant une invitation renvoie vers **l'écran qui la
+     porte réellement** — le panneau d'invitations de la communauté. Une
+     notification qui pointe une route inexistante est un défaut, pas un détail
+     de libellé.
    - L'adresse invitée est une donnée personnelle : **rétention 90 jours** après
      l'état terminal, purge planifiée, aucun usage marketing, présence dans
      l'export de données des deux côtés.
@@ -397,7 +498,7 @@ mobile money) → paiement chez le fournisseur → retour → confirmation.
 9. Horodatage **UTC en base**, fuseau IANA déclaré sur la séance, affichage dans
    le fuseau du lecteur (arbitrage 107).
 
-### F7 — Portefeuille, KYC et retraits
+### F7 — Portefeuille, ventes, KYC et retraits
 
 **Score KYC** (arbitrage 1) — sur 100 :
 
@@ -442,6 +543,19 @@ Seuils : **≥ 80 « Vérifié »**, 50-79 « À vérifier », < 50 « Non véri
 10. Le **snapshot KYC est figé à la demande** de retrait : c'est lui qui a
     décidé de la voie suivie, la décision doit rester auditable même si le
     formateur évolue ensuite.
+11. **Le formateur dispose d'un historique de ses ventes, ligne à ligne.** Un
+    solde global ne dit pas d'où vient l'argent : il faut, pour **chaque vente**,
+    ce qui a été vendu, la date, le **montant brut**, la **commission retenue**,
+    le **montant net revenant au formateur** et le **statut** — encaissée,
+    remboursée, contestée, accès suspendu.
+
+    Les montants sont **lus à leur source** (`lib/commission.ts`), jamais
+    recopiés dans l'écran, et ce sont les valeurs **figées sur l'achat** qui
+    font foi : un taux de commission qui évolue ne réécrit pas le passé.
+
+    Le partage doit être **lisible et cohérent avec la règle affichée** au §2.2.
+    Un formateur qui voit 1 700 FCFA arriver sur une vente à 2 000 doit pouvoir
+    retrouver les 300 retenus, nommés, sans les calculer lui-même.
 
 **États d'un retrait** : `PENDING → AUTO_APPROVED | IN_REVIEW → APPROVED |
 REJECTED → PAID | FAILED`, avec réouverture réservée au Super-admin.
@@ -558,6 +672,38 @@ journal d'audit.
 3. Un changement de tarif est annoncé **60 jours** avant.
 4. Un changement de moyen de versement alerte **l'ancienne adresse e-mail**,
    avec un lien de signalement.
+5. **Cinq événements courants partent aussi par e-mail**, en plus de la
+   notification in-app qui reste la trace consultable dans le compte :
+
+   | Événement | Destinataires | Catégorie |
+   |---|---|---|
+   | Nouveau message | Le destinataire du message | Relationnel |
+   | Achat abouti | L'acheteur (reçu) **et** le formateur (vente réalisée) | Transactionnel |
+   | Invitation émise | L'invité | Hors préférence |
+   | Invitation acceptée | L'émetteur de l'invitation | Relationnel |
+   | Adhésion à une communauté | Le nouveau membre **et** le formateur | Transactionnel |
+
+   L'annonce de vente au formateur n'est pas un agrément : c'est la seule façon
+   d'apprendre qu'on a vendu sans surveiller un écran.
+
+6. **Deux catégories, un seul interrupteur nouveau.**
+   - Le **transactionnel** ne se coupe pas : un reçu, une facture, un accès qui
+     s'ouvre sont des preuves, pas des annonces. Aucune préférence ne s'y
+     applique.
+   - Le **relationnel** se coupe d'un seul geste, par une préférence unique.
+   - Une **invitation** part vers une adresse qui n'a peut-être aucun compte :
+     aucune préférence n'existe pour la porter, l'envoi est donc systématique.
+
+   Le profil compte ainsi **deux interrupteurs** au total : le relationnel, et
+   celui des préavis d'abonnement qui existait déjà. Pas cinq. Une page de
+   réglages avec un interrupteur par événement serait pire que le problème.
+
+7. **Une action ne produit jamais deux notifications.** Les effets de bord d'un
+   événement sont émis une fois, à l'endroit qui commet la transaction — ni au
+   webhook **et** au retour navigateur, ni à deux appelants d'une même règle.
+
+8. Le **rappel avant une séance en direct reste ajourné** — voir §14. Son
+   absence de cette liste est une décision, pas un oubli.
 
 ---
 
@@ -724,7 +870,7 @@ de noms (`lib/name-match.ts`) ne compare que ce qu'elle en reçoit.
 |---|---|
 | Appareil de référence | Android d'entrée de gamme, **360-375 px** de large |
 | Réseau de référence | 3G rapide — 1,6 Mb/s descendant, **300 ms** de latence |
-| Transfert au premier rendu | **≤ 300 Ko** hors polices |
+| Transfert au premier rendu | **≤ 300 Ko** hors polices, **par route** |
 | Images par écran de liste | ≤ 120 Ko cumulés |
 | Une couverture servie sur mobile | ≤ 60 Ko |
 | LCP | **≤ 3 s** sur ce profil |
@@ -737,6 +883,21 @@ JavaScript client gzippé sur 93 fragments, dont un socle commun de 157 Ko charg
 sur chaque page. Le budget de 300 Ko est donc **à moitié consommé avant tout
 affichage** — il ne laisse aucune marge pour une dépendance lourde
 supplémentaire.
+
+**Le budget se lit par route, pas globalement.** Une dépendance lourde reste
+interdite **dans le socle commun** et dans toute route de parcours — accueil,
+catalogue, fiche, tunnel d'achat. Elle est admise sur une route terminale qui
+en a besoin pour rendre son objet, à trois conditions cumulatives :
+
+1. elle est chargée en **import dynamique**, jamais dans le socle ;
+2. la route qui la porte est **hors parcours d'acquisition** — on y arrive
+   après avoir payé, pas avant de décider ;
+3. son poids réel est **mesuré et consigné ici** au moment de la livraison.
+
+Le seul cas ouvert à ce jour est le **visualiseur de document** de la route de
+lecture d'une ressource achetée (voir F3, « Consultation d'une ressource
+achetée »). Le budget de 300 Ko continue de valoir, inchangé, sur toutes les
+autres routes.
 
 ### 10.2 Les onze règles d'expérience — critères opposables
 
@@ -913,7 +1074,8 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | Litiges, réservations de fonds, remboursements, chargebacks | Livré |
 | KYC, moyens de versement, retraits, réconciliation | Livré, écrans compris |
 | Parcours d'achat (Stripe Checkout + PawaPay), factures | Livré |
-| Communautés, adhésions, invitations, fil, messagerie | Livré |
+| Communautés, adhésions, invitations, fil | Livré |
+| Messagerie | **Partiel** — les fils, les droits d'écriture et les accusés de lecture sont livrés ; le sondage exigé au §4.2 ne l'est pas, et l'envoi n'a pas de clé d'idempotence |
 | Lives, replays, purges et préavis | Livré |
 | Abonnement formateur, tarification, remises, stockage, fin de vie | Livré |
 | Signalements, sanctions, administration à trois sous-rôles, journal d'audit | Livré |
@@ -925,19 +1087,34 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 1. **Les trois points bloquants du §11.3** — identité de l'éditeur, conditions
    générales contradictoires, autorisation de transfert. Rien ne se met en ligne
    publiquement avant.
-2. **Mobile first, lot 3** — les écrans, partiellement livré : 62 pages,
+2. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
+   mené sur `develop`, tel que servi par staging. Neuf constats sont confirmés
+   par le code, un attend une reproduction. Dans l'ordre d'exécution : reprise
+   de l'action après authentification (F1.6) · notifications et e-mails (F12.5
+   à F12.7) · historique des ventes (F7.11) · idempotence et sondage de la
+   messagerie (§4.2) · compteur d'usages des invitations (F5) · durée mesurée
+   et retrait du nombre de sessions (F3.8) · position de lecture (F3,
+   « Consultation ») · ressource et communauté associées (F3.10, F3.11) ·
+   lives · recette finale.
+
+   Deux de ces lots sont **bloqués par un arbitrage** listé au §14 : le sort
+   d'une ressource incluse quand sa communauté ferme, et la portée de
+   `resourcesEnabled`.
+3. **Mobile first, lot 3** — les écrans, partiellement livré : 62 pages,
    administration retirée du périmètre. C'est le gros du chantier restant.
-3. **Montant de l'abonnement payant** — jamais arbitré. Sans successeur, borner
+4. **Montant de l'abonnement payant** — jamais arbitré. Sans successeur, borner
    la gratuité au 31 décembre 2026 ne change rien. Deux montants à dire.
-4. **Réponse de PawaPay** sur le règlement en devise locale par marché et sur la
+   **Conséquence désormais visible en vitrine** : `/tarifs` annonce « 9 000
+   FCFA/mois » et « 0 FCFA/an » — la paire est incohérente pour qui la lit.
+5. **Réponse de PawaPay** sur le règlement en devise locale par marché et sur la
    présence éventuelle d'un nom de payeur dans les rappels — la seconde réponse,
    si elle est positive, rend l'intégration MTN inutile.
-5. **Écarts résiduels connus** : notification de résolution de litige au
+6. **Écarts résiduels connus** : notification de résolution de litige au
    formateur ; distinction `INDIVIDUAL` / `BUSINESS` dans la vérification ;
    limitations de débit définies mais non branchées sur toutes les routes ;
    `negativeSince` non recalculé lors d'un débit de remboursement ;
    `react-email` non installé ; couche « name lookup » opérateur inactive.
-6. **Redirection de l'espace visiteur** — un utilisateur connecté navigue
+7. **Redirection de l'espace visiteur** — un utilisateur connecté navigue
    librement dans l'espace public. **Ajourné volontairement** : deux arbitrages
    doivent précéder toute ligne de code (le périmètre, puisque `/recherche` n'a
    pas de jumeau connecté et deviendrait inaccessible ; et l'échappatoire « voir
@@ -955,8 +1132,10 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **Le change** | Financier | Le même taux encaisse et reverse. **Majorer le taux ne couvre pas le *spread*** : 1 % de *spread* coûte 12 % de la commission. À traiter comme une ligne de coût, pas comme un réglage de taux |
 | **Secrets réels présents dans l'historique du dépôt** | Sécurité | Rotation des clés concernées ; ne jamais laisser un fichier d'environnement entrer dans une fusion |
 | **L'environnement de développement écrit dans le stockage de production** | Sécurité / exploitation | Séparer les seaux avant tout élargissement de l'équipe |
-| **Budget mobile déjà à moitié consommé** | Performance | Aucune dépendance lourde supplémentaire sans retrait équivalent |
-| **Rappel avant une séance** | Produit | Ajourné : hypothèse tant que le premier live n'a pas eu lieu |
+| **Budget mobile déjà à moitié consommé** | Performance | Aucune dépendance lourde dans le socle ni sur une route de parcours. Sur une route terminale, elle est admise aux trois conditions du §10.1 — import dynamique, hors parcours d'acquisition, poids mesuré et consigné |
+| **Rappel avant une séance** | Produit | **Ajournement confirmé le 4 septembre 2026.** L'audit du 1er septembre l'énumère parmi les notifications attendues, mais personne n'a constaté son absence comme un défaut : il reste une hypothèse tant que le premier live réel n'a pas eu lieu. Son absence de F12.5 est donc une décision, pas un oubli — et l'outillage existe déjà (préavis J-7/J-1, tâches planifiées) le jour où elle sera prise |
+| **Ressource incluse dans une communauté qui ferme** | Produit, bloquant pour F3.10 | La bascule vendue → incluse est à sens unique : la ressource ne peut pas retourner au catalogue. Reste-t-elle servie aux membres entrés, disparaît-elle, ou le formateur récupère-t-il un droit de republication ? |
+| **Le salon des ressources éteint vaut-il « fermé » ?** | Produit, bloquant pour F3.10 | `resourcesEnabled` à faux sur une communauté par ailleurs active : peut-on encore y associer une ressource ? Le contrôle porte aujourd'hui sur `status` seul |
 | **Inscription à une séance, distincte de la présence** | Produit | Ajourné — l'absence de jauge a retiré ce qui la rendait nécessaire |
 | **Contrepartie du parrain** | Produit | Ajournée ; financée sur la commission NkamVa si elle arrive |
 

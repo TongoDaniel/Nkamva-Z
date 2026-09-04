@@ -1597,6 +1597,103 @@ Toute livraison du chantier mobile se juge sur cette liste. Elle est vérifiée 
 
 ---
 
+## Arbitrages 118-125 — Suites de l'audit fonctionnel du 1er septembre 2026
+
+> Rendus le 4 septembre 2026, après l'audit fonctionnel du MVP mené sur
+> `develop` tel que servi par staging. Contrairement aux arbitrages 108-117,
+> **ceux-ci ont été tranchés explicitement par le propriétaire**.
+>
+> L'audit relève douze constats. Neuf sont confirmés par le code ; un — la
+> disparition d'un live planifié de l'espace formateur — n'a aucune cause
+> identifiable en lecture et attend une reproduction.
+
+**118. La durée d'une vidéo est mesurée, pas saisie** — Elle est lue sur l'objet
+téléversé à la confirmation du téléversement, par lectures d'intervalles, au même
+endroit et pour la même raison que sa taille. Le champ disparaît du formulaire.
+Une lecture en échec laisse la durée vide et **ne bloque pas la publication**.
+Le **nombre de sessions annoncé disparaît purement et simplement** : une ressource
+est un fichier unique, le mode école est hors périmètre (arbitrage 4), et rien ne
+peut confronter ce nombre au contenu. Raison : l'audit a déposé un fichier « une
+session » sous une annonce « deux sessions » et rien ne l'a arrêté — ce qu'aucun
+contrôle ne peut vérifier ne doit pas être demandé.
+
+**119. Cinq événements partent par e-mail, sous deux catégories** — Nouveau
+message, achat abouti, invitation émise, invitation acceptée, adhésion à une
+communauté. L'achat et l'adhésion préviennent **les deux parties** : l'annonce de
+vente au formateur est la seule façon d'apprendre qu'on a vendu sans surveiller un
+écran. Le **transactionnel ne se coupe pas** (un reçu est une preuve), le
+**relationnel se coupe d'un seul interrupteur**, et une invitation part vers une
+adresse sans compte, donc sans préférence possible. Raison : cinq interrupteurs
+dans le profil seraient pires que le problème.
+
+**120. On associe une ressource à une communauté *ouverte*, pas *visible*** —
+Précision de l'arbitrage 81 : `status` dit que la communauté vit, `visibility`
+dit qu'on peut la trouver. Le contrôle porte sur `status` seul — un formateur qui
+passe sa communauté en privé continue d'y inclure des ressources. La règle est
+bornée à l'instant de l'association, la bascule vendue → incluse étant à sens
+unique (arbitrage 53).
+
+**121. La progression est une position de lecture réelle, sur tous les formats
+rendables** — Une seconde pour une vidéo, **une page pour un document**, quitte à
+embarquer un visualiseur. Les archives, qui ne se rendent pas en ligne, portent un
+marqueur ouvert / terminé posé par l'apprenant. Raison : quatre des cinq
+ressources de staging sont des PDF, et un PDF servi dans une balise vidéo
+n'affiche rien et ne mesure rien — c'est ce que l'auditeur a rencontré.
+> Arbitrage pris **contre la recommandation technique**, qui proposait le
+> marqueur binaire pour tout ce qui n'est pas vidéo afin d'épargner le budget
+> mobile. Le propriétaire a maintenu la position de lecture. D'où l'arbitrage 122.
+
+**122. Le budget de transfert se lit par route** — Une dépendance lourde reste
+interdite dans le socle commun et sur toute route de parcours. Elle est admise sur
+une route terminale à trois conditions cumulatives : import dynamique, hors
+parcours d'acquisition, poids mesuré et consigné. Raison : sans cette lecture,
+l'arbitrage 121 était inapplicable ; avec elle, le budget de 300 Ko continue de
+valoir intact sur l'accueil, le catalogue, la fiche et le tunnel d'achat.
+
+**123. Un lien partageable affiche un compteur d'usages, pas un statut** — Une
+invitation nominative est à usage unique et garde son statut binaire. Un lien
+partageable est multi-usage par conception — 25 acceptations sur 90 jours
+glissants (arbitrage 102) — et n'a donc **pas d'état « accepté »** : il affiche
+`n / maximum` et ne devient terminal qu'épuisé, expiré ou révoqué. Précise
+l'arbitrage 86, qui dit *quoi* montrer sans dire *comment* le lire. Raison : la
+pastille binaire le laissait « en attente » pour toujours alors que des membres
+étaient entrés, ce que le formateur lit comme une panne.
+
+**124. Une action interrompue par l'authentification reprend après** — Acheter,
+adhérer, accepter une invitation, ouvrir une ressource : la destination voyage
+dans `callbackUrl` et **traverse toute la chaîne** inscription → vérification par
+code → connexion, validée par un garde-fou unique et partagé. Généralise ce que
+l'arbitrage 84 faisait déjà pour la seule invitation, dont l'adresse est imposée
+et verrouillée à l'inscription : l'état d'une action y traverse déjà la création
+de compte, il n'y avait aucune raison qu'il le fasse pour un seul parcours.
+
+**125. Le formateur a un historique de ses ventes, ligne à ligne** — Pour chaque
+vente : ce qui a été vendu, la date, le brut, la commission retenue, le net, le
+statut. Valeurs figées sur l'achat, lues à leur source. Raison : un solde global
+ne dit pas d'où vient l'argent, et un formateur qui voit 1 700 FCFA arriver sur
+une vente à 2 000 doit retrouver les 300 retenus sans les calculer lui-même.
+
+### Deux règles réaffirmées, non renumérotées
+
+- **Le sondage de la messagerie** — 8 s sur un fil, 15 s sur une liste — était
+  **déjà décidé** et figure au §4.2 du cahier. Il n'est implémenté que sur la
+  confirmation d'achat. Ce n'est donc pas un arbitrage nouveau mais un **écart
+  d'implémentation**, corrigé au titre de la règle d'expérience 2 (jamais de
+  retour contradictoire).
+- **Le rappel avant une séance reste ajourné.** L'audit l'énumère parmi les
+  notifications attendues ; personne n'a constaté son absence comme un défaut.
+  Il reste une hypothèse tant que le premier live réel n'a pas eu lieu.
+
+### Ce que ces décisions laissent ouvert
+
+| Point | Bloque | Ce qu'il faut décider |
+|---|---|---|
+| Ressource incluse dans une communauté qui ferme | Arbitrage 120 | La bascule étant à sens unique, reste-t-elle servie aux membres entrés, disparaît-elle, ou le formateur récupère-t-il un droit de republication ? |
+| Portée de `resourcesEnabled` | Arbitrage 120 | Un salon de ressources éteint sur une communauté active empêche-t-il l'association ? |
+| Cause de la disparition d'un live planifié | — | Aucune cause trouvée en lecture de code ; à reproduire sur compte connecté |
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |
