@@ -10,6 +10,23 @@
 // Les assertions s'ancrent sur `href=` et non sur du texte rendu : le HTML d'un
 // composant serveur porte des marqueurs `<!-- -->` entre les nœuds, et un
 // libellé peut être coupé en deux par le flux RSC.
+//
+// **Portée.** Ce script couvre les relais *serveur*. Les deux sauts *client* —
+// après création de compte, et après code validé — sont des `router.push` : ils
+// n'existent que dans le navigateur et aucune requête HTTP ne les révèle. Ils se
+// vérifient à la main, une fois, ainsi :
+//
+//   1. commenter `RESEND_API_KEY` dans `.env` et redémarrer le serveur de dev —
+//      `sendEmail()` bascule alors sur son repli et journalise `[EMAIL:DEV]`
+//      au lieu d'envoyer. Sans cette étape, la recette expédie un vrai courriel
+//      à une adresse en `.test`, qui rebondit ;
+//   2. s'inscrire depuis `/auth/inscription?callbackUrl=/achat/…` ;
+//   3. relire le code dans les journaux du serveur : le sujet de l'e-mail le
+//      porte en clair (« votre code de vérification : 123456 ») ;
+//   4. le saisir, puis se connecter. L'arrivée doit être la destination
+//      demandée, pas `/accueil`.
+//
+// Fait le 4 septembre 2026, chaîne complète verte jusqu'à « Finaliser l'achat ».
 // Aucune base : tout ce qui est vérifié ici se décide dans le middleware, qui
 // tourne sur le runtime Edge et n'a précisément **pas** la base — il ne juge que
 // le jeton. Un jeton forgé de toutes pièces suffit donc, et le test reste
