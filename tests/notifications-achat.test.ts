@@ -111,15 +111,18 @@ describe("Lot 2 — annonces d'un achat encaissé", () => {
     expect(vente!.body).toContain('17')
   })
 
-  it('ne renvoie jamais le formateur vers un lien mort', async () => {
+  it('renvoie le formateur vers un écran qui existe', async () => {
     const { trainer, course, learner } = await setup()
     await initiatePurchase(course.id, learner.id, 'STRIPE')
 
     const vente = (await typesFor(trainer.id)).find((n) => n.type === 'COURSE_SOLD')
-    // `/formateur/ventes` n'existe qu'au lot 3 : tant qu'il n'existe pas, on
-    // n'annonce pas une vente par une page introuvable.
-    expect(vente!.link).not.toBe('/formateur/ventes')
-    expect(vente!.link).toBe('/formateur/portefeuille')
+    expect(vente!.link).toBe('/formateur/ventes')
+
+    // L'assertion précédente ne dirait rien si la route disparaissait : c'est
+    // exactement ainsi que `/formateur/invitations` est resté mort des mois.
+    // On vérifie donc que la page est réellement là.
+    const { existsSync } = await import('fs')
+    expect(existsSync('src/app/(app)/formateur/ventes/page.tsx')).toBe(true)
   })
 
   it('un webhook rejoué ne produit aucune seconde notification (F12.7)', async () => {

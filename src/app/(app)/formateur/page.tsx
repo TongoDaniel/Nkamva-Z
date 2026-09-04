@@ -234,9 +234,16 @@ export default async function FormateurPage() {
           Votre solde est crédité à chaque vente confirmée. Les retraits passent par un
           compte vérifié et votre score de confiance.
         </span>
-        <Link href="/formateur/portefeuille" className="nk-tap font-bold text-brand">
-          Ouvrir le portefeuille
-        </Link>
+        <span className="flex flex-wrap items-center gap-4">
+          {/* Le détail avant le solde : c'est la question « d'où vient cet
+              argent ? » qui amène ici, et le portefeuille n'y répond pas. */}
+          <Link href="/formateur/ventes" className="nk-tap font-bold text-brand">
+            Voir le détail de mes ventes
+          </Link>
+          <Link href="/formateur/portefeuille" className="nk-tap font-bold text-brand">
+            Ouvrir le portefeuille
+          </Link>
+        </span>
       </p>
     </div>
   );
