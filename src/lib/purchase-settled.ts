@@ -128,11 +128,7 @@ async function announceSettledPurchase(purchaseId: string): Promise<void> {
       type: estAdhesion ? 'MEMBERSHIP_SOLD' : 'COURSE_SOLD',
       title: estAdhesion ? `Nouveau membre dans ${intitule}` : `Vous avez vendu « ${intitule} »`,
       body: detail,
-      // Le portefeuille tant que l'historique de ventes n'existe pas (lot 3,
-      // F7.11) : il porte déjà le solde que cette vente vient d'alimenter. On
-      // n'annonce pas une vente par un lien mort — c'est le défaut qu'on
-      // corrige par ailleurs sur les invitations.
-      link: '/formateur/portefeuille',
+      link: '/formateur/ventes',
     },
     {
       subject: estAdhesion
@@ -146,7 +142,7 @@ async function announceSettledPurchase(purchaseId: string): Promise<void> {
           : `« ${intitule} » vient d'être acheté.`,
         detail + '. Votre part est déjà créditée sur votre portefeuille.',
       ],
-      cta: { label: 'Voir mon portefeuille', url: absoluteUrl('/formateur/portefeuille') },
+      cta: { label: 'Voir mes ventes', url: absoluteUrl('/formateur/ventes') },
     },
     TRANSACTIONAL,
   )

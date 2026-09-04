@@ -106,12 +106,17 @@ export default async function PortefeuillePage() {
         title="Portefeuille"
         lead="Votre solde, votre score de confiance et vos retraits. Le solde est crédité à chaque vente réellement encaissée."
         actions={
-          active ? null : (
-            <BtnLink href="/formateur/portefeuille/moyen-de-paiement">
+          <>
+            {/* Le solde dit combien ; il ne dit pas d'où. Le renvoi vaut quel
+                que soit l'état du compte de versement. */}
+            <BtnLink href="/formateur/ventes" variant="o">Mes ventes</BtnLink>
+            {active ? null : (
+              <BtnLink href="/formateur/portefeuille/moyen-de-paiement">
                 <Plus aria-hidden="true" />
                 Enregistrer un compte
-            </BtnLink>
-          )
+              </BtnLink>
+            )}
+          </>
         }
       />
 
