@@ -1751,6 +1751,32 @@ de la personne, le nom du groupe **et le corps des messages**.
 > un mot dit dans une conversation dont on a oublié le nom est le cas courant —
 > s'en tenir aux titres ferait un annuaire, pas une recherche.
 
+### Ce que la bascule a coûté, et qui était su
+
+> Les deux temps sont livrés — 4 septembre 2026. La migration
+> `bascule_historique_groupes` a versé les billets dans les messages, réécrit
+> les signalements qui les visaient, puis vidé les deux tables.
+
+Deux pertes, décidées et non subies :
+
+- **L'imbrication.** Une réponse est devenue un message posté à sa propre date.
+  Elle suit son billet, mais rien ne dit plus qu'elle lui répondait. C'est le
+  prix du passage d'un forum à un flux, et la raison du découpage en deux temps.
+- **L'épingle d'une discussion.** Le nouveau modèle n'épingle que les annonces.
+  Un sujet épinglé par un membre ne pouvait pas en devenir une — annoncer est un
+  geste de formateur — il a donc perdu son épingle. Les annonces ont gardé la
+  leur, puisque c'est ce que le marqueur veut dire.
+
+Ce qui a été conservé : l'auteur, la date, le texte, le retrait avec la trace de
+qui l'a retiré, et les signalements ouverts, réécrits vers le message
+correspondant.
+
+Un effet de bord traité au passage : `refreshCommunityActivity` comptait les
+billets pour alimenter « messages / jour » de la fiche publique. Elle compte
+désormais les messages **du groupe** — les fils privés n'y entrent pas, ils ne
+regardent personne. Sans ce changement, toute communauté aurait affiché zéro le
+lendemain de la bascule.
+
 ### Ce que ces décisions laissent ouvert
 
 | Point | Ce qu'il faut décider |

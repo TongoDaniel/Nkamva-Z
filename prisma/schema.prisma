@@ -527,8 +527,10 @@ model Community {
   coverSizeBytes   BigInt?
   priceFcfa        Int
   commissionRate   Float                   @default(0.15)
+  /// Arbitrage 126 — le fil collectif est désormais un **groupe** de la
+  /// messagerie. L'interrupteur garde son nom en base : c'est lui qui ouvre
+  /// ou ferme ce groupe.
   forumEnabled     Boolean                 @default(true)
-  broadcastEnabled Boolean                 @default(true)
   messagingEnabled Boolean                 @default(true)
   resourcesEnabled Boolean                 @default(true)
   eventsEnabled    Boolean                 @default(true)
@@ -701,14 +703,25 @@ model CommunityCourse {
   @@map("community_courses")
 }
 
-// --- Espace membre : annonces et fil de discussion ---
-// Deux salons, pas un seul fil trié : `broadcastEnabled` et `forumEnabled`
-// s'activent séparément sur la communauté, et une annonce du formateur n'a ni
-// le même auteur possible ni la même place qu'une discussion entre membres.
+// --- Espace membre : le forum, vidé ---
+//
+// **Ces deux tables ne reçoivent plus rien** (arbitrage 126). Le fil collectif
+// d'une communauté est devenu un groupe de la messagerie, et la migration
+// `bascule_historique_groupes` a versé leur contenu dans `Message` : un billet
+// est devenu un message, une réponse un message posté à sa propre date, une
+// annonce un message `announcement`.
+//
+// Elles sont conservées vides, et non supprimées, parce que les valeurs
+// `COMMUNITY_POST` et `COMMUNITY_POST_REPLY` de `ReportTargetType` gardent un
+// sens historique — et parce que supprimer une table pour économiser deux
+// définitions inertes n'achète rien.
+//
+// Rien ne doit plus écrire ici. Ce qui s'écrivait devient un `Message` dans la
+// conversation `GROUP` de la communauté.
 enum CommunityPostKind {
-  /// Réservée au formateur, conditionnée à `Community.broadcastEnabled`.
+  /// Devenue `Message.announcement` (arbitrage 128).
   ANNOUNCEMENT
-  /// Ouverte aux membres, conditionnée à `Community.forumEnabled`.
+  /// Devenue un message ordinaire du groupe.
   DISCUSSION
 }
 

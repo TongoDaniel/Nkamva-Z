@@ -140,42 +140,46 @@ async function main() {
     //
     // Ce sont celles où le harcèlement se joue, et elles n'avaient aucune
     // issue : le fil ne portait que l'épingle et la corbeille.
-    // Une **annonce**, et pas n'importe quel billet : le salon des annonces est
-    // celui que l'espace ouvre par défaut, donc le seul dont les billets sont
-    // dans le HTML initial. Viser une discussion rendrait ce contrôle rouge ou
-    // vert selon l'ordre que Postgres rend, ce qui ne vérifie rien.
-    const feedPost = await db.communityPost.findFirst({
-      where: { deletedAt: null, kind: 'ANNOUNCEMENT', community: { broadcastEnabled: true } },
+    //
+    // Le fil de la communauté est devenu son **groupe**, dans la messagerie
+    // (arbitrage 126) : c'est là que ce contrôle a désormais lieu, et un message
+    // de groupe se signale comme n'importe quel message. Le détour par
+    // `/mes-communautes` n'a plus lieu d'être — cette page ne porte plus de
+    // conversation.
+    const groupMessage = await db.message.findFirst({
+      where: { deletedAt: null, conversation: { kind: 'GROUP' } },
       orderBy: { createdAt: 'asc' },
       select: {
-        id: true, authorId: true, communityId: true,
-        community: { select: { slug: true } },
+        id: true, senderId: true,
+        conversation: { select: { id: true, communityId: true } },
       },
     })
-    // Le lecteur doit être un **membre** qui n'a pas écrit le billet : on ne se
-    // signale pas soi-même, et un non-membre est renvoyé sur la fiche publique.
-    const feedViewer = feedPost
+    // Le lecteur doit être un **membre** qui n'a pas écrit le message : on ne se
+    // signale pas soi-même, et un non-membre ne voit pas le groupe.
+    const groupViewer = groupMessage
       ? await db.communitySubscription.findFirst({
           where: {
-            communityId: feedPost.communityId,
+            communityId: groupMessage.conversation.communityId,
             status: 'ACTIVE',
-            learnerId: { not: feedPost.authorId },
+            learnerId: { not: groupMessage.senderId },
           },
           select: { learner: { select: { email: true } } },
         })
       : null
-    if (feedPost && feedViewer) {
-      const feed = readable(
-        await (await fetch(`${BASE}/mes-communautes/${feedPost.community.slug}`, {
-          headers: { cookie: await cookieFor(feedViewer.learner.email) },
+    if (groupMessage && groupViewer) {
+      // `?fil=` est indispensable : sans lui la page rend la liste et un
+      // « Choisissez une conversation », donc aucune bulle à signaler.
+      const groupe = readable(
+        await (await fetch(`${BASE}/messagerie?fil=${groupMessage.conversation.id}`, {
+          headers: { cookie: await cookieFor(groupViewer.learner.email) },
         })).text(),
       )
       check(
-        `/mes-communautes/${feedPost.community.slug} pose le signalement sur les billets`,
-        feed.includes('Signaler ce message') && !feed.includes('Une erreur est survenue'),
+        '/messagerie pose le signalement sur les bulles du groupe',
+        groupe.includes('Signaler ce message') && !groupe.includes('Une erreur est survenue'),
       )
     } else {
-      console.log('· aucune annonce lisible par un membre tiers : contrôle du fil ignoré')
+      console.log('· aucun message de groupe lisible par un membre tiers : contrôle ignoré')
     }
 
     const peerMessage = await db.message.findFirst({
@@ -319,11 +323,11 @@ async function main() {
     // Le contrôle qui manquait au précédent : la clôture ne savait qu'archiver
     // une ressource. Sur un billet de fil, elle rédigeait une note et rien de
     // plus. On vérifie donc l'effet, pas seulement le statut.
-    if (feedPost) {
+    if (groupMessage) {
       const reported = await post(
         {
-          targetType: 'COMMUNITY_POST',
-          targetId: feedPost.id,
+          targetType: 'MESSAGE',
+          targetId: groupMessage.id,
           reason: 'HARASSMENT',
           detail: 'Contrôle automatique — smoke-signalements (billet).',
         },
@@ -332,13 +336,13 @@ async function main() {
       const body = (await reported.json()) as { data?: { id?: string } }
       if (body.data?.id) created.push(body.data.id)
       check(
-        'POST /api/reports accepte un billet de communauté',
+        'POST /api/reports accepte un message de groupe',
         reported.status === 201,
         `reçu ${reported.status}`,
       )
 
       if (body.data?.id) {
-        restorePostId = feedPost.id
+        restorePostId = groupMessage.id
         const row = await db.report.findUniqueOrThrow({
           where: { id: body.data.id },
           select: { updatedAt: true },
@@ -348,44 +352,44 @@ async function main() {
           headers: { 'content-type': 'application/json', cookie: await cookieFor(mail('moderation')) },
           body: JSON.stringify({
             status: 'UPHELD',
-            decisionNote: 'Contrôle automatique — retrait du billet signalé.',
+            decisionNote: 'Contrôle automatique — retrait du message signalé.',
             hideTarget: true,
             expectedUpdatedAt: row.updatedAt.toISOString(),
           }),
         })
         check(
-          'la Modération peut retenir le signalement en retirant le billet',
+          'la Modération peut retenir le signalement en retirant le message',
           resolve.status === 200,
           `reçu ${resolve.status} ${await resolve.clone().text()}`,
         )
-        const after = await db.communityPost.findUniqueOrThrow({
-          where: { id: feedPost.id },
+        const after = await db.message.findUniqueOrThrow({
+          where: { id: groupMessage.id },
           select: { deletedAt: true, deletedById: true },
         })
         check(
-          'le billet est retiré du fil, pas supprimé de la base',
+          'le message est retiré du groupe, pas supprimé de la base',
           after.deletedAt !== null && after.deletedById !== null,
         )
         const feedAfter = readable(
-          await (await fetch(`${BASE}/mes-communautes/${feedPost.community.slug}`, {
+          await (await fetch(`${BASE}/messagerie?fil=${groupMessage.conversation.id}`, {
             headers: { cookie: learnerCookie },
           })).text(),
         )
         check(
-          'le fil affiche « Ce message a été retiré. » à sa place',
+          'le groupe affiche « Ce message a été retiré. » à sa place',
           feedAfter.includes('Ce message a été retiré.'),
         )
       }
     }
   } finally {
-    // Le billet appartient au jeu de démonstration : on le remet en état,
-    // sinon chaque exécution du contrôle amputerait le fil d'un message.
+    // Le message appartient au jeu de démonstration : on le remet en état,
+    // sinon chaque exécution du contrôle amputerait le groupe d'un message.
     if (restorePostId) {
-      await db.communityPost.update({
+      await db.message.update({
         where: { id: restorePostId },
         data: { deletedAt: null, deletedById: null },
       })
-      console.log('Billet de démonstration rétabli.')
+      console.log('Message de démonstration rétabli.')
     }
     for (const id of created) {
       await db.report.deleteMany({ where: { id } })

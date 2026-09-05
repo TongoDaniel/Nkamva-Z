@@ -97,7 +97,7 @@ export async function getPublicCommunity(
   const community = await db.community.findFirst({
     where: { slug, status: 'active' },
     select: {
-      ...SELECT_PUBLIC, rules: true, messagesPerDay: true, broadcastEnabled: true,
+      ...SELECT_PUBLIC, rules: true, messagesPerDay: true,
       visibility: true,
       // Surcharge volontaire de `SELECT_PUBLIC` : `userId` sert au contrôle
       // ci-dessous, et n'a rien à faire dans la fiche publique.
@@ -130,7 +130,6 @@ export async function getPublicCommunity(
     ...toPublic(community),
     rules: community.rules,
     messagesPerDay: community.messagesPerDay,
-    broadcastEnabled: community.broadcastEnabled,
     courses: links.map((l) => toCard(l.course)),
   }
 }
@@ -167,7 +166,6 @@ export interface CommunityInput {
   rules?: string | null
   priceFcfa: number
   forumEnabled?: boolean
-  broadcastEnabled?: boolean
   messagingEnabled?: boolean
   resourcesEnabled?: boolean
   eventsEnabled?: boolean
@@ -236,7 +234,6 @@ export async function createCommunity(
       rules: input.rules?.trim() || null,
       priceFcfa: input.priceFcfa,
       forumEnabled: input.forumEnabled ?? true,
-      broadcastEnabled: input.broadcastEnabled ?? true,
       messagingEnabled: input.messagingEnabled ?? true,
       resourcesEnabled: input.resourcesEnabled ?? true,
       eventsEnabled: input.eventsEnabled ?? true,
@@ -298,7 +295,6 @@ export async function updateCommunity(
       ...(input.rules !== undefined && { rules: input.rules?.trim() || null }),
       ...(input.priceFcfa !== undefined && { priceFcfa: input.priceFcfa }),
       ...(input.forumEnabled !== undefined && { forumEnabled: input.forumEnabled }),
-      ...(input.broadcastEnabled !== undefined && { broadcastEnabled: input.broadcastEnabled }),
       ...(input.messagingEnabled !== undefined && { messagingEnabled: input.messagingEnabled }),
       ...(input.resourcesEnabled !== undefined && { resourcesEnabled: input.resourcesEnabled }),
       ...(input.eventsEnabled !== undefined && { eventsEnabled: input.eventsEnabled }),
@@ -553,7 +549,7 @@ export async function getMyCommunity(trainerProfileId: string) {
       id: true, slug: true, name: true, description: true, rules: true,
       coverS3Key: true,
       priceFcfa: true, visibility: true, membersCount: true, messagesPerDay: true,
-      forumEnabled: true, broadcastEnabled: true, messagingEnabled: true,
+      forumEnabled: true, messagingEnabled: true,
       resourcesEnabled: true, eventsEnabled: true, createdAt: true,
       _count: {
         select: {

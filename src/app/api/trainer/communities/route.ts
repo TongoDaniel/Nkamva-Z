@@ -21,7 +21,7 @@ const CreateSchema = z.object({
   rules: z.string().trim().max(COMMUNITY_RULES_MAX).optional().nullable(),
   priceFcfa: z.number().int().min(COMMUNITY_MIN_PRICE_FCFA),
   forumEnabled: z.boolean().optional(),
-  broadcastEnabled: z.boolean().optional(),
+
   messagingEnabled: z.boolean().optional(),
   resourcesEnabled: z.boolean().optional(),
   eventsEnabled: z.boolean().optional(),
