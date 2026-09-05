@@ -3,6 +3,7 @@ import { success, error, requireTrainer, parseBody, errorFromException } from '@
 import { createCourse, listTrainerCourses, updateCourse } from '@/lib/courses'
 import { z } from 'zod'
 
+/** Voir la route de détail : la durée se mesure, le nombre de sessions n'est plus (F3.8). */
 const CreateSchema = z.object({
   title: z.string().min(3).max(200),
   blurb: z.string().min(10).max(500),
@@ -11,8 +12,6 @@ const CreateSchema = z.object({
   format: z.string().min(1),
   priceFcfa: z.number().int().min(500),
   level: z.string().optional(),
-  durationSeconds: z.number().int().optional(),
-  lessonsCount: z.number().int().optional(),
   learnPoints: z.array(z.string()).optional(),
   includes: z.array(z.string()).optional(),
 })

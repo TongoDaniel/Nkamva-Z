@@ -77,13 +77,14 @@ async function main() {
     blurb: 'Recette des annonces',
     description: 'Ressource créée par le smoke test des notifications.',
     category: 'dev', format: 'video', priceFcfa: 20_000, level: 'Avancé',
-    durationSeconds: 3600,
   })
   await db.course.update({
     where: { id: course.id },
     data: {
       contentS3Key: `course-assets/${course.id}/fixture.mp4`,
       contentSizeBytes: 1024, contentMimeType: 'video/mp4',
+      // Ce que la confirmation aurait mesuré sur le fichier (F3.8).
+      durationSeconds: 3600,
     },
   })
   await publishCourse(course.id, profile.id, trainer.id)

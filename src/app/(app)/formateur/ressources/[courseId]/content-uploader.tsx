@@ -7,7 +7,7 @@ import { toast } from "@/components/nk/toast";
 import { UploadBar } from "@/components/nk/upload-bar";
 import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
-import { fmtBytes } from "@/lib/format";
+import { fmtBytes, fmtDuration } from "@/lib/format";
 import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
 
 /**
@@ -50,12 +50,47 @@ const CONTENT_TYPES = [
   },
 ] as const;
 
-/** Filtre du sélecteur : par extension, pour la même raison. */
-const ACCEPT = CONTENT_TYPES.flatMap((t) => t.exts).join(",");
+/**
+ * Miroir de `CONTENT_KIND_BY_FORMAT` : le genre de fichier qu'attend chaque
+ * format annoncé (F3.9). Le serveur refuse désormais un dépôt qui contredit la
+ * fiche — autant ne proposer que ce qui passera, plutôt que de laisser
+ * quelqu'un envoyer deux gigaoctets pour un refus.
+ */
+const KIND_BY_FORMAT: Record<string, "video" | "pdf" | "archive"> = {
+  video: "video",
+  pdf: "pdf",
+  kit: "archive",
+  notion: "archive",
+  tableur: "archive",
+};
 
-function contentTypeFor(file: File) {
+/** Le nom du fichier réellement déposé, lu sur son type MIME enregistré. */
+const DEPOSE_LABELS: Record<string, string> = {
+  "video/mp4": "Vidéo MP4",
+  "application/pdf": "Document PDF",
+  "application/zip": "Archive ZIP",
+  "application/x-zip-compressed": "Archive ZIP",
+  "application/vnd.rar": "Archive RAR",
+  "application/x-rar-compressed": "Archive RAR",
+};
+
+/** Ce qu'on accepte pour un format donné, et comment on le dit. */
+function typesFor(format: string) {
+  const kind = KIND_BY_FORMAT[format];
+  const types = kind ? CONTENT_TYPES.filter((t) => t.kind === kind) : CONTENT_TYPES;
+  return types.length ? types : CONTENT_TYPES;
+}
+
+function contentTypeFor(file: File, types: readonly (typeof CONTENT_TYPES)[number][]) {
   const name = file.name.toLowerCase();
-  return CONTENT_TYPES.find((t) => t.exts.some((ext) => name.endsWith(ext))) ?? null;
+  return types.find((t) => t.exts.some((ext) => name.endsWith(ext))) ?? null;
+}
+
+/** « MP4 », « ZIP ou RAR » — la liste des extensions acceptées, en français. */
+function extensionsLabel(types: readonly (typeof CONTENT_TYPES)[number][]) {
+  const noms = [...new Set(types.flatMap((t) => t.exts))].map((e) => e.slice(1).toUpperCase());
+  if (noms.length <= 1) return noms.join("");
+  return `${noms.slice(0, -1).join(", ")} ou ${noms.at(-1)}`;
 }
 
 /** Repli de presignUpload() quand R2 n'est pas configuré. */
@@ -68,13 +103,21 @@ const PLACEHOLDER_PREFIX = "data:placeholder-upload/";
  */
 export function ContentUploader({
   courseId,
+  format,
   currentKey,
+  currentMimeType,
+  durationSeconds,
   currentSizeBytes,
   remainingBytes,
   sold,
 }: {
   courseId: string;
+  /** Le format annoncé par la fiche : il décide du fichier attendu (F3.9). */
+  format: string;
   currentKey: string | null;
+  currentMimeType: string | null;
+  /** Mesurée au dépôt, jamais saisie (F3.8). Nulle hors vidéo, ou illisible. */
+  durationSeconds: number | null;
   currentSizeBytes: number | null;
   remainingBytes: number;
   /**
@@ -84,6 +127,11 @@ export function ContentUploader({
    */
   sold: boolean;
 }) {
+  const types = typesFor(format);
+  // Ce qui est déjà là, nommé d'après son type MIME enregistré.
+  const depose = currentMimeType ? DEPOSE_LABELS[currentMimeType] ?? null : null;
+  const attendu = extensionsLabel(types);
+  const accept = types.flatMap((t) => t.exts).join(",");
   const inputRef = React.useRef<HTMLInputElement>(null);
   // `null` quand rien ne monte, ou pendant les phases de durée inconnue.
   const [progress, setProgress] = React.useState<UploadProgress | null>(null);
@@ -163,9 +211,12 @@ export function ContentUploader({
   }, [send.pending]);
 
   function onFile(file: File) {
-    const type = contentTypeFor(file);
+    const type = contentTypeFor(file, types);
     if (!type) {
-      toast.error("Formats acceptés : MP4, PDF, ZIP ou RAR.");
+      // Le message nomme ce que *cette* ressource attend, et non la liste de
+      // tout ce que la plateforme sait recevoir : c'est la question que se pose
+      // quelqu'un dont le dépôt vient d'être refusé.
+      toast.error(`Cette ressource attend un fichier ${attendu}.`);
       return;
     }
     if (file.size > type.maxBytes) {
@@ -193,17 +244,39 @@ export function ContentUploader({
         {currentKey ? (
           <span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-success">
             <CheckCircle2 className="size-4" aria-hidden="true" />
-            Contenu en place
+            {/* Le genre réellement déposé, et non celui qu'annonce la fiche :
+                c'est le fichier qui décide, et le formateur doit pouvoir le
+                lire sans le rouvrir (F3.9). */}
+            {depose ? `${depose} en place` : "Contenu en place"}
             {currentSizeBytes ? (
               <span className="font-normal text-ink-3">· {fmtBytes(currentSizeBytes)}</span>
             ) : null}
           </span>
         ) : (
           <span className="text-[13.5px] text-ink-2">
-            Obligatoire avant publication — MP4, PDF, ZIP ou RAR.
+            Obligatoire avant publication — fichier {attendu}.
           </span>
         )}
       </div>
+
+      {/*
+        F3.8 — la durée mesurée, rendue au formateur. Il ne la saisit plus : il
+        doit donc pouvoir vérifier ce qui a été lu, et comprendre qu'une durée
+        absente ne l'empêche pas de publier.
+      */}
+      {currentKey && format === "video" ? (
+        durationSeconds ? (
+          <p className="text-[13px] text-ink-3">
+            Durée mesurée sur votre fichier :{" "}
+            <b className="font-semibold text-ink-2">{fmtDuration(durationSeconds)}</b>.
+          </p>
+        ) : (
+          <p className="text-[13px] leading-relaxed text-ink-3">
+            La durée n&apos;a pas pu être lue dans ce fichier. Ce n&apos;est pas bloquant : la
+            ressource se publie, et sa fiche n&apos;annoncera simplement pas de durée.
+          </p>
+        )
+      ) : null}
       {send.pending ? <UploadBar progress={progress} label={phase} className="mt-0" /> : null}
 
       {/*
@@ -253,7 +326,7 @@ export function ContentUploader({
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPT}
+        accept={accept}
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];

@@ -297,8 +297,13 @@ export interface CourseSeed {
   format: 'video' | 'pdf' | 'kit' | 'notion' | 'tableur'
   priceFcfa: number
   level?: 'débutant' | 'intermédiaire' | 'avancé'
+  /**
+   * Durée voulue pour la démonstration. Elle n'est **pas** écrite en base : le
+   * seed la grave dans l'en-tête du MP4 qu'il fabrique, et le produit la mesure
+   * à la confirmation du téléversement, comme pour n'importe quel formateur
+   * (F3.8). Sans objet hors vidéo.
+   */
   durationSeconds?: number
-  lessonsCount?: number
   /** `draft` reste en brouillon ; `archived` est publié puis retiré. */
   state?: 'published' | 'draft' | 'archived'
   publishedDaysAgo?: number
@@ -327,7 +332,6 @@ export const COURSES: CourseSeed[] = [
     priceFcfa: 15000,
     level: 'intermédiaire',
     durationSeconds: 12600,
-    lessonsCount: 12,
     publishedDaysAgo: 96,
   },
   {
@@ -348,7 +352,6 @@ export const COURSES: CourseSeed[] = [
     priceFcfa: 12000,
     level: 'débutant',
     durationSeconds: 16200,
-    lessonsCount: 18,
     publishedDaysAgo: 71,
   },
   {
@@ -363,7 +366,6 @@ export const COURSES: CourseSeed[] = [
     category: 'Développement',
     format: 'pdf',
     priceFcfa: 5000,
-    lessonsCount: 9,
     publishedDaysAgo: 48,
   },
   {
@@ -384,7 +386,6 @@ export const COURSES: CourseSeed[] = [
     priceFcfa: 18000,
     level: 'avancé',
     durationSeconds: 27000,
-    lessonsCount: 22,
     publishedDaysAgo: 22,
   },
   {
@@ -414,7 +415,6 @@ export const COURSES: CourseSeed[] = [
     category: 'Développement',
     format: 'pdf',
     priceFcfa: 9000,
-    lessonsCount: 6,
     publishedDaysAgo: 30,
     communityKey: 'atelier-code',
   },
@@ -437,7 +437,6 @@ export const COURSES: CourseSeed[] = [
     format: 'pdf',
     priceFcfa: 9000,
     level: 'débutant',
-    lessonsCount: 7,
     publishedDaysAgo: 88,
   },
   {
@@ -467,7 +466,6 @@ export const COURSES: CourseSeed[] = [
     format: 'tableur',
     priceFcfa: 6500,
     level: 'intermédiaire',
-    lessonsCount: 5,
     publishedDaysAgo: 35,
   },
   {
@@ -482,7 +480,6 @@ export const COURSES: CourseSeed[] = [
     category: 'Business',
     format: 'pdf',
     priceFcfa: 7500,
-    lessonsCount: 10,
     publishedDaysAgo: 26,
     communityKey: 'cercle-ohada',
   },
@@ -506,7 +503,6 @@ export const COURSES: CourseSeed[] = [
     priceFcfa: 8000,
     level: 'débutant',
     durationSeconds: 10800,
-    lessonsCount: 14,
     publishedDaysAgo: 79,
   },
   {
@@ -521,7 +517,6 @@ export const COURSES: CourseSeed[] = [
     category: 'Marketing',
     format: 'notion',
     priceFcfa: 4500,
-    lessonsCount: 6,
     publishedDaysAgo: 17,
   },
   {
@@ -571,7 +566,6 @@ export const COURSES: CourseSeed[] = [
     priceFcfa: 11000,
     level: 'intermédiaire',
     durationSeconds: 14400,
-    lessonsCount: 16,
     publishedDaysAgo: 41,
   },
   {
@@ -608,7 +602,6 @@ export const COURSES: CourseSeed[] = [
     priceFcfa: 16000,
     level: 'intermédiaire',
     durationSeconds: 9900,
-    lessonsCount: 9,
     publishedDaysAgo: 58,
   },
   {
@@ -623,7 +616,6 @@ export const COURSES: CourseSeed[] = [
     category: 'Data',
     format: 'tableur',
     priceFcfa: 7000,
-    lessonsCount: 4,
     publishedDaysAgo: 29,
   },
 

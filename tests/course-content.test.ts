@@ -25,7 +25,7 @@ describe('Contenu de ressource et quota', () => {
     await prisma.wallet.create({ data: { trainerId: profile.id, balance: 0 } })
     const course = await createCourse(profile.id, user.id, {
       title: 'Masterclass Node.js', blurb: 'Apprenez Node.js', description: 'Un cours complet.',
-      category: 'dev', format: 'video', priceFcfa: 15000, durationSeconds: 3600,
+      category: 'dev', format: 'video', priceFcfa: 15000,
     })
     return { user, profile, course }
   }

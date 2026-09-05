@@ -24,8 +24,6 @@ export interface CourseFormValues {
   format: string;
   level: string;
   priceFcfa: string;
-  durationMinutes: string;
-  lessonsCount: string;
   learnPoints: string[];
   includes: string[];
 }
@@ -38,8 +36,6 @@ export const EMPTY_COURSE: CourseFormValues = {
   format: "video",
   level: "",
   priceFcfa: "",
-  durationMinutes: "",
-  lessonsCount: "",
   learnPoints: [""],
   includes: [""],
 };
@@ -146,8 +142,6 @@ function TextArea({
 
 /** Construit le corps attendu par POST/PATCH /api/trainer/courses. */
 function toPayload(values: CourseFormValues) {
-  const duration = Number.parseInt(values.durationMinutes, 10);
-  const lessons = Number.parseInt(values.lessonsCount, 10);
   return {
     title: values.title.trim(),
     blurb: values.blurb.trim(),
@@ -156,8 +150,6 @@ function toPayload(values: CourseFormValues) {
     format: values.format,
     priceFcfa: Number.parseInt(values.priceFcfa, 10),
     ...(values.level ? { level: values.level } : {}),
-    ...(Number.isFinite(duration) && duration > 0 ? { durationSeconds: duration * 60 } : {}),
-    ...(Number.isFinite(lessons) && lessons > 0 ? { lessonsCount: lessons } : {}),
     learnPoints: values.learnPoints.map((p) => p.trim()).filter(Boolean),
     includes: values.includes.map((p) => p.trim()).filter(Boolean),
   };
@@ -374,28 +366,19 @@ export function CourseForm({
             hint={`Minimum ${MIN_PRICE_FCFA} FCFA. Vous fixez librement ce montant.`}
           />
 
+          {/*
+            Ni durée ni nombre de leçons (F3.8). La durée d'une vidéo se lit sur
+            le fichier au dépôt : un chiffre saisi à la main n'engageait rien, et
+            il alimentait pourtant la progression de l'apprenant *et* le seuil de
+            consommation qui décide d'un litige. Le nombre de sessions, lui, n'a
+            plus d'objet — une ressource est un fichier unique.
+          */}
           {values.format === "video" ? (
-            <Field
-              label="Durée (minutes)"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              placeholder="260"
-              value={values.durationMinutes}
-              onChange={(e) => set("durationMinutes", e.target.value)}
-              hint="Sert au calcul de la progression et de la règle de remboursement."
-            />
+            <p className="rounded-nk border border-line-2 bg-paper px-3.5 py-3 text-[13px] leading-relaxed text-ink-2">
+              La durée sera <b className="font-semibold text-ink">mesurée sur votre fichier</b> au
+              moment du dépôt — vous n&apos;avez rien à saisir.
+            </p>
           ) : null}
-
-          <Field
-            label={values.format === "video" ? "Nombre de leçons" : "Nombre de sections"}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            placeholder="24"
-            value={values.lessonsCount}
-            onChange={(e) => set("lessonsCount", e.target.value)}
-          />
 
           <Btn type="submit" block size="lg" loading={save.pending} className="mt-2">
             {mode === "create" ? "Créer le brouillon" : "Enregistrer"}

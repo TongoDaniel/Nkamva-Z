@@ -249,7 +249,7 @@ export async function listMyResources(learnerId: string, filter?: 'all' | 'start
 export async function getConsumptionPercent(courseId: string, learnerId: string): Promise<number> {
   const course = await db.course.findUnique({
     where: { id: courseId },
-    select: { format: true, durationSeconds: true, lessonsCount: true },
+    select: { format: true, durationSeconds: true },
   })
   if (!course) return 0
 

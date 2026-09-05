@@ -287,6 +287,15 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   EMPTY_FILE: { message: 'Fichier vide', status: 422 },
   CANNOT_READ_FILE: { message: 'Fichier illisible', status: 422 },
   MAGIC_NUMBER_MISMATCH: { message: 'Le contenu ne correspond pas au type déclaré', status: 422 },
+  // Lot 6 — le fichier déposé et le format annoncé doivent dire la même chose
+  CONTENT_FORMAT_MISMATCH: {
+    message: 'Ce fichier ne correspond pas au format annoncé pour la ressource',
+    status: 422,
+  },
+  FORMAT_CONTRADICTS_CONTENT: {
+    message: 'Le contenu déjà déposé ne correspond pas à ce format. Remplacez-le d\'abord.',
+    status: 409,
+  },
   // Lot 3 — KYC & moyens de paiement
   TRAINER_NOT_FOUND: { message: 'Profil formateur introuvable', status: 404 },
   IDENTITY_NAME_MISSING: { message: 'Nom légal vérifié absent : la vérification est impossible', status: 409 },

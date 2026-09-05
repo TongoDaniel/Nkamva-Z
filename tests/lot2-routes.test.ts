@@ -57,13 +57,20 @@ describe('Lot 2 — Routes', () => {
  * en `CONTENT_REQUIRED`. Les fixtures posent donc la clé directement, sans
  * repasser par la présignature.
  */
-async function withContent(courseId: string) {
+/**
+ * Ce que `confirmCourseUpload` écrit pour une vidéo : la clé, la taille, le type
+ * — et la **durée mesurée sur le fichier** (F3.8). Les tests ne téléversent
+ * rien, ils posent donc eux-mêmes le résultat de cette mesure ; sans elle, le
+ * seuil de consommation d'un litige n'aurait rien à diviser.
+ */
+async function withContent(courseId: string, durationSeconds = 3600) {
   await prisma.course.update({
     where: { id: courseId },
     data: {
       contentS3Key: `course-assets/${courseId}/video-fixture.mp4`,
       contentSizeBytes: 1024,
       contentMimeType: 'video/mp4',
+      durationSeconds,
     },
   })
 }
@@ -79,7 +86,7 @@ async function withContent(courseId: string) {
 
     const course = await createCourse(profile.id, trainerUser.id, {
       title: 'Masterclass Node.js', blurb: 'Blurb', description: 'Description complète',
-      category: 'dev', format: 'video', priceFcfa: 15000, durationSeconds: 3600,
+      category: 'dev', format: 'video', priceFcfa: 15000,
     })
     await withContent(course.id)
     await publishCourse(course.id, profile.id, trainerUser.id)

@@ -75,7 +75,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 
 | Document | Ce qu'il porte |
 |---|---|
-| `docs/decisions-nkamva.md` | Les 132 arbitrages produit, avec leur statut d'implémentation |
+| `docs/decisions-nkamva.md` | Les 133 arbitrages produit, avec leur statut d'implémentation |
 | `docs/abonnement-formateur.md` | Les 19 arbitrages du cycle de vie de l'abonnement formateur (A1-A19) |
 | `docs/invitations.md` | Spécification complète des invitations aux communautés |
 | `docs/registre-des-traitements.md` | Registre des traitements de données personnelles |
@@ -328,6 +328,18 @@ revérifiées**. Un dossier ancien ne vaut pas preuve d'aujourd'hui.
 9. Le **format d'une ressource est identifiable sans l'ouvrir**, dans le
    catalogue comme dans l'espace de l'acheteur — une vidéo se reconnaît à sa
    vignette et à son libellé, pas en cliquant.
+
+   Et il doit être **vrai** (arbitrage 133) : le genre du fichier déposé est
+   celui que la fiche annonce — vidéo → MP4, PDF → PDF, kit, modèle et tableur →
+   archive. Un dépôt qui contredit le format annoncé est refusé, et changer le
+   format d'une ressource dont le contenu est déjà là l'est aussi : sans quoi le
+   premier refus se contournerait par l'écran d'édition. Kit, modèle et tableur
+   partagent un genre, passer de l'un à l'autre reste donc libre ; une ressource
+   sans contenu change de format sans contrainte.
+
+   Le formateur voit, sur son écran de dépôt, **le genre réellement en place** —
+   « Vidéo MP4 en place », « Archive ZIP en place » — et le sélecteur de fichier
+   ne lui propose que ce que sa fiche annonce.
 10. **On n'associe une ressource qu'à une communauté ouverte.** *Ouverte* et
     *visible* sont deux choses (arbitrage 81) : `status` dit que la communauté
     **vit**, `visibility` dit qu'on peut la **trouver**. Une communauté privée
@@ -1131,13 +1143,13 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    devenu incrémental.
 3. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
    mené sur `develop`, tel que servi par staging. Neuf constats sont confirmés
-   par le code, un attend une reproduction. **Lots 0 à 5 livrés** : reprise de
+   par le code, un attend une reproduction. **Lots 0 à 6 livrés** : reprise de
    l'action après authentification (F1.6) · notifications et e-mails (F12.5
    à F12.7) · historique des ventes (F7.11) · idempotence et sondage de la
-   messagerie (§4.2) · compteur d'usages des invitations (F5). **Restent** :
-   durée mesurée et retrait du nombre de sessions (F3.8) · position de lecture
-   (F3, « Consultation ») · ressource et communauté associées (F3.10, F3.11) ·
-   lives · recette finale.
+   messagerie (§4.2) · compteur d'usages des invitations (F5) · durée mesurée,
+   retrait du nombre de sessions et cohérence du format (F3.8, F3.9).
+   **Restent** : position de lecture (F3, « Consultation ») · ressource et
+   communauté associées (F3.10, F3.11) · lives · recette finale.
 
    Deux de ces lots sont **bloqués par un arbitrage** listé au §14 : le sort
    d'une ressource incluse quand sa communauté ferme, et la portée de

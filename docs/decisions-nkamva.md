@@ -1813,6 +1813,42 @@ lendemain de la bascule.
 
 ---
 
+## Arbitrage 133 — La fiche et le fichier ne peuvent pas se contredire
+
+> Rendu le 5 septembre 2026, en cours de lot 6.
+
+**133. Le genre du fichier déposé doit être celui que la fiche annonce.** Vidéo
+→ MP4, PDF → PDF, kit / modèle Notion / tableur → archive. Un dépôt qui
+contredit le format annoncé est **refusé** (`CONTENT_FORMAT_MISMATCH`), et
+changer le format d'une ressource dont le contenu est déjà là est refusé de la
+même façon (`FORMAT_CONTRADICTS_CONTENT`) — sans quoi le premier refus se
+contournerait par l'écran d'édition.
+
+Précise l'arbitrage 45 et la règle F3.9, qui exigeaient qu'un format soit
+*identifiable sans ouvrir la ressource* sans jamais exiger qu'il soit **vrai**.
+
+**Raison.** Rien ne reliait `Course.format` au fichier réellement déposé. Une
+ressource déclarée « Vidéo » portant un PDF était acceptée, et le lecteur de
+l'acheteur rendait consciencieusement ce PDF dans une balise `<video>` : écran
+noir, aucune progression mesurable, et un litige dont le seuil de consommation
+n'avait rien à diviser. C'est le défaut que l'audit a rencontré sur quatre des
+cinq ressources de staging.
+
+Ce défaut ne se corrige pas dans le lecteur. Le lot 7 fera rendre chaque format
+par le visualiseur qui lui convient ; il ne peut le faire que si le format
+annoncé dit la vérité sur le fichier.
+
+**Ce qui reste libre.** Kit, modèle et tableur partagent un genre : passer de
+l'un à l'autre ne change que le mot. Une ressource sans contenu déposé change de
+format sans contrainte — il n'y a rien à contredire.
+
+**Où on a choisi de refuser plutôt que de corriger.** Aligner silencieusement
+`format` sur le fichier aurait évité le refus, au prix de changer sans le dire
+ce que le formateur a annoncé à ses acheteurs. Le refus est explicite et se
+répare en un geste : remplacer le fichier, ou corriger le format avant.
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |

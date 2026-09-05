@@ -415,8 +415,14 @@ model Course {
   priceFcfa        Int
   level            String?
   language         String            @default("fr")
+  /// F3.8 — **mesurée** sur le fichier à la confirmation du téléversement, plus
+  /// jamais saisie. Réécrite à chaque dépôt, `null` compris : elle décrit le
+  /// fichier présent, pas celui qu'il a remplacé. Nulle hors vidéo.
+  ///
+  /// `lessonsCount` a vécu à côté d'elle et a été retiré : une ressource est un
+  /// fichier unique, rien dans le système ne pouvait confronter le nombre de
+  /// sessions annoncé au contenu réel.
   durationSeconds  Int?
-  lessonsCount     Int?
   status           String            @default("draft")
   publishedAt      DateTime?
   /// Arbitrage 13 — date du **premier achat abouti**. Elle marque une ressource

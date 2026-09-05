@@ -5,6 +5,7 @@
 import { db } from './db'
 import { auditStandalone } from './audit'
 import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
+import { readMp4DurationFromStorage } from './mp4-duration'
 import { canTrainerWrite } from './subscriptions'
 import type { PrismaTransaction } from './types'
 
@@ -34,6 +35,36 @@ export const COURSE_UPLOAD_LIMITS = {
 } as const
 
 export type CourseUploadKind = keyof typeof COURSE_UPLOAD_LIMITS
+
+/**
+ * Le genre de fichier qu'attend chaque format annoncé (F3.9).
+ *
+ * Rien ne reliait les deux : une ressource déclarée « Vidéo » pouvait porter un
+ * PDF, et le lecteur de l'acheteur rendait consciencieusement ce PDF dans une
+ * balise `<video>` — écran noir, aucune progression mesurable. C'est le défaut
+ * que l'audit a rencontré, et il ne se corrige pas dans le lecteur : il se
+ * corrige ici, en refusant que l'annonce et le fichier se contredisent.
+ *
+ * Les trois formats téléchargeables partagent un genre : kit, modèle et
+ * tableur se livrent tous en archive. Passer de l'un à l'autre reste donc
+ * libre — ce qui change est le mot, pas le fichier.
+ */
+export const CONTENT_KIND_BY_FORMAT: Record<string, CourseUploadKind> = {
+  video: 'video',
+  pdf: 'pdf',
+  kit: 'archive',
+  notion: 'archive',
+  tableur: 'archive',
+}
+
+/** Le genre d'un fichier déjà déposé, relu depuis son type MIME enregistré. */
+export function uploadKindForMime(mimeType: string | null | undefined): CourseUploadKind | null {
+  if (!mimeType) return null
+  for (const [kind, limits] of Object.entries(COURSE_UPLOAD_LIMITS)) {
+    if ((limits.mimes as readonly string[]).includes(mimeType)) return kind as CourseUploadKind
+  }
+  return null
+}
 
 /**
  * Extension de la clé R2. `mimeType.split('/')[1]` suffisait tant que le
@@ -161,8 +192,6 @@ export async function createCourse(
     format: string
     priceFcfa: number
     level?: string
-    durationSeconds?: number
-    lessonsCount?: number
     learnPoints?: string[]
     includes?: string[]
   },
@@ -185,8 +214,7 @@ export async function createCourse(
       format: data.format,
       priceFcfa: data.priceFcfa,
       level: data.level || null,
-      durationSeconds: data.durationSeconds || null,
-      lessonsCount: data.lessonsCount || null,
+      // Pas de durée à la création : elle naîtra du fichier (F3.8).
       learnPoints: data.learnPoints || [],
       includes: data.includes || [],
       status: 'draft',
@@ -214,8 +242,6 @@ export async function updateCourse(
     format: string
     priceFcfa: number
     level: string
-    durationSeconds: number
-    lessonsCount: number
     learnPoints: string[]
     includes: string[]
     coverS3Key: string
@@ -224,6 +250,15 @@ export async function updateCourse(
   const course = await db.course.findUnique({ where: { id: courseId } })
   if (!course) throw new Error('COURSE_NOT_FOUND')
   if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
+
+  // Changer le format d'une ressource dont le contenu est déjà là ne doit pas
+  // pouvoir recréer la contradiction que la confirmation refuse (F3.9). Le
+  // fichier fait foi : on demande de le remplacer, on ne le renie pas.
+  if (data.format && data.format !== course.format && course.contentS3Key) {
+    const depose = uploadKindForMime(course.contentMimeType)
+    const attendu = CONTENT_KIND_BY_FORMAT[data.format]
+    if (depose && attendu && depose !== attendu) throw new Error('FORMAT_CONTRADICTS_CONTENT')
+  }
 
   const updated = await db.course.update({
     where: { id: courseId },
@@ -235,8 +270,6 @@ export async function updateCourse(
       ...(data.format && { format: data.format }),
       ...(data.priceFcfa !== undefined && { priceFcfa: data.priceFcfa }),
       ...(data.level !== undefined && { level: data.level }),
-      ...(data.durationSeconds !== undefined && { durationSeconds: data.durationSeconds }),
-      ...(data.lessonsCount !== undefined && { lessonsCount: data.lessonsCount }),
       ...(data.learnPoints !== undefined && { learnPoints: data.learnPoints }),
       ...(data.includes !== undefined && { includes: data.includes }),
       ...(data.coverS3Key !== undefined && { coverS3Key: data.coverS3Key }),
@@ -391,7 +424,9 @@ export async function presignCourseUpload(
  * signée vers une clé devinée qui n'a jamais été écrite.
  *
  * La taille est relue sur l'objet (`headObject`), jamais reprise du client :
- * c'est elle qui alimente le quota, elle ne peut pas être déclarative.
+ * c'est elle qui alimente le quota, elle ne peut pas être déclarative. Depuis
+ * le lot 6, **la durée d'une vidéo l'est aussi** — au même endroit et pour la
+ * même raison (F3.8).
  */
 export async function confirmCourseUpload(
   courseId: string,
@@ -410,6 +445,13 @@ export async function confirmCourseUpload(
 
   const limits = COURSE_UPLOAD_LIMITS[params.kind]
   if (!(limits.mimes as readonly string[]).includes(params.mimeType)) throw new Error('MIME_NOT_ALLOWED')
+
+  // Le contenu vendu doit être du genre que la fiche annonce (F3.9). Une
+  // couverture échappe à la règle : c'est une image, quel que soit le format.
+  if (params.kind !== 'image') {
+    const attendu = CONTENT_KIND_BY_FORMAT[course.format]
+    if (attendu && attendu !== params.kind) throw new Error('CONTENT_FORMAT_MISMATCH')
+  }
 
   // Même contrôle de contenu que les pièces justificatives du Lot 1 : un PDF
   // renommé en .mp4 est refusé. Sans identifiants R2, `headObject` renvoie null
@@ -432,19 +474,38 @@ export async function confirmCourseUpload(
   }
   const sizeBytes = head?.contentLength ?? 0
 
+  // F3.8 — la durée se mesure sur l'objet, elle ne se déclare plus. La lecture
+  // se fait par intervalles : quelques dizaines d'octets sur un fichier qui
+  // peut peser deux gigaoctets.
+  //
+  // Elle est **réécrite à chaque dépôt**, y compris à `null`. Sans cela, la
+  // durée d'un fichier remplacé — ou celle qu'un formateur avait saisie du
+  // temps où le champ existait — survivrait à ce qu'elle décrivait, et
+  // continuerait d'arbitrer la progression et le seuil de consommation d'un
+  // litige. Un contenu qui n'est pas une vidéo n'a pas de durée du tout.
   const isCover = params.kind === 'image'
+  const durationSeconds =
+    params.kind === 'video' ? await readMp4DurationFromStorage(params.s3Key, sizeBytes) : null
+
   const updated = await db.course.update({
     where: { id: courseId },
     data: isCover
       ? { coverS3Key: params.s3Key, coverSizeBytes: BigInt(sizeBytes) }
-      : { contentS3Key: params.s3Key, contentSizeBytes: BigInt(sizeBytes), contentMimeType: params.mimeType },
+      : {
+          contentS3Key: params.s3Key,
+          contentSizeBytes: BigInt(sizeBytes),
+          contentMimeType: params.mimeType,
+          durationSeconds,
+        },
   })
 
   await auditStandalone({
     actorId: userId, actorRole: 'TRAINER',
     action: isCover ? 'COURSE_COVER_UPLOADED' : 'COURSE_CONTENT_UPLOADED',
     targetType: 'Course', targetId: courseId,
-    meta: { s3Key: params.s3Key, sizeBytes, mimeType: params.mimeType },
+    // La durée mesurée est journalisée : c'est une donnée que personne n'a
+    // saisie, et le formateur doit pouvoir retrouver d'où elle vient.
+    meta: { s3Key: params.s3Key, sizeBytes, mimeType: params.mimeType, ...(isCover ? {} : { durationSeconds }) },
   })
 
   return updated
