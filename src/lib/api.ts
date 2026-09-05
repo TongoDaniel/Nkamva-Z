@@ -163,6 +163,11 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   // Même intitulé et même statut que la branche ad hoc de
   // `PATCH /api/trainer/communities/[communityId]`, qui la précède.
   COMMUNITY_CLOSED: { message: 'Cette communauté est close.', status: 409 },
+  // Lot 8 — on n'associe une ressource qu'à une communauté ouverte, rayon allumé
+  COMMUNITY_RESOURCES_DISABLED: {
+    message: 'Les ressources incluses sont désactivées sur cette communauté. Réactivez-les pour en rattacher une.',
+    status: 409,
+  },
   COURSE_NOT_FOR_SALE: { message: 'Cette ressource est incluse dans une communauté', status: 422 },
   COURSE_ALREADY_SOLD: { message: 'Une ressource déjà vendue ne peut pas être incluse', status: 422 },
   COURSE_ALREADY_LINKED: { message: 'Ressource déjà incluse dans cette communauté', status: 409 },

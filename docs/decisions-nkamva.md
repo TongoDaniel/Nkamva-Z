@@ -675,6 +675,9 @@ période en cours n'est ni écourtée, ni recalculée.
 **53. Bascule de circuit à sens unique** — Une ressource vendue peut devenir incluse dans
 la communauté. **L'inverse est interdit** : ce qui a été annoncé comme inclus ne repasse
 jamais derrière un paywall.
+> ⚠️ **Amendé le 5 septembre 2026 par l'arbitrage 137** : la règle vaut pour la
+> déliaison, elle cède à la **fermeture** de la communauté, qui libère les ressources
+> vers la marketplace. Sans cela elles seraient inobtenables par quiconque.
 > Conséquence : un membre ne voit jamais une ressource incluse se transformer en ressource
 > payante. La déliaison de l'arbitrage 48 reste possible — elle retire la ressource du
 > catalogue communautaire sans la remettre en vente, et sans reprendre l'accès acquis.
@@ -1892,6 +1895,71 @@ que l'apprenant coche lui-même donnerait à chacun le contrôle de sa propre
 | Point | Ce qu'il faut décider |
 |---|---|
 | **Un PDF lu en ligne, jamais téléchargé** | La lecture en ligne d'un document n'existait pas avant le lot 7 : on ne pouvait consommer un PDF qu'en le téléchargeant, et F8.1 s'appuie sur ce fait. Un acheteur peut désormais lire un document de bout en bout **sans jamais déclencher `downloaded`**, et rester éligible au remboursement automatique. Le résumé de consommation porte la page atteinte, l'agent la voit — mais la règle, elle, n'a pas été rouverte : c'est un arbitrage de paiement |
+
+---
+
+## Arbitrages 136-137 — Ressources et communautés
+
+> Rendus le 5 septembre 2026, à la demande du propriétaire, après avoir constaté
+> que **deux prémisses du §14 étaient fausses**. Le §14 disait que la fermeture
+> d'une communauté était sans retour et que la bascule vers l'inclusion était à
+> sens unique ; le code dit l'inverse dans les deux cas. Ce qui bloquait le
+> lot 8 n'était donc pas ce qu'on croyait.
+
+**Ce que la lecture du code a établi.** `reopenCommunity` existe : une
+communauté fermée se rouvre. `hasCommunityAccess` ne regarde ni le statut de la
+communauté ni `resourcesEnabled` : fermer ne retire l'accès à personne.
+`unlinkCourseFromCommunity` remettait le circuit à `MARKETPLACE`,
+c'est-à-dire **remettait la ressource en vente** — en contradiction directe avec
+l'arbitrage 53, qu'il était censé appliquer. Ce n'était pas une question
+ouverte, c'était un défaut.
+
+**136. Un rayon éteint ferme la liaison.** On n'associe une ressource qu'à une
+communauté **ouverte** (`status = active`, F3.10) **et dont les ressources
+incluses sont activées** (`resourcesEnabled`). Aucun des deux contrôles
+n'existait : on pouvait garnir une communauté que plus personne ne peut
+rejoindre, ou remplir une étagère qu'on avait soi-même masquée.
+
+L'interrupteur ne **délie** rien de ce qui est déjà là et ne retire aucun
+accès : il éteint la vitrine, il ne reprend pas ce qui a été donné.
+
+**137. Délier range, fermer libère.** Deux gestes, deux effets.
+
+**Délier ne remet pas la ressource en vente.** C'est la lettre de l'arbitrage 53
+— « ce qui a été annoncé comme inclus ne repasse jamais derrière un paywall » —
+que le code contredisait. Un formateur qui range son catalogue communautaire ne
+doit pas, du même mouvement, remettre au tarif plein ce qu'il avait annoncé
+inclus.
+
+**Fermer la communauté libère ses ressources vers la marketplace.** Sans
+communauté pour les porter, elles deviendraient inobtenables par quiconque, et
+le formateur qui arrête perdrait son catalogue avec elle. Personne n'y perd :
+les membres qui y avaient accès le gardent (arbitrage 48), et il n'y a plus de
+futur membre à qui l'inclusion aurait été promise.
+
+**La réouverture ne les rattache pas.** Même règle que pour les adhésions
+éteintes : on ne ressuscite pas une liaison à laquelle le formateur n'a pas
+consenti une seconde fois. Il relie ce qu'il veut.
+
+> **Amende l'arbitrage 53**, qui ne connaissait qu'un seul geste. Sa règle reste
+> entière pour la déliaison ; elle cède à la fermeture, où elle protégerait un
+> membre futur qui n'existera pas.
+
+### La question du lot 7, tranchée
+
+**Un PDF lu en ligne, jamais téléchargé, reste éligible au remboursement
+automatique** — et **l'éligibilité ne bouge pas**. La règle des 30 % continue de
+ne pas s'appliquer à un format téléchargeable (F8.1) : c'est le dossier qui est
+enrichi, pas le barème qui est rouvert.
+
+Concrètement, le résumé de consommation figé à l'ouverture porte la page
+atteinte et le nombre de pages, et l'écran d'instruction **le signale
+explicitement** au-delà de 30 % lus : « document lu en ligne à *n* %, sans
+téléchargement ». L'agent tranche en connaissance de cette lecture.
+
+**Raison.** Faire dépendre un remboursement d'une lecture en ligne serait un
+changement de barème, pas une conséquence de lot. Le support décide déjà seul
+pour ces formats ; il lui manquait l'information, pas le pouvoir.
 
 ---
 

@@ -75,7 +75,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 
 | Document | Ce qu'il porte |
 |---|---|
-| `docs/decisions-nkamva.md` | Les 135 arbitrages produit, avec leur statut d'implémentation |
+| `docs/decisions-nkamva.md` | Les 137 arbitrages produit, avec leur statut d'implémentation |
 | `docs/abonnement-formateur.md` | Les 19 arbitrages du cycle de vie de l'abonnement formateur (A1-A19) |
 | `docs/invitations.md` | Spécification complète des invitations aux communautés |
 | `docs/registre-des-traitements.md` | Registre des traitements de données personnelles |
@@ -298,6 +298,15 @@ revérifiées**. Un dossier ancien ne vaut pas preuve d'aujourd'hui.
 2. **Bascule à sens unique** (arbitrage 53) : vendue → incluse est autorisé ;
    incluse → vendue est **interdit**. Ce qui a été annoncé comme inclus ne
    repasse jamais derrière un paywall.
+
+   **Délier range, fermer libère** (arbitrage 137). Retirer une ressource de sa
+   communauté ne la remet **pas** en vente : c'est un geste de rangement, pas
+   une remise au tarif plein. **Fermer** la communauté, si — sans communauté
+   pour les porter, ses ressources deviendraient inobtenables par quiconque, et
+   le formateur qui arrête perdrait son catalogue. Personne n'y perd : les
+   membres gardent ce qu'ils avaient (règle 3), et il n'y a plus de futur membre
+   à qui l'inclusion aurait été promise. La réouverture ne rattache rien : le
+   formateur relie ce qu'il veut.
 3. **Déliaison** (arbitrage 48) : retirer une ressource de la communauté la
    masque aux futurs membres, mais **tout membre qui y avait accès le conserve**.
 4. **Téléversement** : URL **pré-signée en direct** vers le stockage objet,
@@ -340,23 +349,40 @@ revérifiées**. Un dossier ancien ne vaut pas preuve d'aujourd'hui.
    Le formateur voit, sur son écran de dépôt, **le genre réellement en place** —
    « Vidéo MP4 en place », « Archive ZIP en place » — et le sélecteur de fichier
    ne lui propose que ce que sa fiche annonce.
-10. **On n'associe une ressource qu'à une communauté ouverte.** *Ouverte* et
+10. **On n'associe une ressource qu'à une communauté ouverte, rayon allumé.**
+    *Ouverte* et
     *visible* sont deux choses (arbitrage 81) : `status` dit que la communauté
     **vit**, `visibility` dit qu'on peut la **trouver**. Une communauté privée
     reste ouverte — elle est fermée au public, pas close. Le contrôle porte donc
     sur `status`, jamais sur la visibilité : un formateur qui met sa communauté
     en privé continue d'y inclure des ressources.
 
-    La règle est **bornée à l'instant de l'association**, et elle l'est par la
-    règle 2 : la bascule vendue → incluse étant à sens unique, une ressource
-    déjà incluse ne peut pas retourner au catalogue si la communauté ferme
-    ensuite. Ce que devient une ressource incluse quand sa communauté se ferme
-    (F9.9) **n'est pas arbitré** : voir §14.
+    **`resourcesEnabled` compte aussi** (arbitrage 136) : un rayon éteint refuse
+    une nouvelle liaison. Remplir une étagère qu'on a soi-même masquée n'a pas
+    de sens, et le formateur se demandait ensuite pourquoi ses membres ne
+    voyaient rien. L'interrupteur ne délie rien de ce qui est déjà là et ne
+    retire aucun accès : il éteint la vitrine.
+
+    Ce que devient une ressource incluse quand sa communauté se ferme est
+    **tranché** (arbitrage 137) : elle est libérée vers la marketplace. Voir la
+    règle 2.
 11. **Une ressource incluse dit à quelle communauté elle appartient.** Dans
     l'espace de l'acheteur, elle porte un lien qui **ouvre directement** cette
     communauté. « Mes communautés » reste la vue dédiée — elle ne doit
     simplement plus être le seul endroit d'où l'on retrouve une communauté liée
     à une ressource.
+
+    **Et elle figure dans « Mes ressources ».** Cet écran ne listait que les
+    achats : une ressource obtenue par adhésion n'y apparaissait pas, et ne se
+    retrouvait que deux écrans plus loin. Les deux façons d'y avoir droit se
+    lisent désormais au même endroit, chacune nommée. Un ancien membre garde les
+    siennes (règle 3), et un achat prime sur une inclusion pour la même
+    ressource — le cas d'un achat antérieur à la liaison.
+
+    **Chaque ressource mène à son écran de lecture**, quel que soit son format.
+    Un format téléchargeable n'offrait que « Télécharger » : le visualiseur de
+    document et le marqueur d'archive n'étaient atteignables par aucun chemin.
+    Le téléchargement direct reste proposé, en action secondaire.
 
 **Consultation d'une ressource achetée**
 
@@ -1188,12 +1214,17 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    messagerie (§4.2) · compteur d'usages des invitations (F5) · durée mesurée,
    retrait du nombre de sessions et cohérence du format (F3.8, F3.9) · position
    de lecture par format, visualiseur PDF embarqué et marqueur d'archive
-   (F3, « Consultation »). **Restent** : ressource et communauté associées
-   (F3.10, F3.11) · lives · recette finale.
+   (F3, « Consultation ») · ressources et communautés réunies (F3.10, F3.11).
+   **Restent** : lives · recette finale.
 
-   Deux de ces lots sont **bloqués par un arbitrage** listé au §14 : le sort
-   d'une ressource incluse quand sa communauté ferme, et la portée de
-   `resourcesEnabled`.
+   Les deux arbitrages qui bloquaient le lot 8 ont été rendus le 5 septembre
+   2026 (136 et 137), après avoir constaté que **deux prémisses de ce document
+   étaient fausses** : la fermeture d'une communauté est réversible, et la
+   déliaison remettait déjà la ressource en vente — contre l'arbitrage 53
+   qu'elle était censée appliquer.
+
+   **Plus aucun lot n'est bloqué par un arbitrage.** Le lot 9 attend une
+   reproduction, pas une décision.
 4. **Mobile first, lot 3** — les écrans, partiellement livré : 62 pages,
    administration retirée du périmètre. C'est le gros du chantier restant.
 5. **Montant de l'abonnement payant** — jamais arbitré. Sans successeur, borner
@@ -1228,9 +1259,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **L'environnement de développement écrit dans le stockage de production** | Sécurité / exploitation | Séparer les seaux avant tout élargissement de l'équipe |
 | **Budget mobile déjà à moitié consommé** | Performance | Aucune dépendance lourde dans le socle ni sur une route de parcours. Sur une route terminale, elle est admise aux trois conditions du §10.1 — import dynamique, hors parcours d'acquisition, poids mesuré et consigné |
 | **Rappel avant une séance** | Produit | **Ajournement confirmé le 4 septembre 2026.** L'audit du 1er septembre l'énumère parmi les notifications attendues, mais personne n'a constaté son absence comme un défaut : il reste une hypothèse tant que le premier live réel n'a pas eu lieu. Son absence de F12.5 est donc une décision, pas un oubli — et l'outillage existe déjà (préavis J-7/J-1, tâches planifiées) le jour où elle sera prise |
-| **Ressource incluse dans une communauté qui ferme** | Produit, bloquant pour F3.10 | La bascule vendue → incluse est à sens unique : la ressource ne peut pas retourner au catalogue. Reste-t-elle servie aux membres entrés, disparaît-elle, ou le formateur récupère-t-il un droit de republication ? |
-| **Les ressources incluses éteintes valent-elles « fermé » ?** | Produit, bloquant pour F3.10 | `resourcesEnabled` à faux sur une communauté par ailleurs active : peut-on encore y associer une ressource ? Le contrôle porte aujourd'hui sur `status` seul |
-| **Un PDF lu en ligne, jamais téléchargé** | Paiement, ouvert par le lot 7 | F8.1 fait reposer la consommation d'un format téléchargeable sur `downloaded`, parce qu'un document ne pouvait se consommer qu'en le téléchargeant. Il se lit désormais en ligne : un acheteur peut le lire de bout en bout **sans jamais déclencher ce signal**, et rester éligible au remboursement automatique. Le résumé de consommation porte la page atteinte et l'agent la voit ; la règle, elle, n'a pas été rouverte — elle relève d'un arbitrage de paiement |
+| **Un PDF lu en ligne, jamais téléchargé** | Paiement — **tranché le 5 septembre 2026** | F8.1 fait reposer la consommation d'un format téléchargeable sur `downloaded`, parce qu'un document ne pouvait se consommer qu'en le téléchargeant. Il se lit en ligne depuis le lot 7 : un acheteur peut le lire de bout en bout sans jamais déclencher ce signal. **Décision : l'éligibilité ne bouge pas, le dossier est enrichi.** Le résumé de consommation porte la page atteinte, et l'écran d'instruction le signale explicitement au-delà de 30 % lus. Le support décidait déjà seul pour ces formats ; il lui manquait l'information, pas le pouvoir |
 | **Le formateur dans les groupes qu'il a rejoints** | Produit | Rien ne lui interdit d'y écrire comme apprenant, mais son nom y apparaît sans distinction de rôle |
 | **`Community.messagesPerDay`** | Produit | La colonne existe et n'est lue par personne. Un groupe actif est le premier endroit où un plafond servirait |
 | **Inscription à une séance, distincte de la présence** | Produit | Ajourné — l'absence de jauge a retiré ce qui la rendait nécessaire |

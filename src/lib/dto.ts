@@ -93,6 +93,14 @@ export interface ResourceItem {
   courseId: string | null;
   createdAt: string;
   accessSuspended: boolean;
+  /**
+   * Comment on y a droit (F3.11) : achetée à l'unité, ou incluse dans une
+   * communauté à laquelle on adhère — ou à laquelle on a adhéré, l'accès étant
+   * conservé (arbitrages 34 et 48).
+   */
+  origin?: "purchase" | "community";
+  /** La communauté qui la porte, pour une ressource incluse. */
+  community?: { slug: string; name: string } | null;
   amountFcfa: number;
   course: {
     id: string;

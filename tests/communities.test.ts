@@ -166,13 +166,17 @@ describe('Communautés', () => {
     expect(await hasCommunityAccess(learner.id, course.id)).toBe(true)
   })
 
-  it('délier remet la ressource en vente, sans rien retirer aux membres', async () => {
+  it('délier ne remet pas la ressource en vente, et ne retire rien aux membres', async () => {
     const { community, course, trainer, trainerUser, learner } = await setup()
     await linkCourseToCommunity(community.id, course.id, trainer.id, trainerUser.id)
     await subscribe(community.id, learner.id)
     await unlinkCourseFromCommunity(community.id, course.id, trainer.id, trainerUser.id)
 
-    expect((await searchCourses({ page: 1, pageSize: 10 })).total).toBe(1)
+    // Ce test attendait l'inverse — il consacrait un comportement qui
+    // contredisait l'arbitrage 53 : « ce qui a été annoncé comme inclus ne
+    // repasse jamais derrière un paywall ». Arbitré le 5 septembre 2026
+    // (arbitrage 137) : délier range, seule la fermeture libère.
+    expect((await searchCourses({ page: 1, pageSize: 10 })).total).toBe(0)
     expect(await hasCommunityAccess(learner.id, course.id)).toBe(true)
   })
 

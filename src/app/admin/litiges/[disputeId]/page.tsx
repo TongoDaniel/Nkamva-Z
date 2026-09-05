@@ -59,6 +59,21 @@ export default async function DisputeReviewPage({
     !snapshot || (!snapshot.downloaded && (!snapshot.ruleApplies || snapshot.consumptionPercent < 30));
   const withinPolicy = withinWindow && withinConsumption;
 
+  // Un document lu en ligne **n'est pas hors barème** : la règle automatique
+  // ne s'applique pas à un format téléchargeable (F8.1), et cette règle n'a pas
+  // été rouverte. Mais elle a été écrite quand un PDF ne pouvait se consommer
+  // qu'en le téléchargeant ; il se lit en ligne depuis le lot 7, et un dossier
+  // qui affiche « non téléchargée » sur un document lu de bout en bout ne dit
+  // pas la vérité à qui doit trancher.
+  //
+  // On le signale donc à l'endroit où la décision se prend, sans rien changer
+  // à ce qui est permis.
+  const partLue =
+    snapshot?.lastPage && snapshot.coursePageCount && snapshot.coursePageCount > 0
+      ? Math.min(100, Math.round((snapshot.lastPage / snapshot.coursePageCount) * 100))
+      : null;
+  const luEnLigne = partLue !== null && partLue >= 30;
+
   return (
     <>
       <BtnLink href="/admin/litiges" variant="t" size="sm" className="mb-4">
@@ -104,6 +119,18 @@ export default async function DisputeReviewPage({
                 ? "la ressource avait été téléchargée"
                 : `${snapshot?.consumptionPercent} % consultés à l'ouverture`}
             . Un remboursement suppose une dérogation motivée par un super-administrateur.
+          </span>
+        </p>
+      ) : null}
+
+      {withinPolicy && luEnLigne ? (
+        <p className="mb-5 flex items-start gap-2.5 rounded-nk bg-brand-tint px-5 py-4 text-[13.5px] leading-relaxed text-brand-dark">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>
+            <b className="font-semibold">Document lu en ligne à {partLue} %</b> — page{" "}
+            {snapshot?.lastPage} sur {snapshot?.coursePageCount}, sans téléchargement. La règle
+            automatique des 30 % ne s&apos;applique pas à un format téléchargeable : ce dossier
+            reste dans le barème, et la décision vous revient en connaissance de cette lecture.
           </span>
         </p>
       ) : null}
