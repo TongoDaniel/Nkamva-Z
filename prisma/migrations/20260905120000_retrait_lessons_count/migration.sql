@@ -1,0 +1,11 @@
+-- F3.8 — le nombre de sessions annoncé disparaît.
+--
+-- Il était saisi par le formateur et rien ne pouvait le confronter au contenu :
+-- une ressource est un fichier unique, le mode école est hors périmètre
+-- (arbitrage 4). C'est exactement l'incohérence qu'un fichier « à une session »
+-- déposé sous une annonce « deux sessions » a laissé passer, et que l'audit du
+-- 1er septembre 2026 a relevée.
+--
+-- La colonne ne porte aucune contrainte et n'est référencée par rien : la
+-- retirer n'emporte que sa propre valeur.
+ALTER TABLE "courses" DROP COLUMN "lessonsCount";

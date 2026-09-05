@@ -50,8 +50,6 @@ export default async function EditCoursePage({
     format: course.format,
     level: course.level ?? "",
     priceFcfa: String(course.priceFcfa),
-    durationMinutes: course.durationSeconds ? String(Math.round(course.durationSeconds / 60)) : "",
-    lessonsCount: course.lessonsCount ? String(course.lessonsCount) : "",
     learnPoints: course.learnPoints.length ? course.learnPoints : [""],
     includes: course.includes.length ? course.includes : [""],
   };
@@ -130,7 +128,10 @@ export default async function EditCoursePage({
               <h2 className="mb-4 text-[16.5px] font-extrabold">Contenu de la ressource</h2>
               <ContentUploader
                 courseId={course.id}
+                format={course.format}
                 currentKey={course.contentS3Key}
+                currentMimeType={course.contentMimeType}
+                durationSeconds={course.durationSeconds}
                 currentSizeBytes={course.contentSizeBytes === null ? null : Number(course.contentSizeBytes)}
                 remainingBytes={storage.remainingBytes}
                 sold={course.obligationAt !== null}

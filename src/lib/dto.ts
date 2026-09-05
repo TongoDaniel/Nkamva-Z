@@ -42,7 +42,6 @@ export interface CourseDetail extends CourseListItem {
   learnPoints: string[];
   includes: string[];
   language: string;
-  lessonsCount: number | null;
   status: string;
   trainerProfile: TrainerSummary & { studentsCount: number };
 }

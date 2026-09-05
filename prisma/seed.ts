@@ -69,7 +69,7 @@ import { isS3Configured } from '../src/lib/s3'
 
 import { bootstrapSuperAdmins, SUPER_ADMINS } from '../scripts/bootstrap-admins.mjs'
 import { resetApplicationData } from './seed/reset'
-import { buildPdf, buildMp4, uploadCourseContent } from './seed/assets'
+import { buildPdf, buildMp4, buildZip, uploadCourseContent, type ContentKind } from './seed/assets'
 import {
   ADMINS, TRAINERS, APPLICANTS, LEARNERS, COURSES, COMMUNITIES, POSTS, CONVERSATIONS, LIVES,
   DEV_PASSWORD, MAILBOX, addressFor,
@@ -406,8 +406,8 @@ async function seedCourses() {
       format: seed.format,
       priceFcfa: seed.priceFcfa,
       level: seed.level,
-      durationSeconds: seed.durationSeconds,
-      lessonsCount: seed.lessonsCount,
+      // Ni durée ni nombre de sessions : la première naît du fichier déposé
+      // quelques lignes plus bas, le second n'existe plus (F3.8).
       learnPoints: seed.learnPoints,
       includes: seed.includes,
     })
@@ -419,18 +419,28 @@ async function seedCourses() {
       continue
     }
 
-    // Une vidéo est livrée en MP4, tout le reste en PDF : le kit, le modèle
-    // Notion et le tableur sont distribués sous forme de dossier documentaire.
-    const isVideo = seed.format === 'video'
-    const file = isVideo
-      ? buildMp4(160 * 1024)
-      : buildPdf(seed.title, seed.blurb)
+    // Chaque format reçoit le genre de fichier qu'il annonce (F3.9) : MP4 pour
+    // une vidéo, PDF pour un PDF, et **archive** pour le kit, le modèle Notion
+    // et le tableur. Ces trois-là recevaient un PDF, ce que la confirmation
+    // refuse désormais — l'annonce et le fichier ne peuvent plus se contredire.
+    //
+    // Le MP4 porte la durée voulue dans son en-tête : elle sera **mesurée** à
+    // la confirmation, comme pour un vrai formateur, au lieu d'être écrite en
+    // base par le seed.
+    const kind: ContentKind =
+      seed.format === 'video' ? 'video' : seed.format === 'pdf' ? 'pdf' : 'archive'
+    const file =
+      kind === 'video'
+        ? buildMp4(160 * 1024, seed.durationSeconds ?? 0)
+        : kind === 'pdf'
+          ? buildPdf(seed.title, seed.blurb)
+          : buildZip(`${seed.key}.pdf`, buildPdf(seed.title, seed.blurb))
 
     const uploaded = await uploadCourseContent(
       course.id,
       trainerProfileId,
       trainerUserId,
-      isVideo ? 'video' : 'pdf',
+      kind,
       file,
     )
     if (!uploaded) {

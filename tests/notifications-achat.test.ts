@@ -60,7 +60,6 @@ describe("Lot 2 — annonces d'un achat encaissé", () => {
       format: 'video',
       priceFcfa,
       level: 'Avancé',
-      durationSeconds: 14400,
     })
     await prisma.course.update({
       where: { id: course.id },
@@ -68,6 +67,8 @@ describe("Lot 2 — annonces d'un achat encaissé", () => {
         contentS3Key: `course-assets/${course.id}/video-fixture.mp4`,
         contentSizeBytes: 1024,
         contentMimeType: 'video/mp4',
+        // Ce que la confirmation aurait mesuré sur le fichier (F3.8).
+        durationSeconds: 14400,
       },
     })
     await publishCourse(course.id, profile.id, trainer.id)

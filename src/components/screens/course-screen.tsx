@@ -4,8 +4,6 @@ import {
   Clock,
   Globe,
   GraduationCap,
-  ListOrdered,
-  ListVideo,
   PenLine,
   ShieldCheck,
   Users,
@@ -55,16 +53,17 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
   const typeLabel = [formatLabel(course.format), duration].filter(Boolean).join(" · ").toUpperCase();
 
   // Sommaire minimal — arbitrage 4 : pas de modèle `Lesson`, donc pas de liste
-  // de chapitres. `lessonsCount` et `durationSeconds` portés par `Course`
-  // suffisent à annoncer le volume ; en dessous de ça, la section n'a rien à
-  // dire et on ne rend pas un titre vide.
+  // de chapitres. Il annonçait aussi un nombre de leçons, retiré au lot 6 : ce
+  // chiffre était saisi et rien ne pouvait le confronter au fichier vendu
+  // (F3.8). Ne restent que la durée, qui est mesurée, et le niveau, qui ne
+  // prétend décrire aucun contenu. En dessous de ça, la section n'a rien à dire
+  // et on ne rend pas un titre vide.
   const isVideo = course.format === "video";
-  const lessonsCount = course.lessonsCount && course.lessonsCount > 0 ? course.lessonsCount : null;
   // `level` est stocké en minuscules par le formulaire formateur (« débutant »).
   const levelLabel = course.level
     ? course.level.charAt(0).toUpperCase() + course.level.slice(1)
     : null;
-  const hasSummary = Boolean(lessonsCount || duration || levelLabel);
+  const hasSummary = Boolean(duration || levelLabel);
 
   return (
     <div className="nk-wrap pb-16">
@@ -158,17 +157,6 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
                 {isVideo ? "Programme" : "Contenu"}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {lessonsCount ? (
-                  <StatTile
-                    icon={isVideo ? <ListVideo /> : <ListOrdered />}
-                    value={lessonsCount}
-                    label={
-                      isVideo
-                        ? `leçon${lessonsCount > 1 ? "s" : ""}`
-                        : `section${lessonsCount > 1 ? "s" : ""}`
-                    }
-                  />
-                ) : null}
                 {duration ? (
                   <StatTile icon={<Clock />} value={duration} label="durée totale" tone="blue" />
                 ) : null}
