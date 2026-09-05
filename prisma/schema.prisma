@@ -423,6 +423,11 @@ model Course {
   /// fichier unique, rien dans le système ne pouvait confronter le nombre de
   /// sessions annoncé au contenu réel.
   durationSeconds  Int?
+  /// F3.1 — le pendant documentaire de `durationSeconds`, mesuré au même
+  /// moment et pour la même raison : la position de lecture d'un PDF est une
+  /// **page**, et un pourcentage n'a de sens que rapporté à un total. Nul hors
+  /// PDF, et nul quand le fichier n'a pas pu être lu.
+  pageCount        Int?
   status           String            @default("draft")
   publishedAt      DateTime?
   /// Arbitrage 13 — date du **premier achat abouti**. Elle marque une ressource
@@ -1661,6 +1666,15 @@ model ConsumptionSnapshot {
   courseFormat          String
   watchedSeconds        Int?
   courseDurationSeconds Int?
+  /// Document — la page atteinte et le total, figés comme le reste (F3.1).
+  ///
+  /// Un format téléchargeable échappe à la règle des 30 % et part en décision
+  /// **manuelle** (F8.1) : l'agent doit donc voir ce qui a été lu. Avant le
+  /// lot 7 il ne voyait que « non téléchargée, 0 % » d'un PDF lu en entier en
+  /// ligne, ce qui ne lui disait rien. Ces deux colonnes ne changent aucune
+  /// éligibilité : elles renseignent.
+  lastPage              Int?
+  coursePageCount       Int?
   downloaded            Boolean?
   consumptionPercent    Int
   ruleApplies           Boolean
@@ -1676,9 +1690,28 @@ model CourseView {
   course         Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
   learnerId      String
   learner        User      @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  /// Vidéo — le point **le plus loin** atteint, jamais le dernier vu. Ce
+  /// nombre arbitre automatiquement un remboursement (F8.1, seuil de 30 %) :
+  /// un recul ne doit pas rouvrir un droit que la lecture a consommé.
   watchedSeconds Int       @default(0)
+  /// Document — la page où l'on s'est arrêté, **dernière valeur écrite** et non
+  /// la plus lointaine. L'asymétrie avec `watchedSeconds` est délibérée : ce
+  /// nombre-ci n'arbitre rien tout seul (un format téléchargeable échappe à la
+  /// règle des 30 %, F8.1), il sert à **reprendre la lecture** et à renseigner
+  /// l'agent qui instruit un litige. Reprendre à la page la plus lointaine
+  /// plutôt qu'à la dernière ferait perdre sa page à qui revient en arrière.
+  lastPage       Int?
   downloaded     Boolean   @default(false)
   downloadedAt   DateTime?
+  /// Archives (kit, modèle, tableur) — le marqueur « terminé » que l'apprenant
+  /// pose lui-même (F3.3). Rien ne peut le mesurer à sa place : une archive ne
+  /// se rend pas en ligne.
+  ///
+  /// **Sans effet sur les litiges.** Le seuil de consommation d'un format
+  /// téléchargeable reste `downloaded` et lui seul (F8.1) : déclarer une
+  /// lecture terminée ne doit pas fermer un droit au remboursement, et ne pas
+  /// la déclarer ne doit pas en ouvrir un.
+  completedAt    DateTime?
   lastViewedAt   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

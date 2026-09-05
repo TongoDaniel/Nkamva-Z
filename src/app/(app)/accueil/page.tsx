@@ -44,7 +44,7 @@ import {
 } from "@/lib/trainer-stats";
 import { db } from "@/lib/db";
 import { fmtFcfa, fmtNumber, fmtDate } from "@/lib/format";
-import { consumptionPercent, type CourseListItem, type ResourceItem } from "@/lib/dto";
+import { readingPercent, type CourseListItem, type ResourceItem } from "@/lib/dto";
 import { routesOf } from "@/lib/spaces";
 import { COURSE_STATUS } from "../formateur/ressources/course-status";
 
@@ -131,7 +131,9 @@ function ResumeList({ items }: { items: ResourceItem[] }) {
               <p className="truncate text-[13px] text-ink-2">{formatLabel(course.format)}</p>
             </div>
             <ProgressRing
-              percent={consumptionPercent(item.courseView, course.format, course.durationSeconds)}
+              percent={readingPercent(
+                item.courseView, course.format, course.durationSeconds, course.pageCount,
+              )}
               downloaded={item.courseView?.downloaded ?? false}
             />
           </li>

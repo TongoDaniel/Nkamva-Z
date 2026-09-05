@@ -1849,6 +1849,52 @@ répare en un geste : remplacer le fichier, ou corriger le format avant.
 
 ---
 
+## Arbitrages 134-135 — Ce que « position de lecture » veut dire
+
+> Rendus le 5 septembre 2026, en cours de lot 7.
+
+**134. La vidéo garde son point le plus loin, le document sa dernière page.**
+Deux champs, deux sémantiques opposées, et c'est délibéré.
+
+`watchedSeconds` **arbitre automatiquement un remboursement** : la règle des
+30 % de F8.1 s'y applique sans intervention humaine. Garder le maximum est la
+seule lecture défendable — un recul ne doit pas rouvrir un droit que la lecture
+a consommé, sans quoi il suffirait de revenir au début avant d'ouvrir un litige.
+
+`lastPage` n'arbitre rien tout seul : un format téléchargeable échappe à la
+règle automatique et part en décision manuelle. Ce nombre sert à **reprendre**
+la lecture et à renseigner l'agent qui instruit. Garder la page la plus
+lointaine ferait perdre sa page à qui revient en arrière — c'est-à-dire à
+quiconque relit.
+
+Précise la règle F3.1, qui exige « une position réelle » sans dire ce qu'on
+retient quand elle recule.
+
+**Les bornes viennent du serveur.** Le navigateur annonce une seconde ou une
+page ; le serveur les ramène dans ce que le fichier permet, en s'appuyant sur
+les mesures faites au dépôt (arbitrage de lot 6). Auparavant `watchedSeconds`
+n'était borné par rien : annoncer une durée absurde pesait sur le seuil des
+30 %, et un nombre venu du navigateur décidait d'un remboursement.
+
+**135. Une archive porte un marqueur « terminé », et ce marqueur ne touche à
+aucun droit.** Kit, modèle et tableur ne se rendent pas en ligne : rien ne peut
+mesurer leur lecture, l'apprenant la déclare lui-même. Ce marqueur alimente sa
+propre progression et **rien d'autre** : le seuil de consommation d'un format
+téléchargeable reste `downloaded` et lui seul (F8.1).
+
+**Raison.** Le déclarer terminé ne doit pas fermer un droit au remboursement, et
+ne pas le déclarer ne doit pas en ouvrir un. Faire dépendre l'argent d'une case
+que l'apprenant coche lui-même donnerait à chacun le contrôle de sa propre
+éligibilité — dans les deux sens.
+
+### Ce que ces décisions laissent ouvert
+
+| Point | Ce qu'il faut décider |
+|---|---|
+| **Un PDF lu en ligne, jamais téléchargé** | La lecture en ligne d'un document n'existait pas avant le lot 7 : on ne pouvait consommer un PDF qu'en le téléchargeant, et F8.1 s'appuie sur ce fait. Un acheteur peut désormais lire un document de bout en bout **sans jamais déclencher `downloaded`**, et rester éligible au remboursement automatique. Le résumé de consommation porte la page atteinte, l'agent la voit — mais la règle, elle, n'a pas été rouverte : c'est un arbitrage de paiement |
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |

@@ -78,6 +78,10 @@ export interface PurchaseItem {
 
 export interface CourseViewState {
   watchedSeconds: number;
+  /** Document — la page où l'on s'est arrêté (F3.1). */
+  lastPage: number | null;
+  /** Archive — le marqueur « terminé » posé par l'apprenant (F3.3). */
+  completedAt: string | null;
   downloaded: boolean;
   downloadedAt: string | null;
   lastViewedAt: string | null;
@@ -97,6 +101,7 @@ export interface ResourceItem {
     format: string;
     coverS3Key: string | null;
     durationSeconds: number | null;
+    pageCount: number | null;
     category: string;
     trainerProfile: { user: { fullName: string | null } };
   } | null;
@@ -132,16 +137,51 @@ export function isDownloadable(format?: string | null): boolean {
   return !!format && (DOWNLOADABLE_FORMATS as readonly string[]).includes(format);
 }
 
-/** % de consommation affiché, aligné sur getConsumptionPercent() du backend. */
-export function consumptionPercent(
+/**
+ * Progression affichée, dérivée de la position réelle (F3.5).
+ *
+ * `null` **n'est pas zéro** : il dit que la longueur de la ressource est
+ * inconnue — une vidéo dont la durée n'a pas pu être lue, un PDF dont les pages
+ * n'ont pas pu être comptées. Un anneau à 0 % sur une ressource lue à moitié
+ * fait croire que rien n'a été enregistré ; l'écran affiche alors l'avancement
+ * sans pourcentage.
+ *
+ * Miroir de `getConsumptionPercent()` côté serveur, à une nuance près assumée :
+ * ici on rend ce que l'apprenant a lu, là-bas ce que la règle des litiges
+ * retient. Les deux se dérivent de la même position — il n'en existe pas deux
+ * (F3.6).
+ */
+export function readingPercent(
   view: CourseViewState | null | undefined,
   format?: string | null,
   durationSeconds?: number | null,
-): number {
+  pageCount?: number | null,
+): number | null {
   if (!view) return 0;
-  if (view.downloaded) return 100;
-  if (format === "video" && durationSeconds && durationSeconds > 0) {
+
+  // Une archive ne se rend pas en ligne : elle n'a que deux états, et c'est
+  // l'apprenant qui les pose. Le téléchargement seul ne dit pas qu'on a lu,
+  // mais il reste ce que la règle des litiges retient (F8.1) — d'où les 100 %
+  // quand rien d'autre n'a été déclaré.
+  if (format && ARCHIVE_FORMATS.includes(format)) {
+    if (view.completedAt) return 100;
+    return view.downloaded ? 100 : 0;
+  }
+
+  if (format === "video") {
+    if (!durationSeconds || durationSeconds <= 0) return view.watchedSeconds > 0 ? null : 0;
     return Math.min(100, Math.round((view.watchedSeconds / durationSeconds) * 100));
   }
-  return 0;
+
+  if (format === "pdf") {
+    // Un PDF téléchargé sans jamais avoir été ouvert en ligne n'a pas de page.
+    if (!view.lastPage) return view.downloaded ? 100 : 0;
+    if (!pageCount || pageCount <= 0) return null;
+    return Math.min(100, Math.round((view.lastPage / pageCount) * 100));
+  }
+
+  return view.downloaded ? 100 : 0;
 }
+
+/** Les trois formats qui se livrent en archive et ne se rendent pas en ligne. */
+const ARCHIVE_FORMATS = ["kit", "notion", "tableur"];

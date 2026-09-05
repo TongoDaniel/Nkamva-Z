@@ -73,6 +73,7 @@
     "node-cron": "^4.6.0",
     "otpauth": "^9.5.1",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "5.4.149",
     "prisma": "^6.11.1",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",

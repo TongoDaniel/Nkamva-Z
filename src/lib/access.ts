@@ -81,36 +81,108 @@ export async function getCourseContentUrl(
   return { url, course }
 }
 
-// --- Mettre à jour la progression de visionnage (streaming) ---
+// --- Enregistrer la position de lecture (F3.1) ---
 
+/**
+ * Ce que l'écran de lecture rapporte. Un seul champ à la fois, selon le format
+ * : la position d'une vidéo est **une seconde**, celle d'un document **une
+ * page**, et une archive n'en a pas — elle porte un marqueur que l'apprenant
+ * pose lui-même.
+ */
+export interface ReadingPosition {
+  /** Vidéo. Le point atteint ; seul le plus lointain est conservé. */
+  watchedSeconds?: number
+  /** Document. La page affichée ; la dernière écrite fait foi. */
+  lastPage?: number
+  /** Archive. `true` marque la ressource terminée, `false` la rouvre. */
+  completed?: boolean
+}
+
+/**
+ * Enregistre la position atteinte. Une seule donnée, plusieurs lectures : c'est
+ * elle que l'écran rend à l'apprenant *et* que l'agent du support lit dans le
+ * résumé de consommation d'un litige — il n'en existe pas deux (F3.6).
+ *
+ * **Les bornes viennent du serveur.** Le client annonce une seconde ou une
+ * page ; le serveur les ramène dans ce que le fichier permet, en s'appuyant sur
+ * les mesures faites au dépôt. Sans cela, il suffisait d'annoncer une durée
+ * absurde pour peser sur le seuil des 30 % — et un nombre venu du navigateur
+ * décidait d'un remboursement.
+ *
+ * **La vidéo garde son maximum, le document sa dernière page.** L'asymétrie est
+ * délibérée : `watchedSeconds` arbitre automatiquement un remboursement, un
+ * recul ne doit donc pas rouvrir un droit que la lecture a consommé ; `lastPage`
+ * ne sert qu'à reprendre et à renseigner, et reprendre à la page la plus
+ * lointaine ferait perdre sa page à qui revient en arrière.
+ */
+export async function updateReadingPosition(
+  courseId: string,
+  learnerId: string,
+  position: ReadingPosition,
+): Promise<void> {
+  const access = await checkCourseAccess(courseId, learnerId)
+  if (!access.granted) throw new Error(access.reason || 'ACCESS_DENIED')
+
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    select: { format: true, durationSeconds: true, pageCount: true },
+  })
+  if (!course) throw new Error('COURSE_NOT_FOUND')
+
+  const existing = await db.courseView.findUnique({
+    where: { courseId_learnerId: { courseId, learnerId } },
+    select: { watchedSeconds: true },
+  })
+
+  const data: {
+    watchedSeconds?: number
+    lastPage?: number
+    completedAt?: Date | null
+    lastViewedAt: Date
+  } = { lastViewedAt: new Date() }
+
+  if (position.watchedSeconds !== undefined) {
+    const borne = course.durationSeconds && course.durationSeconds > 0
+      ? Math.min(position.watchedSeconds, course.durationSeconds)
+      : position.watchedSeconds
+    data.watchedSeconds = Math.max(0, Math.floor(borne), existing?.watchedSeconds ?? 0)
+  }
+
+  if (position.lastPage !== undefined) {
+    const borne = course.pageCount && course.pageCount > 0
+      ? Math.min(position.lastPage, course.pageCount)
+      : position.lastPage
+    data.lastPage = Math.max(1, Math.floor(borne))
+  }
+
+  if (position.completed !== undefined) {
+    data.completedAt = position.completed ? new Date() : null
+  }
+
+  await db.courseView.upsert({
+    where: { courseId_learnerId: { courseId, learnerId } },
+    update: data,
+    create: {
+      courseId,
+      learnerId,
+      watchedSeconds: data.watchedSeconds ?? 0,
+      lastPage: data.lastPage ?? null,
+      completedAt: data.completedAt ?? null,
+      lastViewedAt: data.lastViewedAt,
+    },
+  })
+}
+
+/**
+ * Ancienne porte d'entrée, conservée pour les appelants qui ne connaissent que
+ * les secondes. Elle délègue : il n'y a qu'un seul chemin d'écriture.
+ */
 export async function updateWatchProgress(
   courseId: string,
   learnerId: string,
   watchedSeconds: number,
 ): Promise<void> {
-  // Vérifier l'accès
-  const access = await checkCourseAccess(courseId, learnerId)
-  if (!access.granted) throw new Error(access.reason || 'ACCESS_DENIED')
-
-  // Upsert CourseView
-  await db.courseView.upsert({
-    where: {
-      courseId_learnerId: { courseId, learnerId },
-    },
-    update: {
-      watchedSeconds: Math.max(watchedSeconds, (await db.courseView.findUnique({
-        where: { courseId_learnerId: { courseId, learnerId } },
-        select: { watchedSeconds: true },
-      }))?.watchedSeconds || 0),
-      lastViewedAt: new Date(),
-    },
-    create: {
-      courseId,
-      learnerId,
-      watchedSeconds,
-      lastViewedAt: new Date(),
-    },
-  })
+  await updateReadingPosition(courseId, learnerId, { watchedSeconds })
 }
 
 // --- Marquer un cours comme téléchargé (formats téléchargeables) ---
@@ -197,9 +269,16 @@ export async function listMyResources(learnerId: string, filter?: 'all' | 'start
   })
   const viewByCourse = new Map(views.map((v) => [v.courseId, v]))
 
+  // « Commencé » couvre les trois positions possibles (F3.1) : une seconde de
+  // vidéo, une page de document, une archive téléchargée ou déclarée terminée.
+  // Sans la page, un apprenant qui a lu la moitié d'un PDF en ligne restait
+  // rangé dans « pas commencé ».
   const isStarted = (courseId: string) => {
     const view = viewByCourse.get(courseId)
-    return (view?.watchedSeconds ?? 0) > 0 || Boolean(view?.downloaded)
+    return (view?.watchedSeconds ?? 0) > 0
+      || (view?.lastPage ?? 0) > 0
+      || Boolean(view?.downloaded)
+      || Boolean(view?.completedAt)
   }
 
   const counts: MyResourcesCounts = {
@@ -223,7 +302,7 @@ export async function listMyResources(learnerId: string, filter?: 'all' | 'start
       course: {
         select: {
           id: true, title: true, slug: true, format: true,
-          coverS3Key: true, durationSeconds: true, category: true,
+          coverS3Key: true, durationSeconds: true, pageCount: true, category: true,
           trainerProfile: { select: { user: { select: { fullName: true } } } },
         },
       },

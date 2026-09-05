@@ -6,6 +6,7 @@ import { db } from './db'
 import { auditStandalone } from './audit'
 import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
 import { readMp4DurationFromStorage } from './mp4-duration'
+import { readPdfPageCountFromStorage } from './pdf-pages'
 import { canTrainerWrite } from './subscriptions'
 import type { PrismaTransaction } from './types'
 
@@ -474,18 +475,25 @@ export async function confirmCourseUpload(
   }
   const sizeBytes = head?.contentLength ?? 0
 
-  // F3.8 — la durée se mesure sur l'objet, elle ne se déclare plus. La lecture
-  // se fait par intervalles : quelques dizaines d'octets sur un fichier qui
-  // peut peser deux gigaoctets.
+  // F3.8 — la longueur du contenu se mesure sur l'objet, elle ne se déclare
+  // plus. Une **durée** pour une vidéo, un **nombre de pages** pour un
+  // document : dans les deux cas, ce qui permettra à l'apprenant de savoir où
+  // il en est, et à un agent du support de savoir ce qui a été consommé.
   //
-  // Elle est **réécrite à chaque dépôt**, y compris à `null`. Sans cela, la
-  // durée d'un fichier remplacé — ou celle qu'un formateur avait saisie du
-  // temps où le champ existait — survivrait à ce qu'elle décrivait, et
+  // La vidéo se lit par intervalles — quelques dizaines d'octets sur deux
+  // gigaoctets possibles. Le PDF, plafonné à dix mégaoctets, se rapatrie une
+  // fois : sa table des objets vit à la fin, souvent compressée.
+  //
+  // Les deux sont **réécrites à chaque dépôt**, y compris à `null`. Sans cela,
+  // la mesure d'un fichier remplacé — ou la durée qu'un formateur avait saisie
+  // du temps où le champ existait — survivrait à ce qu'elle décrivait, et
   // continuerait d'arbitrer la progression et le seuil de consommation d'un
-  // litige. Un contenu qui n'est pas une vidéo n'a pas de durée du tout.
+  // litige. Un contenu d'un autre genre n'a ni l'une ni l'autre.
   const isCover = params.kind === 'image'
   const durationSeconds =
     params.kind === 'video' ? await readMp4DurationFromStorage(params.s3Key, sizeBytes) : null
+  const pageCount =
+    params.kind === 'pdf' ? await readPdfPageCountFromStorage(params.s3Key, sizeBytes) : null
 
   const updated = await db.course.update({
     where: { id: courseId },
@@ -496,6 +504,7 @@ export async function confirmCourseUpload(
           contentSizeBytes: BigInt(sizeBytes),
           contentMimeType: params.mimeType,
           durationSeconds,
+          pageCount,
         },
   })
 
@@ -505,7 +514,10 @@ export async function confirmCourseUpload(
     targetType: 'Course', targetId: courseId,
     // La durée mesurée est journalisée : c'est une donnée que personne n'a
     // saisie, et le formateur doit pouvoir retrouver d'où elle vient.
-    meta: { s3Key: params.s3Key, sizeBytes, mimeType: params.mimeType, ...(isCover ? {} : { durationSeconds }) },
+    meta: {
+      s3Key: params.s3Key, sizeBytes, mimeType: params.mimeType,
+      ...(isCover ? {} : { durationSeconds, pageCount }),
+    },
   })
 
   return updated
