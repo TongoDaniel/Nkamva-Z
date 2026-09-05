@@ -22,7 +22,7 @@ const UpdateSchema = z.object({
   rules: z.string().trim().max(COMMUNITY_RULES_MAX).nullable().optional(),
   priceFcfa: z.number().int().min(COMMUNITY_MIN_PRICE_FCFA).optional(),
   forumEnabled: z.boolean().optional(),
-  broadcastEnabled: z.boolean().optional(),
+
   messagingEnabled: z.boolean().optional(),
   resourcesEnabled: z.boolean().optional(),
   eventsEnabled: z.boolean().optional(),

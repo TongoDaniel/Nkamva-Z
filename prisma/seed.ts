@@ -54,8 +54,7 @@ import { createCourse, publishCourse } from '../src/lib/courses'
 import { linkCourseToCommunity } from '../src/lib/communities'
 import { initiateMembershipPayment, cancelMembership } from '../src/lib/memberships'
 import { issueNominativeInvitation, issueShareLink, revokeInvitation, acceptGiftInvitation } from '../src/lib/invitations'
-import { createPost, replyToPost, togglePinned } from '../src/lib/community-space'
-import { openConversation, sendMessage } from '../src/lib/messaging'
+import { openConversation, sendMessage, ensureCommunityGroup } from '../src/lib/messaging'
 import { scheduleLiveSession, startLiveSession, endLiveSession, cancelLiveSession, joinLiveSession, postLiveMessage, markReplayReady } from '../src/lib/lives'
 import { openDispute, askLearner, postDisputeMessage, resolveDispute } from '../src/lib/disputes'
 import { contestDispute } from '../src/lib/trainer-disputes'
@@ -483,7 +482,6 @@ async function seedCommunities() {
         commissionRate: COMMISSION,
         visibility: seed.visibility,
         forumEnabled: seed.forumEnabled ?? true,
-        broadcastEnabled: seed.broadcastEnabled ?? true,
         messagingEnabled: seed.messagingEnabled ?? true,
         resourcesEnabled: seed.resourcesEnabled ?? true,
         eventsEnabled: seed.eventsEnabled ?? true,
@@ -679,39 +677,57 @@ async function seedViewsAndFavorites() {
 // ==========================================================================
 
 async function seedCommunityLife() {
-  step('Salons')
+  step('Groupes')
   let posts = 0
   let replies = 0
 
+  // Le forum est devenu le groupe de la communauté (arbitrage 126). Les billets
+  // du jeu de démonstration deviennent donc des messages, et les réponses des
+  // messages postés à leur propre date — exactement ce que la bascule a fait de
+  // l'historique réel.
+  //
+  // On passe par `sendMessage`, comme le reste du seed passe par les vraies
+  // fonctions : écrire les lignes à la main produirait un état qu'aucun chemin
+  // applicatif n'aurait pu créer.
   for (const seed of POSTS) {
     const community = COMMUNITIES.find((c) => c.key === seed.communityKey)!
-    const post = await createPost(community.slug, uid(seed.authorKey), {
-      kind: seed.kind,
-      body: seed.body,
+    const communityRow = await db.community.findUniqueOrThrow({
+      where: { slug: community.slug },
+      select: { id: true },
     })
+    const group = await ensureCommunityGroup(communityRow.id)
+
+    // Une annonce est un geste de formateur : le jeu n'en attribue pas d'autre.
+    const estAnnonce = seed.kind === 'ANNOUNCEMENT'
+    const auteur = uid(seed.authorKey)
+    const message = await sendMessage(
+      group.id,
+      auteur,
+      auteur === uid(community.trainerKey) ? tpid(community.trainerKey) : null,
+      { body: seed.body, ...(estAnnonce ? { announcement: true } : {}) },
+    )
     posts++
-    await db.communityPost.update({
-      where: { id: post.id },
+    await db.message.update({
+      where: { id: message.id },
       data: { createdAt: at(seed.daysAgo, 9, 30) },
     })
 
-    if (seed.pinned) await togglePinned(community.slug, post.id, uid(community.trainerKey))
+    // `pinned` n'a plus d'équivalent hors annonce : le nouveau modèle n'épingle
+    // que celles-ci. Un sujet épinglé par un membre perd donc son épingle, comme
+    // dans la migration.
 
     for (const reply of seed.replies ?? []) {
-      const created = await replyToPost(community.slug, post.id, uid(reply.authorKey), {
-        body: reply.body,
-      })
+      const auteurReponse = uid(reply.authorKey)
+      const envoyee = await sendMessage(
+        group.id,
+        auteurReponse,
+        auteurReponse === uid(community.trainerKey) ? tpid(community.trainerKey) : null,
+        { body: reply.body },
+      )
       replies++
-      await db.communityPostReply.update({
-        where: { id: created.id },
+      await db.message.update({
+        where: { id: envoyee.id },
         data: { createdAt: at(reply.daysAgo, 14, 15) },
-      })
-    }
-    if (seed.replies?.length) {
-      const last = seed.replies[seed.replies.length - 1]
-      await db.communityPost.update({
-        where: { id: post.id },
-        data: { lastReplyAt: at(last.daysAgo, 14, 15) },
       })
     }
   }

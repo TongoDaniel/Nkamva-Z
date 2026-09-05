@@ -14,17 +14,12 @@ import { cn } from "@/lib/utils";
 
 export const COMMUNITY_MIN_PRICE_FCFA = 500;
 
-/** Les cinq salons, dans l'ordre où le membre les rencontre. */
+/** Les quatre fonctionnalités, dans l'ordre où le membre les rencontre. */
 const SALONS = [
   {
-    key: "broadcastEnabled",
-    label: "Annonces",
-    hint: "Vous seul y publiez. C'est ce qui prévient les membres d'une séance ou d'une nouveauté.",
-  },
-  {
     key: "forumEnabled",
-    label: "Fil de discussion",
-    hint: "Les membres y ouvrent des sujets et se répondent entre eux.",
+    label: "Groupe de discussion",
+    hint: "Le fil collectif de la communauté, dans la messagerie de chacun. Vous y publiez aussi vos annonces.",
   },
   {
     key: "messagingEnabled",
@@ -49,7 +44,6 @@ export interface CommunityFormValues {
   rules: string;
   priceFcfa: string;
   forumEnabled: boolean;
-  broadcastEnabled: boolean;
   messagingEnabled: boolean;
   resourcesEnabled: boolean;
   eventsEnabled: boolean;
@@ -61,7 +55,6 @@ export const EMPTY_COMMUNITY: CommunityFormValues = {
   rules: "",
   priceFcfa: "",
   forumEnabled: true,
-  broadcastEnabled: true,
   messagingEnabled: true,
   resourcesEnabled: true,
   eventsEnabled: true,
@@ -218,7 +211,6 @@ export function CommunityForm({
       ...(shows("salons")
         ? {
             forumEnabled: values.forumEnabled,
-            broadcastEnabled: values.broadcastEnabled,
             messagingEnabled: values.messagingEnabled,
             resourcesEnabled: values.resourcesEnabled,
             eventsEnabled: values.eventsEnabled,
@@ -310,9 +302,9 @@ export function CommunityForm({
         <fieldset
           className={cn("mb-[18px]", shows("identity") && "border-t border-line-2 pt-5")}
         >
-          <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Salons ouverts</legend>
+          <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Ce qui est ouvert</legend>
           <p className="mb-3 text-[13px] leading-relaxed text-ink-3">
-            Fermer un salon le retire aux membres sans rien effacer : les messages déjà écrits
+            Fermer une rubrique la retire aux membres sans rien effacer : les messages déjà écrits
             restent, ils cessent seulement d&apos;être alimentés.
           </p>
           <ul className="grid gap-1">

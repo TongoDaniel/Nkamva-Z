@@ -136,7 +136,7 @@ async function main() {
         headers: { cookie: await cookieFor(koffi.id, koffi.email, null) },
       })).text(),
     )
-    verifier('le renvoi est affiché', vueCommunaute.includes('se passent désormais dans'))
+    verifier('le renvoi est affiché', vueCommunaute.includes('se passent dans'))
     verifier('la saisie a disparu', !vueCommunaute.includes('Lancer une discussion'))
   } finally {
     if (KEEP) {

@@ -86,24 +86,18 @@ export default async function EspaceCommunautePage({
         title={space.name}
         lead={
           space.isTrainer
-            ? "Vous animez cette communauté : vos annonces s'adressent à tous ses membres."
+            ? "Vous animez cette communauté : ses ressources incluses et ses séances se règlent ici, ses échanges dans son groupe."
             : `Animée par ${space.trainerName ?? "votre formateur"}.`
         }
       />
 
       <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1fr_320px]">
         <CommunityFeed
-          slug={slug}
           community={{ id: space.communityId, name: space.name }}
-          canSpeak={space.canSpeak}
-          mutedReason={space.mutedReason}
           isTrainer={space.isTrainer}
           forumEnabled={space.forumEnabled}
-          broadcastEnabled={space.broadcastEnabled}
           resourcesEnabled={space.resourcesEnabled}
           eventsEnabled={space.eventsEnabled}
-          announcements={space.announcements}
-          discussions={space.discussions}
           sessions={lives.sessions}
           replays={lives.replays}
           resourcesCount={includedCourses.length}

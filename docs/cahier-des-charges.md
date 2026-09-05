@@ -796,7 +796,7 @@ soixantaine de modèles. Vue d'ensemble par agrégat :
 | Comptes | `User`, `RecoveryCode`, `EmailOtp`, `Notification`, `AuditLog` |
 | Formateur | `TrainerProfile`, `TrainerApplication`, `TrainerDocument`, `TrainerActivationPayment`, `*ReviewEvent` |
 | Contenu | `Course`, `CommunityCourse`, `Favorite`, `CourseView`, `PendingAttachment` |
-| Communauté | `Community`, `CommunitySubscription`, `CommunityInvitation`, `CommunityPost`, `CommunityPostReply` |
+| Communauté | `Community`, `CommunitySubscription`, `CommunityInvitation`. `CommunityPost` et `CommunityPostReply` sont **vidées** depuis la bascule (arbitrage 126) : conservées pour l'historique des signalements, plus rien n'y écrit |
 | Échanges | `Conversation` (directe ou de groupe), `Message`, `ConversationRead` |
 | Direct | `LiveSession`, `LiveParticipant`, `LiveMessage`, `Replay` |
 | Argent | `Purchase`, `Invoice`, `InvoiceCounter`, `Wallet`, `WalletDebit`, `WalletReconciliation`, `FxRate` |
@@ -1115,10 +1115,9 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 1. **Les trois points bloquants du §11.3** — identité de l'éditeur, conditions
    générales contradictoires, autorisation de transfert. Rien ne se met en ligne
    publiquement avant.
-2. **La messagerie unifiée** — le fil de discussion d'une communauté devient un
-   groupe de la messagerie (arbitrages 126-130). Deux temps : la messagerie
-   accueille les groupes, puis l'historique bascule. **Précède le lot 4**, dont
-   le sondage serait à refaire autrement.
+2. **La messagerie unifiée** — **livrée**. Les deux temps sont faits : la
+   messagerie accueille les groupes, et l'historique a basculé (arbitrages
+   126-130). Reste à fixer la cadence de sondage d'un groupe, au lot 4.
 3. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
    mené sur `develop`, tel que servi par staging. Neuf constats sont confirmés
    par le code, un attend une reproduction. Dans l'ordre d'exécution : reprise

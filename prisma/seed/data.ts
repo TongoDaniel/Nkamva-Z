@@ -642,7 +642,6 @@ export interface CommunitySeed {
   priceFcfa: number
   visibility: 'PUBLIC' | 'PRIVATE'
   forumEnabled?: boolean
-  broadcastEnabled?: boolean
   messagingEnabled?: boolean
   resourcesEnabled?: boolean
   eventsEnabled?: boolean

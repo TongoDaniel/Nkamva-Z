@@ -76,7 +76,6 @@ export default async function MaCommunautePage({
     rules: community.rules ?? "",
     priceFcfa: String(community.priceFcfa),
     forumEnabled: community.forumEnabled,
-    broadcastEnabled: community.broadcastEnabled,
     messagingEnabled: community.messagingEnabled,
     resourcesEnabled: community.resourcesEnabled,
     eventsEnabled: community.eventsEnabled,
@@ -89,7 +88,7 @@ export default async function MaCommunautePage({
         title={community.name}
         lead="Sa visibilité, ses invitations, ses membres et ses réglages."
         actions={
-          <BtnLink href={`/mes-communautes/${community.slug}`} variant="o">Ouvrir le salon</BtnLink>
+          <BtnLink href={`/mes-communautes/${community.slug}`} variant="o">Ouvrir la communauté</BtnLink>
         }
       />
 
