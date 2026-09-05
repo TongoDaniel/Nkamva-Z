@@ -31,7 +31,7 @@ import type { CourseListItem } from './dto'
  * banni d'une communauté est écarté de la parole, pas de l'accès (arbitrage 40)
  * — même patron que la restriction de compte.
  */
-const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
+export const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
 
 export interface PublicCommunity {
   id: string
@@ -339,6 +339,17 @@ export async function updateCommunity(
  *
  * Conséquence à assumer, et que l'écran doit annoncer : le départ complet d'un
  * formateur peut donc prendre jusqu'à un mois.
+ *
+ * **Les ressources incluses sont libérées** (arbitrage 137). Délier n'en remet
+ * aucune en vente — c'est la lettre de l'arbitrage 53 —, mais fermer, si :
+ * sans communauté pour les porter, elles deviendraient inobtenables par
+ * quiconque, et le formateur qui arrête perdrait son catalogue avec elle.
+ * Personne n'y perd : les membres qui y avaient accès le gardent (arbitrage
+ * 48), et il n'y a plus de futur membre à qui l'inclusion aurait été promise.
+ *
+ * La réouverture ne les rattache pas. C'est la même règle que pour les
+ * adhésions éteintes : on ne ressuscite pas une liaison à laquelle le formateur
+ * n'a pas consenti une seconde fois — il relie ce qu'il veut.
  */
 export async function closeCommunity(
   communityId: string,
@@ -363,20 +374,41 @@ export async function closeCommunity(
     },
   })
 
+  const liees = await db.communityCourse.findMany({
+    where: { communityId, unlinkedAt: null },
+    select: { courseId: true },
+  })
+  const courseIds = liees.map((l) => l.courseId)
+
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.community.update({
       where: { id: communityId },
       data: { status: 'closed' },
     })
+
+    if (courseIds.length > 0) {
+      // Les liaisons se bornent à maintenant. Borner n'enlève rien à personne :
+      // l'accès se juge sur le **chevauchement** d'une adhésion et d'une
+      // liaison passées, et ce chevauchement a déjà eu lieu.
+      await tx.communityCourse.updateMany({
+        where: { communityId, unlinkedAt: null },
+        data: { unlinkedAt: new Date() },
+      })
+      await tx.course.updateMany({
+        where: { id: { in: courseIds } },
+        data: { circuit: 'MARKETPLACE' },
+      })
+    }
+
     await audit(tx, {
       actorId: userId, actorRole: 'TRAINER',
       action: 'COMMUNITY_CLOSED', targetType: 'Community', targetId: communityId,
-      meta: { remainingPaidMembers: remaining },
+      meta: { remainingPaidMembers: remaining, releasedCourseIds: courseIds },
     })
     return result
   })
 
-  return { community: updated, remainingPaidMembers: remaining }
+  return { community: updated, remainingPaidMembers: remaining, releasedCourses: courseIds.length }
 }
 
 /**
@@ -750,7 +782,10 @@ export async function linkCourseToCommunity(
   userId: string,
 ) {
   const [community, course] = await Promise.all([
-    db.community.findUnique({ where: { id: communityId }, select: { id: true, trainerId: true } }),
+    db.community.findUnique({
+      where: { id: communityId },
+      select: { id: true, trainerId: true, status: true, resourcesEnabled: true },
+    }),
     db.course.findUnique({
       where: { id: courseId },
       select: { id: true, trainerId: true, circuit: true, _count: { select: { purchases: true } } },
@@ -759,6 +794,18 @@ export async function linkCourseToCommunity(
   if (!community) throw new Error('COMMUNITY_NOT_FOUND')
   if (!course) throw new Error('COURSE_NOT_FOUND')
   if (community.trainerId !== trainerId || course.trainerId !== trainerId) throw new Error('NOT_OWNER')
+
+  // On n'associe qu'à une communauté **ouverte** (F3.10). *Ouverte* et
+  // *visible* sont deux choses : une communauté privée reste ouverte, c'est
+  // `status` qui dit qu'elle vit. Aucun contrôle n'existait — on pouvait garnir
+  // une communauté que plus personne ne peut rejoindre.
+  if (community.status !== 'active') throw new Error('COMMUNITY_CLOSED')
+
+  // Et à un rayon allumé (arbitrage 136). L'interrupteur masquait l'onglet
+  // « Incluses » et la ligne de la fiche publique sans rien interdire : le
+  // formateur pouvait remplir une étagère qu'il avait lui-même cachée, et se
+  // demander ensuite pourquoi ses membres ne voyaient rien.
+  if (!community.resourcesEnabled) throw new Error('COMMUNITY_RESOURCES_DISABLED')
 
   // Une ressource déjà vendue ne peut pas basculer : ceux qui l'ont payée
   // l'auraient eue gratuitement en s'abonnant, ce que l'arbitrage 47 exclut.
@@ -788,6 +835,16 @@ export async function linkCourseToCommunity(
 /**
  * Délie une ressource. La ligne est bornée, pas supprimée : tout membre qui y
  * avait accès pendant la liaison le conserve (arbitrage 48).
+ *
+ * **Le circuit ne revient pas à la marketplace** (arbitrages 53 et 137). Ce que
+ * le formateur a annoncé comme inclus ne repasse pas derrière un péage sur un
+ * simple geste de rangement : délier retire la ressource du catalogue
+ * communautaire, cela ne la remet pas en vente.
+ *
+ * Le code faisait l'inverse — il rebasculait en `MARKETPLACE` — et contredisait
+ * donc l'arbitrage qu'il était censé appliquer. Seule la **fermeture** de la
+ * communauté libère les ressources, parce qu'il n'y a alors plus de communauté
+ * pour les porter : voir `closeCommunity`.
  */
 export async function unlinkCourseFromCommunity(
   communityId: string,
@@ -807,10 +864,6 @@ export async function unlinkCourseFromCommunity(
     data: { unlinkedAt: new Date() },
   })
   if (count === 0) throw new Error('COURSE_NOT_LINKED')
-
-  // Le circuit revient à la marketplace : la ressource redevient vendable, sans
-  // que cela retire quoi que ce soit aux membres qui l'ont déjà.
-  await db.course.update({ where: { id: courseId }, data: { circuit: 'MARKETPLACE' } })
 
   await auditStandalone({
     actorId: userId, actorRole: 'TRAINER',

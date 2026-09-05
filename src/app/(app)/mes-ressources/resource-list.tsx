@@ -32,39 +32,54 @@ function ResourceActions({ item }: { item: ResourceItem }) {
     );
   }
 
-  if (isDownloadable(course.format)) {
-    const onDownload = async () => {
-      setPending(true);
-      try {
-        const { data } = await api.get<{ url: string }>(
-          `/api/me/resources/${course.id}/content`,
-        );
-        // Le marquage alimente CourseView.downloaded, dont dépend la règle de
-        // remboursement : il doit précéder l'ouverture du fichier.
-        await api.post(`/api/me/resources/${course.id}/download`);
-        window.open(data.url, "_blank", "noopener,noreferrer");
-      } catch (err) {
-        toast.error(
-          err instanceof ApiError ? err.message : "Le téléchargement a échoué. Réessayez.",
-        );
-      } finally {
-        setPending(false);
-      }
-    };
+  const onDownload = async () => {
+    setPending(true);
+    try {
+      const { data } = await api.get<{ url: string }>(
+        `/api/me/resources/${course.id}/content`,
+      );
+      // Le marquage alimente CourseView.downloaded, dont dépend la règle de
+      // remboursement : il doit précéder l'ouverture du fichier.
+      await api.post(`/api/me/resources/${course.id}/download`);
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Le téléchargement a échoué. Réessayez.",
+      );
+    } finally {
+      setPending(false);
+    }
+  };
 
-    return (
-      <Btn size="sm" loading={pending} onClick={onDownload}>
-        <Download aria-hidden="true" />
-        Télécharger
-      </Btn>
-    );
-  }
+  /*
+    Chaque ressource mène désormais à son écran de lecture, y compris les
+    formats téléchargeables.
+
+    Elle n'y menait pas : un format téléchargeable n'offrait que « Télécharger »,
+    si bien que le visualiseur PDF du lot 7 n'avait **aucun point d'entrée**, et
+    que le marqueur « terminé » d'une archive était inatteignable. Le
+    téléchargement direct reste là, en action secondaire — il ne demande
+    toujours qu'un clic.
+  */
+  const telechargeable = isDownloadable(course.format);
+  const libelle =
+    course.format === "pdf" ? (item.isStarted ? "Reprendre" : "Lire en ligne")
+    : telechargeable ? "Ouvrir"
+    : item.isStarted ? "Reprendre" : "Commencer";
 
   return (
-    <BtnLink href={`/mes-ressources/${course.id}`} size="sm">
+    <div className="flex flex-wrap items-center gap-2">
+      <BtnLink href={`/mes-ressources/${course.id}`} size="sm" className="nk-tap">
         <PlayCircle aria-hidden="true" />
-        {item.isStarted ? "Reprendre" : "Commencer"}
-    </BtnLink>
+        {libelle}
+      </BtnLink>
+      {telechargeable ? (
+        <Btn size="sm" variant="o" className="nk-tap" loading={pending} onClick={onDownload}>
+          <Download aria-hidden="true" />
+          Télécharger
+        </Btn>
+      ) : null}
+    </div>
   );
 }
 
@@ -157,6 +172,23 @@ export function ResourceList({
                   </h2>
                   {trainerName ? (
                     <p className="text-[13px] text-ink-2">Par {trainerName}</p>
+                  ) : null}
+                  {/*
+                    F3.11 — une ressource incluse dit d'où elle vient, et ouvre
+                    directement cette communauté. « Mes communautés » reste la
+                    vue dédiée ; elle ne doit simplement plus être le seul
+                    endroit d'où l'on retrouve la communauté d'une ressource.
+                  */}
+                  {item.community ? (
+                    <p className="text-[13px] text-ink-2">
+                      Incluse dans{" "}
+                      <Link
+                        href={`/mes-communautes/${item.community.slug}`}
+                        className="nk-tap font-semibold text-brand hover:underline"
+                      >
+                        {item.community.name}
+                      </Link>
+                    </p>
                   ) : null}
                 </div>
 

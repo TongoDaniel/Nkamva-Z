@@ -6,7 +6,7 @@
 // ==========================================================================
 
 import { db } from './db'
-import { hasCommunityAccess } from './communities'
+import { hasCommunityAccess, OPEN_STATUSES } from './communities'
 import { presignDownload } from './s3'
 import { auditStandalone } from './audit'
 
@@ -257,13 +257,56 @@ export async function listMyResources(learnerId: string, filter?: 'all' | 'start
     courseId: { not: null },
   }
 
-  const owned = await db.purchase.findMany({
+  const achats = await db.purchase.findMany({
     where,
-    select: { id: true, courseId: true },
+    select: { id: true, courseId: true, createdAt: true, accessSuspended: true },
     orderBy: { createdAt: 'desc' },
   })
 
-  const courseIds = owned.map((p) => p.courseId!).filter(Boolean)
+  // Les ressources **incluses** entrent dans la même liste (F3.11). Elles n'y
+  // étaient pas : on ne les retrouvait que par « Mes communautés », deux écrans
+  // plus loin, et l'apprenant qui cherchait « la ressource que j'ai » ne la
+  // voyait pas là où il la cherchait. C'est le constat 4 de l'audit.
+  const incluses = await listMyIncludedEntries(learnerId)
+
+  /** Une entrée de la liste, quelle que soit la façon dont on y a droit. */
+  type Entree = {
+    /** Clé de rendu : l'achat, ou la liaison qui donne le droit. */
+    id: string
+    courseId: string
+    createdAt: Date
+    accessSuspended: boolean
+    origin: 'purchase' | 'community'
+    community: { slug: string; name: string } | null
+  }
+
+  const owned: Entree[] = [
+    ...achats.map((p) => ({
+      id: p.id,
+      courseId: p.courseId!,
+      createdAt: p.createdAt,
+      accessSuspended: p.accessSuspended,
+      origin: 'purchase' as const,
+      community: null,
+    })),
+    ...incluses.map((i) => ({
+      id: `inclusion:${i.courseId}`,
+      courseId: i.courseId,
+      createdAt: i.since,
+      // Une ressource incluse ne s'achète pas : aucun litige ne peut en
+      // suspendre l'accès.
+      accessSuspended: false,
+      origin: 'community' as const,
+      community: i.community,
+    })),
+  ]
+    // Un achat prime sur une inclusion pour la même ressource : c'est le cas
+    // limite de l'arbitrage 45, où un membre a acheté avant que la ressource
+    // ne devienne incluse.
+    .filter((e, i, all) => all.findIndex((a) => a.courseId === e.courseId) === i)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+
+  const courseIds = owned.map((p) => p.courseId).filter(Boolean)
   const views = await db.courseView.findMany({
     where: { learnerId, courseId: { in: courseIds } },
   })
@@ -283,44 +326,97 @@ export async function listMyResources(learnerId: string, filter?: 'all' | 'start
 
   const counts: MyResourcesCounts = {
     all: owned.length,
-    started: owned.filter((p) => isStarted(p.courseId!)).length,
+    started: owned.filter((p) => isStarted(p.courseId)).length,
     unstarted: 0,
   }
   counts.unstarted = counts.all - counts.started
 
   const selected =
-    filter === 'started' ? owned.filter((p) => isStarted(p.courseId!))
-    : filter === 'unstarted' ? owned.filter((p) => !isStarted(p.courseId!))
+    filter === 'started' ? owned.filter((p) => isStarted(p.courseId))
+    : filter === 'unstarted' ? owned.filter((p) => !isStarted(p.courseId))
     : owned
 
   const total = selected.length
-  const pageIds = selected.slice((page - 1) * pageSize, page * pageSize).map((p) => p.id)
+  const pageEntries = selected.slice((page - 1) * pageSize, page * pageSize)
 
-  const purchases = await db.purchase.findMany({
-    where: { id: { in: pageIds } },
-    include: {
-      course: {
-        select: {
-          id: true, title: true, slug: true, format: true,
-          coverS3Key: true, durationSeconds: true, pageCount: true, category: true,
-          trainerProfile: { select: { user: { select: { fullName: true } } } },
-        },
-      },
+  const courses = await db.course.findMany({
+    where: { id: { in: pageEntries.map((e) => e.courseId) } },
+    select: {
+      id: true, title: true, slug: true, format: true,
+      coverS3Key: true, durationSeconds: true, pageCount: true, category: true,
+      trainerProfile: { select: { user: { select: { fullName: true } } } },
     },
   })
+  // `findMany` sur un `in` ne garantit pas l'ordre : on rétablit celui des
+  // entrées, qui porte le tri par date.
+  const courseById = new Map(courses.map((c) => [c.id, c]))
 
-  // `findMany` sur un `in` ne garantit pas l'ordre : on rétablit celui des ids.
-  const byId = new Map(purchases.map((p) => [p.id, p]))
-  const items = pageIds
-    .map((id) => byId.get(id))
-    .filter((p): p is NonNullable<typeof p> => Boolean(p))
-    .map((p) => ({
-      ...p,
-      courseView: viewByCourse.get(p.courseId!) ?? null,
-      isStarted: isStarted(p.courseId!),
-    }))
+  const items = pageEntries
+    .map((e) => {
+      const course = courseById.get(e.courseId)
+      if (!course) return null
+      return {
+        id: e.id,
+        courseId: e.courseId,
+        createdAt: e.createdAt,
+        accessSuspended: e.accessSuspended,
+        origin: e.origin,
+        community: e.community,
+        course,
+        courseView: viewByCourse.get(e.courseId) ?? null,
+        isStarted: isStarted(e.courseId),
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => Boolean(x))
 
   return { items, total, counts, page, pageSize }
+}
+
+/**
+ * Les ressources auxquelles une adhésion donne droit, avec la communauté qui
+ * les porte et la date depuis laquelle le droit existe.
+ *
+ * Même règle de chevauchement que `hasCommunityAccess` : une adhésion et une
+ * liaison qui se sont croisées suffisent, même si l'une ou l'autre est finie
+ * depuis (arbitrages 34 et 48). D'où la lecture des liaisons **déliées** :
+ * ce qui a été donné reste donné.
+ */
+async function listMyIncludedEntries(learnerId: string): Promise<
+  Array<{ courseId: string; since: Date; community: { slug: string; name: string } }>
+> {
+  const subs = await db.communitySubscription.findMany({
+    where: { learnerId },
+    select: { communityId: true, periodStart: true, periodEnd: true, status: true },
+  })
+  if (subs.length === 0) return []
+
+  const links = await db.communityCourse.findMany({
+    where: { communityId: { in: subs.map((s) => s.communityId) } },
+    select: {
+      courseId: true, communityId: true, linkedAt: true, unlinkedAt: true,
+      community: { select: { slug: true, name: true } },
+    },
+    orderBy: { linkedAt: 'desc' },
+  })
+
+  const now = new Date()
+  const vues = new Set<string>()
+  const out: Array<{ courseId: string; since: Date; community: { slug: string; name: string } }> = []
+
+  for (const link of links) {
+    if (vues.has(link.courseId)) continue
+    const droit = subs.some((sub) => {
+      if (sub.communityId !== link.communityId) return false
+      const subEnd = OPEN_STATUSES.includes(sub.status as never) ? now : sub.periodEnd
+      const linkEnd = link.unlinkedAt ?? now
+      return sub.periodStart <= linkEnd && link.linkedAt <= subEnd
+    })
+    if (!droit) continue
+    vues.add(link.courseId)
+    out.push({ courseId: link.courseId, since: link.linkedAt, community: link.community })
+  }
+
+  return out
 }
 
 // --- Obtenir le % de consommation d'un cours (pour affichage) ---

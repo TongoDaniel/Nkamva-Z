@@ -42,7 +42,7 @@ export default async function MesRessourcesPage({
     <div className="nk-wrap pb-16">
       <PageHead
         title="Mes ressources"
-        lead="Retrouvez ici toutes les ressources que vous avez acquises. L'accès est à vie."
+        lead="Vos ressources achetées et celles incluses dans vos communautés, au même endroit. L'accès est à vie."
         actions={
           <BtnLink href={routes.catalog} variant="o">Explorer le catalogue</BtnLink>
         }
@@ -50,7 +50,9 @@ export default async function MesRessourcesPage({
 
       {counts.all > 0 ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <StatTile icon={<BookOpen />} value={counts.all} label="achetées" />
+          {/* « acquises » et non « achetées » : la liste réunit désormais les
+              deux façons d'y avoir droit (F3.11). */}
+          <StatTile icon={<BookOpen />} value={counts.all} label="acquises" />
           <StatTile
             icon={<PlayCircle />}
             value={counts.started}
