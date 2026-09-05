@@ -8,7 +8,8 @@ import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/client";
-import type { ReplayView } from "@/lib/lives";
+import type { ReplayView, ReplayMessage } from "@/lib/lives";
+import { ReplayChat } from "./replay-chat";
 import { routesOf } from "@/lib/spaces";
 
 /** Espace connecté : les liens de navigation restent dans la coquille applicative. */
@@ -26,7 +27,14 @@ function clock(seconds: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 }
 
-export function ReplayPlayer({ replay }: { replay: ReplayView }) {
+export function ReplayPlayer({
+  replay,
+  messages,
+}: {
+  replay: ReplayView;
+  /** Le salon de la séance, rattaché au replay (F6.7). */
+  messages: ReplayMessage[];
+}) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = React.useState(false);
   const [position, setPosition] = React.useState(0);
@@ -278,6 +286,28 @@ export function ReplayPlayer({ replay }: { replay: ReplayView }) {
             </Btn>
           )}
         </section>
+
+        {/*
+          Le salon passe avant les notes : c'est ce qu'on vient chercher en
+          rouvrant un replay — une question posée ce jour-là, une réponse de
+          l'animateur —, et il sert à retrouver le passage.
+        */}
+        <ReplayChat
+          messages={messages}
+          onSeek={
+            url
+              ? (seconds) => {
+                  const video = videoRef.current;
+                  if (!video) return;
+                  video.currentTime = seconds;
+                  void video.play().catch(() => {
+                    // Lecture refusée par le navigateur : la position est posée
+                    // quand même, la personne appuiera elle-même.
+                  });
+                }
+              : undefined
+          }
+        />
 
         <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
           <label htmlFor="replay-notes" className="mb-2 block text-[15px] font-bold">

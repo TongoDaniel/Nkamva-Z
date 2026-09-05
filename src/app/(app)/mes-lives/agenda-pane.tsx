@@ -213,14 +213,25 @@ export function AgendaPane({
   replays,
   isTrainer,
   exploreHref,
+  initialTab = "upcoming",
 }: {
   sessions: AgendaSession[];
   replays: ReplayView[];
   /** Affiche le filtre d'origine et les repères « J'anime ». */
   isTrainer: boolean;
   exploreHref: string;
+  /**
+   * `?onglet=replays` — le chemin court vers les enregistrements (F6.7).
+   *
+   * Les replays n'étaient atteignables que par un onglet à cliquer, sans
+   * adresse : rien ne pouvait y renvoyer — ni une notification de purge, ni un
+   * lien depuis une communauté, ni un signet. C'est le même défaut que le
+   * panneau d'invitations du lot 2, et la même correction. L'onglet reste un
+   * état local ensuite : en changer ne recharge rien.
+   */
+  initialTab?: Tab;
 }) {
-  const [tab, setTab] = React.useState<Tab>("upcoming");
+  const [tab, setTab] = React.useState<Tab>(initialTab);
   const [origin, setOrigin] = React.useState<Origin>("all");
   const [day, setDay] = React.useState<string | null>(null);
 

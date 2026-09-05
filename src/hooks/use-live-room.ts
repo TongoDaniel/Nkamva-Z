@@ -32,6 +32,35 @@ export interface LiveRoomState {
   canPublish: boolean;
   setMic: (on: boolean) => Promise<void>;
   setCam: (on: boolean) => Promise<void>;
+  /**
+   * Pourquoi le micro ou la caméra n'ont pas pu s'ouvrir. Nul quand tout va
+   * bien, et remis à nul dès qu'une tentative réussit.
+   */
+  deviceError: string | null;
+}
+
+/**
+ * Ce que le navigateur refuse, dit en français.
+ *
+ * `setMicrophoneEnabled` **rejette** — permission refusée, aucun périphérique,
+ * micro déjà pris par une autre application. Personne ne rattrapait ce rejet :
+ * la promesse partait dans le vide, le bouton restait éteint, et l'écran ne
+ * disait rien. La personne recliquait sans comprendre, ce qui est exactement le
+ * scénario « le micro ne marche pas » qu'un test à deux participants aurait
+ * révélé.
+ */
+function messageDePeripherique(err: unknown, quoi: 'micro' | 'caméra'): string {
+  const nom = err instanceof Error ? err.name : ''
+  if (nom === 'NotAllowedError' || nom === 'SecurityError') {
+    return `Votre navigateur a refusé l'accès au ${quoi}. Autorisez-le dans la barre d'adresse, puis réessayez.`
+  }
+  if (nom === 'NotFoundError' || nom === 'OverconstrainedError') {
+    return `Aucun ${quoi} détecté sur cet appareil.`
+  }
+  if (nom === 'NotReadableError' || nom === 'AbortError') {
+    return `Votre ${quoi} est déjà utilisé par une autre application. Fermez-la, puis réessayez.`
+  }
+  return `Le ${quoi} n'a pas pu être activé. Réessayez.`
 }
 
 /**
@@ -70,6 +99,7 @@ export function useLiveRoom(
   const [connected, setConnected] = React.useState(false);
   const [connecting, setConnecting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [deviceError, setDeviceError] = React.useState<string | null>(null);
   const [tiles, setTiles] = React.useState<LiveTile[]>([]);
   const [activeSpeaker, setActiveSpeaker] = React.useState<string | null>(null);
   const [micEnabled, setMicEnabled] = React.useState(false);
@@ -165,14 +195,26 @@ export function useLiveRoom(
   const setMic = React.useCallback(async (on: boolean) => {
     const room = roomRef.current;
     if (!room) return;
-    await room.localParticipant.setMicrophoneEnabled(on);
+    try {
+      await room.localParticipant.setMicrophoneEnabled(on);
+      setDeviceError(null);
+    } catch (err) {
+      setDeviceError(messageDePeripherique(err, 'micro'));
+    }
+    // L'état se relit sur la salle, jamais sur ce qu'on a demandé : un refus
+    // laissait le bouton allumé sur une piste qui n'existe pas.
     setMicEnabled(room.localParticipant.isMicrophoneEnabled);
   }, []);
 
   const setCam = React.useCallback(async (on: boolean) => {
     const room = roomRef.current;
     if (!room) return;
-    await room.localParticipant.setCameraEnabled(on);
+    try {
+      await room.localParticipant.setCameraEnabled(on);
+      setDeviceError(null);
+    } catch (err) {
+      setDeviceError(messageDePeripherique(err, 'caméra'));
+    }
     setCamEnabled(room.localParticipant.isCameraEnabled);
   }, []);
 
@@ -187,5 +229,6 @@ export function useLiveRoom(
     canPublish,
     setMic,
     setCam,
+    deviceError,
   };
 }

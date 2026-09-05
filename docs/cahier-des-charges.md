@@ -574,11 +574,31 @@ mobile money) → paiement chez le fournisseur → retour → confirmation.
    **prévenu 30 jours avant** — le préavis long existe parce que récupérer
    plusieurs gigaoctets est un geste coûteux (arbitrages 51, 103).
 7. Le **salon de discussion** de la séance est conservé et rattaché au replay
-   (arbitrage 42).
+   (arbitrage 42). Il est **rendu avec l'enregistrement** : chaque message y
+   porte sa position dans la séance, et l'horodatage y emmène la lecture. C'est
+   ce qui distingue un salon rattaché d'un journal recopié à côté — il sert à
+   retrouver un passage.
+
+   Ce qui a été écrit **avant l'ouverture de la salle** ne se situe pas dans la
+   vidéo : il est affiché « avant », pas renvoyé à la seconde zéro. Un message
+   retiré par la Modération **ne revient pas** dans le replay, sans quoi
+   instruire un propos ne servirait à rien. L'accès au salon est celui du
+   replay : un ancien membre qui a droit à l'enregistrement a droit à ce qui
+   s'y est dit.
+
+   **Un chemin court y mène.** `?onglet=replays` ouvre directement la liste des
+   enregistrements, et le préavis de purge pointe l'enregistrement concerné, pas
+   une liste où le chercher. Les replays n'étaient atteignables que par un
+   onglet à cliquer, sans adresse : rien ne pouvait y renvoyer.
 8. **Tout membre peut télécharger** les replays auxquels il a accès : ni droit
    de formule, ni réglage par session (arbitrage 55).
 9. Horodatage **UTC en base**, fuseau IANA déclaré sur la séance, affichage dans
    le fuseau du lecteur (arbitrage 107).
+10. **Un refus du navigateur se dit.** Ouvrir un micro ou une caméra peut
+    échouer — permission refusée, aucun périphérique, appareil déjà pris par
+    une autre application. L'échec est nommé dans la salle, à l'endroit où l'on
+    vient d'appuyer. Sans cela le bouton restait éteint sans explication, et la
+    personne recliquait.
 
 ### F7 — Portefeuille, ventes, KYC et retraits
 
@@ -1208,14 +1228,25 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    devenu incrémental.
 3. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
    mené sur `develop`, tel que servi par staging. Neuf constats sont confirmés
-   par le code, un attend une reproduction. **Lots 0 à 7 livrés** : reprise de
+   par le code, un ne s'est pas reproduit. **Lots 0 à 8 livrés** : reprise de
    l'action après authentification (F1.6) · notifications et e-mails (F12.5
    à F12.7) · historique des ventes (F7.11) · idempotence et sondage de la
    messagerie (§4.2) · compteur d'usages des invitations (F5) · durée mesurée,
    retrait du nombre de sessions et cohérence du format (F3.8, F3.9) · position
    de lecture par format, visualiseur PDF embarqué et marqueur d'archive
    (F3, « Consultation ») · ressources et communautés réunies (F3.10, F3.11).
-   **Restent** : lives · recette finale.
+   **Reste** : la recette finale.
+
+   **Lot 9 — lives : livré pour l'essentiel, deux points ouverts.** Le constat
+   « un live planifié n'apparaît pas » **ne se reproduit pas** : la séance
+   apparaît pour l'animateur comme pour le membre, sur l'agenda, dans l'API et
+   dans l'espace de la communauté. Faute de cause, le comportement attendu est
+   désormais couvert par des tests de régression. Ce que la recherche a trouvé
+   à la place, c'est **F6.7 qui n'était pas implémenté** — voir F6.
+   Restent, faute d'outillage ici : l'essai du micro **à deux participants
+   réels** (permissions, coupure, réouverture), qui demande deux navigateurs
+   équipés, et la **revue de la disposition de la salle**, qui est un
+   arbitrage de conception.
 
    Les deux arbitrages qui bloquaient le lot 8 ont été rendus le 5 septembre
    2026 (136 et 137), après avoir constaté que **deux prémisses de ce document
@@ -1223,8 +1254,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    déliaison remettait déjà la ressource en vente — contre l'arbitrage 53
    qu'elle était censée appliquer.
 
-   **Plus aucun lot n'est bloqué par un arbitrage.** Le lot 9 attend une
-   reproduction, pas une décision.
+   **Plus aucun lot n'est bloqué par un arbitrage.**
 4. **Mobile first, lot 3** — les écrans, partiellement livré : 62 pages,
    administration retirée du périmètre. C'est le gros du chantier restant.
 5. **Montant de l'abonnement payant** — jamais arbitré. Sans successeur, borner

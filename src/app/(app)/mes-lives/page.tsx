@@ -37,7 +37,15 @@ export const metadata: Metadata = {
  * pouvoir l'ouvrir, ce que `/formateur/*` interdit. Les blocs propres à
  * l'animation n'apparaissent donc que si `trainerId` existe.
  */
-export default async function MesLivesPage() {
+export default async function MesLivesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onglet?: string }>;
+}) {
+  // `?onglet=replays` — ce que pointent la notification de purge et le renvoi
+  // depuis une communauté. Sans adresse, les replays n'étaient atteignables
+  // qu'en cliquant un onglet, et rien ne pouvait y mener.
+  const { onglet } = await searchParams;
   const auth = await getAuthContext();
   if (!auth) return null;
   const trainerId = auth.user.trainerId ?? null;
@@ -111,6 +119,7 @@ export default async function MesLivesPage() {
         replays={replays}
         isTrainer={Boolean(trainerId)}
         exploreHref={routes.communities}
+        initialTab={onglet === "replays" ? "replays" : "upcoming"}
       />
 
       {/* Arbitrages 38, 51 et 55, requalifiés : l'enregistrement n'est pas une

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHead } from "@/components/nk/page-head";
 import { getAuthContext } from "@/lib/api";
 import { db } from "@/lib/db";
-import { getReplay } from "@/lib/lives";
+import { getReplay, listReplayMessages } from "@/lib/lives";
 import { ReplayPlayer } from "./replay-player";
 
 export const dynamic = "force-dynamic";
@@ -32,13 +32,18 @@ export default async function ReplayPage({ params }: { params: Params }) {
     notFound();
   }
 
+  // Le salon de la séance (F6.7). Il est chargé ici plutôt que par le lecteur :
+  // il ne change plus, et une requête de plus au montage ferait clignoter un
+  // panneau dont le contenu est figé depuis la fin du direct.
+  const messages = await listReplayMessages(replayId, auth.user.id);
+
   return (
     <div className="nk-wrap pb-16">
       <PageHead
         crumbs={[{ label: "Mes lives", href: "/mes-lives" }, { label: replay.title }]}
         title={<span className="sr-only">{replay.title}</span>}
       />
-      <ReplayPlayer replay={replay} />
+      <ReplayPlayer replay={replay} messages={messages} />
     </div>
   );
 }
