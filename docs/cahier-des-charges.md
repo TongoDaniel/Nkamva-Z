@@ -76,6 +76,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 | Document | Ce qu'il porte |
 |---|---|
 | `docs/decisions-nkamva.md` | Les 137 arbitrages produit, avec leur statut d'implémentation |
+| `docs/recette-audit-2026-09.md` | La recette de l'audit du 1er septembre 2026 : chaque domaine, ce qui le couvre, ce qui reste |
 | `docs/abonnement-formateur.md` | Les 19 arbitrages du cycle de vie de l'abonnement formateur (A1-A19) |
 | `docs/invitations.md` | Spécification complète des invitations aux communautés |
 | `docs/registre-des-traitements.md` | Registre des traitements de données personnelles |
@@ -1235,7 +1236,19 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    retrait du nombre de sessions et cohérence du format (F3.8, F3.9) · position
    de lecture par format, visualiseur PDF embarqué et marqueur d'archive
    (F3, « Consultation ») · ressources et communautés réunies (F3.10, F3.11).
-   **Reste** : la recette finale.
+   **Reste** : ce qui ne se script pas — voir `docs/recette-audit-2026-09.md`.
+
+   **Lot 10 — recette finale.** Le scénario nominal se joue de bout en bout,
+   de l'inscription au revenu retiré : `bun scripts/recette-nominale.ts`, neuf
+   étapes, trente-cinq vérifications. Les neuf domaines de l'audit sont repris
+   un à un dans le document de recette, avec ce qui les couvre.
+
+   Deux réserves y sont nommées. La « checklist de trente lignes » n'existe
+   pas : le rapport transmis est un document d'**une page**, un tableau de
+   synthèse à neuf domaines — la recette suit donc ces neuf domaines. Et
+   l'**essai par une personne réelle, sans assistance**, ne peut pas être
+   scripté : la recette établit que la mécanique tient, pas qu'elle se
+   comprend.
 
    **Lot 9 — lives : livré pour l'essentiel, deux points ouverts.** Le constat
    « un live planifié n'apparaît pas » **ne se reproduit pas** : la séance

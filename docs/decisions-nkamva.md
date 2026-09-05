@@ -1963,6 +1963,30 @@ pour ces formats ; il lui manquait l'information, pas le pouvoir.
 
 ---
 
+## Recette de l'audit — 5 septembre 2026
+
+Le chantier ouvert par l'audit fonctionnel du 1er septembre 2026 est **clos sur
+sa partie scriptable**. Onze lots, dix livrés en entier, un partiellement.
+
+La recette et son détail par domaine vivent dans
+`docs/recette-audit-2026-09.md`. Deux constats méritent d'être portés ici,
+parce qu'ils touchent la lecture des sources :
+
+**Le rapport d'audit tient en une page.** C'est un tableau de synthèse à neuf
+domaines, avec un constat et une priorité chacun. La « checklist de trente
+lignes » évoquée dans le plan de travail **n'y figure pas** — elle a été
+supposée. La recette suit donc les neuf domaines réellement énoncés, complétés
+par les règles opposables du cahier.
+
+**La branche gratuite est celle qui s'exécute.** Le scénario nominal montre que
+l'espace formateur s'ouvre **à l'approbation**, pas au règlement, parce que la
+grille d'abonnement est à zéro. La règle « c'est le paiement qui fait le
+formateur » existe, elle est testée, et elle n'est pas empruntée aujourd'hui.
+Elle le sera le jour où un montant sera fixé — la plus ancienne question ouverte
+du produit, et la seule qui se voie en vitrine.
+
+---
+
 ## Conventions techniques (Lot 0)
 
 | Sujet | Décision | Statut réel |
