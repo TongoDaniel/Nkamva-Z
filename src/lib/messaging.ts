@@ -573,6 +573,18 @@ export async function getConversation(
   conversationId: string,
   userId: string,
   trainerProfileId: string | null,
+  /**
+   * Sondage incrémental (§4.2). Passé, seuls les messages **postés après** cette
+   * date sont rendus ; le résumé, lui, l'est toujours — c'est lui qui porte le
+   * compteur de non-lues et le droit d'écrire, qui peuvent avoir changé.
+   *
+   * C'est la réponse à la question laissée ouverte sur la cadence d'un groupe.
+   * Ce n'est pas la fréquence qui devait changer, c'est la charge : renvoyer
+   * deux cents messages toutes les huit secondes sur une 3G facturée au
+   * mégaoctet, c'est exactement « consommer des données sans demande »
+   * (§10.2, règle 11).
+   */
+  since?: Date | null,
 ): Promise<ConversationThread> {
   const row = await db.conversation.findUnique({
     where: { id: conversationId },
@@ -589,7 +601,7 @@ export async function getConversation(
   const [summary, messages] = await Promise.all([
     toSummary(row as ConversationRow, userId, read),
     db.message.findMany({
-      where: { conversationId },
+      where: { conversationId, ...(since ? { createdAt: { gt: since } } : {}) },
       orderBy: { createdAt: 'asc' },
       take: 200,
       select: {
@@ -625,7 +637,7 @@ export async function sendMessage(
   conversationId: string,
   userId: string,
   trainerProfileId: string | null,
-  input: { body: string; announcement?: boolean },
+  input: { body: string; announcement?: boolean; clientKey?: string },
 ): Promise<{ id: string }> {
   const body = input.body.trim()
   if (!body) throw new Error('BODY_REQUIRED')
@@ -661,9 +673,29 @@ export async function sendMessage(
   const announcement = input.announcement === true
   if (announcement && (!isGroup || !viewerIsTrainer)) throw new Error('ANNOUNCEMENT_NOT_ALLOWED')
 
-  const message = await db.$transaction(async (tx) => {
+  // Idempotence (§4.2, constat 9). La clé vient du navigateur, tirée à la
+  // frappe et rejouée telle quelle si l'envoi est relancé — ce qui arrive dès
+  // que le délai client de 20 s annule une requête que le serveur a pourtant
+  // committée. Sans elle, l'écran disait « votre message n'est pas parti », la
+  // personne renvoyait, et le fil portait deux fois la même phrase.
+  //
+  // On regarde **avant** d'écrire, puis on rattrape le conflit après : la
+  // lecture évite l'aller-retour dans le cas courant, l'index tranche la course
+  // dans le cas rare où deux tentatives arrivent ensemble.
+  const clientKey = input.clientKey?.trim() || null
+  if (clientKey) {
+    const deja = await db.message.findFirst({
+      where: { conversationId, clientKey },
+      select: { id: true },
+    })
+    if (deja) return deja
+  }
+
+  let message: { id: string; createdAt: Date }
+  try {
+    message = await db.$transaction(async (tx) => {
     const created = await tx.message.create({
-      data: { conversationId, senderId: userId, body, announcement },
+      data: { conversationId, senderId: userId, body, announcement, clientKey },
       select: { id: true, createdAt: true },
     })
     await tx.conversation.update({
@@ -676,7 +708,17 @@ export async function sendMessage(
       meta: { communityId: conversation.communityId, messageId: created.id },
     })
     return created
-  })
+    })
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code !== 'P2002' || !clientKey) throw err
+    // Deux tentatives du même message arrivées ensemble : l'index a tranché, le
+    // perdant rend la ligne du gagnant. Rien à annoncer une seconde fois — les
+    // effets de bord pendent à ce chemin-ci, pas au retour.
+    return db.message.findFirstOrThrow({
+      where: { conversationId, clientKey },
+      select: { id: true },
+    })
+  }
 
   // Un extrait, pas le message entier : l'aperçu doit donner envie d'ouvrir le
   // fil, pas s'y substituer — et une boîte mail n'est pas l'endroit où déverser

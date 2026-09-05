@@ -75,7 +75,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 
 | Document | Ce qu'il porte |
 |---|---|
-| `docs/decisions-nkamva.md` | Les 130 arbitrages produit, avec leur statut d'implémentation |
+| `docs/decisions-nkamva.md` | Les 132 arbitrages produit, avec leur statut d'implémentation |
 | `docs/abonnement-formateur.md` | Les 19 arbitrages du cycle de vie de l'abonnement formateur (A1-A19) |
 | `docs/invitations.md` | Spécification complète des invitations aux communautés |
 | `docs/registre-des-traitements.md` | Registre des traitements de données personnelles |
@@ -184,7 +184,7 @@ notifications et préavis · conformité des données personnelles · mobile fir
 | **Paliers d'abonnement `STARTER` / `PRO` / `EXPERT`** | Arbitrage 66 — remplacés par deux cadences |
 | **Jauge de places d'un live** | Arbitrage 46 — la communauté est sa propre limite |
 | **Multilingue** | Monolingue français ; `next-intl` présent mais non utilisé |
-| **WebSocket** | Temps réel par sondage TanStack Query — 8 s sur un fil, 15 s sur une liste. Ces deux cadences ont été pensées pour du 1 à 1 : celle d'un **groupe** reste à fixer (§14) |
+| **WebSocket** | Temps réel par sondage TanStack Query — 8 s sur un fil, 15 s sur une liste, **pour les deux formes de conversation**. Un groupe ne change pas la cadence mais la charge : le fil se sonde en **incrémental** (`?depuis=`), et tout sondage **cesse quand l'onglet est masqué** (arbitrage 131) |
 | **Optimisation mobile de l'administration** | Arbitrage 109 — les 24 écrans `/admin` héritent du socle, rien de plus |
 | **Contrepartie du parrain** | Arbitrage 76, ajourné ; si elle arrive, financée sur la commission NkamVa (arbitrage 104) |
 | **Refusion des espaces visiteur / connecté** | Décision assumée : deux arborescences, décrites dans `src/lib/spaces.ts` |
@@ -1167,7 +1167,6 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **Rappel avant une séance** | Produit | **Ajournement confirmé le 4 septembre 2026.** L'audit du 1er septembre l'énumère parmi les notifications attendues, mais personne n'a constaté son absence comme un défaut : il reste une hypothèse tant que le premier live réel n'a pas eu lieu. Son absence de F12.5 est donc une décision, pas un oubli — et l'outillage existe déjà (préavis J-7/J-1, tâches planifiées) le jour où elle sera prise |
 | **Ressource incluse dans une communauté qui ferme** | Produit, bloquant pour F3.10 | La bascule vendue → incluse est à sens unique : la ressource ne peut pas retourner au catalogue. Reste-t-elle servie aux membres entrés, disparaît-elle, ou le formateur récupère-t-il un droit de republication ? |
 | **Les ressources incluses éteintes valent-elles « fermé » ?** | Produit, bloquant pour F3.10 | `resourcesEnabled` à faux sur une communauté par ailleurs active : peut-on encore y associer une ressource ? Le contrôle porte aujourd'hui sur `status` seul |
-| **Cadence de sondage d'un groupe** | Performance, bloquant pour le lot 4 | Les 8 s et 15 s du §4.2 ont été pensées pour du 1 à 1. Un groupe n'a pas le même débit, et la règle 11 du §10.2 interdit de consommer des données sans demande |
 | **Le formateur dans les groupes qu'il a rejoints** | Produit | Rien ne lui interdit d'y écrire comme apprenant, mais son nom y apparaît sans distinction de rôle |
 | **`Community.messagesPerDay`** | Produit | La colonne existe et n'est lue par personne. Un groupe actif est le premier endroit où un plafond servirait |
 | **Inscription à une séance, distincte de la présence** | Produit | Ajourné — l'absence de jauge a retiré ce qui la rendait nécessaire |
