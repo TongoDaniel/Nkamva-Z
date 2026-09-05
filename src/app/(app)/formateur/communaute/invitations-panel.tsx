@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Gift, Link2, Loader2, Mail, Search, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
@@ -47,6 +48,29 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
+ * Ce que porte la pastille, et qui n'est pas la même chose selon la forme
+ * (arbitrage 123).
+ *
+ * Un **nominatif** est à usage unique : « En attente » puis « Acceptée » dit
+ * tout. Un **lien partageable** est multi-usage — il n'a pas d'état « accepté »,
+ * et lui appliquer la pastille binaire le laissait indéfiniment « En attente »
+ * alors que des membres étaient entrés. C'est ce que le formateur lisait comme
+ * une panne, et c'est le constat 10 de l'audit.
+ *
+ * Tant qu'il sert, son statut **est** son compteur. Il ne reprend un libellé
+ * que devenu terminal — là, il n'y a plus rien à compter.
+ */
+function statusPill(row: InvitationRow): { label: string; tone: "ok" | "warn" | "bad" | "muted" } {
+  if (row.kind === "SHARE_LINK" && row.status === "PENDING") {
+    return { label: `${row.usesCount} / ${row.maxUses} entrés`, tone: "ok" };
+  }
+  return {
+    label: STATUS_LABEL[row.status] ?? row.status,
+    tone: STATUS_TONE[row.status] ?? "muted",
+  };
+}
+
+/**
  * « Closes » réunit ce qui ne peut plus servir, par trois chemins différents.
  * On les distingue rarement quand on cherche, et la ligne les nomme toujours.
  */
@@ -57,7 +81,10 @@ const FILTERS: ReadonlyArray<{
   statuses: readonly string[] | null;
 }> = [
   { value: "all", label: "Toutes", statuses: null },
-  { value: "pending", label: "En attente", statuses: ["PENDING"] },
+  // « Actives » plutôt qu'« En attente » : le même état recouvre un nominatif
+  // qui attend sa personne et un lien qui, lui, sert déjà. Attendre n'est pas
+  // ce que fait un lien à sa troisième entrée.
+  { value: "pending", label: "Actives", statuses: ["PENDING"] },
   { value: "accepted", label: "Acceptées", statuses: ["ACCEPTED"] },
   { value: "closed", label: "Closes", statuses: ["EXPIRED", "REVOKED", "EXHAUSTED"] },
 ];
@@ -82,7 +109,6 @@ export function InvitationsPanel({
   isPrivate: boolean;
   initial: InvitationRow[];
 }) {
-  const [rows, setRows] = React.useState(initial);
   const [email, setEmail] = React.useState("");
   const [grant, setGrant] = React.useState<"PAID" | "GIFT">("PAID");
   const [giftMonths, setGiftMonths] = React.useState("1");
@@ -91,8 +117,44 @@ export function InvitationsPanel({
   const action = useKeyedAction();
   const [search, setSearch] = React.useState("");
   const [filter, setFilter] = React.useState("all");
+  const queryClient = useQueryClient();
 
-  React.useEffect(() => setRows(initial), [initial]);
+  // Onglet masqué, rien ne part — règle 11 du §10.2, comme au lot 4. TanStack
+  // suspend déjà ses intervalles sur un document masqué ; on double la garde
+  // parce qu'elle est explicite, et qu'elle survivra à un réglage global.
+  const [ongletVisible, setOngletVisible] = React.useState(true);
+  React.useEffect(() => {
+    const suivre = () => setOngletVisible(!document.hidden);
+    suivre();
+    document.addEventListener("visibilitychange", suivre);
+    return () => document.removeEventListener("visibilitychange", suivre);
+  }, []);
+
+  const listKey = React.useMemo(() => ["trainer-invitations", communityId] as const, [communityId]);
+  // La date de la première valeur, figée : sans elle, react-query tiendrait les
+  // lignes rendues par le serveur pour périmées et redemanderait tout au montage.
+  const [seededAt] = React.useState(() => Date.now());
+
+  /**
+   * Une invitation change d'état **sans que le formateur touche à rien** : un
+   * invité accepte, un lien atteint son quota, une échéance passe. Sans sondage,
+   * l'écran restait figé sur ce qu'il montrait à l'ouverture — c'est l'autre
+   * moitié du constat 10, celle que la pastille seule ne corrige pas.
+   */
+  const { data: rows = initial } = useQuery({
+    queryKey: listKey,
+    queryFn: fetchRows,
+    initialData: initial,
+    initialDataUpdatedAt: seededAt,
+    // §4.2 — 15 s sur une liste.
+    refetchInterval: ongletVisible ? 15_000 : false,
+    staleTime: 15_000,
+  });
+
+  const setRows = React.useCallback(
+    (fresh: InvitationRow[]) => queryClient.setQueryData(listKey, fresh),
+    [queryClient, listKey],
+  );
 
   const countFor = (statuses: readonly string[] | null) =>
     statuses ? rows.filter((r) => statuses.includes(r.status)).length : rows.length;
@@ -340,7 +402,7 @@ export function InvitationsPanel({
                 <div className="min-w-[180px] flex-1">
                   <p className="text-[14px] font-semibold text-ink">
                     {row.kind === "SHARE_LINK"
-                      ? `Lien de parrainage · ${row.usesCount}/${row.maxUses} utilisations`
+                      ? "Lien de parrainage"
                       : (row.email ?? "adresse effacée")}
                   </p>
                   <p className="mt-0.5 text-[13px] text-ink-3">
@@ -352,16 +414,17 @@ export function InvitationsPanel({
                   </p>
                 </div>
 
-                <StPill tone={STATUS_TONE[row.status] ?? "muted"}>
-                  {STATUS_LABEL[row.status] ?? row.status}
-                </StPill>
+                {(() => {
+                  const pill = statusPill(row);
+                  return <StPill tone={pill.tone}>{pill.label}</StPill>;
+                })()}
 
                 {row.url ? (
                   <button
                     type="button"
                     onClick={() => copy(row.url!, "Lien copié.")}
                     aria-label="Copier le lien de parrainage"
-                    className="grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-brand hover:text-brand"
+                    className="nk-tap grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-brand hover:text-brand"
                   >
                     <Copy className="size-4" aria-hidden="true" />
                   </button>
@@ -374,7 +437,7 @@ export function InvitationsPanel({
                     disabled={action.isRunning(`revoke:${row.id}`)}
                     aria-busy={action.isRunning(`revoke:${row.id}`) || undefined}
                     aria-label={`Retirer l'invitation ${row.email ?? row.tokenPrefix}`}
-                    className="grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-danger hover:text-danger disabled:opacity-50"
+                    className="nk-tap grid size-9 cursor-pointer place-items-center rounded-lg border border-line text-ink-2 hover:border-danger hover:text-danger disabled:opacity-50"
                   >
                     {action.isRunning(`revoke:${row.id}`) ? (
                       <Loader2 className="size-4 animate-spin" aria-hidden="true" />
