@@ -36,6 +36,7 @@ export default async function LecturePage({
       slug: true,
       format: true,
       durationSeconds: true,
+      pageCount: true,
       trainerProfile: { select: { user: { select: { fullName: true } } } },
     },
   });
@@ -43,7 +44,7 @@ export default async function LecturePage({
 
   const view = await db.courseView.findUnique({
     where: { courseId_learnerId: { courseId, learnerId: auth.user.id } },
-    select: { watchedSeconds: true },
+    select: { watchedSeconds: true, lastPage: true, completedAt: true, downloaded: true },
   });
 
   return (
@@ -61,7 +62,11 @@ export default async function LecturePage({
         courseId={course.id}
         format={course.format}
         durationSeconds={course.durationSeconds}
+        pageCount={course.pageCount}
         startAtSeconds={view?.watchedSeconds ?? 0}
+        startAtPage={view?.lastPage ?? null}
+        completed={Boolean(view?.completedAt)}
+        downloaded={Boolean(view?.downloaded)}
       />
     </div>
   );

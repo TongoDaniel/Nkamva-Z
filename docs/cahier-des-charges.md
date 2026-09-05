@@ -75,7 +75,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 
 | Document | Ce qu'il porte |
 |---|---|
-| `docs/decisions-nkamva.md` | Les 133 arbitrages produit, avec leur statut d'implémentation |
+| `docs/decisions-nkamva.md` | Les 135 arbitrages produit, avec leur statut d'implémentation |
 | `docs/abonnement-formateur.md` | Les 19 arbitrages du cycle de vie de l'abonnement formateur (A1-A19) |
 | `docs/invitations.md` | Spécification complète des invitations aux communautés |
 | `docs/registre-des-traitements.md` | Registre des traitements de données personnelles |
@@ -369,6 +369,18 @@ souvent sur une connexion qui se coupe.
    un document. Elle est sauvegardée pendant la consultation, et au plus tard
    quand l'onglet est masqué ou fermé — on ne perd pas ce qui a été lu parce que
    la personne a fermé son navigateur.
+
+   **Ce qu'on retient quand elle recule diffère selon le format**
+   (arbitrage 134). La vidéo garde le point **le plus loin** atteint : ce nombre
+   arbitre automatiquement un remboursement, et un recul ne doit pas rouvrir un
+   droit que la lecture a consommé. Le document garde sa **dernière** page :
+   elle ne sert qu'à reprendre et à renseigner, et retenir la plus lointaine
+   ferait perdre sa page à quiconque relit.
+
+   **Les bornes viennent du serveur.** Le navigateur annonce une position ; le
+   serveur la ramène dans ce que le fichier permet, d'après les mesures faites
+   au dépôt (F3.8). Un nombre venu du navigateur ne peut pas décider d'un
+   remboursement.
 2. **Toute ressource lisible en ligne est lue en ligne, dans son format.** Un
    document n'est pas rendu par un lecteur vidéo : chaque format a le rendu qui
    lui correspond, faute de quoi l'écran est vide et rien n'est mesuré. Le
@@ -378,6 +390,11 @@ souvent sur une connexion qui se coupe.
    modèle — n'ont pas de position possible : elles portent un marqueur
    **ouvert / terminé** que l'apprenant pose lui-même, et le téléchargement les
    compte comme consultées.
+
+   Ce marqueur **ne touche à aucun droit** (arbitrage 135) : le seuil de
+   consommation d'un format téléchargeable reste `downloaded` et lui seul
+   (F8.1). Faire dépendre l'argent d'une case que l'apprenant coche lui-même
+   lui donnerait le contrôle de sa propre éligibilité, dans les deux sens.
 4. **La reprise vaut sur tous les appareils** : elle est portée par le compte,
    pas par le navigateur. Fermer l'onglet, se déconnecter, changer de téléphone
    ne la perdent pas.
@@ -948,6 +965,28 @@ lecture d'une ressource achetée (voir F3, « Consultation d'une ressource
 achetée »). Le budget de 300 Ko continue de valoir, inchangé, sur toutes les
 autres routes.
 
+**Poids réel du visualiseur, mesuré à la livraison du lot 7** (build de
+production du 5 septembre 2026, gzip) :
+
+| Élément | Poids | Quand il part |
+|---|---|---|
+| `pdfjs-dist` — fil principal | **111 Ko** | À l'ouverture d'une ressource **PDF**, en import dynamique |
+| `pdfjs-dist` — worker de rendu | **279 Ko** | Idem, chargé par le worker lui-même |
+| **Total ajouté** | **390 Ko** | — |
+
+Trois choses à retenir de ce chiffre. Il **dépasse les 300 Ko** à lui seul :
+c'est le prix de l'arbitrage 121, pris en connaissance de cause, et le seul
+moyen de le ramener sous la barre serait de renoncer à la position de lecture
+d'un document. Il n'est payé **que par un PDF** — une vidéo ou une archive
+n'en chargent pas un octet, le visualiseur n'étant monté que dans la branche
+documentaire. Et il est payé **une fois par visiteur**, le fragment étant mis
+en cache par le navigateur d'une lecture à l'autre.
+
+Sur le réseau de référence — 1,6 Mb/s — cela représente environ **deux
+secondes** de plus à la première ouverture d'un document. Une réduction
+supposerait un autre moteur de rendu, ou l'abandon du rendu en ligne au profit
+du lecteur natif du navigateur, qui ne dit pas quelle page est affichée.
+
 ### 10.2 Les onze règles d'expérience — critères opposables
 
 Toute livraison se juge sur cette liste, vérifiée par `scripts/smoke-mobile.ts`.
@@ -1143,13 +1182,14 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    devenu incrémental.
 3. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
    mené sur `develop`, tel que servi par staging. Neuf constats sont confirmés
-   par le code, un attend une reproduction. **Lots 0 à 6 livrés** : reprise de
+   par le code, un attend une reproduction. **Lots 0 à 7 livrés** : reprise de
    l'action après authentification (F1.6) · notifications et e-mails (F12.5
    à F12.7) · historique des ventes (F7.11) · idempotence et sondage de la
    messagerie (§4.2) · compteur d'usages des invitations (F5) · durée mesurée,
-   retrait du nombre de sessions et cohérence du format (F3.8, F3.9).
-   **Restent** : position de lecture (F3, « Consultation ») · ressource et
-   communauté associées (F3.10, F3.11) · lives · recette finale.
+   retrait du nombre de sessions et cohérence du format (F3.8, F3.9) · position
+   de lecture par format, visualiseur PDF embarqué et marqueur d'archive
+   (F3, « Consultation »). **Restent** : ressource et communauté associées
+   (F3.10, F3.11) · lives · recette finale.
 
    Deux de ces lots sont **bloqués par un arbitrage** listé au §14 : le sort
    d'une ressource incluse quand sa communauté ferme, et la portée de
@@ -1190,6 +1230,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **Rappel avant une séance** | Produit | **Ajournement confirmé le 4 septembre 2026.** L'audit du 1er septembre l'énumère parmi les notifications attendues, mais personne n'a constaté son absence comme un défaut : il reste une hypothèse tant que le premier live réel n'a pas eu lieu. Son absence de F12.5 est donc une décision, pas un oubli — et l'outillage existe déjà (préavis J-7/J-1, tâches planifiées) le jour où elle sera prise |
 | **Ressource incluse dans une communauté qui ferme** | Produit, bloquant pour F3.10 | La bascule vendue → incluse est à sens unique : la ressource ne peut pas retourner au catalogue. Reste-t-elle servie aux membres entrés, disparaît-elle, ou le formateur récupère-t-il un droit de republication ? |
 | **Les ressources incluses éteintes valent-elles « fermé » ?** | Produit, bloquant pour F3.10 | `resourcesEnabled` à faux sur une communauté par ailleurs active : peut-on encore y associer une ressource ? Le contrôle porte aujourd'hui sur `status` seul |
+| **Un PDF lu en ligne, jamais téléchargé** | Paiement, ouvert par le lot 7 | F8.1 fait reposer la consommation d'un format téléchargeable sur `downloaded`, parce qu'un document ne pouvait se consommer qu'en le téléchargeant. Il se lit désormais en ligne : un acheteur peut le lire de bout en bout **sans jamais déclencher ce signal**, et rester éligible au remboursement automatique. Le résumé de consommation porte la page atteinte et l'agent la voit ; la règle, elle, n'a pas été rouverte — elle relève d'un arbitrage de paiement |
 | **Le formateur dans les groupes qu'il a rejoints** | Produit | Rien ne lui interdit d'y écrire comme apprenant, mais son nom y apparaît sans distinction de rôle |
 | **`Community.messagesPerDay`** | Produit | La colonne existe et n'est lue par personne. Un groupe actif est le premier endroit où un plafond servirait |
 | **Inscription à une séance, distincte de la présence** | Produit | Ajourné — l'absence de jauge a retiré ce qui la rendait nécessaire |

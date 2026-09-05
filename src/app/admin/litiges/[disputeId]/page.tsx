@@ -268,6 +268,21 @@ export default async function DisputeReviewPage({
                     </dd>
                   </div>
                 ) : null}
+                {/*
+                  Un format téléchargeable part en décision manuelle : la règle
+                  des 30 % ne tranche rien pour lui (F8.1). La page atteinte est
+                  ce qui reste pour juger, et sans elle l'agent lisait « non
+                  téléchargée, 0 % » d'un document lu de bout en bout.
+                */}
+                {snapshot.lastPage ? (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-ink-2">Lu en ligne</dt>
+                    <dd className="font-bold">
+                      page {snapshot.lastPage}
+                      {snapshot.coursePageCount ? ` sur ${snapshot.coursePageCount}` : ""}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex justify-between gap-3">
                   <dt className="text-ink-2">Règle des 30 %</dt>
                   <dd className="font-bold">

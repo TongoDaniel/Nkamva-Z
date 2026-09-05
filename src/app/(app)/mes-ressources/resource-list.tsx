@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/nk/empty-state";
 import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
 import { fmtDuration } from "@/lib/format";
-import { consumptionPercent, isDownloadable, type ResourceItem } from "@/lib/dto";
+import { readingPercent, isDownloadable, type ResourceItem } from "@/lib/dto";
 import { routesOf } from "@/lib/spaces";
 
 /** Espace connecté : les liens de navigation restent dans la coquille applicative. */
@@ -107,8 +107,21 @@ export function ResourceList({
           items.map((item) => {
             const course = item.course;
             if (!course) return null;
-            const percent = consumptionPercent(item.courseView, course.format, course.durationSeconds);
+            const percent = readingPercent(
+              item.courseView, course.format, course.durationSeconds, course.pageCount,
+            );
             const duration = fmtDuration(course.durationSeconds);
+
+            // La position atteinte, dite dans l'unité du format (F3.1).
+            const view = item.courseView;
+            const reprise =
+              course.format === "video" && view?.watchedSeconds
+                ? `Reprendre à ${fmtDuration(view.watchedSeconds)}`
+                : course.format === "pdf" && view?.lastPage
+                  ? `Reprendre page ${view.lastPage}${course.pageCount ? ` sur ${course.pageCount}` : ""}`
+                  : view?.completedAt
+                    ? "Marquée comme terminée"
+                    : null;
             const trainerName = course.trainerProfile?.user?.fullName;
 
             return (
@@ -127,7 +140,16 @@ export function ResourceList({
                   <p className="text-[13px] font-bold uppercase tracking-[0.04em] text-brand-dark">
                     {formatLabel(course.format)}
                     {duration ? ` · ${duration}` : ""}
+                    {course.pageCount ? ` · ${course.pageCount} pages` : ""}
                   </p>
+                  {/*
+                    Où l'on s'est arrêté, en toutes lettres. L'anneau seul dit
+                    un pourcentage ; il ne dit pas qu'on reprendra page 12, et
+                    c'est cette phrase-là qui donne envie de rouvrir (F3.1).
+                  */}
+                  {reprise ? (
+                    <p className="order-3 text-[13px] font-semibold text-ink-2">{reprise}</p>
+                  ) : null}
                   <h2 className="text-[15.5px] font-bold leading-tight">
                     <Link href={routes.course(course.slug)} className="text-ink hover:text-brand">
                       {course.title}

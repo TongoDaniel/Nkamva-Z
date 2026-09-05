@@ -77,6 +77,13 @@ export interface ConsumptionEvaluation {
   courseFormat: string
   watchedSeconds: number | null
   courseDurationSeconds: number | null
+  /**
+   * Document — la page atteinte et le total. Purement informatifs : ils
+   * n'entrent dans aucun calcul d'éligibilité, ils disent à l'agent ce que
+   * l'apprenant a lu quand la règle automatique ne s'applique pas (F8.1).
+   */
+  lastPage: number | null
+  coursePageCount: number | null
   downloaded: boolean | null
   consumptionPercent: number
   /** La règle automatique des 30 % s'applique-t-elle à ce format ? */
@@ -111,6 +118,8 @@ export async function computeConsumptionSnapshot(purchase: PurchaseForConsumptio
       courseFormat: 'community',
       watchedSeconds: null,
       courseDurationSeconds: null,
+      lastPage: null,
+      coursePageCount: null,
       downloaded: null,
       consumptionPercent: percent,
       ruleApplies: true,
@@ -120,11 +129,11 @@ export async function computeConsumptionSnapshot(purchase: PurchaseForConsumptio
 
   const course = await db.course.findUnique({
     where: { id: purchase.courseId },
-    select: { id: true, format: true, durationSeconds: true },
+    select: { id: true, format: true, durationSeconds: true, pageCount: true },
   })
   const view = await db.courseView.findUnique({
     where: { courseId_learnerId: { courseId: purchase.courseId, learnerId: purchase.learnerId } },
-    select: { watchedSeconds: true, downloaded: true },
+    select: { watchedSeconds: true, downloaded: true, lastPage: true },
   })
 
   const format = course?.format ?? 'unknown'
@@ -138,6 +147,12 @@ export async function computeConsumptionSnapshot(purchase: PurchaseForConsumptio
       courseFormat: format,
       watchedSeconds: null,
       courseDurationSeconds: course?.durationSeconds ?? null,
+      // La lecture en ligne d'un PDF, désormais possible (F3.2), est reportée
+      // telle quelle. Elle **ne modifie ni `consumptionPercent` ni `blocked`** :
+      // l'éligibilité d'un format téléchargeable reste celle de F8.1, et la
+      // changer serait un arbitrage de paiement, pas une conséquence de lot.
+      lastPage: view?.lastPage ?? null,
+      coursePageCount: course?.pageCount ?? null,
       downloaded,
       consumptionPercent: downloaded ? 100 : 0,
       ruleApplies: false,
@@ -155,6 +170,8 @@ export async function computeConsumptionSnapshot(purchase: PurchaseForConsumptio
     courseFormat: format,
     watchedSeconds: watched,
     courseDurationSeconds: duration,
+    lastPage: null,
+    coursePageCount: null,
     downloaded: view?.downloaded ?? false,
     consumptionPercent: percent,
     ruleApplies: true,
@@ -376,6 +393,8 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
         courseFormat: consumption.courseFormat,
         watchedSeconds: consumption.watchedSeconds,
         courseDurationSeconds: consumption.courseDurationSeconds,
+        lastPage: consumption.lastPage,
+        coursePageCount: consumption.coursePageCount,
         downloaded: consumption.downloaded,
         consumptionPercent: consumption.consumptionPercent,
         ruleApplies: consumption.ruleApplies,
@@ -1276,6 +1295,8 @@ export async function openDisputeFromChargeback(params: {
         courseFormat: consumption.courseFormat,
         watchedSeconds: consumption.watchedSeconds,
         courseDurationSeconds: consumption.courseDurationSeconds,
+        lastPage: consumption.lastPage,
+        coursePageCount: consumption.coursePageCount,
         downloaded: consumption.downloaded,
         consumptionPercent: consumption.consumptionPercent,
         ruleApplies: consumption.ruleApplies,

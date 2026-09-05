@@ -38,6 +38,8 @@ vi.mock('@/lib/s3', async (importOriginal) => ({
 
 import { prisma, cleanDatabase } from './setup'
 import { createCourse, updateCourse, confirmCourseUpload } from '@/lib/courses'
+import { buildPdf } from '../prisma/seed/assets'
+import { PDFDocument } from 'pdf-lib'
 
 // --- Fabrique de MP4 ------------------------------------------------------
 
@@ -159,6 +161,83 @@ describe('Lot 6 — durée mesurée et cohérence du format', () => {
 
     const maj = await deposer(course.id, profile.id, user.id, 'pdf', 'application/pdf')
     expect(maj.durationSeconds).toBeNull()
+  })
+
+  // --- Le pendant documentaire : le nombre de pages (lot 7) ----------------
+
+  it('le nombre de pages est lu sur le document déposé', async () => {
+    const { user, profile } = await formateur()
+    const course = await ressource(profile.id, user.id, 'pdf')
+
+    // Un PDF écrit à la main par le seed — producteur indépendant de la
+    // bibliothèque qui le relit.
+    objet = buildPdf('Grille de revue de code', 'Document de démonstration')
+
+    const maj = await deposer(course.id, profile.id, user.id, 'pdf', 'application/pdf')
+    expect(maj.pageCount).toBe(1)
+  })
+
+  it('un document de plusieurs pages est compté juste', async () => {
+    const { user, profile } = await formateur()
+    const course = await ressource(profile.id, user.id, 'pdf')
+
+    const doc = await PDFDocument.create()
+    for (let i = 0; i < 7; i++) doc.addPage([595, 842])
+    objet = Buffer.from(await doc.save())
+
+    const maj = await deposer(course.id, profile.id, user.id, 'pdf', 'application/pdf')
+    expect(maj.pageCount).toBe(7)
+  })
+
+  it('un document illisible se publie quand même, sans compte de pages', async () => {
+    const { user, profile } = await formateur()
+    const course = await ressource(profile.id, user.id, 'pdf')
+    objet = Buffer.from('%PDF-1.4 mais tronqué ici')
+
+    const maj = await deposer(course.id, profile.id, user.id, 'pdf', 'application/pdf')
+    expect(maj.pageCount).toBeNull()
+    expect(maj.contentS3Key).toContain(course.id)
+  })
+
+  it('une vidéo n’a pas de pages, un document pas de durée', async () => {
+    const { user, profile } = await formateur()
+
+    const video = await ressource(profile.id, user.id, 'video')
+    objet = mp4(600)
+    const majVideo = await deposer(video.id, profile.id, user.id, 'video', 'video/mp4')
+    expect(majVideo.pageCount).toBeNull()
+
+    const pdf = await ressource(profile.id, user.id, 'pdf')
+    objet = buildPdf('Titre', 'Sous-titre')
+    const majPdf = await deposer(pdf.id, profile.id, user.id, 'pdf', 'application/pdf')
+    expect(majPdf.durationSeconds).toBeNull()
+  })
+
+  it('remplacer le document remplace le compte de pages', async () => {
+    const { user, profile } = await formateur()
+    const course = await ressource(profile.id, user.id, 'pdf')
+
+    const gros = await PDFDocument.create()
+    for (let i = 0; i < 12; i++) gros.addPage([595, 842])
+    objet = Buffer.from(await gros.save())
+    await deposer(course.id, profile.id, user.id, 'pdf', 'application/pdf')
+
+    objet = buildPdf('Version courte', 'Une seule page')
+    const maj = await deposer(course.id, profile.id, user.id, 'pdf', 'application/pdf')
+
+    expect(maj.pageCount).toBe(1)
+  })
+
+  it('le compte de pages est journalisé', async () => {
+    const { user, profile } = await formateur()
+    const course = await ressource(profile.id, user.id, 'pdf')
+    objet = buildPdf('Titre', 'Sous-titre')
+    await deposer(course.id, profile.id, user.id, 'pdf', 'application/pdf')
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { targetId: course.id, action: 'COURSE_CONTENT_UPLOADED' },
+    })
+    expect((trace?.meta as { pageCount?: number } | null)?.pageCount).toBe(1)
   })
 
   it('une couverture ne touche ni au contenu ni à la durée', async () => {
