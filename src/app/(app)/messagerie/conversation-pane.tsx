@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ArrowLeft, Loader2, Lock, Megaphone, Pin, PinOff, Send, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
 import { ReportButton } from "@/components/nk/report-button";
@@ -116,7 +117,6 @@ export function ConversationPane({
   conversations: PaneConversation[];
   initialThread: PaneThread | null;
 }) {
-  const [list, setList] = React.useState(conversations);
   const [thread, setThread] = React.useState<PaneThread | null>(initialThread);
   const [loading, setLoading] = React.useState(false);
   const [text, setText] = React.useState("");
@@ -126,31 +126,94 @@ export function ConversationPane({
   const [query, setQuery] = React.useState("");
   const [announcing, setAnnouncing] = React.useState(false);
   const threadRef = React.useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  /** Clé du message en cours de rédaction. Remise à zéro une fois parti. */
+  const clefEnvoi = React.useRef<string | null>(null);
+
+  // Onglet masqué, rien ne part. C'est la lecture directe de la règle 11 du
+  // §10.2 — « rien ne consomme de données sans demande » — et la plus grosse
+  // économie du sondage : personne ne regarde, personne ne paie.
+  const [visible, setVisible] = React.useState(true);
+  React.useEffect(() => {
+    const suivre = () => setVisible(!document.hidden);
+    suivre();
+    document.addEventListener("visibilitychange", suivre);
+    return () => document.removeEventListener("visibilitychange", suivre);
+  }, []);
+
+  // Le délai évite une requête par frappe — 300 ms est le temps d'une
+  // hésitation, pas d'une pause. La clé de cache suit la valeur retardée, pas
+  // celle du champ.
+  const [debounced, setDebounced] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebounced(query.trim()), 300);
+    return () => clearTimeout(id);
+  }, [query]);
+
+  const listKey = React.useMemo(
+    () => ["conversations", filter, debounced] as const,
+    [filter, debounced],
+  );
 
   // Filtre et recherche repartent au serveur : la recherche couvre le corps des
-  // messages (arbitrage 130), que le navigateur n'a pas. Le délai évite une
-  // requête par frappe — 300 ms est le temps d'une hésitation, pas d'une pause.
-  const firstRun = React.useRef(true);
-  React.useEffect(() => {
-    if (firstRun.current) {
-      firstRun.current = false;
-      return;
-    }
-    const id = setTimeout(() => {
+  // messages (arbitrage 130), que le navigateur n'a pas.
+  const { data: list = conversations } = useQuery({
+    queryKey: listKey,
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (filter !== "all") params.set("filtre", filter);
-      if (query.trim()) params.set("q", query.trim());
+      if (debounced) params.set("q", debounced);
+      const { data } = await api.get<PaneConversation[]>(
+        `/api/me/conversations?${params.toString()}`,
+      );
+      return data;
+    },
+    // La liste rendue par le serveur sert de première valeur, et seulement pour
+    // l'état par défaut : un filtre ou une recherche demandent autre chose.
+    initialData: filter === "all" && !debounced ? conversations : undefined,
+    // §4.2 — 15 s sur une liste. Le groupe n'y change rien : ce qui coûte, c'est
+    // la charge utile, pas la fréquence (voir le sondage du fil).
+    refetchInterval: visible ? 15_000 : false,
+    staleTime: 0,
+  });
+
+  const setList = React.useCallback(
+    (maj: (courant: PaneConversation[]) => PaneConversation[]) => {
+      queryClient.setQueryData<PaneConversation[]>(listKey, (courant) =>
+        maj(courant ?? conversations),
+      );
+    },
+    [queryClient, listKey, conversations],
+  );
+
+  // Sondage du fil ouvert — **incrémental**. On ne redemande que ce qui a été
+  // posté après le dernier message qu'on tient. Sans cela, un groupe de deux
+  // cents messages repartait en entier toutes les huit secondes.
+  React.useEffect(() => {
+    if (!thread || !visible) return;
+    const id = setInterval(() => {
+      const dernier = thread.messages.at(-1)?.createdAt;
+      const depuis = dernier ? `?depuis=${encodeURIComponent(new Date(dernier).toISOString())}` : "";
       void api
-        .get<PaneConversation[]>(`/api/me/conversations?${params.toString()}`)
-        .then(({ data }) => setList(data))
+        .get<PaneThread>(`/api/me/conversations/${thread.id}${depuis}`)
+        .then(({ data }) => {
+          setThread((courant) => {
+            if (!courant || courant.id !== data.id) return courant;
+            // Le résumé est toujours frais — droit d'écrire, non-lues, épingle ;
+            // les messages, eux, s'ajoutent. Un identifiant déjà tenu n'est pas
+            // rejoué : l'envoi optimiste peut avoir devancé le sondage.
+            const connus = new Set(courant.messages.map((m) => m.id));
+            const nouveaux = data.messages.filter((m) => !connus.has(m.id));
+            return { ...data, messages: [...courant.messages, ...nouveaux] };
+          });
+        })
         .catch(() => {
-          // Une liste qui ne se rafraîchit pas reste utilisable : on garde la
-          // précédente plutôt que d'afficher un vide qui ressemblerait à
-          // « aucun résultat ».
+          // Un sondage perdu se rattrape au suivant : rien à signaler.
         });
-    }, 300);
-    return () => clearTimeout(id);
-  }, [filter, query]);
+      // §4.2 — 8 s sur un fil.
+    }, 8_000);
+    return () => clearInterval(id);
+  }, [thread, visible]);
 
   React.useEffect(() => {
     const node = threadRef.current;
@@ -194,9 +257,17 @@ export function ConversationPane({
     const body = text.trim();
     if (!body || !thread) return;
     setSending(true);
+    // La clé du message, tirée une fois et **conservée entre les tentatives**.
+    // C'est tout le mécanisme : le délai client de 20 s annule la requête
+    // pendant que le serveur committe, la personne renvoie, et la même clé
+    // retombe sur la ligne déjà écrite au lieu d'en créer une seconde. Un
+    // identifiant tiré à chaque essai n'aurait rien empêché du tout.
+    if (!clefEnvoi.current) clefEnvoi.current = crypto.randomUUID();
+
     try {
       await api.post(`/api/me/conversations/${thread.id}`, {
         body,
+        clientKey: clefEnvoi.current,
         ...(announcing ? { announcement: true } : {}),
       });
       const { data } = await api.get<PaneThread>(`/api/me/conversations/${thread.id}`);
@@ -211,6 +282,7 @@ export function ConversationPane({
         ),
       );
       setText("");
+      clefEnvoi.current = null;
       // L'annonce ne colle pas au message suivant : c'est un geste qu'on répète
       // rarement, et le laisser armé ferait notifier toute la communauté par
       // inadvertance.

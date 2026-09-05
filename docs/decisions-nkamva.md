@@ -1694,7 +1694,7 @@ une vente à 2 000 doit retrouver les 300 retenus sans les calculer lui-même.
 
 ---
 
-## Arbitrages 126-130 — La messagerie unifiée
+## Arbitrages 126-132 — La messagerie unifiée
 
 > Rendus le 4 septembre 2026, à la demande du propriétaire. Spécification
 > complète : voir l'artefact « Messagerie unifiée ».
@@ -1751,6 +1751,33 @@ de la personne, le nom du groupe **et le corps des messages**.
 > un mot dit dans une conversation dont on a oublié le nom est le cas courant —
 > s'en tenir aux titres ferait un annuaire, pas une recherche.
 
+**131. Un groupe ne change pas la cadence du sondage, mais sa charge** — Les
+8 s sur un fil et 15 s sur une liste du §4.2 valent pour les deux formes de
+conversation. Ce qui change avec un groupe, c'est ce qui transite : le fil se
+sonde en **incrémental** — on ne redemande que ce qui a été posté après le
+dernier message qu'on tient — et **tout sondage cesse quand l'onglet est
+masqué**. Raison : renvoyer deux cents messages toutes les huit secondes sur une
+3G facturée au mégaoctet, c'est exactement « consommer des données sans
+demande » (§10.2, règle 11). Inventer une seconde cadence aurait donné un
+chiffre de plus à défendre sans rien économiser — une requête coûte le même
+aller-retour quelle que soit la forme.
+> Mesuré le 5 septembre 2026 : fil sondé toutes les 8-9 s, liste toutes les
+> 15 s, charge du fil à **519 octets** quand rien n'est neuf (le résumé seul),
+> et zéro requête onglet masqué.
+
+**132. La clé d'idempotence est tirée à la frappe, pas à l'envoi** — Le doublon
+constaté par l'audit ne venait pas d'un double clic : le bouton se désactive
+pendant l'envoi. Il venait du délai client de 20 s, qui annule la requête
+pendant que le serveur committe — l'écran disait « votre message n'est pas
+parti », la personne renvoyait, et le fil portait deux fois la même phrase. La
+clé est donc **conservée entre les tentatives** du même message : c'est cette
+conservation qui fait le mécanisme, un identifiant tiré à chaque essai n'aurait
+rien empêché. Un index unique partiel `(conversationId, clientKey)` tranche la
+course, et le rejeu sort avant les effets de bord — il ne renotifie personne.
+> Sans clé, deux fois la même phrase font deux messages, et c'est voulu :
+> l'idempotence porte sur la tentative, pas sur le texte. Répéter un mot est
+> légitime, et deviner l'intention le serait moins.
+
 ### Ce que la bascule a coûté, et qui était su
 
 > Les deux temps sont livrés — 4 septembre 2026. La migration
@@ -1783,7 +1810,6 @@ lendemain de la bascule.
 |---|---|
 | Le formateur dans les groupes qu'il a rejoints comme apprenant | Rien ne s'y oppose, mais son nom y apparaît sans distinction de rôle |
 | `Community.messagesPerDay` | La colonne existe et n'est lue par personne. Un groupe actif est le premier endroit où un plafond servirait |
-| Cadence de sondage d'un groupe | Le §4.2 fixe 8 s sur un fil et 15 s sur une liste, pensés pour du 1 à 1. Un groupe n'a pas le même débit, et la règle 11 du §10.2 interdit de consommer des données sans demande. **À trancher au lot 4**, qui attend donc ce chantier |
 
 ---
 

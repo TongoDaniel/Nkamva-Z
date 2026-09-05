@@ -850,6 +850,14 @@ model Message {
   /// groupe **et** notifie tous les membres (F12.9). Toujours faux sur une
   /// conversation directe : on n'annonce rien à une seule personne.
   announcement   Boolean      @default(false)
+  /// Clé d'idempotence, tirée par le navigateur à la frappe et rejouée telle
+  /// quelle si l'envoi est relancé. Un index unique partiel la garde.
+  ///
+  /// Sans elle, le délai client de 20 s annulait la requête pendant que le
+  /// serveur, lui, committait : l'écran annonçait « votre message n'est pas
+  /// parti », la personne renvoyait, et le fil portait deux fois la même
+  /// phrase. C'est le doublon que l'audit du 1er septembre a constaté.
+  clientKey      String?
   /// Lu par le destinataire, jamais par l'expéditeur. **Conversation directe
   /// uniquement** : un groupe se lit par `ConversationRead`, un champ unique ne
   /// pouvant pas porter la lecture de N membres.
