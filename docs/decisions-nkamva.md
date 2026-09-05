@@ -1693,7 +1693,7 @@ une vente à 2 000 doit retrouver les 300 retenus sans les calculer lui-même.
 |---|---|---|
 | Ressource incluse dans une communauté qui ferme | Arbitrage 120 | La bascule étant à sens unique, reste-t-elle servie aux membres entrés, disparaît-elle, ou le formateur récupère-t-il un droit de republication ? |
 | Portée de `resourcesEnabled` | Arbitrage 120 | Un salon de ressources éteint sur une communauté active empêche-t-il l'association ? |
-| Cause de la disparition d'un live planifié | — | Aucune cause trouvée en lecture de code ; à reproduire sur compte connecté |
+| Cause de la disparition d'un live planifié | — | **Non reproduit le 5 septembre 2026.** Séance programmée par un formateur, vue par lui et par un membre, sur l'agenda, dans l'API et dans l'espace de la communauté. Le comportement attendu est couvert par `tests/lives-agenda-replay.test.ts` : s'il se rompt, il se rompra bruyamment |
 
 ---
 

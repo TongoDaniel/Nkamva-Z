@@ -387,7 +387,9 @@ export async function endLiveSession(sessionId: string, userId: string) {
       type: 'REPLAY_AVAILABLE',
       title: `Le replay de « ${full.title} » arrive`,
       body: 'La séance est terminée. Son enregistrement sera disponible dans quelques minutes.',
-      link: '/mes-lives',
+      // L'enregistrement n'existe pas encore : on mène à l'onglet, pas à une
+      // page qui répondrait 404 pendant les minutes d'encodage.
+      link: '/mes-lives?onglet=replays',
     }),
   )
 
@@ -1223,6 +1225,75 @@ export async function getReplay(replayId: string, userId: string): Promise<Repla
   return toReplay(replay, replay.community.trainerProfile.userId === userId)
 }
 
+/** Un message du salon d'une séance, tel que le replay le rend. */
+export interface ReplayMessage {
+  id: string
+  author: string
+  body: string
+  at: Date
+  /**
+   * Secondes écoulées depuis le début de l'enregistrement. Négatif pour ce qui
+   * a été dit avant que la séance démarre — l'écran ne le situe pas dans la
+   * vidéo, il l'affiche « avant le direct ».
+   */
+  offsetSeconds: number
+}
+
+/**
+ * Le salon de la séance, rattaché à son replay (F6.7, arbitrage 42).
+ *
+ * Il existait, il était écrit, il était même conservé volontairement — le
+ * schéma le dit à la colonne `deletedAt` de `LiveMessage` — et **aucun écran ne
+ * le rendait** une fois la séance finie. Ce qui s'était dit pendant deux heures
+ * de direct disparaissait avec le dernier participant.
+ *
+ * Les messages retirés par la Modération ne reviennent pas : le retrait vaut
+ * pour le direct comme pour le replay, sans quoi instruire un propos ne
+ * servirait à rien.
+ *
+ * L'accès est celui du replay, pas celui de la séance : c'est le même contenu,
+ * et un ancien membre qui a droit au replay a droit à ce qui s'y est dit.
+ */
+export async function listReplayMessages(
+  replayId: string,
+  userId: string,
+): Promise<ReplayMessage[]> {
+  const replay = await db.replay.findFirst({
+    where: { id: replayId, purgedAt: null },
+    select: {
+      ...REPLAY_SELECT,
+      // `startedAt` vit sur la séance, pas sur le replay : c'est l'heure à
+      // laquelle l'animateur a réellement ouvert la salle.
+      session: { select: { description: true, startedAt: true } },
+    },
+  })
+  if (!replay) throw new Error('REPLAY_NOT_FOUND')
+  if (!(await hasReplayAccess(userId, replay))) throw new Error('NOT_MEMBER')
+
+  const messages = await db.liveMessage.findMany({
+    where: { sessionId: replay.sessionId, deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    take: 500,
+    select: {
+      id: true, body: true, createdAt: true,
+      author: { select: { fullName: true } },
+    },
+  })
+
+  // L'origine du minutage est le **début réel** de l'enregistrement quand on
+  // l'a, et la date du replay sinon : caler sur l'heure programmée décalerait
+  // tout le salon d'une séance commencée en retard.
+  const origine = (replay.session.startedAt ?? replay.recordedAt).getTime()
+
+  return messages.map((m) => ({
+    id: m.id,
+    author: m.author.fullName ?? 'Un participant',
+    body: m.body,
+    at: m.createdAt,
+    offsetSeconds: Math.round((m.createdAt.getTime() - origine) / 1000),
+  }))
+}
+
 /** URL signée de lecture ou de téléchargement. Droit uniforme (arbitrage 55). */
 export async function getReplayUrl(
   replayId: string,
@@ -1342,7 +1413,9 @@ export async function alertUpcomingReplayPurges(now = new Date()): Promise<{ ale
         type: 'REPLAY_PURGE_SOON',
         title: `« ${replay.title} » sera supprimé le ${replay.purgeAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })}`,
         body: `Les replays sont conservés ${REPLAY_RETENTION_MONTHS} mois. La suppression vous rendra l'espace de stockage correspondant.`,
-        link: '/mes-lives',
+        // Droit sur l'enregistrement concerné : ce préavis existe pour qu'on le
+        // télécharge, pas pour qu'on le cherche dans une liste.
+        link: `/mes-lives/replay/${replay.id}`,
       },
       { days: DOWNLOAD_NOTICE_DAYS, purgeAt: replay.purgeAt.toISOString() },
     )

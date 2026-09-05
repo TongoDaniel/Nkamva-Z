@@ -366,7 +366,21 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
               </ControlButton>
             </div>
 
-            {room.mutedByHost ? (
+            {/*
+              Ce que le navigateur a refusé, dit à l'endroit où l'on vient
+              d'appuyer. Le rejet de `setMicrophoneEnabled` n'était rattrapé par
+              personne : le bouton restait éteint et rien ne l'expliquait.
+              Il passe avant les autres avertissements — c'est le seul auquel la
+              personne peut quelque chose tout de suite.
+            */}
+            {transport.deviceError ? (
+              <p
+                role="alert"
+                className="border-t border-white/10 bg-danger/15 px-5 py-3 text-center text-[13px] text-[#ffd9d1]"
+              >
+                {transport.deviceError}
+              </p>
+            ) : room.mutedByHost ? (
               <p className="border-t border-white/10 px-5 py-3 text-center text-[13px] text-[#b9c9dd]">
                 Votre micro a été coupé par l&apos;animateur. Levez la main pour demander la parole.
               </p>
