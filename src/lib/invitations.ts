@@ -91,13 +91,25 @@ export function hashToken(token: string): string {
 
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'EXHAUSTED' | 'EXPIRED' | 'REVOKED'
 
-/** Seul `PENDING` est acceptable. Les quatre autres états sont terminaux. */
+/**
+ * Seul `PENDING` est acceptable. Les quatre autres états sont terminaux.
+ *
+ * **`ACCEPTED` n'existe que pour un nominatif** (arbitrage 123). Un lien
+ * partageable est multi-usage par conception — jusqu'à 25 acceptations sur 90
+ * jours glissants (arbitrage 102) — et n'a donc pas d'état « accepté » : il se
+ * lit à son compteur d'usages, et ne devient terminal qu'épuisé, expiré ou
+ * révoqué.
+ *
+ * Le test sur `kind` est défensif autant que documentaire : `acceptedAt` n'est
+ * posé que sur un nominatif, mais s'il l'était un jour par erreur, un lien
+ * encore utilisable s'afficherait « acceptée » et cesserait d'être proposé.
+ */
 export function invitationStatus(
-  inv: Pick<CommunityInvitation, 'revokedAt' | 'acceptedAt' | 'usesCount' | 'maxUses' | 'expiresAt'>,
+  inv: Pick<CommunityInvitation, 'kind' | 'revokedAt' | 'acceptedAt' | 'usesCount' | 'maxUses' | 'expiresAt'>,
   now: Date = new Date(),
 ): InvitationStatus {
   if (inv.revokedAt) return 'REVOKED'
-  if (inv.acceptedAt) return 'ACCEPTED'
+  if (inv.kind === 'NOMINATIVE' && inv.acceptedAt) return 'ACCEPTED'
   if (inv.usesCount >= inv.maxUses) return 'EXHAUSTED'
   if (inv.expiresAt.getTime() <= now.getTime()) return 'EXPIRED'
   return 'PENDING'

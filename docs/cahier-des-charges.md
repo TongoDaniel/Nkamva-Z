@@ -471,6 +471,15 @@ mobile money) → paiement chez le fournisseur → retour → confirmation.
      devient terminal qu'épuisé, expiré ou révoqué. Lui appliquer la pastille
      binaire le laisse indéfiniment « en attente » alors que des membres sont
      entrés, ce qui est faux et ce que le formateur lit comme une panne.
+     Conséquence de vocabulaire : le filtre qui réunit ce qui peut encore faire
+     entrer quelqu'un s'appelle **« actives »**, pas « en attente » — un lien à
+     sa septième entrée n'attend rien. Il gouverne aussi le compte porté par
+     l'onglet *Invitations*.
+   - **La liste se rafraîchit seule, toutes les 15 secondes** (§4.2). Une
+     invitation change d'état sans que le formateur touche à rien : quelqu'un
+     accepte, un lien atteint son quota, une échéance passe. Sans cela l'écran
+     reste figé sur ce qu'il montrait à l'ouverture, et la pastille corrigée ne
+     sert à rien. Onglet masqué, le sondage s'arrête (règle 11 du §10.2).
    - Toute notification touchant une invitation renvoie vers **l'écran qui la
      porte réellement** — le panneau d'invitations de la communauté. Une
      notification qui pointe une route inexistante est un défaut, pas un détail
@@ -1103,7 +1112,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | KYC, moyens de versement, retraits, réconciliation | Livré, écrans compris |
 | Parcours d'achat (Stripe Checkout + PawaPay), factures | Livré |
 | Communautés, adhésions, invitations, fil | Livré |
-| Messagerie | **Partiel** — les fils, les droits d'écriture et les accusés de lecture sont livrés ; le sondage exigé au §4.2 ne l'est pas, et l'envoi n'a pas de clé d'idempotence |
+| Messagerie | Livré — fils, groupes, droits d'écriture, accusés de lecture, clé d'idempotence à l'envoi et sondage du §4.2 |
 | Lives, replays, purges et préavis | Livré |
 | Abonnement formateur, tarification, remises, stockage, fin de vie | Livré |
 | Signalements, sanctions, administration à trois sous-rôles, journal d'audit | Livré |
@@ -1117,15 +1126,17 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
    publiquement avant.
 2. **La messagerie unifiée** — **livrée**. Les deux temps sont faits : la
    messagerie accueille les groupes, et l'historique a basculé (arbitrages
-   126-130). Reste à fixer la cadence de sondage d'un groupe, au lot 4.
+   126-130). La cadence d'un groupe a été tranchée au lot 4 : ce n'est pas la
+   fréquence qui devait changer, c'est la charge — le sondage d'un fil est
+   devenu incrémental.
 3. **Les dix lots issus de l'audit fonctionnel du 1er septembre 2026** — audit
    mené sur `develop`, tel que servi par staging. Neuf constats sont confirmés
-   par le code, un attend une reproduction. Dans l'ordre d'exécution : reprise
-   de l'action après authentification (F1.6) · notifications et e-mails (F12.5
+   par le code, un attend une reproduction. **Lots 0 à 5 livrés** : reprise de
+   l'action après authentification (F1.6) · notifications et e-mails (F12.5
    à F12.7) · historique des ventes (F7.11) · idempotence et sondage de la
-   messagerie (§4.2) · compteur d'usages des invitations (F5) · durée mesurée
-   et retrait du nombre de sessions (F3.8) · position de lecture (F3,
-   « Consultation ») · ressource et communauté associées (F3.10, F3.11) ·
+   messagerie (§4.2) · compteur d'usages des invitations (F5). **Restent** :
+   durée mesurée et retrait du nombre de sessions (F3.8) · position de lecture
+   (F3, « Consultation ») · ressource et communauté associées (F3.10, F3.11) ·
    lives · recette finale.
 
    Deux de ces lots sont **bloqués par un arbitrage** listé au §14 : le sort

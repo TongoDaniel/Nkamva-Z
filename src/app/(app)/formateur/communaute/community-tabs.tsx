@@ -65,9 +65,11 @@ export function CommunityTabs({
         items={[
           { value: "publique", label: "Fiche publique" },
           { value: "salons", label: "Salons" },
-          // Les invitations en attente seulement : une invitation acceptée ou
-          // expirée n'appelle plus rien, la compter ferait sonner l'onglet pour
-          // du passé. Les membres, eux, se comptent tous.
+          // Les invitations encore actives seulement — celles qui peuvent
+          // encore faire entrer quelqu'un, nominatif en attente comme lien de
+          // parrainage à moitié consommé. Une invitation acceptée, épuisée ou
+          // expirée n'appelle plus rien : la compter ferait sonner l'onglet
+          // pour du passé. Les membres, eux, se comptent tous.
           { value: "invitations", label: "Invitations", count: invitationsCount },
           { value: "membres", label: "Membres", count: membersCount },
         ]}
