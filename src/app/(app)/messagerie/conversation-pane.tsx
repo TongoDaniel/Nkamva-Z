@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, Loader2, Lock, Megaphone, Pin, PinOff, Send, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Megaphone, Pin, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
 import { ReportButton } from "@/components/nk/report-button";
 import { api, ApiError } from "@/lib/client";
-import { fmtRelative } from "@/lib/format";
+import { fmtListStamp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface PaneConversation {
@@ -125,6 +125,20 @@ export function ConversationPane({
   const [filter, setFilter] = React.useState<Filter>("all");
   const [query, setQuery] = React.useState("");
   const [announcing, setAnnouncing] = React.useState(false);
+
+  /*
+    L'horodatage de la liste ne se rend qu'une fois monté.
+
+    `fmtListStamp` lit le fuseau **du lecteur** et compare des jours
+    calendaires. Le serveur, lui, tourne en UTC : à 23 h 50 à Douala, il
+    écrirait « 22:50 » et le navigateur « Hier » — deux textes différents pour
+    la même donnée, ce que React signale comme une divergence d'hydratation et,
+    surtout, ce qui affiche brièvement une date fausse.
+
+    La colonne a une largeur fixe : l'attente d'une image ne déplace rien.
+  */
+  const [monte, setMonte] = React.useState(false);
+  React.useEffect(() => setMonte(true), []);
   const threadRef = React.useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   /** Clé du message en cours de rédaction. Remise à zéro une fois parti. */
@@ -334,7 +348,15 @@ export function ConversationPane({
   }
 
   return (
-    <div className="mt-6 grid overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm md:grid-cols-[300px_1fr]">
+    /*
+      `minmax(0, 1fr)` et non `1fr` : une piste `1fr` a pour plancher le
+      **min-content** de ce qu'elle contient, et les lignes de cette liste ne
+      se coupent pas (`truncate` pose `white-space: nowrap`). La piste se
+      dimensionnait donc sur l'aperçu le plus long — 510 px dans un écran de
+      375 — et poussait l'heure et la pastille de non-lues hors du cadre, où
+      `overflow-hidden` les cachait sans rien dire.
+    */
+    <div className="mt-6 grid grid-cols-[minmax(0,1fr)] overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm md:grid-cols-[300px_minmax(0,1fr)]">
       <aside
         aria-label="Conversations"
         className={cn("border-line md:block md:border-r", mobileThread ? "hidden" : "block")}
@@ -383,15 +405,30 @@ export function ConversationPane({
             const selected = conversation.id === thread?.id;
             const isGroup = conversation.kind === "GROUP";
             return (
-              <li key={conversation.id} className="relative">
+              /*
+                La ligne et son épingle sont deux enfants du `li`, côte à côte.
+                L'épingle était auparavant en position absolue au-dessus de la
+                ligne — deux boutons imbriqués n'étant pas du HTML valide, il
+                fallait bien la sortir. Mais `nk-tap` posait `position: relative`
+                et l'emportait sur `absolute` : l'épingle retombait dans le flux,
+                au-dessus de la ligne, à gauche. Deux voisins dans une rangée
+                règlent le problème sans dépendre d'un positionnement.
+              */
+              <li
+                key={conversation.id}
+                className={cn(
+                  // Le fond porte la **ligne**, pas le bouton : sinon la colonne
+                  // de l'épingle reste blanche et une couture verticale coupe la
+                  // ligne sélectionnée en deux.
+                  "flex items-stretch border-b border-line-2 transition-colors",
+                  selected ? "bg-brand-tint/40" : "hover:bg-paper",
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => void select(conversation.id)}
                   aria-current={selected ? "true" : undefined}
-                  className={cn(
-                    "flex w-full items-center gap-3 border-b border-line-2 py-3.5 pl-4 pr-11 text-left transition-colors",
-                    selected ? "bg-brand-tint/40" : "hover:bg-paper",
-                  )}
+                  className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pl-4 pr-2 text-left"
                 >
                   {/* Un groupe se distingue à l'œil avant d'être lu : coin carré
                       et glyphe, là où une personne a un rond et ses initiales. */}
@@ -413,7 +450,7 @@ export function ConversationPane({
                         // compris sur une pastille qu'on croit décorative — elle
                         // porte la seule distinction entre un groupe et une
                         // personne.
-                        <span className="shrink-0 rounded-full bg-line-2 px-1.5 text-[13px] font-semibold text-ink-3">
+                        <span className="hidden shrink-0 rounded-full bg-line-2 px-1.5 text-[13px] font-semibold text-ink-3 md:inline">
                           groupe
                         </span>
                       ) : null}
@@ -434,18 +471,33 @@ export function ConversationPane({
                           : conversation.communityName}
                     </small>
                   </span>
-                  <span className="flex shrink-0 flex-col items-end gap-1 self-start">
-                    <time className="text-[13px] text-ink-3">
-                      {conversation.lastMessage
-                        ? fmtRelative(conversation.lastMessage.createdAt)
+                  {/* Largeur fixe : sans elle, la colonne se dimensionne sur son
+                      contenu, et « Hier » puis « 09/09/26 » feraient danser la
+                      liste d'une ligne à l'autre. */}
+                  <span className="flex w-[52px] shrink-0 flex-col items-end gap-1 self-start">
+                    <time
+                      className={cn(
+                        "text-[13px] tabular-nums",
+                        conversation.unreadCount > 0 ? "font-semibold text-brand" : "text-ink-3",
+                      )}
+                      dateTime={
+                        conversation.lastMessage
+                          ? new Date(conversation.lastMessage.createdAt).toISOString()
+                          : undefined
+                      }
+                    >
+                      {monte && conversation.lastMessage
+                        ? fmtListStamp(conversation.lastMessage.createdAt)
                         : ""}
                     </time>
                     {conversation.unreadCount > 0 ? (
                       <span
-                        className="grid min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[13px] font-bold text-white"
-                        aria-label={`${conversation.unreadCount} message(s) non lu(s)`}
+                        className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[13px] font-bold leading-none text-white"
+                        aria-label={`${conversation.unreadCount} message${conversation.unreadCount > 1 ? "s" : ""} non lu${conversation.unreadCount > 1 ? "s" : ""}`}
                       >
-                        {conversation.unreadCount}
+                        {/* Au-delà de 99, le nombre exact n'aide plus et casse
+                            la pastille : la messagerie n'est pas un compteur. */}
+                        {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
                       </span>
                     ) : null}
                   </span>
@@ -465,22 +517,26 @@ export function ConversationPane({
                         : `Épingler ${conversation.title}`
                   }
                   className={cn(
-                    // `nk-tap` porte la zone utile de 44 px exigée par la règle 4
-                    // du §10.2 sans grossir le bouton : l'icône reste discrète, la
-                    // cible ne l'est pas.
-                    "nk-tap absolute right-2 top-3 grid size-7 place-items-center rounded-nk-sm transition-colors",
+                    // Une colonne à part, de la hauteur de la ligne : la cible
+                    // fait 44 px de haut sans que l'icône grossisse, et sans
+                    // `nk-tap` — dont le repère se battrait ici avec la mise en
+                    // page plutôt que de la servir.
+                    "grid w-11 shrink-0 place-items-center transition-colors",
                     conversation.pinnedBySystem
                       ? "cursor-default text-brand"
                       : conversation.pinned
                         ? "text-brand hover:bg-line-2"
-                        : "text-ink-3/60 hover:bg-line-2 hover:text-ink-2",
+                        : "text-ink-3/40 hover:bg-line-2 hover:text-ink-2",
                   )}
                 >
-                  {conversation.pinned ? (
-                    <Pin className="size-3.5 fill-current" aria-hidden="true" />
-                  ) : (
-                    <PinOff className="size-3.5" aria-hidden="true" />
-                  )}
+                  {/* Une seule icône, pleine ou creuse. `PinOff` — l'épingle
+                      barrée — annonçait une interdiction sur chaque ligne non
+                      épinglée : trois barres rouges pour dire « rien de
+                      spécial ». */}
+                  <Pin
+                    className={cn("size-4", conversation.pinned && "fill-current")}
+                    aria-hidden="true"
+                  />
                 </button>
               </li>
             );

@@ -431,7 +431,15 @@
      donc elle-même le repère, plutôt que d'obliger chaque appelant à se souvenir
      d'ajouter `relative` — un oubli qui ne se voit pas, puisque la zone étendue
      est invisible. */
-  .nk-tap {
+  /* `:where()` annule la spécificité : le repère n'est qu'un **défaut**, et
+     tout utilitaire de position posé à côté l'emporte.
+
+     Sans cela, `nk-tap absolute` rendait l'élément *relatif* — la classe étant
+     déclarée après les utilitaires dans la même couche, c'est l'ordre du
+     fichier qui tranchait, pas l'ordre des classes. Une épingle censée flotter
+     au bord d'une ligne retombait dans le flux, au-dessus d'elle, et rien ne le
+     signalait : les deux règles étaient valides. */
+  :where(.nk-tap) {
     position: relative;
   }
 
