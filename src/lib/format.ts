@@ -83,6 +83,40 @@ export function fmtRelative(value?: string | Date | null): string | null {
   return fmtDate(d);
 }
 
+/**
+ * L'horodatage d'une liste de conversations, à la manière des messageries
+ * courantes : **l'heure** aujourd'hui, « Hier » la veille, le **jour** dans la
+ * semaine écoulée, la **date** au-delà.
+ *
+ * `fmtRelative` ne convient pas ici. « il y a 1 h » répond à « depuis quand »,
+ * ce qui intéresse un fil qu'on est en train de lire ; une liste répond à
+ * « quand », ce qui se repère et se compare d'une ligne à l'autre. Deux
+ * messages à « il y a 2 h » et « il y a 3 h » se rangent mal dans une journée ;
+ * 14:05 et 13:10, oui.
+ *
+ * La comparaison se fait sur le **jour calendaire**, pas sur un écart d'heures :
+ * un message de 23 h 50 doit dire « Hier » à 0 h 10, pas « il y a 20 min ».
+ */
+export function fmtListStamp(value?: string | Date | null): string | null {
+  if (!value) return null;
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+
+  const jour = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const ecartJours = Math.round((jour(new Date()) - jour(d)) / 86_400_000);
+
+  if (ecartJours <= 0) {
+    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  }
+  if (ecartJours === 1) return "Hier";
+  if (ecartJours < 7) {
+    // Le jour seul suffit dans la semaine : « mardi » se situe sans calcul.
+    const nom = d.toLocaleDateString("fr-FR", { weekday: "long" });
+    return nom.charAt(0).toUpperCase() + nom.slice(1);
+  }
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
 export function fmtCountdown(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
