@@ -579,7 +579,7 @@ export async function getMyCommunity(trainerProfileId: string) {
     where: { trainerId: trainerProfileId, status: 'active' },
     select: {
       id: true, slug: true, name: true, description: true, rules: true,
-      coverS3Key: true,
+      coverS3Key: true, avatarS3Key: true,
       priceFcfa: true, visibility: true, membersCount: true, messagesPerDay: true,
       forumEnabled: true, messagingEnabled: true,
       resourcesEnabled: true, eventsEnabled: true, createdAt: true,

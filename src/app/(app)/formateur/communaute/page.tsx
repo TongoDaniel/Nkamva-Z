@@ -7,9 +7,11 @@ import { getAuthContext } from "@/lib/api";
 import { getMyCommunity, listCommunityMembers } from "@/lib/communities";
 import { listCommunityInvitations } from "@/lib/invitations";
 import { presignDownload } from "@/lib/s3";
+import { communityAvatarSrc } from "@/lib/avatars";
 import { fmtNumber } from "@/lib/format";
 import { CommunityForm, VisibilityToggle, type CommunityFormValues } from "./community-form";
 import { CommunityCoverUploader } from "./cover-uploader";
+import { AvatarPanel } from "@/components/screens/avatar-panel";
 import { CommunityTabs } from "./community-tabs";
 import { InvitationsPanel } from "./invitations-panel";
 import { MembersPanel } from "./members-panel";
@@ -123,6 +125,19 @@ export default async function MaCommunautePage({
               communityId={community.id}
               currentKey={community.coverS3Key}
               previewUrl={coverUrl}
+            />
+
+            {/* Deux images, deux usages : la bannière est une affiche en 16:9
+                sur la fiche du salon, la photo est le rond qui porte le groupe
+                en tête de la messagerie. L'une ne se rogne pas en l'autre. */}
+            <AvatarPanel
+              endpoint={`/api/trainer/communities/${community.id}/avatar`}
+              kind="group"
+              name={community.name}
+              src={communityAvatarSrc(community)}
+              title="Photo du groupe"
+              subtitle="Le rond qui porte votre communauté dans la messagerie de ses membres."
+              storageNote="Elle compte dans votre stockage."
             />
 
             <CommunityForm

@@ -11,6 +11,7 @@
 import { db } from '../db'
 import { audit } from '../audit'
 import { DELETION_GRACE_DAYS } from '../dto'
+import { deleteObject } from '../s3'
 
 /** Domaine réservé par la RFC 2606 : une adresse en .invalid ne peut pas router. */
 const ANONYMIZED_EMAIL_DOMAIN = 'nkamva.invalid'
@@ -31,7 +32,16 @@ function anonymizedEmail(): string {
  * ignoré sans erreur. Retourne false si rien n'était à faire.
  */
 export async function purgeAccount(userId: string, cutoff: Date): Promise<boolean> {
-  return db.$transaction(async (tx) => {
+  // La photo est lue **avant** la transaction et retirée du seau **après** :
+  // un objet R2 ne se défait pas d'un `ROLLBACK`. Dans cet ordre, le pire cas
+  // est un fichier orphelin dans le seau, jamais un compte effacé dont le
+  // portrait resterait servi.
+  const avant = await db.user.findUnique({
+    where: { id: userId },
+    select: { avatarS3Key: true },
+  })
+
+  const purge = await db.$transaction(async (tx) => {
     // Le garde porte aussi sur `deletionRequestedAt` : une annulation arrivée
     // entre la sélection et la transaction annule bien l'effacement.
     const { count } = await tx.user.updateMany({
@@ -50,6 +60,7 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
         phone: null,
         countryCode: null,
         avatarUrl: null,
+        avatarS3Key: null,
         bio: null,
         // Le motif de suspension est rédigé par un humain et peut nommer la
         // personne ; la date reste, comme trace de modération.
@@ -100,6 +111,11 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
 
     return true
   })
+
+  if (purge && avant?.avatarS3Key) {
+    await deleteObject(avant.avatarS3Key).catch(() => {})
+  }
+  return purge
 }
 
 /**

@@ -4,8 +4,10 @@ import {
   FileBadge,
   FileText,
   Heart,
+  CircleUser,
   Home,
   LayoutDashboard,
+  LifeBuoy,
   Library,
   LogIn,
   MessageSquare,
@@ -58,27 +60,77 @@ export const VISITOR_TABS: NavEntry[] = [
   { href: "/auth/connexion", label: "Connexion", icon: LogIn },
 ];
 
+/*
+  Les quatre destinations de la barre basse, plus la case « Compte » que la
+  coquille ajoute elle-même. Même ordre pour les deux rôles — accueil,
+  communauté, catalogue, messagerie —, seule la première change de cible.
+
+  Ce que cet ordre a coûté, et pourquoi il tient quand même :
+
+  · « Mes ressources » perd sa case. C'est la bibliothèque de l'apprenant, ce
+    qu'on ouvre pour reprendre un cours : c'est l'**accueil** qui doit le
+    porter, en tête, plutôt qu'une case qui redirait ce que l'accueil montre
+    déjà. Elle reste dans le compte.
+  · Le catalogue est le même pour tous. Un formateur reste un apprenant — il
+    achète —, et sa publication n'est pas une destination mais un geste : elle
+    a rejoint l'en-tête, à droite (voir `app-shell.tsx`).
+  · Les libellés ne sont plus rendus (`labels={false}`), mais ils restent ici :
+    ce sont eux que la barre pose en `aria-label`, et que la feuille du compte
+    affiche en toutes lettres.
+*/
+
+/**
+ * La cinquième case, commune aux deux rôles.
+ *
+ * Elle ouvrait une feuille glissante ; c'est une route depuis que `/compte`
+ * existe. Une page a une adresse, un retour, et tient une liste longue sans
+ * réclamer les deux tiers de l'écran — ce que la feuille ne savait pas faire.
+ *
+ * Son icône n'est presque jamais rendue : la barre y met le portrait de la
+ * personne. Elle sert de repli tant qu'il n'y a pas de photo à montrer.
+ */
+export const COMPTE_TAB: NavEntry = { href: "/compte", label: "Compte", icon: CircleUser };
+
 /** Apprenant. Le catalogue pointe vers `/catalogue` : la version visiteur
  *  rendrait la coquille publique, avec « Se connecter » — on sortirait de son
  *  espace. */
 export const LEARNER_TABS: NavEntry[] = [
   { href: "/accueil", label: "Accueil", icon: Home },
-  { href: "/mes-ressources", label: "Mes ressources", icon: Library },
+  {
+    href: "/mes-communautes",
+    label: "Communauté",
+    icon: Users,
+    related: ["/catalogue/communautes"],
+  },
   { href: "/catalogue", label: "Catalogue", icon: Compass },
-  { href: "/mes-communautes", label: "Communautés", icon: Users, related: ["/catalogue/communautes"] },
+  { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
+  COMPTE_TAB,
 ];
 
 /**
- * Formateur. Un formateur reste un apprenant : sa barre **ajoute**, elle ne
- * remplace pas — c'est la règle que tenait déjà `TRAINER_NAV`. « Mes
- * communautés » cède sa place, parce que sa communauté à lui vit dans l'espace
- * formateur, et reste atteignable par « Plus ».
+ * Formateur. Sa première case mène à son espace, pas à l'accueil de l'apprenant :
+ * son tableau de bord **est** son accueil. `/accueil` reste rattaché — le logo y
+ * mène encore — pour que la case reste allumée quand on y passe.
+ *
+ * `/formateur/communaute` est rattaché à la deuxième case : la communauté qu'il
+ * anime et celles qu'il suit relèvent du même endroit.
  */
 export const TRAINER_TABS: NavEntry[] = [
-  { href: "/accueil", label: "Accueil", icon: Home },
-  { href: "/formateur", label: "Formateur", icon: LayoutDashboard },
-  { href: "/mes-ressources", label: "Mes ressources", icon: Library },
+  {
+    href: "/formateur",
+    label: "Accueil",
+    icon: Home,
+    related: ["/accueil"],
+  },
+  {
+    href: "/mes-communautes",
+    label: "Communauté",
+    icon: Users,
+    related: ["/catalogue/communautes", "/formateur/communaute"],
+  },
   { href: "/catalogue", label: "Catalogue", icon: Compass },
+  { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
+  COMPTE_TAB,
 ];
 
 /**
@@ -121,6 +173,13 @@ export const ACCOUNT_LINKS: NavEntry[] = [
   { href: "/mes-factures", label: "Mes factures", icon: FileText },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/profil", label: "Profil et paramètres", icon: Settings },
+  // L'aide ferme la liste. Elle vivait dans le pied de page de l'espace
+  // connecté — retiré, ce pied n'ayant ici aucun rôle qu'une navigation ne
+  // tienne mieux (voir `app-shell.tsx`). Sans cette entrée, `/aide` n'aurait
+  // plus **aucun** chemin une fois connecté : la page existe, et plus rien n'y
+  // mène. Elle reste en dernier, comme le lien qu'elle remplace, qui se tenait
+  // au bout de la barre.
+  { href: "/aide", label: "Aide", icon: LifeBuoy },
 ];
 
 /**
@@ -142,12 +201,12 @@ export const APPLICATION_LINK: NavEntry = {
 /** Les entrées de compte, dossier de candidature inséré à sa place s'il y a lieu. */
 export function accountLinksFor(hasOpenApplication: boolean): NavEntry[] {
   if (!hasOpenApplication) return ACCOUNT_LINKS;
-  // Juste avant « Profil et paramètres » : c'est du compte qu'il relève.
-  return [
-    ...ACCOUNT_LINKS.slice(0, -1),
-    APPLICATION_LINK,
-    ACCOUNT_LINKS[ACCOUNT_LINKS.length - 1],
-  ];
+  // Juste avant « Profil et paramètres » : c'est du compte qu'il relève. Repéré
+  // par son `href` et non par sa position — la liste ne se terminait par le
+  // profil que jusqu'à l'arrivée de l'aide, et « l'avant-dernier » aurait
+  // silencieusement glissé d'un cran.
+  const at = ACCOUNT_LINKS.findIndex((link) => link.href === "/profil");
+  return [...ACCOUNT_LINKS.slice(0, at), APPLICATION_LINK, ...ACCOUNT_LINKS.slice(at)];
 }
 
 export function isActive(pathname: string, href: string) {

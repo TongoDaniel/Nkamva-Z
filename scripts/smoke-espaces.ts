@@ -13,9 +13,13 @@ config()
 const db = new PrismaClient()
 const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3000'
 
-/** Marqueurs de coquille : les `aria-label` des deux barres de navigation. */
+/** Marqueurs de coquille : les `aria-label` des deux barres **hautes**.
+ *
+ * « Navigation du site » et non « Navigation principale » : ce dernier nom est
+ * celui de la barre d'onglets basse, que les deux coquilles rendent. Il ne
+ * distinguait donc plus rien. */
 const APP_SHELL = 'Navigation de mon espace'
-const PUBLIC_SHELL = 'Navigation principale'
+const PUBLIC_SHELL = 'Navigation du site'
 
 let failures = 0
 
@@ -194,8 +198,11 @@ async function main() {
   {
     const { status, html } = await get('/catalogue', true)
     check('/catalogue — cœur sur les cartes', status === 200 && /aux favoris|des favoris/.test(html))
-    const menu = await get('/accueil', true)
-    check('/accueil — entrée « Favoris » au menu du compte', menu.status === 200 && menu.html.includes('href="/favoris"'))
+    // `/compte` et non `/accueil` : les entrées du compte vivaient dans un
+    // menu déroulant et une feuille glissante, tous deux rendus dans un
+    // portail — donc absents du HTML servi. Ce contrôle ne pouvait pas passer.
+    const menu = await get('/compte', true)
+    check('/compte — entrée « Favoris »', menu.status === 200 && menu.html.includes('href="/favoris"'))
   }
 
   console.log(

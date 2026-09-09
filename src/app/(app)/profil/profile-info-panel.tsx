@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
-import { Avatar } from "@/components/nk/avatar";
 import { useAction } from "@/hooks/use-action";
 import { FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
@@ -95,15 +94,6 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
         }
       >
         <FormError>{error}</FormError>
-
-        <div className="mb-6 flex items-center gap-4">
-          <Avatar name={draft.fullName || profile.email} size="lg" alt="Votre avatar" />
-          <p className="text-[13px] leading-relaxed text-ink-2">
-            Votre avatar est généré à partir de vos initiales.
-            <br />
-            L&apos;envoi d&apos;une photo arrivera avec le stockage de fichiers.
-          </p>
-        </div>
 
         <div className="grid gap-x-4 sm:grid-cols-2">
           <Field

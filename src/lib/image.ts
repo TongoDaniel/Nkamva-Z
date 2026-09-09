@@ -100,6 +100,84 @@ export async function shrinkImage(file: File): Promise<ShrinkResult> {
   }
 }
 
+/**
+ * Côté d'une photo de profil, en pixels.
+ *
+ * Elle ne se rend jamais plus grande que 64 px (`Avatar size="lg"`) ; 512
+ * couvre les écrans jusqu'à huit fois la densité, et sert la même image à
+ * toutes les tailles sans qu'aucun écran ne tire un original de 1600 px pour
+ * un rond de 42.
+ */
+export const AVATAR_SIZE = 512
+
+/**
+ * Recadre une image **au carré** et la réduit à `AVATAR_SIZE`.
+ *
+ * Le rognage est fait ici plutôt qu'au rendu : `object-fit: cover` cache déjà
+ * les bords dans le cercle, mais l'objet stocké, lui, garderait les pixels
+ * qu'on ne montre pas — et c'est lui qui voyage sur le forfait de la personne.
+ * Le carré est pris au centre, comme le fait le cercle qui l'affichera.
+ *
+ * Même contrat que `shrinkImage` : ne lève jamais, et rend l'original quand le
+ * navigateur ne sait pas décoder — la borne de 2 Mo côté appelant reste le
+ * garde-fou.
+ */
+export async function shrinkAvatar(file: File): Promise<ShrinkResult> {
+  const untouched: ShrinkResult = { file, changed: false, originalBytes: file.size }
+
+  if (!DECODABLE.includes(file.type)) return untouched
+  if (typeof createImageBitmap !== 'function') return untouched
+
+  try {
+    const bitmap = await createImageBitmap(file)
+    const cote = Math.min(bitmap.width, bitmap.height)
+    const sortie = Math.min(cote, AVATAR_SIZE)
+
+    // Déjà carrée, déjà sous la borne, déjà en WebP : rien à gagner.
+    if (bitmap.width === bitmap.height && cote <= AVATAR_SIZE && file.type === 'image/webp') {
+      bitmap.close()
+      return untouched
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = sortie
+    canvas.height = sortie
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      bitmap.close()
+      return untouched
+    }
+    ctx.drawImage(
+      bitmap,
+      Math.round((bitmap.width - cote) / 2),
+      Math.round((bitmap.height - cote) / 2),
+      cote,
+      cote,
+      0,
+      0,
+      sortie,
+      sortie,
+    )
+    bitmap.close()
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/webp', IMAGE_QUALITY),
+    )
+    // Contrairement à `shrinkImage`, un résultat plus lourd est **gardé** : il
+    // est carré, et c'est le recadrage qu'on veut, pas seulement l'économie.
+    if (!blob) return untouched
+
+    const name = file.name.replace(/\.[^.]+$/, '') + '.webp'
+    return {
+      file: new File([blob], name, { type: 'image/webp', lastModified: Date.now() }),
+      changed: true,
+      originalBytes: file.size,
+    }
+  } catch {
+    return untouched
+  }
+}
+
 /** « 4,7 Mo » — pour dire à la personne ce que la réduction lui a épargné. */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`

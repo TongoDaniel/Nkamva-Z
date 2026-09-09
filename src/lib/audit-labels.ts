@@ -116,6 +116,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PASSWORD_CHANGED: 'Mot de passe modifié',
   PASSWORD_RESET: 'Mot de passe réinitialisé',
   PROFILE_UPDATED: 'Profil modifié',
+  PROFILE_PHOTO_UPDATED: 'Photo de profil déposée',
+  PROFILE_PHOTO_REMOVED: 'Photo de profil retirée',
   ACCOUNT_DELETION_REQUESTED: 'Suppression de compte demandée',
   ACCOUNT_DELETION_CANCELED: 'Suppression de compte annulée',
   ACCOUNT_PURGED: 'Compte effacé',
@@ -257,6 +259,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   // --- Communautés, messages, lives ---
   COMMUNITY_CREATED: 'Communauté créée',
   COMMUNITY_UPDATED: 'Communauté modifiée',
+  COMMUNITY_AVATAR_UPLOADED: 'Photo du groupe déposée',
+  COMMUNITY_AVATAR_REMOVED: 'Photo du groupe retirée',
   COMMUNITY_VISIBILITY_CHANGED: 'Visibilité de la communauté modifiée',
   COMMUNITY_CLOSED: 'Communauté fermée',
   COMMUNITY_REOPENED: 'Communauté rouverte',

@@ -231,7 +231,10 @@ async function get(path: string, cookie?: string) {
  * `nk-safe-b fixed`, qui n'appartient qu'à elle.
  */
 function tabBarSlice(html: string) {
-  const at = html.indexOf('nk-safe-b fixed')
+  // Ancré sur le rôle de la barre, jamais sur ses classes : « nk-safe-b fixed »
+  // a suffi à faire tomber douze contrôles le jour où un utilitaire s'est
+  // glissé entre les deux mots.
+  const at = html.indexOf('aria-label="Navigation principale"')
   if (at === -1) return ''
   const open = html.lastIndexOf('<nav', at)
   const close = html.indexOf('</nav>', at)
@@ -272,12 +275,27 @@ async function renderChecks() {
     return true
   }
 
-  const accueil = await get('/accueil', cookie)
-  check('/accueil répond', accueil.status === 200, `HTTP ${accueil.status}`)
+  // `/formateur` et non `/accueil` : l'accueil d'un formateur **est** son
+  // espace depuis que la barre n'a qu'une case pour les deux, et `/accueil` l'y
+  // renvoie par une redirection — que ce contrôle suivrait sans rien vérifier.
+  const accueil = await get('/formateur', cookie)
+  check('/formateur répond', accueil.status === 200, `HTTP ${accueil.status}`)
   const formateur = tabBarSlice(accueil.html)
-  for (const label of ['Accueil', 'Formateur', 'Mes ressources', 'Catalogue', 'Plus']) {
-    check(`  onglet formateur « ${label} »`, formateur.includes(`>${label}<`))
+  // Les cinq cases de l'espace connecté ne portent plus de texte : leur nom vit
+  // en `aria-label`. C'est lui qu'on vérifie — un onglet sans nom accessible
+  // n'existe pas pour un lecteur d'écran, et rien à l'œil ne le dirait.
+  for (const label of ['Accueil', 'Communauté', 'Catalogue', 'Messagerie', 'Compte']) {
+    check(`  onglet connecté « ${label} »`, formateur.includes(`aria-label="${label}"`))
   }
+  check(
+    'aucun libellé n’est rendu à l’œil dans la barre connectée',
+    !/>(Accueil|Communauté|Catalogue|Messagerie|Compte)</.test(formateur),
+  )
+  check(
+    'l’en-tête porte la cloche et le bouton publier',
+    accueil.html.includes('aria-label="Publier une ressource"') &&
+      /aria-label="Notifications/.test(accueil.html),
+  )
   check('le burger de l’espace est mort', !accueil.html.includes('nk-app-nav'))
 
   return true

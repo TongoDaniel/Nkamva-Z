@@ -53,7 +53,10 @@ export function PublicTopbar() {
       <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
         <Logo compact />
 
-        <nav aria-label="Navigation principale" className="hidden flex-1 gap-1 lg:flex">
+        {/* « du site » et non « principale » : la barre d'onglets basse porte déjà
+            ce dernier nom, et deux repères de navigation homonymes sur la même
+            page laissent un lecteur d'écran sans moyen de les distinguer. */}
+        <nav aria-label="Navigation du site" className="hidden flex-1 gap-1 lg:flex">
           {NAV.map((item) => (
             <Link
               key={item.href}

@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
 import { ReportButton } from "@/components/nk/report-button";
+import { useThreadFocus } from "@/components/layouts/shell-chrome";
 import { api, ApiError } from "@/lib/client";
 import { fmtListStamp } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,9 @@ export interface PaneConversation {
   communitySlug: string;
   communityName: string;
   title: string;
-  peer: { id: string; fullName: string | null } | null;
+  peer: { id: string; fullName: string | null; avatarUrl: string | null } | null;
+  /** Photo de l'autre. Nulle pour un groupe, et nulle tant que personne n'en a posé. */
+  avatarUrl: string | null;
   lastMessage: {
     body: string | null;
     createdAt: string | Date;
@@ -122,6 +125,12 @@ export function ConversationPane({
   const [text, setText] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [mobileThread, setMobileThread] = React.useState(false);
+
+  // Un fil ouvert sur téléphone prend l'écran entier : la coquille retire son
+  // en-tête sous `md` (voir `shell-chrome.tsx`). L'en-tête du fil, avec le nom
+  // de l'autre et la flèche de retour, dit déjà où l'on est et comment en
+  // sortir ; empiler les deux coûtait 63 px sur 812 pour rien.
+  useThreadFocus(mobileThread);
   const [filter, setFilter] = React.useState<Filter>("all");
   const [query, setQuery] = React.useState("");
   const [announcing, setAnnouncing] = React.useState(false);
@@ -355,13 +364,21 @@ export function ConversationPane({
       dimensionnait donc sur l'aperçu le plus long — 510 px dans un écran de
       375 — et poussait l'heure et la pastille de non-lues hors du cadre, où
       `overflow-hidden` les cachait sans rien dire.
+
+      La rangée est déclarée pour la même raison, mais dans l'autre sens : sans
+      `grid-rows-[minmax(0,1fr)]`, la rangée implicite vaut `auto` et se
+      dimensionne sur le plus long des deux volets — la liste dépasserait le
+      cadre au lieu de défiler dedans, et la saisie sortirait de l'écran.
     */
-    <div className="mt-6 grid grid-cols-[minmax(0,1fr)] overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm md:grid-cols-[300px_minmax(0,1fr)]">
+    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden bg-card md:grid-cols-[300px_minmax(0,1fr)]">
       <aside
         aria-label="Conversations"
-        className={cn("border-line md:block md:border-r", mobileThread ? "hidden" : "block")}
+        className={cn(
+          "min-h-0 min-w-0 flex-col border-line md:flex md:border-r",
+          mobileThread ? "hidden" : "flex",
+        )}
       >
-        <div className="border-b border-line px-3 py-2.5">
+        <div className="shrink-0 border-b border-line px-3 py-2.5">
           <label htmlFor="messagerie-recherche" className="sr-only">
             Rechercher une personne, un groupe ou un message
           </label>
@@ -395,7 +412,7 @@ export function ConversationPane({
           </div>
         </div>
 
-        <ul className="max-h-[520px] overflow-y-auto">
+        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {list.length === 0 ? (
             <li className="px-4 py-8 text-center text-[13.5px] text-ink-3">
               {query.trim() ? "Rien ne correspond à cette recherche." : "Rien à afficher ici."}
@@ -431,16 +448,29 @@ export function ConversationPane({
                   className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pl-4 pr-2 text-left"
                 >
                   {/* Un groupe se distingue à l'œil avant d'être lu : coin carré
-                      et glyphe, là où une personne a un rond et ses initiales. */}
+                      là où une personne a un rond. Ce qui remplit le carré
+                      change — la photo du groupe si son formateur en a posé
+                      une, le glyphe sinon —, la forme, elle, ne change pas :
+                      c'est elle qui dit « plusieurs personnes ». */}
                   {isGroup ? (
                     <span
-                      className="grid size-9 shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand"
+                      className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-nk-sm bg-brand-tint text-brand"
                       aria-hidden="true"
                     >
-                      <Users className="size-4" />
+                      {conversation.avatarUrl ? (
+                        <img
+                          src={conversation.avatarUrl}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <Users className="size-4" />
+                      )}
                     </span>
                   ) : (
-                    <Avatar name={conversation.title} />
+                    <Avatar name={conversation.title} src={conversation.avatarUrl} />
                   )}
                   <span className="min-w-0 flex-1">
                     <b className="flex items-center gap-1.5 text-[14.5px] font-bold text-ink">
@@ -546,7 +576,7 @@ export function ConversationPane({
 
       <section
         aria-label={thread ? `Conversation avec ${peerName(thread)}` : "Conversation"}
-        className={cn("flex min-w-0 flex-col", mobileThread ? "flex" : "hidden md:flex")}
+        className={cn("min-h-0 min-w-0 flex-col", mobileThread ? "flex" : "hidden md:flex")}
       >
         {thread ? (
           <>
@@ -559,7 +589,7 @@ export function ConversationPane({
               >
                 <ArrowLeft className="size-4" aria-hidden="true" />
               </button>
-              <Avatar name={peerName(thread)} />
+              <Avatar name={peerName(thread)} src={thread.avatarUrl} />
               <div className="min-w-0">
                 <b className="block truncate text-[15px] font-bold">{peerName(thread)}</b>
                 <small className="block truncate text-[13px] text-ink-2">
@@ -570,7 +600,7 @@ export function ConversationPane({
 
             <div
               ref={threadRef}
-              className="flex max-h-[420px] min-h-[280px] flex-col gap-2.5 overflow-y-auto bg-paper px-4 py-5"
+              className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain bg-paper px-4 py-5"
               aria-busy={loading}
             >
               {loading ? (

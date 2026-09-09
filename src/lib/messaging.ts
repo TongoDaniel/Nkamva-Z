@@ -38,6 +38,7 @@ import type { ConversationKind } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
 import { notifyWithEmail, deliverSideEffects, absoluteUrl } from './notification'
+import { userAvatarSrc, communityAvatarSrc } from './avatars'
 
 export const MESSAGE_MAX_LENGTH = 5000
 
@@ -47,6 +48,8 @@ const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
 export interface ConversationPeer {
   id: string
   fullName: string | null
+  /** Sa photo de profil, quand elle existe. Sinon l'écran pose ses initiales. */
+  avatarUrl: string | null
 }
 
 export interface ConversationSummary {
@@ -63,6 +66,14 @@ export interface ConversationSummary {
   title: string
   /** L'autre bout du fil. **Nul pour un groupe** : il n'y a personne en face. */
   peer: ConversationPeer | null
+  /**
+   * La vignette de la ligne, calculée ici pour la même raison que `title` : la
+   * photo de l'autre dans un fil privé, celle du groupe pour une communauté qui
+   * en a posé une. **Jamais la bannière** : une affiche en 16:9 rognée en rond
+   * ne donne qu'une bande de pixels — le groupe a sa propre photo, carrée.
+   * Nulle des deux côtés, l'écran pose ses initiales ou son glyphe.
+   */
+  avatarUrl: string | null
   /** `body` est nul quand le message a été retiré : le texte ne repart pas. */
   lastMessage: {
     body: string | null
@@ -276,10 +287,16 @@ const CONVERSATION_SELECT = {
   community: {
     select: {
       slug: true, name: true, status: true, messagingEnabled: true, forumEnabled: true,
-      trainerProfile: { select: { userId: true, user: { select: { id: true, fullName: true } } } },
+      avatarS3Key: true,
+      trainerProfile: {
+        select: {
+          userId: true,
+          user: { select: { id: true, fullName: true, avatarUrl: true, avatarS3Key: true } },
+        },
+      },
     },
   },
-  learner: { select: { id: true, fullName: true } },
+  learner: { select: { id: true, fullName: true, avatarUrl: true, avatarS3Key: true } },
 } as const
 
 type ConversationRow = {
@@ -292,9 +309,23 @@ type ConversationRow = {
   community: {
     slug: string
     name: string
-    trainerProfile: { userId: string; user: { id: string; fullName: string | null } }
+    avatarS3Key: string | null
+    trainerProfile: {
+      userId: string
+      user: {
+        id: string
+        fullName: string | null
+        avatarUrl: string | null
+        avatarS3Key: string | null
+      }
+    }
   }
-  learner: { id: string; fullName: string | null } | null
+  learner: {
+    id: string
+    fullName: string | null
+    avatarUrl: string | null
+    avatarS3Key: string | null
+  } | null
 }
 
 // --- Le groupe d'une communauté (arbitrage 126) ------------------------------
@@ -401,7 +432,12 @@ async function toSummary(
     communitySlug: row.community.slug,
     communityName: row.community.name,
     title: isGroup ? row.community.name : (peer?.fullName ?? 'Votre interlocuteur'),
-    peer: peer ? { id: peer.id, fullName: peer.fullName } : null,
+    peer: peer ? { id: peer.id, fullName: peer.fullName, avatarUrl: userAvatarSrc(peer) } : null,
+    avatarUrl: isGroup
+      ? communityAvatarSrc({ id: row.communityId, avatarS3Key: row.community.avatarS3Key })
+      : peer
+        ? userAvatarSrc(peer)
+        : null,
     lastMessage: last
       ? {
           body: last.deletedAt ? null : last.body,

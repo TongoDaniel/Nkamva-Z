@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -6,7 +5,9 @@ import {
   ChevronRight,
   Coins,
   CreditCard,
+  FileEdit,
   Library,
+  MessageSquare,
   Plus,
   Radio,
   Scale,
@@ -14,21 +15,41 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import type { ComponentType } from "react";
 import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
 import { StatTile } from "@/components/nk/stat-tile";
 import { StPill } from "@/components/nk/status-pill";
-import { EmptyState } from "@/components/nk/empty-state";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
-import { listTrainerCourses } from "@/lib/courses";
-import { getTrainerOverview, getSalesByCourse, getTrainerWallet } from "@/lib/trainer-stats";
+import { listMyResources } from "@/lib/access";
+import { searchCourses } from "@/lib/catalog";
+import { listAgenda } from "@/lib/lives";
+import { loadTrainerPanel } from "@/lib/trainer-home";
 import { getTrainerVisibility } from "@/lib/trainers";
-import { fmtFcfa, fmtNumber } from "@/lib/format";
+import { PAYOUT_MIN_AMOUNT_FCFA } from "@/lib/payouts";
+import { db } from "@/lib/db";
+import { fmtFcfa, fmtNumber, fmtDate } from "@/lib/format";
+import { routesOf } from "@/lib/spaces";
+import type { CourseListItem, ResourceItem } from "@/lib/dto";
 import { COURSE_STATUS } from "./ressources/course-status";
 import { TRAINER_SECTIONS } from "./sections";
 import { VisibilityNotice } from "./visibility-notice";
 import { walletTileLabel } from "./wallet-label";
+import {
+  BANNER_TONES,
+  NextLives,
+  Novelties,
+  ResumeList,
+  StepRow,
+  TaskRow,
+  s,
+  type StateBanner,
+  type Task,
+} from "../accueil/blocs";
+
+/** Espace connecté : les liens de navigation restent dans la coquille applicative. */
+const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
 
@@ -50,72 +71,432 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function FormateurPage() {
+/**
+ * L'accueil d'un formateur.
+ * ==========================================================================
+ * C'était `/accueil` qui portait ce tableau de bord, dans une branche choisie
+ * selon le rôle — et `/formateur` en tenait un second, plus maigre, avec les
+ * mêmes tuiles et les mêmes publications. Deux écrans pour un seul poste de
+ * travail. La barre du bas a tranché : cinq cases, une seule pour l'accueil,
+ * qui mène ici. `/accueil` redirige désormais un formateur vers cette page.
+ *
+ * Ce que l'écran garde de chacun : les bandeaux d'état, la file « À traiter »
+ * et le régime de démarrage viennent de l'ancien accueil ; la grille « Gérer
+ * votre activité », l'avis de visibilité et le rappel sur le solde viennent de
+ * l'ancien `/formateur`. Rien n'a été perdu au passage.
+ * ==========================================================================
+ */
+export default async function FormateurPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erreur?: string }>;
+}) {
   const auth = await getAuthContext();
   if (!auth?.user.trainerId) return null;
   const trainerId = auth.user.trainerId;
+  const userId = auth.user.id;
 
-  const [overview, courses, sales, wallet, visibility] = await Promise.all([
-    getTrainerOverview(trainerId),
-    listTrainerCourses(trainerId),
-    getSalesByCourse(trainerId),
-    getTrainerWallet(trainerId),
+  // Le middleware renvoie ici quand un compte non-admin tente d'ouvrir `/admin`.
+  // Sans ce message, la redirection ressemble à un clic perdu.
+  const { erreur } = await searchParams;
+
+  // Tout part en une seule vague : ce qui coûte face à une base distante n'est
+  // pas le nombre de requêtes, c'est la profondeur de cascade.
+  const [trainer, agenda, mine, suggestions, profile, visibility] = await Promise.all([
+    loadTrainerPanel(trainerId, userId),
+    listAgenda(userId, trainerId),
+    listMyResources(userId, "all", 1, 20),
+    // Six et non trois : ses propres publications sont retirées plus bas, et un
+    // filtre appliqué après la pagination viderait la rangée.
+    searchCourses({ sort: "newest", page: 1, pageSize: 6 }),
+    db.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, preferredName: true },
+    }),
     getTrainerVisibility(trainerId),
   ]);
 
-  const best = [...courses]
-    .map((c) => ({ course: c, sales: sales.get(c.id)?.salesCount ?? 0 }))
-    .sort((a, b) => b.sales - a.sales)
-    .slice(0, 4);
-  const maxSales = Math.max(1, ...best.map((b) => b.sales));
+  // La maquette accueille par le prénom. `preferredName` prime quand il existe ;
+  // sinon on prend le premier mot du nom complet, faute de champ dédié.
+  const firstName =
+    profile?.preferredName?.trim() || profile?.fullName?.trim().split(/\s+/)[0] || null;
+
+  const items = mine.items as unknown as ResourceItem[];
+  const inProgress = items.filter((i) => i.isStarted && !i.accessSuspended).slice(0, 3);
+  const suggested = (suggestions.items as unknown as CourseListItem[])
+    .filter((c) => !items.some((i) => i.course?.id === c.id))
+    // Un formateur voyait sa propre ressource proposée à l'achat parmi les
+    // nouveautés : le filtre ci-dessus écarte ce qu'il a **acheté**, pas ce
+    // qu'il a **publié**.
+    .filter((c) => c.trainerProfile.id !== trainerId)
+    .slice(0, 3);
+  const nextLives = agenda.slice(0, 2);
+
+  const accessDenied =
+    erreur === "acces-refuse" ? (
+      <p
+        role="alert"
+        className="mb-8 rounded-nk border border-danger/30 bg-danger-tint px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger"
+      >
+        Vous n&apos;avez pas les droits nécessaires pour accéder à cette page.
+      </p>
+    ) : null;
+
+  const { overview, wallet, subscription, storage, activeMembers, disputesToContest, unreadMessages, courses, sales } =
+    trainer;
+
+  // Deux états refusent l'écriture (décision 68 et arbitrage 5) : proposer
+  // « Publier » mènerait alors droit à un refus.
+  const canWrite =
+    subscription?.subscriptionStatus !== "SUSPENDED" &&
+    subscription?.subscriptionStatus !== "CANCELED";
+
+  // --- Bandeaux, par priorité décroissante ---
+  const banners: StateBanner[] = [];
+  if (subscription?.subscriptionStatus === "CANCELED") {
+    banners.push({
+      key: "canceled",
+      tone: "muted",
+      title: "Votre espace est en état de solde",
+      detail:
+        "Vous ne publiez plus et n'animez plus. Il reste ouvert pour retirer votre solde, suivre vos litiges et consulter vos factures.",
+      href: "/formateur/abonnement",
+      cta: "Mon abonnement",
+    });
+  } else if (subscription?.subscriptionStatus === "SUSPENDED") {
+    banners.push({
+      key: "suspended",
+      tone: "danger",
+      title: "Abonnement suspendu — vos ressources sont retirées du catalogue",
+      detail:
+        "Celles et ceux qui les ont achetées y accèdent toujours. Le règlement de l'échéance les remet en vente.",
+      href: "/formateur/abonnement",
+      cta: "Régler",
+    });
+  }
+  if (wallet.negativeSince) {
+    banners.push({
+      key: "negative",
+      tone: "danger",
+      title: "Votre solde est négatif",
+      detail: `Depuis le ${fmtDate(wallet.negativeSince)}. Aucun retrait n'est possible tant qu'il n'est pas revenu à l'équilibre.`,
+      href: "/formateur/portefeuille",
+      cta: "Portefeuille",
+    });
+  }
+  if (subscription?.subscriptionStatus === "PAST_DUE") {
+    banners.push({
+      key: "past-due",
+      tone: "gold",
+      title: `Échéance à régler — ${fmtFcfa(subscription.dueTotalFcfa)}`,
+      detail: subscription.suspensionAt
+        ? `Vos ressources restent en vente jusqu'au ${fmtDate(subscription.suspensionAt)}.`
+        : "Vos ressources restent en vente pour l'instant.",
+      href: "/formateur/abonnement",
+      cta: "Régler",
+    });
+  }
+  if (storage.quotaBytes > 0 && storage.usedBytes / storage.quotaBytes >= 0.9) {
+    banners.push({
+      key: "storage",
+      tone: "clay",
+      title: "Votre stockage est presque plein",
+      detail: `${Math.round((storage.usedBytes / storage.quotaBytes) * 100)} % du quota est occupé. Au-delà, aucun téléversement ne passe.`,
+      href: "/formateur/portefeuille",
+      cta: "Ajouter un palier",
+    });
+  }
+  const shownBanners = banners.slice(0, 2);
+
+  // --- Files à traiter ---
+  const tasks: Task[] = [];
+  if (overview.draftCount > 0) {
+    tasks.push({
+      key: "drafts",
+      icon: <FileEdit />,
+      label: `${overview.draftCount} brouillon${s(overview.draftCount)} à publier`,
+      detail: "Ils ne sont visibles de personne tant qu'ils ne sont pas publiés.",
+      href: "/formateur/ressources",
+    });
+  }
+  if (disputesToContest > 0) {
+    tasks.push({
+      key: "disputes",
+      icon: <Scale />,
+      label: `${disputesToContest} litige${s(disputesToContest)} sans contestation`,
+      detail: "La modération décidera sans votre version tant que vous n'aurez rien déposé.",
+      href: "/formateur/litiges",
+    });
+  }
+  if (wallet.withdrawableFcfa >= PAYOUT_MIN_AMOUNT_FCFA) {
+    tasks.push({
+      key: "payout",
+      icon: <Wallet />,
+      label: `${fmtFcfa(wallet.withdrawableFcfa)} retirables`,
+      detail: "Au-dessus du minimum de retrait. Le virement passe par un compte vérifié.",
+      href: "/formateur/portefeuille",
+    });
+  }
+  if (unreadMessages > 0) {
+    tasks.push({
+      key: "messages",
+      icon: <MessageSquare />,
+      label: `${unreadMessages} message${s(unreadMessages)} non lu${s(unreadMessages)}`,
+      detail: "Des apprenants attendent une réponse.",
+      href: "/messagerie",
+    });
+  }
+
+  // Régime de démarrage : aucune ressource publiée. Une rangée de zéros ne dit
+  // rien à qui n'a pas encore commencé — la liste des étapes, si.
+  const starting = overview.publishedCount === 0;
+
+  // --- Vos publications : les mieux vendues, plus le brouillon le plus récent ---
+  const ranked = [...courses]
+    .map((c) => ({
+      course: c,
+      salesCount: sales.get(c.id)?.salesCount ?? 0,
+      netFcfa: sales.get(c.id)?.netRevenueFcfa ?? 0,
+    }))
+    .sort((a, b) => b.salesCount - a.salesCount)
+    .slice(0, 3);
+  // `listTrainerCourses` trie par création décroissante : le premier brouillon
+  // rencontré est le plus récent.
+  const latestDraft = courses.find((c) => c.status === "draft");
+  const shownCourses =
+    latestDraft && !ranked.some((r) => r.course.id === latestDraft.id)
+      ? [...ranked, { course: latestDraft, salesCount: 0, netFcfa: 0 }]
+      : ranked;
+  const maxSales = Math.max(1, ...shownCourses.map((r) => r.salesCount));
+
+  const lead =
+    tasks.length === 0
+      ? "Rien ne vous attend aujourd'hui."
+      : tasks.length === 1
+        ? "Une chose vous attend aujourd'hui."
+        : `${tasks.length} choses vous attendent aujourd'hui.`;
 
   return (
     <div className="nk-wrap pb-16">
       <PageHead
-        title="Espace formateur"
-        lead="Vos publications, vos ventes et votre solde, calculés sur les achats réellement encaissés."
+        title={firstName ? `Bonjour, ${firstName} !` : "Votre espace"}
+        lead={lead}
         actions={
-          <BtnLink href="/formateur/ressources/nouvelle">
+          canWrite ? (
+            <BtnLink href="/formateur/ressources/nouvelle">
               <Plus aria-hidden="true" />
               Publier une ressource
-          </BtnLink>
+            </BtnLink>
+          ) : null
         }
       />
+
+      {accessDenied}
 
       {/* Avant les chiffres : un formateur invisible des visiteurs doit
           l'apprendre en arrivant, pas après avoir lu son solde. */}
       {visibility ? <VisibilityNotice visibility={visibility} /> : null}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          icon={<BookOpen />}
-          tone="blue"
-          value={overview.courseCount}
-          label={`ressource${overview.courseCount > 1 ? "s" : ""} · ${overview.publishedCount} publiée${overview.publishedCount > 1 ? "s" : ""}`}
-        />
-        <StatTile
-          icon={<TrendingUp />}
-          tone="brand"
-          value={fmtNumber(overview.salesCount)}
-          label="ventes confirmées"
-        />
-        <StatTile
-          icon={<Coins />}
-          tone="clay"
-          value={fmtNumber(overview.netRevenueFcfa)}
-          suffix="FCFA"
-          label="revenus nets cumulés"
-        />
-        <StatTile
-          icon={<Wallet />}
-          tone="gold"
-          value={fmtNumber(wallet.withdrawableFcfa)}
-          suffix="FCFA"
-          label={walletTileLabel(wallet)}
-        />
+      {shownBanners.length > 0 ? (
+        <section aria-labelledby="etat-du-compte" className="mb-8 flex flex-col gap-3">
+          <h2 id="etat-du-compte" className="sr-only">
+            État de votre compte
+          </h2>
+          {shownBanners.map((banner) => (
+            <div
+              key={banner.key}
+              className={`flex flex-wrap items-center gap-4 rounded-nk-lg border px-5 py-4 ${BANNER_TONES[banner.tone]}`}
+            >
+              <div className="min-w-0 flex-1">
+                <b className="block text-[14px] font-bold">{banner.title}</b>
+                <small className="block text-[13px] leading-relaxed opacity-90">{banner.detail}</small>
+              </div>
+              <BtnLink href={banner.href} size="sm" variant="o">
+                {banner.cta}
+              </BtnLink>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {starting ? (
+        <section
+          aria-labelledby="demarrage"
+          className="mb-8 rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm"
+        >
+          <h2 id="demarrage" className="mb-1 text-[17px] font-bold">
+            Vos premiers pas
+          </h2>
+          <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
+            Vos chiffres apparaîtront ici dès votre première publication.
+          </p>
+          <ul className="flex flex-col">
+            <StepRow
+              done={overview.courseCount > 0}
+              label="Créer une ressource"
+              detail="Vous fixez le format, le contenu et le prix, en FCFA."
+              href="/formateur/ressources/nouvelle"
+            />
+            <StepRow
+              done={overview.publishedCount > 0}
+              label="La publier au catalogue"
+              detail="Un brouillon n'est visible de personne tant qu'il n'est pas publié."
+              href="/formateur/ressources"
+            />
+            <StepRow
+              done={activeMembers > 0}
+              label="Accueillir votre premier membre"
+              detail="Le salon d'abonnés, ses invitations et ses réglages."
+              href="/formateur/communaute"
+            />
+          </ul>
+        </section>
+      ) : (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatTile
+            icon={<TrendingUp />}
+            tone="brand"
+            value={fmtNumber(overview.salesCount)}
+            label={`vente${s(overview.salesCount)} confirmée${s(overview.salesCount)}`}
+          />
+          <StatTile
+            icon={<Coins />}
+            tone="clay"
+            value={fmtNumber(overview.netRevenueFcfa)}
+            suffix="FCFA"
+            label="revenus nets cumulés"
+          />
+          <StatTile
+            icon={<Wallet />}
+            tone="gold"
+            value={fmtNumber(wallet.withdrawableFcfa)}
+            suffix="FCFA"
+            label={walletTileLabel(wallet)}
+          />
+          <StatTile
+            icon={<Users />}
+            tone="blue"
+            value={fmtNumber(activeMembers)}
+            label={`membre${s(activeMembers)} actif${s(activeMembers)}`}
+          />
+        </div>
+      )}
+
+      {/* Colonne principale : l'activité de formateur, datée, donc prioritaire.
+          Colonne latérale : l'apprenante, compacte mais jamais absente. */}
+      <div className="grid gap-8 xl:grid-cols-3">
+        <div className="flex flex-col gap-10 xl:col-span-2">
+          <section aria-labelledby="a-traiter">
+            <h2 id="a-traiter" className="mb-4 text-[17px] font-bold">
+              À traiter
+            </h2>
+            {tasks.length === 0 ? (
+              <p className="rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
+                Rien n&apos;attend de décision de votre part : pas de brouillon en
+                souffrance, pas de litige sans réponse, pas de message non lu.
+              </p>
+            ) : (
+              <ul className="flex flex-col rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm">
+                {tasks.map((task) => (
+                  <TaskRow key={task.key} task={task} />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {shownCourses.length > 0 ? (
+            <section aria-labelledby="publications">
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <h2 id="publications" className="text-[17px] font-bold">
+                  Vos publications
+                </h2>
+                <Link href="/formateur/ressources" className="nk-tap text-[13px] font-bold text-brand">
+                  Tout gérer
+                </Link>
+              </div>
+              <ul className="flex flex-col gap-3">
+                {shownCourses.map(({ course, salesCount, netFcfa }) => {
+                  const status = COURSE_STATUS[course.status] ?? COURSE_STATUS.draft;
+                  return (
+                    <li
+                      key={course.id}
+                      className="group relative flex flex-wrap items-center gap-4 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk focus-within:border-brand focus-within:shadow-nk"
+                    >
+                      <span
+                        className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
+                        aria-hidden="true"
+                      >
+                        <FormatGlyph format={course.format} className="size-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-[14.5px] font-bold">
+                          <Link
+                            href={`/formateur/ressources/${course.id}`}
+                            className="text-ink after:absolute after:inset-0 after:content-[''] group-hover:text-brand"
+                          >
+                            {course.title}
+                          </Link>
+                        </h3>
+                        <p className="flex flex-wrap items-center gap-3 text-[13px] text-ink-2">
+                          <StPill tone={status.tone}>{status.label}</StPill>
+                          <span>{formatLabel(course.format)}</span>
+                          <span>{fmtFcfa(course.priceFcfa)}</span>
+                        </p>
+                        <div
+                          className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line-2"
+                          aria-hidden="true"
+                        >
+                          <i
+                            className="block h-full rounded-full bg-brand"
+                            style={{ width: `${Math.round((salesCount / maxSales) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-right text-[13px] text-ink-2">
+                        <b className="block font-display text-[17px] font-extrabold text-ink">
+                          {fmtNumber(salesCount)}
+                        </b>
+                        vente{s(salesCount)} · {fmtFcfa(netFcfa)}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+
+        <aside className="flex flex-col gap-10">
+          <NextLives sessions={nextLives} />
+
+          <section aria-labelledby="reprendre">
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 id="reprendre" className="text-[17px] font-bold">
+                Reprendre
+              </h2>
+              <Link href="/mes-ressources" className="nk-tap text-[13px] font-bold text-brand">
+                Tout voir
+              </Link>
+            </div>
+            {inProgress.length === 0 ? (
+              <p className="rounded-nk-lg border-[1.5px] border-dashed border-line bg-card/40 px-5 py-6 text-center text-[13px] leading-relaxed text-ink-2">
+                Rien en cours.{" "}
+                <Link href={routes.catalog} className="font-bold text-brand">
+                  Explorer le catalogue
+                </Link>
+              </p>
+            ) : (
+              <ResumeList items={inProgress} />
+            )}
+          </section>
+        </aside>
       </div>
 
-      <section aria-labelledby="sections" className="mb-10">
+      <Novelties courses={suggested} />
+
+      {/* Ce que l'ancien `/formateur` portait et que l'accueil n'avait pas : la
+          carte des sections, et le rappel sur le solde. */}
+      <section aria-labelledby="sections" className="mt-10">
         <h2 id="sections" className="mb-4 text-[17px] font-bold">
           Gérer votre activité
         </h2>
@@ -153,83 +534,7 @@ export default async function FormateurPage() {
         </ul>
       </section>
 
-      <section aria-labelledby="meilleures" className="mb-10">
-        <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 id="meilleures" className="text-[17px] font-bold">
-            Vos ressources
-          </h2>
-          <Link href="/formateur/ressources" className="nk-tap text-[13px] font-bold text-brand">
-            Tout gérer
-          </Link>
-        </div>
-
-        {courses.length === 0 ? (
-          <EmptyState
-            icon={<BookOpen />}
-            title="Aucune ressource pour l'instant"
-            description="Créez votre première ressource : vous fixez le format, le contenu et le prix, en FCFA."
-            action={
-              <BtnLink href="/formateur/ressources/nouvelle">Créer une ressource</BtnLink>
-            }
-          />
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {best.map(({ course, sales: salesCount }) => {
-              const status = COURSE_STATUS[course.status] ?? COURSE_STATUS.draft;
-              const net = sales.get(course.id)?.netRevenueFcfa ?? 0;
-              return (
-                <li
-                  key={course.id}
-                  className="group relative flex flex-wrap items-center gap-4 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk focus-within:border-brand focus-within:shadow-nk"
-                >
-                  <span
-                    className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
-                    aria-hidden="true"
-                  >
-                    <FormatGlyph format={course.format} className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-[14.5px] font-bold">
-                      {/* Même motif que `ResourceCard` : le lien du titre est
-                          étendu à toute la ligne par `after:inset-0`. Une seule
-                          cible cliquable, et le nom accessible reste le titre —
-                          ce qu'une ligne entière transformée en lien perdrait. */}
-                      <Link
-                        href={`/formateur/ressources/${course.id}`}
-                        className="text-ink after:absolute after:inset-0 after:content-[''] group-hover:text-brand"
-                      >
-                        {course.title}
-                      </Link>
-                    </h3>
-                    <p className="flex flex-wrap items-center gap-3 text-[13px] text-ink-2">
-                      <StPill tone={status.tone}>{status.label}</StPill>
-                      <span>{formatLabel(course.format)}</span>
-                      <span>{fmtFcfa(course.priceFcfa)}</span>
-                    </p>
-                    <div
-                      className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line-2"
-                      aria-hidden="true"
-                    >
-                      <i
-                        className="block h-full rounded-full bg-brand"
-                        style={{ width: `${Math.round((salesCount / maxSales) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-right text-[13px] text-ink-2">
-                    <b className="block font-display text-[17px] font-extrabold text-ink">
-                      {fmtNumber(salesCount)}
-                    </b>
-                    vente{salesCount > 1 ? "s" : ""} · {fmtFcfa(net)}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <p className="flex flex-wrap items-center justify-between gap-3 rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
+      <p className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
         <span>
           Votre solde est crédité à chaque vente confirmée. Les retraits passent par un
           compte vérifié et votre score de confiance.
