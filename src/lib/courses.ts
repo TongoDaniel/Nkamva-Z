@@ -142,7 +142,9 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
     }),
     db.community.aggregate({
       where: { trainerId },
-      _sum: { coverSizeBytes: true },
+      // La photo du groupe est comptée comme la bannière : deux images
+      // publiées par le même formateur, dans le même seau.
+      _sum: { coverSizeBytes: true, avatarSizeBytes: true },
     }),
   ])
   // Colonnes BIGINT — une seule vidéo peut peser 2 Go, soit un octet de plus
@@ -155,7 +157,8 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
     (courses._sum.coverSizeBytes ?? BigInt(0)) +
     (replays._sum.sizeBytes ?? BigInt(0)) +
     (replays._sum.audioSizeBytes ?? BigInt(0)) +
-    (communities._sum.coverSizeBytes ?? BigInt(0))
+    (communities._sum.coverSizeBytes ?? BigInt(0)) +
+    (communities._sum.avatarSizeBytes ?? BigInt(0))
   return Number(total)
 }
 

@@ -156,6 +156,12 @@
      valeur recopiée aux deux endroits aurait divergé au premier ajustement. */
   --nk-tabbar-h: 3.5rem;
 
+  /* Ce qui décolle la pilule du bord bas de l'écran. La barre ne touche plus le
+     bord : elle flotte au-dessus du contenu, qui défile derrière elle. Toute
+     réserve de place doit donc compter cette marge en plus de la hauteur —
+     sinon le dernier bouton d'un écran s'arrête pile sous la pilule. */
+  --nk-tabbar-float: 0.625rem;
+
   /* Accent par défaut : le bleu du logo, utilisé par tout le produit sauf
      l'admin (voir `.nk-admin` plus bas). */
   --brand: #1c5ed0;
@@ -471,7 +477,9 @@
      La zone sûre s'y ajoute : sur un téléphone à barre gestuelle, la barre
      d'onglets est d'autant plus haute. */
   .nk-tabbar-gap {
-    height: calc(var(--nk-tabbar-h) + max(env(safe-area-inset-bottom), 0px));
+    height: calc(
+      var(--nk-tabbar-h) + var(--nk-tabbar-float) + max(env(safe-area-inset-bottom), 0px)
+    );
   }
 
   /* Squelette de chargement (`.sk`). */
@@ -594,11 +602,15 @@ textarea:not(.nk-field-size) {
    d'audit, qui étaient toutes deux en `fixed bottom-0`. */
 @media (max-width: 63.99rem) {
   [data-sonner-toaster][data-y-position="bottom"] {
-    --offset-bottom: calc(var(--nk-tabbar-h) + env(safe-area-inset-bottom) + 0.75rem);
+    --offset-bottom: calc(
+      var(--nk-tabbar-h) + var(--nk-tabbar-float) + env(safe-area-inset-bottom) + 0.75rem
+    );
   }
 
   .nk-above-tabbar {
-    bottom: calc(var(--nk-tabbar-h) + max(env(safe-area-inset-bottom), 0px));
+    bottom: calc(
+      var(--nk-tabbar-h) + var(--nk-tabbar-float) + max(env(safe-area-inset-bottom), 0px)
+    );
   }
 }
 

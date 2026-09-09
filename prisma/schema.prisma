@@ -246,7 +246,18 @@ model User {
   preferredName              String?
   phone                      String?
   countryCode                String?
+  /// Photo posée ailleurs qu'ici — une adresse, pas une clé de stockage. Reste
+  /// pour les comptes d'essai et pour une éventuelle photo venue de Google ;
+  /// `avatarS3Key` la couvre dès qu'une photo a été déposée.
   avatarUrl                  String?
+  /// La photo de profil déposée sur R2. Servie par `/api/media/users/[id]/avatar`,
+  /// qui redirige vers une URL signée — la clé ne sort jamais du serveur.
+  ///
+  /// Sans `sizeBytes` associé, contrairement aux couvertures : le quota de
+  /// l'arbitrage 54 pèse les contenus **publiés** d'un formateur, et un portrait
+  /// de 512 px n'en est pas un. Un apprenant n'a d'ailleurs aucun quota où le
+  /// compter.
+  avatarS3Key                String?
   bio                        String?
   role                       Role                    @default(LEARNER)
   adminRole                  AdminRole?
@@ -536,6 +547,14 @@ model Community {
   /// Arbitrage 54 — la bannière occupe le quota de son formateur, au même titre
   /// que la couverture d'un cours : `trainerStorageUsedBytes()` l'additionne.
   coverSizeBytes   BigInt?
+  /// La photo du groupe — carrée, et distincte de la bannière : l'une est une
+  /// affiche en 16:9, l'autre tient dans un rond de 42 px en tête d'une liste
+  /// de conversations. Rogner la première pour en tirer la seconde ne donnait
+  /// qu'une bande de pixels.
+  avatarS3Key      String?
+  /// Elle, contrairement au portrait d'une personne, compte dans le quota :
+  /// c'est une image publiée par un formateur, comme sa bannière.
+  avatarSizeBytes  BigInt?
   priceFcfa        Int
   commissionRate   Float                   @default(0.15)
   /// Arbitrage 126 — le fil collectif est désormais un **groupe** de la

@@ -16,7 +16,6 @@ const db = new PrismaClient()
 const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3000'
 
 const APP_NAV = 'Navigation de mon espace'
-const APP_NAV_MOBILE = 'Navigation de mon espace (mobile)'
 /** L'apostrophe des libellés ressort échappée dans le HTML : `d&#x27;Ariane`. */
 const CRUMBS = 'Fil d&#x27;Ariane'
 /**
@@ -139,8 +138,9 @@ async function main() {
   }
 
   console.log(`\nBarre principale — ${BASE}/accueil (formateur ${trainer.email})`)
-  const accueil = await get('/accueil')
-  check('/accueil rend la coquille connectée', accueil.status === 200 && accueil.html.includes(APP_NAV), `HTTP ${accueil.status}`)
+  // L'accueil d'un formateur est son espace : `/accueil` l'y redirige.
+  const accueil = await get('/formateur')
+  check('/formateur rend la coquille connectée', accueil.status === 200 && accueil.html.includes(APP_NAV), `HTTP ${accueil.status}`)
   const nav = navSlice(accueil.html, APP_NAV)
   check(
     'la barre porte les quatre onglets attendus',
@@ -157,7 +157,6 @@ async function main() {
   console.log('\nOnglet courant, route par route')
   // `/accueil` n'a plus d'onglet : la barre doit rester éteinte, et surtout le
   // logo doit continuer d'y mener — c'est devenu le seul chemin.
-  check("aucun onglet ne s'allume sur /accueil", navCurrent(nav).length === 0, navCurrent(nav).join(' + '))
   check('le logo mène à /accueil', hrefCount(accueil.html, '/accueil') >= 1)
   for (const [path, expected] of CURRENT_TAB) {
     const page = await get(path)
@@ -165,15 +164,16 @@ async function main() {
     check(`${path} → ${expected}`, current.length === 1 && current[0] === expected, current.join(' + ') || 'aucun')
   }
 
-  // Le menu burger n'a pas la contrainte de place de la barre : les cinq
-  // sections y sont dépliées, sinon elles coûteraient un écran de plus.
-  console.log('\nMenu burger (sous 820px)')
-  const burger = navSlice(accueil.html, APP_NAV_MOBILE)
-  check('le menu burger est rendu', burger.length > 0)
-  check('« Espace formateur » y figure', hrefCount(burger, '/formateur') > 0)
+  // Le burger a disparu avec l'arbitrage 111, et la feuille « Plus » avec la
+  // barre à cinq cases : c'est `/compte` qui déplie désormais ce que la barre
+  // ne porte pas. Sept contrôles cherchaient un menu mort depuis des mois.
+  console.log('\nÉcran du compte')
+  const compte = await get('/compte')
+  check('/compte répond', compte.status === 200, `HTTP ${compte.status}`)
   for (const href of SECTIONS) {
-    check(`${href} y est dépliée`, hrefCount(burger, href) === 1)
+    check(`${href} y est dépliée`, hrefCount(compte.html, href) === 1, `${hrefCount(compte.html, href)} lien(s)`)
   }
+  check('la déconnexion y est', /Se d[eé]connecter/.test(compte.html))
 
   console.log(`\nEspace formateur — ${BASE}/formateur`)
   const hub = await get('/formateur')

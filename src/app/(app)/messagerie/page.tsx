@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { MessageSquare } from "lucide-react";
-import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
@@ -58,27 +57,28 @@ export default async function MessageriePage({
     ? await getConversation(initialId, auth.user.id, auth.user.trainerId)
     : null;
 
+  // Pas de `PageHead` ici, contrairement aux autres écrans de l'espace : un
+  // titre et son chapeau au-dessus d'une messagerie repoussent la conversation
+  // hors de l'écran sur un téléphone, et redisent ce que l'onglet allumé dit
+  // déjà. La coquille efface aussi son pied de page sur cette route — voir
+  // `fullBleed` dans `app-shell.tsx`. Reste l'en-tête, la messagerie, la barre
+  // d'onglets ; le titre du document porte encore « Messagerie » pour l'onglet
+  // du navigateur et les lecteurs d'écran.
   return (
-    <div className="nk-wrap pb-16">
-      <PageHead
-        title="Messages"
-        lead={
-          auth.user.trainerId
-            ? "Le groupe de votre communauté, vos échanges privés avec ses membres, et les communautés que vous suivez."
-            : "Les groupes de vos communautés et vos échanges privés avec leurs formateurs, au même endroit."
-        }
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <h1 className="sr-only">Messages</h1>
 
       {conversations.length === 0 ? (
-        <EmptyState
-          className="mt-6"
-          icon={<MessageSquare />}
-          title="Aucune conversation"
-          description="Rejoindre une communauté ouvre son groupe et un fil privé avec son formateur. L'achat d'une ressource à l'unité n'en ouvre aucun."
-          action={
-            <BtnLink href={routes.communities} size="lg">Voir les communautés</BtnLink>
-          }
-        />
+        <div className="nk-wrap py-10">
+          <EmptyState
+            icon={<MessageSquare />}
+            title="Aucune conversation"
+            description="Rejoindre une communauté ouvre son groupe et un fil privé avec son formateur. L'achat d'une ressource à l'unité n'en ouvre aucun."
+            action={
+              <BtnLink href={routes.communities} size="lg">Voir les communautés</BtnLink>
+            }
+          />
+        </div>
       ) : (
         <ConversationPane conversations={conversations} initialThread={initialThread} />
       )}

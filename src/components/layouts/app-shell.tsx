@@ -5,16 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown, LogOut } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Plus } from "lucide-react";
 import { Logo } from "@/components/nk/logo";
 import { NavLink } from "@/components/nk/nav-link";
 import { Avatar } from "@/components/nk/avatar";
-import { Sheet } from "@/components/nk/sheet";
 import { TabBar } from "@/components/nk/tab-bar";
+import { ShellChromeProvider } from "./shell-chrome";
 import { cn } from "@/lib/utils";
-import { TRAINER_SECTIONS } from "@/app/(app)/formateur/sections";
 import {
   accountLinksFor,
+  COMPTE_TAB,
   currentIndex,
   isActive,
   LEARNER_BAR,
@@ -44,11 +44,13 @@ function UnreadBadge({ count }: { count: number }) {
 function AccountMenu({
   name,
   email,
+  avatarUrl,
   unreadMessages,
   links,
 }: {
   name: string;
   email: string;
+  avatarUrl: string | null;
   unreadMessages: number;
   links: readonly NavEntry[];
 }) {
@@ -60,7 +62,7 @@ function AccountMenu({
           aria-label="Menu du compte"
           className="group relative flex cursor-pointer items-center gap-1.5 rounded-full"
         >
-          <Avatar name={name} ring />
+          <Avatar name={name} src={avatarUrl} ring />
           <ChevronDown
             className="size-4 text-ink-2 transition-transform group-data-[state=open]:rotate-180"
             aria-hidden="true"
@@ -112,9 +114,17 @@ function AccountMenu({
 export interface ShellUser {
   name: string;
   email: string;
+  /** Sa photo de profil. Nulle tant qu'il n'en a pas : l'avatar pose ses initiales. */
+  avatarUrl: string | null;
   isTrainer: boolean;
   /** Messages reçus non lus, tous fils confondus. Compté par le layout serveur. */
   unreadMessages: number;
+  /**
+   * Notifications non lues. Distinctes des messages : la cloche compte ce que
+   * la plateforme annonce, la pastille de la messagerie ce que les gens
+   * écrivent. Les additionner ferait sonner deux fois le même événement.
+   */
+  unreadNotifications: number;
   /**
    * Vrai tant qu'un dossier de candidature est en cours — la décision n'est pas
    * tombée, ou elle demande de nouvelles pièces. Lu par le layout serveur : le
@@ -136,158 +146,158 @@ export interface ShellUser {
  */
 export function AppShell({ children, user }: { children: React.ReactNode; user: ShellUser }) {
   const pathname = usePathname() ?? "/";
-  const [moreOpen, setMoreOpen] = React.useState(false);
 
   const bar = user.isTrainer ? [...LEARNER_BAR, ...TRAINER_BAR] : LEARNER_BAR;
   const tabs = user.isTrainer ? TRAINER_TABS : LEARNER_TABS;
   const accountLinks = accountLinksFor(user.hasOpenApplication);
 
-  // Ce que la feuille « Plus » ajoute : les écrans du compte qui n'ont pas déjà
-  // leur onglet, et les sections formateur dépliées. Sans ce calcul, la feuille
-  // proposerait deux fois la même page et y poserait deux `aria-current`.
-  const sections = user.isTrainer ? TRAINER_SECTIONS : [];
-  const sheetLinks = accountLinks.filter(
-    (link) =>
-      !tabs.some((tab) => tab.href === link.href) &&
-      !sections.some((section) => section.href === link.href),
-  );
-
   const barCurrent = currentIndex(pathname, bar);
-  // « Plus » s'allume quand la route courante n'appartient à aucun onglet : sans
-  // ça, ouvrir ses factures éteint toute la barre et plus rien ne dit où l'on est.
-  const moreActive = currentIndex(pathname, tabs) === -1;
 
-  // La feuille se referme dès que la route change.
-  React.useEffect(() => {
-    setMoreOpen(false);
-  }, [pathname]);
+  // Écrans pleine hauteur : la messagerie n'est pas un document qu'on fait
+  // défiler, c'est un poste de travail. Elle occupe exactement ce qui reste
+  // entre l'en-tête et la barre d'onglets, et ne défile que dans ses deux
+  // volets — la liste d'un côté, les bulles de l'autre.
+  const fullBleed = pathname === "/messagerie" || pathname.startsWith("/messagerie/");
+
+  // Un fil ouvert sur téléphone réclame l'écran entier : l'en-tête s'efface
+  // sous `md`, et seulement là — au-dessus, la liste et le fil sont côte à
+  // côte et rien n'est à récupérer. C'est l'écran qui le demande, par
+  // `useThreadFocus` ; la coquille décide comment. Voir `shell-chrome.tsx`.
+  const [threadFocus, setThreadFocus] = React.useState(false);
+  const chrome = React.useMemo(() => ({ setThreadFocus }), []);
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
-        Aller au contenu
-      </a>
+    <ShellChromeProvider value={chrome}>
+      <div className={cn("flex flex-col", fullBleed ? "h-dvh overflow-hidden" : "min-h-dvh")}>
+        <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
+          Aller au contenu
+        </a>
 
-      <header className="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md">
-        <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
-          <Logo href="/accueil" compact />
+        <header
+          className={cn(
+            "sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md",
+            threadFocus && "hidden md:block",
+          )}
+        >
+          <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
+            <Logo href="/accueil" compact />
 
-          <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 lg:flex">
-            {bar.map((item, index) => {
-              const current = index === barCurrent;
-              return (
+            <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 lg:flex">
+              {bar.map((item, index) => {
+                const current = index === barCurrent;
+                return (
+                  <NavLink
+                    key={item.href}
+                    href={item.href}
+                    current={current}
+                    className={cn(
+                      "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
+                      current ? "bg-ink text-paper" : "text-ink-2 hover:bg-white/70 hover:text-ink",
+                    )}
+                    pendingClassName="inset-x-3.5 bottom-[5px]"
+                  >
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+            </nav>
+
+            {/*
+              Sous `lg`, l'avatar a quitté l'en-tête : il tient la cinquième case
+              de la barre basse, à portée de pouce, et c'est de là qu'on ouvre son
+              compte. La place libérée revient aux deux gestes qui n'ont pas de
+              destination à eux — être averti, et publier.
+
+              Le bouton publier reste visible même quand l'abonnement est suspendu
+              (décision 68) : c'est l'écran d'arrivée qui dit pourquoi ça ne passe
+              pas. Le masquer donnerait une application qui a l'air cassée.
+
+              À partir de `lg` rien ne change : pas de barre basse là-haut, donc
+              l'avatar et son menu restent le seul chemin vers le compte.
+            */}
+            <div className="ml-auto flex items-center gap-1 lg:gap-2.5">
+              <NavLink
+                href="/notifications"
+                current={isActive(pathname, "/notifications")}
+                aria-label={
+                  user.unreadNotifications > 0
+                    ? `Notifications, ${user.unreadNotifications} non lue${user.unreadNotifications > 1 ? "s" : ""}`
+                    : "Notifications"
+                }
+                className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-white/70 hover:text-ink aria-[current=page]:text-brand lg:hidden"
+                pendingClassName="inset-x-2 bottom-1"
+              >
+                <Bell className="size-[21px]" aria-hidden="true" />
+                {user.unreadNotifications > 0 ? (
+                  <span
+                    aria-hidden="true"
+                    // 13 px, comme partout : plancher de l'arbitrage 116. Une
+                    // pastille de compteur n'y échappe pas — c'est même le texte
+                    // le plus petit qu'on demande de lire d'un coup d'œil.
+                    className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1 text-[13px] font-bold leading-none text-white"
+                  >
+                    {user.unreadNotifications > 99 ? "99+" : user.unreadNotifications}
+                  </span>
+                ) : null}
+              </NavLink>
+
+              {user.isTrainer ? (
                 <NavLink
-                  key={item.href}
-                  href={item.href}
-                  current={current}
-                  className={cn(
-                    "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
-                    current ? "bg-ink text-paper" : "text-ink-2 hover:bg-white/70 hover:text-ink",
-                  )}
-                  pendingClassName="inset-x-3.5 bottom-[5px]"
+                  href="/formateur/ressources/nouvelle"
+                  aria-label="Publier une ressource"
+                  className="grid size-10 place-items-center rounded-full border-[1.5px] border-line text-ink-2 transition-colors hover:border-ink-3 hover:text-ink lg:hidden"
+                  pendingClassName="inset-x-2 bottom-1"
                 >
-                  {item.label}
+                  <Plus className="size-[21px]" aria-hidden="true" />
                 </NavLink>
-              );
-            })}
-          </nav>
+              ) : null}
 
-          {/* Sous `lg`, l'avatar ne porte plus de menu : tout le compte vit dans
-              la feuille « Plus », à portée de pouce. Il reste ici comme repère
-              du compte connecté, et comme raccourci vers le profil. */}
-          <div className="ml-auto flex items-center gap-2.5">
-            <Link
-              href="/profil"
-              aria-label="Mon profil"
-              className="nk-tap relative lg:hidden"
-            >
-              <Avatar name={user.name} ring />
-            </Link>
-            <div className="hidden lg:block">
-              <AccountMenu
-                name={user.name}
-                email={user.email}
-                unreadMessages={user.unreadMessages}
-                links={accountLinks}
-              />
+              <div className="hidden lg:block">
+                <AccountMenu
+                  name={user.name}
+                  email={user.email}
+                  avatarUrl={user.avatarUrl}
+                  unreadMessages={user.unreadMessages}
+                  links={accountLinks}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main id="contenu" className="relative z-1 flex-1">
-        {children}
-      </main>
+        <main id="contenu" className={cn("relative z-1 flex-1", fullBleed && "flex min-h-0 flex-col")}>
+          {children}
+        </main>
 
-      <footer className="mt-[72px] border-t border-line bg-card">
-        <div className="nk-wrap flex flex-wrap items-center gap-4.5 py-6.5">
-          <Logo className="text-base" />
-          <p className="text-[13px] text-ink-3">© {new Date().getFullYear()} NkamVa</p>
-          <Link href="/aide" className="nk-tap ml-auto text-[13px] font-semibold text-ink-2 hover:text-brand">
-            Aide
-          </Link>
-        </div>
-      </footer>
+        {/*
+          Pas de pied de page dans l'espace connecté.
 
-      {/* Réserve la hauteur de la barre d'onglets : sans elle, le pied de page
-          et le dernier bouton de chaque écran passent dessous. */}
-      <div aria-hidden="true" className="nk-tabbar-gap lg:hidden" />
+          Il en portait un, copié de la vitrine : logo, « © 2026 NkamVa », lien
+          d'aide. Sur la vitrine il a un rôle — c'est le bas d'un site qu'on
+          parcourt. Ici il n'en a aucun : on ne quitte pas ses factures par le
+          logo, et une mention de copyright sous ses propres réglages ne
+          renseigne personne. Il ne coûtait pas rien pour autant — sur téléphone
+          il s'intercalait entre le dernier bouton de l'écran et la barre
+          d'onglets, à l'endroit exact où le pouce cherche à agir.
 
-      <TabBar
-        items={tabs}
-        pathname={pathname}
-        onMore={() => setMoreOpen(true)}
-        moreActive={moreActive}
-      />
+          Ce qu'il portait d'utile — l'accès à l'aide — a rejoint les entrées du
+          compte (`ACCOUNT_LINKS`), donc le menu de l'avatar et la feuille
+          « Plus ». La vitrine, elle, garde le sien : voir `public-shell.tsx`.
+        */}
 
-      <Sheet open={moreOpen} onOpenChange={setMoreOpen} title="Mon compte" description={user.email}>
-        <ul className="grid gap-0.5">
-          {sections.map((section) => (
-            <li key={section.href}>
-              <NavLink
-                href={section.href}
-                current={isActive(pathname, section.href)}
-                className={cn(
-                  "flex min-h-12 items-center gap-3 rounded-nk-sm px-3 text-[15px] font-semibold",
-                  isActive(pathname, section.href) ? "bg-brand-tint text-brand-dark" : "text-ink-2",
-                )}
-              >
-                {section.label}
-              </NavLink>
-            </li>
-          ))}
-          {sections.length ? <li className="my-1.5 h-px bg-line-2" role="separator" /> : null}
+        {/* Réserve la hauteur de la barre d'onglets : sans elle, le dernier
+            bouton de chaque écran passe dessous. */}
+        <div aria-hidden="true" className="nk-tabbar-gap lg:hidden" />
 
-          {sheetLinks.map(({ href, label, icon: Icon }) => (
-            <li key={href}>
-              <NavLink
-                href={href}
-                current={isActive(pathname, href)}
-                className={cn(
-                  "flex min-h-12 items-center gap-3 rounded-nk-sm px-3 text-[15px] font-semibold",
-                  isActive(pathname, href) ? "bg-brand-tint text-brand-dark" : "text-ink-2",
-                )}
-              >
-                <Icon className="size-[18px] shrink-0 text-ink-3" aria-hidden="true" />
-                {label}
-                {href === "/messagerie" ? <UnreadBadge count={user.unreadMessages} /> : null}
-              </NavLink>
-            </li>
-          ))}
+        <TabBar
+          items={tabs}
+          pathname={pathname}
+          labels={false}
+          portraitFor={COMPTE_TAB.href}
+          portrait={<Avatar name={user.name} src={user.avatarUrl} size="xs" />}
+        />
 
-          <li className="my-1.5 h-px bg-line-2" role="separator" />
-          <li>
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-nk-sm px-3 text-left text-[15px] font-semibold text-danger"
-            >
-              <LogOut className="size-[18px] shrink-0" aria-hidden="true" />
-              Se déconnecter
-            </button>
-          </li>
-        </ul>
-      </Sheet>
-    </div>
+      </div>
+    </ShellChromeProvider>
   );
 }

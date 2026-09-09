@@ -6,6 +6,7 @@
 import { db } from './db'
 import { hashPassword, verifyPassword } from './password'
 import { auditStandalone } from './audit'
+import { userAvatarSrc } from './avatars'
 import { canActAsLearner } from './roles'
 import { DELETION_GRACE_DAYS } from './dto'
 
@@ -20,6 +21,8 @@ export interface ProfileView {
   phone: string | null
   countryCode: string | null
   bio: string | null
+  /** Adresse à mettre dans `src` — la route de la photo déposée, ou rien. */
+  avatarUrl: string | null
   role: string
   isTrainer: boolean
   /** Emails d'information sur l'abonnement — voir `User.subscriptionNoticeEmails`. */
@@ -39,6 +42,7 @@ export async function getProfile(userId: string): Promise<ProfileView | null> {
     select: {
       id: true, email: true, emailVerifiedAt: true, fullName: true, preferredName: true,
       phone: true, countryCode: true, bio: true, role: true, createdAt: true,
+      avatarUrl: true, avatarS3Key: true,
       subscriptionNoticeEmails: true,
       relationalEmails: true,
       gdprExportRequestedAt: true, deletionRequestedAt: true,
@@ -60,6 +64,7 @@ export async function getProfile(userId: string): Promise<ProfileView | null> {
     phone: user.phone,
     countryCode: user.countryCode,
     bio: user.bio,
+    avatarUrl: userAvatarSrc(user),
     role: user.role,
     isTrainer: Boolean(user.trainerProfile),
     subscriptionNoticeEmails: user.subscriptionNoticeEmails,

@@ -54,6 +54,25 @@ const PREFIXE_SLUG = 'essai-'
 /** Un seul mot de passe pour tout le monde : dix caractères, une majuscule, un chiffre. */
 const MOT_DE_PASSE = 'Messagerie1'
 
+/**
+ * Des photos pour quatre des sept comptes.
+ *
+ * Servies depuis `public/`, jamais depuis R2 : le `.env` de développement
+ * pointe le seau de **production**, et une photo d'essai n'a rien à y faire.
+ * Une simple URL relative suffit — `User.avatarUrl` porte une adresse, pas une
+ * clé de stockage.
+ *
+ * Trois comptes restent sans photo, exprès : la liste doit montrer les deux
+ * rendus côte à côte — le portrait et les initiales sur leur dégradé — sinon
+ * on ne voit pas que le second existe encore.
+ */
+const PHOTOS = {
+  awa: '/Img-test/mangue-1024x681.jpg',
+  yao: '/Img-test/5075_MANGUE_KEITT.webp',
+  koffi: '/Img-test/l-intro-1669862484.jpg',
+  fatou: '/Img-test/30france-baguette-1-72e2-superJumbo.webp',
+} as const
+
 const JOUR = 86_400_000
 const MINUTE = 60_000
 
@@ -124,6 +143,7 @@ async function creerCompte(
       fullName: `${prenom} ${nom}`,
       role,
       passwordHash: motDePasse,
+      avatarUrl: PHOTOS[identifiant as keyof typeof PHOTOS] ?? null,
       // Vérifiée d'office : sans cela, la connexion réclamerait un code reçu
       // par courriel, et ces adresses n'en reçoivent aucun.
       emailVerifiedAt: new Date(),

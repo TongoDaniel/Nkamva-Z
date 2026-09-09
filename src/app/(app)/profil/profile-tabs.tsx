@@ -4,6 +4,7 @@ import * as React from "react";
 import { Tabs } from "@/components/nk/tabs";
 import type { ProfileView } from "@/lib/profile";
 import { ProfileInfoPanel } from "./profile-info-panel";
+import { AvatarPanel } from "@/components/screens/avatar-panel";
 import { EmailPrefsPanel } from "./email-prefs-panel";
 import { SecurityPanel } from "./security-panel";
 import { DataPanel } from "./data-panel";
@@ -50,6 +51,16 @@ export function ProfileTabs({
       <div id="profil-panneau" className="max-w-[760px]">
         {tab === "profil" ? (
           <>
+            {/* Avant les champs : c'est la première chose qu'on vient y faire,
+                et la seule que les autres écrans montrent de vous. */}
+            <AvatarPanel
+              endpoint="/api/me/avatar"
+              kind="person"
+              name={profile.preferredName || profile.fullName || profile.email}
+              src={profile.avatarUrl}
+              title="Votre photo"
+              subtitle="Elle vous accompagne dans la messagerie, dans les communautés que vous rejoignez, et en tête de votre espace."
+            />
             <ProfileInfoPanel profile={profile} />
             <EmailPrefsPanel profile={profile} />
           </>

@@ -3,6 +3,8 @@ import { AppShell } from "@/components/layouts/app-shell";
 import { getAuthContext } from "@/lib/api";
 import { db } from "@/lib/db";
 import { countUnreadMessages } from "@/lib/messaging";
+import { countUnreadNotifications } from "@/lib/notification";
+import { userAvatarSrc } from "@/lib/avatars";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Doublon volontaire du middleware : si la garde de navigation est un jour
@@ -25,12 +27,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Le nom complet n'est pas dans le JWT : la topbar le lit ici plutôt que de
   // se rabattre sur la partie locale de l'adresse e-mail.
-  const [profile, unreadMessages, openApplication] = await Promise.all([
+  const [profile, unreadMessages, unreadNotifications, openApplication] = await Promise.all([
     db.user.findUnique({
       where: { id: auth.user.id },
-      select: { fullName: true, preferredName: true },
+      select: { id: true, fullName: true, preferredName: true, avatarUrl: true, avatarS3Key: true },
     }),
     countUnreadMessages(auth.user.id, auth.user.trainerId),
+    // La cloche de l'en-tête. Comptée ici, comme les messages : la coquille est
+    // un composant client, elle ne peut pas interroger la base elle-même.
+    countUnreadNotifications(auth.user.id),
     // Le menu du compte porte une entrée vers le dossier tant qu'il en reste un
     // à suivre. On ne peut pas le déduire du rôle : `PENDING_TRAINER` ne couvre
     // que le dossier envoyé, pas le brouillon commencé et abandonné en route.
@@ -59,8 +64,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           auth.user.email.split("@")[0] ||
           "Mon compte",
         email: auth.user.email,
+        avatarUrl: profile ? userAvatarSrc(profile) : null,
         isTrainer: Boolean(auth.user.trainerId),
         unreadMessages,
+        unreadNotifications,
         hasOpenApplication: openApplication !== null,
       }}
     >
