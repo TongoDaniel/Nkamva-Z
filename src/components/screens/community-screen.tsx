@@ -46,7 +46,14 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
       <PageHead
         crumbs={[
           routes.communitiesParent,
-          { label: 'Les communautés', href: routes.communities },
+          // Dans l'espace connecté, chercher une communauté se fait sur
+          // `/mes-communautes` : les deux maillons y désigneraient la même page,
+          // et le fil lirait « Mes communautés › Mes communautés › … ». La
+          // comparaison porte sur les adresses, pas sur l'espace — un
+          // déménagement futur reste juste sans qu'on y repense.
+          ...(routes.communities === routes.communitiesParent.href
+            ? []
+            : [{ label: 'Les communautés', href: routes.communities }]),
           { label: community.name },
         ]}
         title={community.name}
