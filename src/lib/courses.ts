@@ -8,6 +8,11 @@ import { presignUpload, headObject, validateMagicNumber, deleteObject } from './
 import { readMp4DurationFromStorage } from './mp4-duration'
 import { readPdfPageCountFromStorage } from './pdf-pages'
 import { canTrainerWrite } from './subscriptions'
+import {
+  circuitIsStillOpen,
+  MIN_COURSE_PRICE_FCFA,
+  type CourseCircuitValue,
+} from './course-rules'
 import type { PrismaTransaction } from './types'
 
 export const COURSE_UPLOAD_LIMITS = {
@@ -198,38 +203,89 @@ export async function createCourse(
     level?: string
     learnPoints?: string[]
     includes?: string[]
+    /**
+     * Où va la ressource. Absente, elle va au catalogue — c'est le défaut de la
+     * colonne, et celui de tout ce qui existait avant ce choix.
+     */
+    circuit?: CourseCircuitValue
   },
 ) {
-  if (data.priceFcfa < 500) throw new Error('PRICE_TOO_LOW')
+  const circuit: CourseCircuitValue = data.circuit ?? 'MARKETPLACE'
+
+  // Le plancher ne vaut que pour ce qui est vendu. Une ressource incluse dans
+  // une communauté n'a pas de prix à l'unité : l'achat en est refusé
+  // (`COURSE_NOT_FOR_SALE`), et un montant y serait un chiffre que rien ne
+  // facture. Elle est donc écrite à 0, et le formulaire ne le demande pas.
+  if (circuit === 'MARKETPLACE' && data.priceFcfa < MIN_COURSE_PRICE_FCFA) {
+    throw new Error('PRICE_TOO_LOW')
+  }
   // Décision 68 — un abonnement suspendu bloque l'écriture. Jamais la lecture :
   // rien de ce qui est déjà acheté n'est touché.
   if (!(await canTrainerWrite(trainerId))) throw new Error('SUBSCRIPTION_SUSPENDED')
 
+  // Les mêmes gardes que `linkCourseToCommunity`, parce que c'est la même
+  // liaison qui va naître : une communauté qui vit (`status`), et son rayon
+  // ressources allumé (arbitrage 136 — remplir une étagère qu'on a soi-même
+  // cachée). L'absence couvre les deux cas d'une communauté fermée ou jamais
+  // ouverte : il n'y en a qu'une par formateur.
+  const community =
+    circuit === 'COMMUNITY'
+      ? await db.community.findFirst({
+          where: { trainerId, status: 'active' },
+          select: { id: true, resourcesEnabled: true },
+        })
+      : null
+  if (circuit === 'COMMUNITY') {
+    if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+    if (!community.resourcesEnabled) throw new Error('COMMUNITY_RESOURCES_DISABLED')
+  }
+
   const slug = await generateSlug(data.title)
 
-  const course = await db.course.create({
-    data: {
-      trainerId,
-      slug,
-      title: data.title,
-      blurb: data.blurb,
-      description: data.description,
-      category: data.category,
-      format: data.format,
-      priceFcfa: data.priceFcfa,
-      level: data.level || null,
-      // Pas de durée à la création : elle naîtra du fichier (F3.8).
-      learnPoints: data.learnPoints || [],
-      includes: data.includes || [],
-      status: 'draft',
-    },
+  // Une transaction, et pas deux écritures : une ressource au circuit
+  // `COMMUNITY` sans ligne de liaison n'est visible **nulle part** — ni en
+  // vente, puisque l'achat la refuse, ni sur l'étagère, qui part des liaisons.
+  // Elle existerait sans exister.
+  const course = await db.$transaction(async (tx) => {
+    const created = await tx.course.create({
+      data: {
+        trainerId,
+        slug,
+        title: data.title,
+        blurb: data.blurb,
+        description: data.description,
+        category: data.category,
+        format: data.format,
+        priceFcfa: circuit === 'COMMUNITY' ? 0 : data.priceFcfa,
+        level: data.level || null,
+        // Pas de durée à la création : elle naîtra du fichier (F3.8).
+        learnPoints: data.learnPoints || [],
+        includes: data.includes || [],
+        status: 'draft',
+        circuit,
+      },
+    })
+    if (community) {
+      await tx.communityCourse.create({ data: { communityId: community.id, courseId: created.id } })
+    }
+    return created
   })
 
   await auditStandalone({
     actorId: userId, actorRole: 'TRAINER',
     action: 'COURSE_CREATED', targetType: 'Course', targetId: course.id,
-    meta: { title: data.title, slug },
+    meta: { title: data.title, slug, circuit },
   })
+
+  // La même trace que par l'écran de la communauté : sans elle, l'historique
+  // du salon aurait un trou à chaque ressource créée directement incluse.
+  if (community) {
+    await auditStandalone({
+      actorId: userId, actorRole: 'TRAINER',
+      action: 'COMMUNITY_COURSE_LINKED', targetType: 'Community', targetId: community.id,
+      meta: { courseId: course.id, atCreation: true },
+    })
+  }
 
   return course
 }
@@ -249,9 +305,14 @@ export async function updateCourse(
     learnPoints: string[]
     includes: string[]
     coverS3Key: string
+    /** Change la destination — refusé dès que la ressource s'est engagée. */
+    circuit: CourseCircuitValue
   }>,
 ) {
-  const course = await db.course.findUnique({ where: { id: courseId } })
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    include: { _count: { select: { purchases: true } } },
+  })
   if (!course) throw new Error('COURSE_NOT_FOUND')
   if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
 
@@ -264,26 +325,95 @@ export async function updateCourse(
     if (depose && attendu && depose !== attendu) throw new Error('FORMAT_CONTRADICTS_CONTENT')
   }
 
-  const updated = await db.course.update({
-    where: { id: courseId },
-    data: {
-      ...(data.title && { title: data.title, slug: await generateSlug(data.title, courseId) }),
-      ...(data.blurb !== undefined && { blurb: data.blurb }),
-      ...(data.description !== undefined && { description: data.description }),
-      ...(data.category && { category: data.category }),
-      ...(data.format && { format: data.format }),
-      ...(data.priceFcfa !== undefined && { priceFcfa: data.priceFcfa }),
-      ...(data.level !== undefined && { level: data.level }),
-      ...(data.learnPoints !== undefined && { learnPoints: data.learnPoints }),
-      ...(data.includes !== undefined && { includes: data.includes }),
-      ...(data.coverS3Key !== undefined && { coverS3Key: data.coverS3Key }),
-    },
+  // ------------------------------------------------------------------ circuit
+  //
+  // La destination reste modifiable **tant que la ressource n'a rien engagé** :
+  // brouillon jamais publié, jamais acheté (voir `circuitIsStillOpen`). Après,
+  // l'arbitrage 137 reprend la main — ce qui a été annoncé comme inclus ne
+  // repasse pas derrière un péage, et ce qui a été vendu ne devient pas gratuit
+  // pour les abonnés.
+  const currentCircuit = course.circuit as CourseCircuitValue
+  const nextCircuit: CourseCircuitValue = data.circuit ?? currentCircuit
+  const circuitChanges = nextCircuit !== currentCircuit
+
+  if (circuitChanges) {
+    const open = circuitIsStillOpen({
+      status: course.status,
+      publishedAt: course.publishedAt,
+      purchaseCount: course._count.purchases,
+    })
+    if (!open) throw new Error('CIRCUIT_LOCKED')
+  }
+
+  // La communauté d'accueil, aux mêmes conditions qu'à la création.
+  const community =
+    circuitChanges && nextCircuit === 'COMMUNITY'
+      ? await db.community.findFirst({
+          where: { trainerId, status: 'active' },
+          select: { id: true, resourcesEnabled: true },
+        })
+      : null
+  if (circuitChanges && nextCircuit === 'COMMUNITY') {
+    if (!community) throw new Error('COMMUNITY_NOT_FOUND')
+    if (!community.resourcesEnabled) throw new Error('COMMUNITY_RESOURCES_DISABLED')
+  }
+
+  // Le prix suit la destination, et le plancher ne vaut que pour ce qui se
+  // vend. Il était jusqu'ici absent de cette fonction : seule la route posait
+  // un minimum, donc un appel direct pouvait écrire 1 FCFA.
+  const nextPrice =
+    nextCircuit === 'COMMUNITY' ? 0 : (data.priceFcfa ?? course.priceFcfa)
+  if (nextCircuit === 'MARKETPLACE' && nextPrice < MIN_COURSE_PRICE_FCFA) {
+    throw new Error('PRICE_TOO_LOW')
+  }
+
+  const updated = await db.$transaction(async (tx) => {
+    const row = await tx.course.update({
+      where: { id: courseId },
+      data: {
+        ...(data.title && { title: data.title, slug: await generateSlug(data.title, courseId) }),
+        ...(data.blurb !== undefined && { blurb: data.blurb }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.category && { category: data.category }),
+        ...(data.format && { format: data.format }),
+        ...(nextPrice !== course.priceFcfa && { priceFcfa: nextPrice }),
+        ...(data.level !== undefined && { level: data.level }),
+        ...(data.learnPoints !== undefined && { learnPoints: data.learnPoints }),
+        ...(data.includes !== undefined && { includes: data.includes }),
+        ...(data.coverS3Key !== undefined && { coverS3Key: data.coverS3Key }),
+        ...(circuitChanges && { circuit: nextCircuit }),
+      },
+    })
+
+    if (circuitChanges && community) {
+      await tx.communityCourse.create({ data: { communityId: community.id, courseId } })
+    }
+    if (circuitChanges && nextCircuit === 'MARKETPLACE') {
+      // Bornée, jamais supprimée : c'est la règle de l'arbitrage 48, et elle
+      // vaut même ici où personne n'a rien reçu — une ligne effacée effacerait
+      // aussi la trace du passage.
+      await tx.communityCourse.updateMany({
+        where: { courseId, unlinkedAt: null },
+        data: { unlinkedAt: new Date() },
+      })
+    }
+
+    return row
   })
 
   await auditStandalone({
     actorId: userId, actorRole: 'TRAINER',
     action: 'COURSE_UPDATED', targetType: 'Course', targetId: courseId,
+    ...(circuitChanges && { meta: { circuit: nextCircuit, from: currentCircuit } }),
   })
+
+  if (circuitChanges && community) {
+    await auditStandalone({
+      actorId: userId, actorRole: 'TRAINER',
+      action: 'COMMUNITY_COURSE_LINKED', targetType: 'Community', targetId: community.id,
+      meta: { courseId, viaCircuitChange: true },
+    })
+  }
 
   return updated
 }

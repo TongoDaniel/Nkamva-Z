@@ -172,6 +172,20 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   COURSE_ALREADY_SOLD: { message: 'Une ressource déjà vendue ne peut pas être incluse', status: 422 },
   COURSE_ALREADY_LINKED: { message: 'Ressource déjà incluse dans cette communauté', status: 409 },
   COURSE_NOT_LINKED: { message: 'Ressource non incluse dans cette communauté', status: 404 },
+  // Le plancher de prix. Il était traduit à la main par la seule route de
+  // création ; la route de modification le rendait en « Erreur » 500 depuis que
+  // le service l'applique aussi.
+  PRICE_TOO_LOW: {
+    message: "Ce prix est sous le minimum autorisé pour une vente à l'unité",
+    status: 400,
+  },
+  // Changer de destination après coup. Refusé dès que la ressource s'est
+  // engagée — publiée, ou achetée une fois (arbitrage 137).
+  CIRCUIT_LOCKED: {
+    message:
+      "La destination n'est plus modifiable : cette ressource est publiée ou déjà achetée.",
+    status: 409,
+  },
   // --- Adhésion aux communautés (arbitrages 40, 58) ---
   ALREADY_MEMBER: { message: 'Vous êtes déjà membre de cette communauté', status: 409 },
   // Le refus de changer de moyen de paiement tant que le précédent peut encore

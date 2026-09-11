@@ -156,8 +156,20 @@ export async function getPublicCommunity(
 
   // Seules les ressources encore liées sont annoncées publiquement : c'est ce
   // qu'un futur membre recevra. Ce qui a été délié n'appartient plus à l'offre.
+  //
+  // Et pas les brouillons. Rien ne les excluait : un formateur qui liait une
+  // ressource en préparation l'annonçait aussitôt sur sa fiche publique, titre
+  // et prix compris, sans fichier derrière. Le cas était rare tant que lier
+  // demandait d'aller le faire ; depuis qu'on choisit la destination **à la
+  // création**, c'est devenu le cas courant — une ressource incluse naît
+  // brouillon. `not: 'draft'` plutôt que `= 'published'` : une ressource
+  // archivée a été publiée, et ce qu'un membre a reçu lui reste.
   const links = await db.communityCourse.findMany({
-    where: { communityId: community.id, unlinkedAt: null },
+    where: {
+      communityId: community.id,
+      unlinkedAt: null,
+      course: { status: { not: 'draft' } },
+    },
     select: { linkedAt: true, course: { select: COURSE_CARD } },
     orderBy: { linkedAt: 'desc' },
   })
@@ -622,7 +634,7 @@ export async function getMyCommunity(trainerProfileId: string) {
       _count: {
         select: {
           subscriptions: { where: { status: { in: ['ACTIVE', 'PAST_DUE'] } } },
-          courseLinks: { where: { unlinkedAt: null } },
+          courseLinks: { where: { unlinkedAt: null, course: { status: { not: 'draft' } } } },
         },
       },
     },
@@ -954,7 +966,14 @@ export async function listMyIncludedCourses(learnerId: string): Promise<CourseLi
   if (subs.length === 0) return []
 
   const links = await db.communityCourse.findMany({
-    where: { communityId: { in: subs.map((s) => s.communityId) } },
+    where: {
+      communityId: { in: subs.map((s) => s.communityId) },
+      // Même raison que sur la fiche publique : un brouillon n'a rien à faire
+      // sur l'étagère d'un membre. L'accès au fichier, lui, n'est pas touché —
+      // `hasCommunityAccess` juge un droit acquis, et le restreindre au statut
+      // fermerait l'accès à ce qui a été publié puis archivé.
+      course: { status: { not: 'draft' } },
+    },
     select: { communityId: true, linkedAt: true, unlinkedAt: true, course: { select: COURSE_CARD } },
   })
 
@@ -983,7 +1002,9 @@ const SELECT_PUBLIC = {
   membersCount: true, coverS3Key: true, forumEnabled: true, eventsEnabled: true,
   resourcesEnabled: true,
   trainerProfile: { select: { id: true, slogan: true, user: { select: { fullName: true } } } },
-  _count: { select: { courseLinks: { where: { unlinkedAt: null } } } },
+  // Le compteur compte ce que les listes montrent : sans le filtre de
+  // statut, la carte annonçait « 2 incluses » et la fiche n'en listait qu'une.
+  _count: { select: { courseLinks: { where: { unlinkedAt: null, course: { status: { not: 'draft' } } } } } },
 } as const
 
 const COURSE_CARD = {
