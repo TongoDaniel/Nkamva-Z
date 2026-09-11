@@ -5,6 +5,7 @@
 //
 //   bun scripts/smoke-adhesion.ts
 import { config } from 'dotenv'
+import { recountCommunityMembers } from '../src/lib/communities'
 import { encode } from 'next-auth/jwt'
 import { PrismaClient } from '@prisma/client'
 
@@ -230,10 +231,10 @@ async function main() {
     await db.auditLog.deleteMany({ where: { targetId: community.id } })
     await db.community.delete({ where: { id: community.id } })
   } else if (sub) {
-    await db.community.update({
-      where: { id: community.id },
-      data: { membersCount: { decrement: 1 } },
-    })
+    // L'adhésion vient d'être supprimée : on recompte, on ne décrémente pas.
+    // Un `-1` posé à la main sur un compteur que le service recompte désormais
+    // le rendrait faux dans l'autre sens.
+    await recountCommunityMembers(db, community.id)
   }
   console.log('\n7. nettoyage effectué')
 }

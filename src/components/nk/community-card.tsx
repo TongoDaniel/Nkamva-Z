@@ -9,16 +9,19 @@ import { cn } from "@/lib/utils";
 /**
  * La grille qui porte ces cartes, définie une fois pour toutes ses surfaces.
  *
- * `auto-fill` plutôt que des colonnes par point de rupture : c'est la **place
- * disponible** qui décide combien de cartes tiennent sur une ligne, pas une
- * largeur d'écran devinée. Un `sm:grid-cols-2` à 640 px laissait une seule
- * colonne dans une fenêtre de 583 px — largeur où deux cartes de 270 px
- * tiennent sans peine, et où l'écran paraissait donc ne pas savoir se ranger.
+ * **Trois colonnes au plus**, et dès que la place le permet. Les seuils sont
+ * écrits en largeurs réelles plutôt qu'avec `sm:`/`lg:` : à 640 px, `sm:` ne
+ * s'était pas encore déclenché dans une fenêtre de 583 px, où trois cartes de
+ * 176 px tiennent — l'écran paraissait alors ne pas savoir se ranger. Les
+ * points de rupture du produit décrivent des téléphones et des bureaux ; une
+ * grille de cartes, elle, ne dépend que de la place qu'on lui donne.
  *
- * 260 px est le plancher sous lequel une carte cesse d'être lisible : la
- * bannière s'écrase, et le nom du formateur passe à la ligne.
+ * `auto-fill` a été essayé et écarté : il ne sait pas s'arrêter à trois, et
+ * donnait six colonnes sur un grand écran — des cartes perdues dans la largeur
+ * là où la maquette en pose trois.
  */
-export const COMMUNITY_GRID = "grid gap-[18px] grid-cols-[repeat(auto-fill,minmax(260px,1fr))]";
+export const COMMUNITY_GRID =
+  "grid gap-[18px] grid-cols-1 min-[400px]:grid-cols-2 min-[560px]:grid-cols-3";
 
 /**
  * Ce qu'une carte de communauté a besoin de savoir.

@@ -78,7 +78,10 @@ export default async function MesCommunautesPage({
               name: mienne.name,
               description: mienne.description,
               priceFcfa: mienne.priceFcfa,
-              membersCount: mienne._count.subscriptions,
+              // La colonne, comme partout ailleurs : elle est recomptée à
+              // chaque changement d'adhésion, et deux nombres sous la même
+              // idée sur un seul écran étaient exactement le défaut d'avant.
+              membersCount: mienne.membersCount,
               includedCount: mienne._count.courseLinks,
               // Pas de nom de formateur sur sa propre carte : ce serait le sien.
               trainerName: null,
