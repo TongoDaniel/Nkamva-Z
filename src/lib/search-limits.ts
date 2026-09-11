@@ -21,3 +21,12 @@ export const SEARCH_MIN_LENGTH = 2
  * réseau, pas ce délai.
  */
 export const SEARCH_DEBOUNCE_MS = 300
+
+/**
+ * Cartes de communauté par page.
+ *
+ * Douze : quatre rangées de trois au plus large, deux de six sur téléphone où
+ * la grille tient une colonne. Assez pour qu'une page se parcoure d'un coup
+ * d'œil, assez peu pour que la suivante soit un geste et non un aveu.
+ */
+export const COMMUNITIES_PAGE_SIZE = 12

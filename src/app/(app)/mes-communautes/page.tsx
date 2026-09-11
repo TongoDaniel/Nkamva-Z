@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
-import { AlertTriangle, MessageSquareOff, Settings, Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { EmptyState } from "@/components/nk/empty-state";
-import { BtnLink } from "@/components/nk/button-link";
-import { StPill } from "@/components/nk/status-pill";
-import { CommunityCard } from "@/components/nk/community-card";
-import { CommunitySearch } from "@/components/nk/community-search";
+import { CommunityBrowser } from "@/components/nk/community-browser";
 import { getAuthContext } from "@/lib/api";
 import { listMyMemberships } from "@/lib/memberships";
-import { getMyCommunity } from "@/lib/communities";
+import { getMyCommunity, hiddenCommunityIdsFor, listPublicCommunities } from "@/lib/communities";
 import { presignDownload } from "@/lib/s3";
 import { fmtDate } from "@/lib/format";
+import { COMMUNITIES_PAGE_SIZE } from "@/lib/search-limits";
 import { routesOf } from "@/lib/spaces";
+import { MyCommunities, type MyCommunityItem } from "./my-communities";
 
 /** Espace connecté : les liens de navigation restent dans la coquille applicative. */
 const routes = routesOf("app");
@@ -23,31 +20,103 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function MesCommunautesPage() {
+export default async function MesCommunautesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const auth = await getAuthContext();
   if (!auth) return null;
 
-  // La sienne et celles qu'il suit sont désormais au même endroit : la barre
-  // n'a qu'une case « Communauté », et un formateur qui anime un salon n'a pas
-  // à le chercher ailleurs que là où il retrouve les autres.
-  const [memberships, mienne] = await Promise.all([
+  // Le terme est lu ici, et non au montage du composant : la première page de
+  // la découverte est rendue par le serveur, et un lien de recherche partagé
+  // doit arriver sur ses résultats plutôt que sur la liste entière.
+  const { q } = await searchParams;
+  const terme = (q ?? "").trim();
+
+  // La sienne et celles qu'il suit sont au même endroit : la barre n'a qu'une
+  // case « Communauté », et un formateur qui anime un salon n'a pas à le
+  // chercher ailleurs que là où il retrouve les autres.
+  const [memberships, mienne, exclus] = await Promise.all([
     listMyMemberships(auth.user.id),
     auth.user.trainerId ? getMyCommunity(auth.user.trainerId) : null,
+    hiddenCommunityIdsFor(auth.user.id, auth.user.trainerId),
   ]);
 
-  // Une URL signée par bannière déposée, toutes en parallèle. Elles expirent en
-  // cinq minutes et ne survivent donc pas à ce rendu : c'est la raison pour
-  // laquelle la recherche va rechercher les siennes au serveur plutôt que de
-  // filtrer une liste déjà peinte (voir `community-search.tsx`).
+  const decouverte = await listPublicCommunities({
+    search: terme || undefined,
+    excludeIds: exclus,
+    pageSize: COMMUNITIES_PAGE_SIZE,
+  });
+
+  // Une URL signée par bannière déposée, toutes en parallèle — celles de ses
+  // communautés comme celles de la première page de la découverte. Elles
+  // expirent en cinq minutes et ne survivent donc pas à ce rendu : c'est la
+  // raison pour laquelle la découverte redemande ses pages au serveur au lieu
+  // de filtrer une liste déjà peinte (voir `CommunityBrowser`).
   const keyed = [
     ...(mienne?.coverS3Key ? [[mienne.id, mienne.coverS3Key] as const] : []),
     ...memberships
       .filter((m) => m.community.coverS3Key)
       .map((m) => [m.community.id, m.community.coverS3Key!] as const),
+    ...decouverte.items.filter((c) => c.coverS3Key).map((c) => [c.id, c.coverS3Key!] as const),
   ];
   const covers = new Map(
     await Promise.all(keyed.map(async ([id, key]) => [id, await presignDownload(key)] as const)),
   );
+
+  // Sa communauté ouvre la grille, les adhésions suivent. L'ordre dit la
+  // hiérarchie ; sans lui, on chercherait sa propre communauté au milieu de
+  // celles qu'on suit.
+  const miennes: MyCommunityItem[] = [
+    ...(mienne
+      ? [
+          {
+            card: {
+              id: mienne.id,
+              slug: mienne.slug,
+              name: mienne.name,
+              description: mienne.description,
+              priceFcfa: mienne.priceFcfa,
+              membersCount: mienne._count.subscriptions,
+              includedCount: mienne._count.courseLinks,
+              // Pas de nom de formateur sur sa propre carte : ce serait le sien.
+              trainerName: null,
+              coverUrl: covers.get(mienne.id) ?? null,
+            },
+            href: routes.community(mienne.slug),
+            own: true,
+            visibilityLabel: mienne.visibility === "PUBLIC" ? "Ouverte à tous" : "Sur invitation",
+          } satisfies MyCommunityItem,
+        ]
+      : []),
+    ...memberships.map(
+      (m): MyCommunityItem => ({
+        card: {
+          id: m.community.id,
+          slug: m.community.slug,
+          name: m.community.name,
+          priceFcfa: m.community.priceFcfa,
+          membersCount: m.community.membersCount,
+          trainerName: m.community.trainerName,
+          coverUrl: covers.get(m.community.id) ?? null,
+        },
+        href: routes.community(m.community.slug),
+        own: false,
+        membership: {
+          status: m.status,
+          canceled: Boolean(m.canceledAt),
+          dueLabel: `${m.canceledAt ? "Prend fin le " : "Prochaine échéance le "}${fmtDate(m.periodEnd)}`,
+          actionHref:
+            m.status === "PAST_DUE"
+              ? `/adhesion/${m.community.slug}`
+              : `/mes-communautes/${m.community.slug}`,
+          actionLabel: m.status === "PAST_DUE" ? "Régler" : "Ouvrir",
+          urgent: m.status === "PAST_DUE",
+        },
+      }),
+    ),
+  ];
 
   return (
     <div className="nk-wrap pb-16">
@@ -60,124 +129,21 @@ export default async function MesCommunautesPage() {
         }
       />
 
-      {/*
-        Le salon qu'on anime passe devant, et se distingue à l'œil : fond teinté,
-        pastille sur la bannière, et un bouton qui mène à sa gestion — pas à sa
-        fiche publique. L'ordre dit la hiérarchie ; sans lui, on chercherait sa
-        propre communauté au milieu de celles qu'on suit.
-
-        Il vit dans une grille aux mêmes colonnes que la liste du dessous, pour
-        qu'une carte seule ait la largeur des autres plutôt que celle de l'écran.
-      */}
-      {mienne ? (
-        <section aria-label="La communauté que j'anime" className="mt-6">
-          <div className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-            <CommunityCard
-              community={{
-                id: mienne.id,
-                slug: mienne.slug,
-                name: mienne.name,
-                description: mienne.description,
-                priceFcfa: mienne.priceFcfa,
-                membersCount: mienne._count.subscriptions,
-                includedCount: mienne._count.courseLinks,
-                // Pas de nom de formateur sur sa propre carte : ce serait le sien.
-                trainerName: null,
-                coverUrl: covers.get(mienne.id) ?? null,
-              }}
-              href={routes.community(mienne.slug)}
-              highlight
-              eager
-              badge={<StPill tone="ok">Ma communauté</StPill>}
-              meta={mienne.visibility === "PUBLIC" ? "Ouverte à tous" : "Sur invitation"}
-              action={
-                <BtnLink href="/formateur/communaute" size="sm">
-                  <Settings aria-hidden="true" />
-                  Gérer
-                </BtnLink>
-              }
-            />
-          </div>
-        </section>
-      ) : null}
-
-      {memberships.length === 0 ? (
-        <EmptyState
-          className="mt-6"
-          icon={<Users />}
-          title={
-            mienne
-              ? "Vous ne suivez aucune autre communauté"
-              : "Vous n'êtes membre d'aucune communauté"
-          }
-          description="Chaque formateur anime la sienne : forum d'entraide, ressources incluses et sessions live."
-        />
-      ) : (
-        <ul className="mt-6 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-          {memberships.map((m, index) => (
-            <li key={m.subscriptionId} className="flex">
-              <CommunityCard
-                community={{
-                  id: m.community.id,
-                  slug: m.community.slug,
-                  name: m.community.name,
-                  priceFcfa: m.community.priceFcfa,
-                  membersCount: m.community.membersCount,
-                  trainerName: m.community.trainerName,
-                  coverUrl: covers.get(m.community.id) ?? null,
-                }}
-                href={routes.community(m.community.slug)}
-                className="flex-1"
-                eager={!mienne && index === 0}
-                badge={
-                  m.status === "PAST_DUE" ? (
-                    <StPill tone="warn">
-                      <AlertTriangle className="size-3.5" aria-hidden="true" /> Échéance à régler
-                    </StPill>
-                  ) : m.status === "BANNED" ? (
-                    <StPill tone="muted">
-                      <MessageSquareOff className="size-3.5" aria-hidden="true" /> Parole retirée
-                    </StPill>
-                  ) : m.canceledAt ? (
-                    <StPill tone="muted">Résiliée</StPill>
-                  ) : (
-                    <StPill tone="ok">Membre</StPill>
-                  )
-                }
-                meta={
-                  <>
-                    {m.canceledAt ? "Prend fin le " : "Prochaine échéance le "}
-                    {fmtDate(m.periodEnd)}
-                  </>
-                }
-                action={
-                  <BtnLink
-                    href={
-                      m.status === "PAST_DUE"
-                        ? `/adhesion/${m.community.slug}`
-                        : `/mes-communautes/${m.community.slug}`
-                    }
-                    variant={m.status === "PAST_DUE" ? "p" : "o"}
-                    size="sm"
-                  >
-                    {m.status === "PAST_DUE" ? "Régler" : "Ouvrir"}
-                  </BtnLink>
-                }
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Plus d'état vide entre les deux blocs : il annonçait « vous ne suivez
+          aucune autre communauté » à quelqu'un qui venait d'en voir une, et
+          coupait en deux une grille qui n'a pas de raison de l'être. Quand la
+          personne n'a aucune communauté, cette section ne rend rien du tout et
+          c'est la découverte qui porte la page. */}
+      <MyCommunities items={miennes} />
 
       {/*
-        Découvrir les autres, sans quitter la page. La recherche ne rend jamais
-        une communauté qu'on anime ou dont on est déjà membre : elles sont juste
-        au-dessus, et la même carte deux fois sur un écran n'informe personne.
-        L'exclusion est dérivée du serveur, jamais reçue du navigateur.
+        Découvrir les autres, sans quitter la page. La liste se parcourt par
+        pages dès l'arrivée — la recherche n'y sert qu'à affiner.
 
-        Pas de liste par défaut ici : cet écran est celui de ses communautés à
-        soi. L'annuaire complet, c'est la page du visiteur — celle qui est
-        indexée, et qui garde sa liste derrière le même champ.
+        Elle ne rend jamais une communauté qu'on anime ou dont on est déjà
+        membre : elles sont juste au-dessus, et la même carte deux fois sur un
+        écran n'informe personne. L'exclusion est demandée par cet écran et
+        dérivée du serveur, jamais reçue du navigateur.
       */}
       <section aria-labelledby="nk-decouvrir" className="mt-12 border-t border-line-2 pt-8">
         <h2 id="nk-decouvrir" className="text-[18px] font-extrabold">
@@ -186,9 +152,33 @@ export default async function MesCommunautesPage() {
         <p className="mt-1 text-[14px] text-ink-2">
           Cherchez par nom, par thème, ou par un mot de la description.
         </p>
-        <CommunitySearch
+        <CommunityBrowser
           space="app"
-          hint="Tapez au moins deux lettres pour voir des communautés à rejoindre."
+          excludeMine
+          initialTerm={terme}
+          initial={{
+            items: decouverte.items.map((c) => ({
+              id: c.id,
+              slug: c.slug,
+              name: c.name,
+              description: c.description,
+              priceFcfa: c.priceFcfa,
+              membersCount: c.membersCount,
+              includedCount: c.includedCount,
+              trainerName: c.trainer.fullName ?? "Formateur NkamVa",
+              coverUrl: covers.get(c.id) ?? null,
+            })),
+            total: decouverte.total,
+            page: decouverte.page,
+            pageSize: decouverte.pageSize,
+          }}
+          empty={
+            <p className="mt-4 text-[14px] leading-relaxed text-ink-2">
+              {miennes.length > 0
+                ? "Vous suivez déjà toutes les communautés ouvertes."
+                : "Aucune communauté n'est ouverte pour l'instant. Revenez bientôt."}
+            </p>
+          }
         />
       </section>
     </div>

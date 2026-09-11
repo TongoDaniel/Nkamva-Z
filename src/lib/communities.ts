@@ -25,6 +25,7 @@ import { canTrainerWrite } from './subscriptions'
 import { trainerStorage } from './courses'
 import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
 import type { CourseListItem } from './dto'
+import { COMMUNITIES_PAGE_SIZE } from './search-limits'
 
 /**
  * Statuts dont la période court encore. `BANNED` en fait partie : un membre
@@ -80,32 +81,66 @@ export async function hiddenCommunityIdsFor(
   return [...new Set([...mine.map((c) => c.id), ...memberships.map((m) => m.communityId)])]
 }
 
+/** Une page de communautés, et de quoi savoir qu'il y en a d'autres. */
+export interface PublicCommunityPage {
+  items: PublicCommunity[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/**
+ * Les communautés qu'on peut découvrir, par page.
+ *
+ * Elle rendait les soixante premières, sans total ni page : de quoi remplir un
+ * annuaire qu'on fait défiler, pas de quoi en parcourir plusieurs. Le total est
+ * compté dans la même transaction que la tranche — lus séparément, ils peuvent
+ * décrire deux états de la base, et la dernière page annoncée serait vide.
+ */
 export async function listPublicCommunities(
-  search?: string,
-  excludeIds?: readonly string[],
-): Promise<PublicCommunity[]> {
+  options: {
+    search?: string
+    excludeIds?: readonly string[]
+    page?: number
+    pageSize?: number
+  } = {},
+): Promise<PublicCommunityPage> {
+  const pageSize = Math.min(50, Math.max(1, options.pageSize ?? COMMUNITIES_PAGE_SIZE))
+  const search = options.search?.trim() || undefined
+  const where = {
+    status: 'active',
+    // Arbitrage 81 : une communauté privée sort de toutes les surfaces
+    // publiques. `status` dit qu'elle vit, `visibility` dit qu'on peut la
+    // trouver — les deux sont nécessaires.
+    visibility: 'PUBLIC' as const,
+    ...(options.excludeIds && options.excludeIds.length > 0
+      ? { id: { notIn: [...options.excludeIds] } }
+      : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { description: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}),
+  }
+
+  const total = await db.community.count({ where })
+  // Une page demandée au-delà du dernier rang ne rend pas une page vide : elle
+  // rend la dernière. Un filtre qui se resserre pendant qu'on est en page 4 ne
+  // doit pas donner un écran blanc.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize))
+  const page = Math.min(Math.max(1, options.page ?? 1), lastPage)
+
   const rows = await db.community.findMany({
-    where: {
-      status: 'active',
-      // Arbitrage 81 : une communauté privée sort de toutes les surfaces
-      // publiques. `status` dit qu'elle vit, `visibility` dit qu'on peut la
-      // trouver — les deux sont nécessaires.
-      visibility: 'PUBLIC',
-      ...(excludeIds && excludeIds.length > 0 ? { id: { notIn: [...excludeIds] } } : {}),
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' as const } },
-              { description: { contains: search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
-    },
+    where,
     select: SELECT_PUBLIC,
     orderBy: [{ membersCount: 'desc' }, { createdAt: 'asc' }],
-    take: 60,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
   })
-  return rows.map(toPublic)
+  return { items: rows.map(toPublic), total, page, pageSize }
 }
 
 /**
