@@ -170,8 +170,12 @@ async function main() {
   console.log('\nÉcran du compte')
   const compte = await get('/compte')
   check('/compte répond', compte.status === 200, `HTTP ${compte.status}`)
+  // Hors en-tête : depuis que les trois gestes y sont posés à tous les seuils,
+  // le portefeuille a deux liens sur cette page — celui de l'en-tête et celui
+  // de la liste. C'est la liste qu'on éprouve ici.
+  const compteBody = compte.html.slice(compte.html.indexOf('</header>') + 1)
   for (const href of SECTIONS) {
-    check(`${href} y est dépliée`, hrefCount(compte.html, href) === 1, `${hrefCount(compte.html, href)} lien(s)`)
+    check(`${href} y est dépliée`, hrefCount(compteBody, href) === 1, `${hrefCount(compteBody, href)} lien(s)`)
   }
   check('la déconnexion y est', /Se d[eé]connecter/.test(compte.html))
 
@@ -217,6 +221,69 @@ async function main() {
     oldRoute.status === 307 || oldRoute.status === 308,
     `HTTP ${oldRoute.status}`,
   )
+
+  // Les trois gestes de l'en-tête, et l'ordre dans lequel ils se posent.
+  //
+  // Ils ne sont plus réservés au téléphone : le `lg:hidden` est tombé, donc un
+  // écran large doit les rendre aussi. Et ce que la coquille promet, c'est un
+  // portefeuille et un bouton publier **pour le formateur seulement** —
+  // l'apprenant n'a ni l'un ni l'autre, et n'y garde que la cloche.
+  console.log("\nLes trois gestes de l'en-tête")
+  const header = (html: string) => {
+    const start = html.indexOf('<header')
+    const end = html.indexOf('</header>', start)
+    return start < 0 ? '' : html.slice(start, end < 0 ? html.length : end)
+  }
+  const ACTIONS: Array<[string, string]> = [
+    ['Mon portefeuille', '/formateur/portefeuille'],
+    ['Publier une ressource', '/formateur/ressources/nouvelle'],
+    ['Notifications', '/notifications'],
+  ]
+  const head = header(accueil.html)
+  for (const [label, href] of ACTIONS) {
+    check(`« ${label} » est dans l'en-tête`, head.includes(`aria-label="${label}`) && hrefCount(head, href) === 1)
+  }
+  // L'ordre : patrimoine, ajout, réception. Lu sur la position des `aria-label`.
+  const positions = ACTIONS.map(([label]) => head.indexOf(`aria-label="${label}`))
+  check(
+    "l'ordre est portefeuille → publier → notifications",
+    positions.every((p) => p >= 0) && positions[0] < positions[1] && positions[1] < positions[2],
+    positions.join(' < '),
+  )
+  // Le garde-fou du lot : un `lg:hidden` réintroduit sur l'un des trois les
+  // ferait disparaître de l'écran large sans qu'aucun test ne s'en plaigne.
+  const actionTags = [...head.matchAll(/<a[^>]*aria-label="(?:Mon portefeuille|Publier une ressource|Notifications[^"]*)"[^>]*>/g)].map((m) => m[0])
+  check('les trois boutons restent visibles à partir de `lg`', actionTags.length === 3 && actionTags.every((t) => !t.includes('lg:hidden')), `${actionTags.length} bouton(s)`)
+
+  const learner = await db.user.findFirst({
+    where: { role: 'LEARNER', trainerProfile: { is: null }, deletedAt: null, suspendedAt: null },
+    select: { id: true, email: true, role: true, adminRole: true, sessionsValidAfter: true },
+  })
+  if (!learner) {
+    check("un apprenant existe en base de dev pour éprouver l'autre rôle", false)
+  } else {
+    const learnerToken = await encode({
+      token: {
+        userId: learner.id,
+        email: learner.email,
+        role: learner.role,
+        trainerId: null,
+        adminRole: learner.adminRole,
+        sessionsValidAfter: learner.sessionsValidAfter.toISOString(),
+        issuedAt: Math.floor(Date.now() / 1000),
+      },
+      secret: process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production',
+    })
+    const res = await fetch(`${BASE}/accueil`, {
+      redirect: 'manual',
+      headers: { cookie: `next-auth.session-token=${learnerToken}` },
+    })
+    const learnerHead = header(res.status === 200 ? await res.text() : '')
+    check(`/accueil répond à l'apprenant`, res.status === 200, `HTTP ${res.status}`)
+    check("l'apprenant garde la cloche", learnerHead.includes('aria-label="Notifications'))
+    check("l'apprenant n'a pas de portefeuille", hrefCount(learnerHead, '/formateur/portefeuille') === 0)
+    check("l'apprenant n'a rien à publier", hrefCount(learnerHead, '/formateur/ressources/nouvelle') === 0)
+  }
 
   console.log(failures === 0 ? '\nTout est vert.\n' : `\n${failures} échec(s).\n`)
   process.exit(failures === 0 ? 0 : 1)
