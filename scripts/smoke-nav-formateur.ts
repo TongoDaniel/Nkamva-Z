@@ -49,15 +49,17 @@ const TABS = ['Mes ressources', 'Mes communautés', 'Mes achats', 'Espace format
 
 /**
  * Route → onglet qui doit s'allumer. Le catalogue et ses fiches pendent de
- * « Mes ressources », l'annuaire des communautés de « Mes communautés » — plus
- * précis, il l'emporte sur le `/catalogue` du premier.
+ * « Mes ressources ».
+ *
+ * `/catalogue/communautes` n'y figure plus : l'annuaire connecté a été retiré,
+ * chercher une communauté se fait sur `/mes-communautes`. Seule la **fiche**
+ * vit encore sous ce chemin, et elle n'allume aucun onglet à elle.
  */
 const CURRENT_TAB: Array<[string, string]> = [
   ['/mes-ressources', 'Mes ressources'],
   ['/catalogue', 'Mes ressources'],
   ['/catalogue/formateurs', 'Mes ressources'],
   ['/mes-communautes', 'Mes communautés'],
-  ['/catalogue/communautes', 'Mes communautés'],
   ['/mes-achats', 'Mes achats'],
   ['/mes-factures', 'Mes achats'],
   ['/mes-litiges', 'Mes achats'],

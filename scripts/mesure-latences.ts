@@ -166,7 +166,6 @@ async function main() {
     ['apprenant', '/accueil'],
     ['apprenant', '/catalogue'],
     ['apprenant', '/catalogue?category=Developpement&sort=popular'],
-    ['apprenant', '/catalogue/communautes'],
     ['apprenant', '/catalogue/formateurs'],
     ['apprenant', '/mes-ressources'],
     ['apprenant', '/mes-communautes'],

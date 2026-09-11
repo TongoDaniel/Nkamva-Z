@@ -1,7 +1,14 @@
 /**
- * Les écrans de navigation — catalogue, communautés, formateurs — existent en
- * deux exemplaires : un pour le visiteur, un pour l'utilisateur connecté. Même
- * corps de page, deux URLs, deux coquilles.
+ * Les écrans de navigation — catalogue, formateurs — existent en deux
+ * exemplaires : un pour le visiteur, un pour l'utilisateur connecté. Même corps
+ * de page, deux URLs, deux coquilles.
+ *
+ * **L'annuaire des communautés fait exception depuis qu'il a une recherche.**
+ * Il n'existe plus qu'une fois, pour le visiteur : côté connecté, chercher une
+ * communauté se fait sur `/mes-communautes`, sous les siennes, et les résultats
+ * y excluent celles qu'on anime ou dont on est déjà membre. Deux listes
+ * n'auraient pas dit la même chose, et la seconde aurait doublé la première.
+ * Les **fiches**, elles, restent bien en deux exemplaires.
  *
  * Next.js interdit à deux groupes de routes de résoudre la même URL : c'est
  * pour ça que la version connectée vit sous `/catalogue/…` et non sous les
@@ -29,6 +36,11 @@ export interface SpaceRoutes {
   course: (slug: string) => string
   /** Catalogue filtré sur une catégorie — utilisé par le fil d'Ariane des fiches. */
   catalogCategory: (category: string) => string
+  /**
+   * Là où l'on cherche une communauté. Le visiteur a un annuaire ; le connecté
+   * a l'écran de ses communautés, qui porte le même champ de recherche. Les
+   * deux valeurs ne désignent donc pas le même genre de page — c'est voulu.
+   */
   communities: string
   community: (slug: string) => string
   trainers: string
@@ -59,7 +71,10 @@ export const SPACES: Record<Space, SpaceRoutes> = {
     // statique en rendant la ressource injoignable.
     course: (slug) => `/catalogue/ressource/${slug}`,
     catalogCategory: (category) => `/catalogue?category=${encodeURIComponent(category)}`,
-    communities: '/catalogue/communautes',
+    // Pas d'annuaire connecté : c'est `/mes-communautes` qui cherche.
+    communities: '/mes-communautes',
+    // La **fiche**, elle, reste sous `/catalogue` : c'est la cible de toutes les
+    // cartes de l'espace connecté, et elle n'a pas bougé.
     community: (slug) => `/catalogue/communautes/${slug}`,
     trainers: '/catalogue/formateurs',
     trainer: (trainerId) => `/catalogue/formateurs/${trainerId}`,

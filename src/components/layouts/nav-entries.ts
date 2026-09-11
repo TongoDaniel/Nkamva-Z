@@ -100,7 +100,6 @@ export const LEARNER_TABS: NavEntry[] = [
     href: "/mes-communautes",
     label: "Communauté",
     icon: Users,
-    related: ["/catalogue/communautes"],
   },
   { href: "/catalogue", label: "Catalogue", icon: Compass },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
@@ -126,7 +125,7 @@ export const TRAINER_TABS: NavEntry[] = [
     href: "/mes-communautes",
     label: "Communauté",
     icon: Users,
-    related: ["/catalogue/communautes", "/formateur/communaute"],
+    related: ["/formateur/communaute"],
   },
   { href: "/catalogue", label: "Catalogue", icon: Compass },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
@@ -139,7 +138,7 @@ export const TRAINER_TABS: NavEntry[] = [
  */
 export const LEARNER_BAR: NavEntry[] = [
   { href: "/mes-ressources", label: "Mes ressources", icon: Library, related: ["/catalogue"] },
-  { href: "/mes-communautes", label: "Mes communautés", icon: Users, related: ["/catalogue/communautes"] },
+  { href: "/mes-communautes", label: "Mes communautés", icon: Users },
   { href: "/mes-achats", label: "Mes achats", icon: ShoppingBag, related: ["/mes-factures", "/mes-litiges"] },
 ];
 

@@ -58,12 +58,6 @@ export default async function MesCommunautesPage() {
             ? "La vôtre, puis celles dont vous êtes membre. Une adhésion terminée n'y figure plus, mais les ressources reçues pendant votre passage restent dans votre espace."
             : "Les communautés dont vous êtes membre aujourd'hui. Une adhésion terminée n'y figure plus, mais les ressources reçues pendant votre passage restent dans votre espace."
         }
-        // Même place que « Explorer le catalogue » sur `/mes-ressources` :
-        // l'annuaire s'ouvre d'ici qu'on soit membre de dix communautés ou
-        // d'aucune, pas seulement depuis l'état vide.
-        actions={
-          <BtnLink href={routes.communities} variant="o">Parcourir les communautés</BtnLink>
-        }
       />
 
       {/*

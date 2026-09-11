@@ -97,7 +97,6 @@ async function main() {
   console.log('\nEspace connecté (avec session)')
   for (const [path, marker] of [
     ['/catalogue', 'Le catalogue'],
-    ['/catalogue/communautes', 'Les communautés'],
     ['/catalogue/formateurs', 'Nos formateurs'],
     ['/favoris', 'Vos favoris'],
     ...(course ? [[`/catalogue/ressource/${course.slug}`, PURCHASE_PANEL]] : []),
@@ -109,6 +108,24 @@ async function main() {
       status === 200 && html.includes(APP_SHELL) && !html.includes(PUBLIC_SHELL) && rendered(html, marker),
       status !== 200 ? `HTTP ${status}` : '',
     )
+  }
+
+  /**
+   * L'annuaire connecté a été retiré : chercher une communauté se fait
+   * désormais sur `/mes-communautes`, sous les siennes. Deux assertions, et la
+   * seconde est la plus importante : le dossier `catalogue/communautes/` porte
+   * **aussi** la fiche, cible de toutes les cartes de l'espace connecté. Le
+   * supprimer en entier n'aurait produit aucune erreur de compilation, juste
+   * des 404 partout à l'exécution.
+   */
+  console.log("\nL'annuaire connecté, retiré")
+  {
+    const gone = await get('/catalogue/communautes', true)
+    check('/catalogue/communautes ne répond plus', gone.status === 404, `HTTP ${gone.status}`)
+    if (community) {
+      const fiche = await get(`/catalogue/communautes/${community.slug}`, true)
+      check('la fiche, elle, répond toujours', fiche.status === 200, `HTTP ${fiche.status}`)
+    }
   }
 
   /**
