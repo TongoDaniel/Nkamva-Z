@@ -30,10 +30,14 @@ export const COMMUNITY_GRID =
  * part de `listPublicCommunities`, l'espace de `listMyMemberships`, et la
  * recherche à la frappe d'une réponse JSON. Trois sources, une seule forme.
  *
- * `coverUrl` et non `coverS3Key` : la signature d'une bannière est un geste
- * serveur, et elle expire en cinq minutes. La carte reçoit une URL déjà signée,
- * elle n'en fabrique pas — c'est ce qui lui permet d'être rendue aussi bien par
- * un composant serveur que par les résultats de recherche, côté navigateur.
+ * `trainerAvatarUrl` et non une clé de stockage : la carte ne fabrique aucune
+ * adresse, elle en reçoit une. C'est ce qui lui permet d'être rendue aussi bien
+ * par un composant serveur que par des résultats de recherche, côté navigateur.
+ *
+ * Cette adresse-là est **stable** : la photo d'une personne passe par une route
+ * qui redirige (`/api/media/users/[userId]/avatar`), pas par une URL signée qui
+ * expire en cinq minutes. La bannière de la communauté, elle, en était une —
+ * c'est l'une des raisons pour lesquelles elle a quitté ces cartes.
  */
 export interface CommunityCardData {
   id: string;
@@ -45,7 +49,11 @@ export interface CommunityCardData {
   /** Ressources incluses dans l'abonnement. Omis quand la source ne les compte pas. */
   includedCount?: number;
   trainerName?: string | null;
-  coverUrl?: string | null;
+  /**
+   * La photo du formateur qui anime la communauté, telle que la route la sert.
+   * Nulle quand il n'en a pas déposé : la carte pose alors ses initiales.
+   */
+  trainerAvatarUrl?: string | null;
 }
 
 /**
@@ -69,7 +77,7 @@ export function CommunityCard({
   meta,
   action,
   highlight,
-  eager,
+  hideTrainerName,
   className,
 }: {
   community: CommunityCardData;
@@ -83,8 +91,13 @@ export function CommunityCard({
   action?: React.ReactNode;
   /** Sa propre communauté : fond teinté et bordure de marque. */
   highlight?: boolean;
-  /** À poser sur la première carte d'une grille, et sur elle seule (LCP). */
-  eager?: boolean;
+  /**
+   * Cache la ligne du nom sous le titre, sans toucher au portrait. Sur sa
+   * propre communauté, lire son propre nom sous le titre n'apprend rien — mais
+   * le portrait reste le sien, et il lui faut ce nom pour ses initiales quand
+   * aucune photo n'a été déposée.
+   */
+  hideTrainerName?: boolean;
   className?: string;
 }) {
   const trainerName = community.trainerName ?? null;
@@ -97,20 +110,24 @@ export function CommunityCard({
         className,
       )}
     >
-      <div className="relative">
-        {community.coverUrl ? (
-          // `img` et non `next/image` : l'URL signée expire, le cache d'images
-          // la garderait sous une clé qui lui survivrait.
-          <img
-            src={community.coverUrl}
-            alt=""
-            loading={eager ? "eager" : "lazy"}
-            decoding="async"
-            className="h-[104px] w-full object-cover"
-          />
-        ) : (
-          <div className="h-[104px] bg-gradient-to-br from-navy to-info" />
-        )}
+      {/*
+        En tête : la **photo de qui anime**, et non l'affiche de la communauté.
+        On choisit d'abord une personne — c'est elle qu'on retrouve d'une
+        communauté à l'autre, et son visage porte mieux la carte qu'une bannière
+        dont beaucoup n'ont pas déposé.
+
+        Elle tient la même hauteur que l'affiche qu'elle remplace : la géométrie
+        des grilles ne bouge pas. Et son adresse est stable, donc elle ne se
+        périme plus en cours de page.
+      */}
+      <div className="relative grid h-[104px] place-items-center bg-gradient-to-br from-navy to-info">
+        <Avatar
+          size="lg"
+          ring
+          src={community.trainerAvatarUrl ?? null}
+          name={trainerName}
+          alt={trainerName ? `Photo de ${trainerName}` : undefined}
+        />
         {badge ? <div className="absolute right-2.5 top-2.5 z-1">{badge}</div> : null}
       </div>
 
@@ -127,11 +144,10 @@ export function CommunityCard({
           </Link>
         </h2>
 
-        {trainerName ? (
-          <div className="flex items-center gap-2">
-            <Avatar name={trainerName} size="sm" />
-            <span className="truncate text-[13px] font-semibold text-ink-2">{trainerName}</span>
-          </div>
+        {/* Le nom seul : son portrait est juste au-dessus, le répéter en petit
+            à côté de son nom ne dirait rien de plus. */}
+        {trainerName && !hideTrainerName ? (
+          <span className="truncate text-[13px] font-semibold text-ink-2">{trainerName}</span>
         ) : null}
 
         {community.description ? (

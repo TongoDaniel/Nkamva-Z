@@ -1,10 +1,13 @@
 // Les communautés qu'on peut découvrir — parcourues par page, affinées à la frappe.
 //
-// Pourquoi une route et non un filtrage dans le navigateur : la bannière d'une
-// communauté est servie par une **URL signée** qui expire en cinq minutes. Une
-// liste préchargée puis filtrée sur place afficherait, au bout de cinq minutes,
-// des vignettes mortes sans le moindre message. Chaque réponse re-signe ce
-// qu'elle renvoie — et une page suivante n'existe de toute façon pas côté client.
+// Pourquoi une route et non un filtrage dans le navigateur : **la page suivante
+// n'existe pas côté client**. Précharger tout pour filtrer sur place voudrait
+// dire charger toutes les communautés du produit pour n'en montrer douze.
+//
+// L'argument tenait aussi, avant, à la bannière : son URL était signée et
+// expirait en cinq minutes, donc une liste déjà peinte pourrissait sur place.
+// Les cartes portent désormais la photo du formateur, servie par une route à
+// adresse stable — cette raison-là a disparu, la première suffit.
 //
 // Session **facultative** : la page du visiteur parcourt les mêmes communautés,
 // sans compte.
@@ -12,7 +15,7 @@ import { getAuthContext, success, error } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { hiddenCommunityIdsFor, listPublicCommunities } from '@/lib/communities'
 import { COMMUNITIES_PAGE_SIZE, SEARCH_MIN_LENGTH } from '@/lib/search-limits'
-import { presignDownload } from '@/lib/s3'
+import { userAvatarSrc } from '@/lib/avatars'
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
@@ -61,15 +64,6 @@ export async function GET(request: Request) {
     pageSize: COMMUNITIES_PAGE_SIZE,
   })
 
-  // Signer en parallèle, et seulement ce qui a une bannière déposée.
-  const covers = new Map(
-    await Promise.all(
-      result.items
-        .filter((c) => c.coverS3Key)
-        .map(async (c) => [c.id, await presignDownload(c.coverS3Key!)] as const),
-    ),
-  )
-
   // La forme est celle de `CommunityCardData` : la carte est la même que celle
   // des listes rendues par le serveur, et ne reçoit jamais une clé S3.
   return success(
@@ -82,7 +76,10 @@ export async function GET(request: Request) {
       membersCount: c.membersCount,
       includedCount: c.includedCount,
       trainerName: c.trainer.fullName ?? 'Formateur NkamVa',
-      coverUrl: covers.get(c.id) ?? null,
+      trainerAvatarUrl: userAvatarSrc({
+        id: c.trainer.userId,
+        avatarS3Key: c.trainer.avatarS3Key,
+      }),
     })),
     { total: result.total, page: result.page, pageSize: result.pageSize },
   )

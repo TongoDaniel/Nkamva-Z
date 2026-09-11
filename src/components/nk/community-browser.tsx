@@ -18,13 +18,14 @@ export interface CommunityPage {
 /**
  * Parcourir les communautés : une page à la fois, affinée à la frappe.
  * ==========================================================================
- * Deux raisons de passer par le serveur à chaque frappe plutôt que de filtrer
- * une liste déjà peinte :
+ * Pourquoi le serveur à chaque frappe plutôt qu'un filtre sur une liste déjà
+ * peinte : **la page suivante n'existe pas côté client**. Filtrer sur place
+ * supposerait d'avoir tout chargé pour n'en montrer douze.
  *
- *   · **la bannière**. Son URL est signée et expire en cinq minutes. Une liste
- *     préchargée puis filtrée sur place montrerait, passé ce délai, des
- *     vignettes mortes sans un mot. Chaque réponse en rapporte des fraîches.
- *   · **la page suivante**. Elle n'existe pas côté client, par définition.
+ * Une seconde raison a existé et n'existe plus : la bannière passait par une
+ * URL signée qui expirait en cinq minutes, donc une liste préchargée finissait
+ * en vignettes mortes. Les cartes portent maintenant la photo du formateur, à
+ * une adresse stable.
  *
  * Trois pièges de ce genre d'écran, et ce qui les tient :
  *
@@ -204,13 +205,12 @@ export function CommunityBrowser({
 
       {data.items.length > 0 ? (
         <ul className={cn("mt-4", COMMUNITY_GRID)}>
-          {data.items.map((community, index) => (
+          {data.items.map((community) => (
             <li key={community.id} className="flex">
               <CommunityCard
                 community={community}
                 href={routes.community(community.slug)}
                 className="flex-1"
-                eager={index === 0 && data.page === 1}
               />
             </li>
           ))}

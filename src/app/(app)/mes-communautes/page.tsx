@@ -4,7 +4,7 @@ import { CommunityBrowser } from "@/components/nk/community-browser";
 import { getAuthContext } from "@/lib/api";
 import { listMyMemberships } from "@/lib/memberships";
 import { getMyCommunity, hiddenCommunityIdsFor, listPublicCommunities } from "@/lib/communities";
-import { presignDownload } from "@/lib/s3";
+import { userAvatarSrc } from "@/lib/avatars";
 import { fmtDate } from "@/lib/format";
 import { COMMUNITIES_PAGE_SIZE } from "@/lib/search-limits";
 import { routesOf } from "@/lib/spaces";
@@ -49,21 +49,10 @@ export default async function MesCommunautesPage({
     pageSize: COMMUNITIES_PAGE_SIZE,
   });
 
-  // Une URL signée par bannière déposée, toutes en parallèle — celles de ses
-  // communautés comme celles de la première page de la découverte. Elles
-  // expirent en cinq minutes et ne survivent donc pas à ce rendu : c'est la
-  // raison pour laquelle la découverte redemande ses pages au serveur au lieu
-  // de filtrer une liste déjà peinte (voir `CommunityBrowser`).
-  const keyed = [
-    ...(mienne?.coverS3Key ? [[mienne.id, mienne.coverS3Key] as const] : []),
-    ...memberships
-      .filter((m) => m.community.coverS3Key)
-      .map((m) => [m.community.id, m.community.coverS3Key!] as const),
-    ...decouverte.items.filter((c) => c.coverS3Key).map((c) => [c.id, c.coverS3Key!] as const),
-  ];
-  const covers = new Map(
-    await Promise.all(keyed.map(async ([id, key]) => [id, await presignDownload(key)] as const)),
-  );
+  // Aucune URL signée à produire ici : les cartes portent la photo du
+  // formateur, servie par une route à adresse stable (`userAvatarSrc`). Ce qui
+  // a disparu avec la bannière, c'est une signature par communauté, valable
+  // cinq minutes, refaite à chaque rendu de cet écran.
 
   // Sa communauté ouvre la grille, les adhésions suivent. L'ordre dit la
   // hiérarchie ; sans lui, on chercherait sa propre communauté au milieu de
@@ -83,9 +72,14 @@ export default async function MesCommunautesPage({
               // idée sur un seul écran étaient exactement le défaut d'avant.
               membersCount: mienne.membersCount,
               includedCount: mienne._count.courseLinks,
-              // Pas de nom de formateur sur sa propre carte : ce serait le sien.
-              trainerName: null,
-              coverUrl: covers.get(mienne.id) ?? null,
+              // Son propre nom : il ne s'affiche pas sous le titre
+              // (`hideTrainerName`), mais il porte les initiales du portrait
+              // tant qu'aucune photo n'a été déposée.
+              trainerName: mienne.trainerProfile.user.fullName,
+              trainerAvatarUrl: userAvatarSrc({
+                id: mienne.trainerProfile.userId,
+                avatarS3Key: mienne.trainerProfile.user.avatarS3Key,
+              }),
             },
             href: routes.community(mienne.slug),
             own: true,
@@ -102,7 +96,10 @@ export default async function MesCommunautesPage({
           priceFcfa: m.community.priceFcfa,
           membersCount: m.community.membersCount,
           trainerName: m.community.trainerName,
-          coverUrl: covers.get(m.community.id) ?? null,
+          trainerAvatarUrl: userAvatarSrc({
+            id: m.community.trainerUserId,
+            avatarS3Key: m.community.trainerAvatarS3Key,
+          }),
         },
         href: routes.community(m.community.slug),
         own: false,
@@ -169,7 +166,10 @@ export default async function MesCommunautesPage({
               membersCount: c.membersCount,
               includedCount: c.includedCount,
               trainerName: c.trainer.fullName ?? "Formateur NkamVa",
-              coverUrl: covers.get(c.id) ?? null,
+              trainerAvatarUrl: userAvatarSrc({
+                id: c.trainer.userId,
+                avatarS3Key: c.trainer.avatarS3Key,
+              }),
             })),
             total: decouverte.total,
             page: decouverte.page,

@@ -64,10 +64,10 @@ function fold(value: string): string {
  * grille, un ordre — la sienne d'abord —, et le même gabarit de carte partout.
  *
  * Le filtre est **local**, et c'est la seule recherche de ce produit qui le
- * soit : la liste est déjà là, entière, avec ses bannières déjà signées. Rien
- * à demander au serveur, donc rien à amortir. La découverte, elle, interroge
- * le serveur à chaque frappe — elle pagine, et ses bannières n'existent pas
- * encore (voir `CommunityBrowser`).
+ * soit : ses communautés tiennent sur un écran, elles sont déjà là, entières.
+ * Rien à demander au serveur, donc rien à amortir ni à plafonner. La
+ * découverte, elle, interroge le serveur à chaque frappe — parce qu'elle
+ * pagine, et qu'une page suivante n'existe pas ici (voir `CommunityBrowser`).
  */
 export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
   const [filter, setFilter] = React.useState("");
@@ -115,14 +115,14 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
       ) : null}
 
       <ul className={COMMUNITY_GRID}>
-        {shown.map((item, index) => (
+        {shown.map((item) => (
           <li key={item.card.id} className="flex">
             <CommunityCard
               community={item.card}
               href={item.href}
               className="flex-1"
               highlight={item.own}
-              eager={index === 0}
+              hideTrainerName={item.own}
               badge={<Badge item={item} />}
               meta={item.own ? item.visibilityLabel : item.membership?.dueLabel}
               action={
@@ -152,7 +152,7 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
   );
 }
 
-/** La pastille posée sur la bannière : ce que la personne est pour cette communauté. */
+/** La pastille posée sur le portrait : ce que la personne est pour cette communauté. */
 function Badge({ item }: { item: MyCommunityItem }) {
   if (item.own) return <StPill tone="ok">Ma communauté</StPill>;
   const membership = item.membership;
