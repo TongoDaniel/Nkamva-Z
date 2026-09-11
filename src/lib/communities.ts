@@ -48,7 +48,42 @@ export interface PublicCommunity {
   includedCount: number
 }
 
-export async function listPublicCommunities(search?: string): Promise<PublicCommunity[]> {
+/**
+ * Les communautés qu'une personne n'a pas à retrouver dans une recherche : la
+ * sienne, et celles où elle est déjà. Elles sont déjà devant elle, en tête de
+ * `/mes-communautes` — les répéter dans les résultats afficherait deux fois la
+ * même carte sur le même écran.
+ *
+ * Dérivée du serveur, jamais reçue du navigateur : une liste d'identifiants
+ * envoyée par le client se trafique, et l'exclusion cesserait de dire la vérité.
+ *
+ * Rendue au `where` de la requête plutôt qu'appliquée après coup : filtrer
+ * ensuite laisserait les places du `take` se faire manger par des lignes qu'on
+ * jette juste après.
+ */
+export async function hiddenCommunityIdsFor(
+  userId: string,
+  trainerId: string | null,
+): Promise<string[]> {
+  const [mine, memberships] = await Promise.all([
+    trainerId
+      ? db.community.findMany({
+          where: { trainerId, status: 'active' },
+          select: { id: true },
+        })
+      : Promise.resolve([] as { id: string }[]),
+    db.communitySubscription.findMany({
+      where: { learnerId: userId, status: { in: [...OPEN_STATUSES] } },
+      select: { communityId: true },
+    }),
+  ])
+  return [...new Set([...mine.map((c) => c.id), ...memberships.map((m) => m.communityId)])]
+}
+
+export async function listPublicCommunities(
+  search?: string,
+  excludeIds?: readonly string[],
+): Promise<PublicCommunity[]> {
   const rows = await db.community.findMany({
     where: {
       status: 'active',
@@ -56,6 +91,7 @@ export async function listPublicCommunities(search?: string): Promise<PublicComm
       // publiques. `status` dit qu'elle vit, `visibility` dit qu'on peut la
       // trouver — les deux sont nécessaires.
       visibility: 'PUBLIC',
+      ...(excludeIds && excludeIds.length > 0 ? { id: { notIn: [...excludeIds] } } : {}),
       ...(search
         ? {
             OR: [

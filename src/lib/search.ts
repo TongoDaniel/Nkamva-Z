@@ -12,9 +12,9 @@
 import { db } from './db'
 import { PUBLIC_TRAINER_WHERE } from './trainers'
 import type { CourseListItem } from './dto'
+import { SEARCH_MIN_LENGTH } from './search-limits'
 
-/** En deçà, la recherche renvoie du bruit plutôt que des résultats. */
-export const SEARCH_MIN_LENGTH = 2
+export { SEARCH_MIN_LENGTH } from './search-limits'
 const PER_SECTION = 12
 
 export interface SearchResults {

@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/nk/empty-state";
 import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import { CommunityCard } from "@/components/nk/community-card";
+import { CommunitySearch } from "@/components/nk/community-search";
 import { getAuthContext } from "@/lib/api";
 import { listMyMemberships } from "@/lib/memberships";
 import { getMyCommunity } from "@/lib/communities";
@@ -173,6 +174,29 @@ export default async function MesCommunautesPage() {
           ))}
         </ul>
       )}
+
+      {/*
+        Découvrir les autres, sans quitter la page. La recherche ne rend jamais
+        une communauté qu'on anime ou dont on est déjà membre : elles sont juste
+        au-dessus, et la même carte deux fois sur un écran n'informe personne.
+        L'exclusion est dérivée du serveur, jamais reçue du navigateur.
+
+        Pas de liste par défaut ici : cet écran est celui de ses communautés à
+        soi. L'annuaire complet, c'est la page du visiteur — celle qui est
+        indexée, et qui garde sa liste derrière le même champ.
+      */}
+      <section aria-labelledby="nk-decouvrir" className="mt-12 border-t border-line-2 pt-8">
+        <h2 id="nk-decouvrir" className="text-[18px] font-extrabold">
+          Découvrir d&apos;autres communautés
+        </h2>
+        <p className="mt-1 text-[14px] text-ink-2">
+          Cherchez par nom, par thème, ou par un mot de la description.
+        </p>
+        <CommunitySearch
+          space="app"
+          hint="Tapez au moins deux lettres pour voir des communautés à rejoindre."
+        />
+      </section>
     </div>
   );
 }
