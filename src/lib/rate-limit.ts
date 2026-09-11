@@ -85,4 +85,14 @@ export const RATE_LIMITS = {
   // Un signalement coûte du temps de modération : sans plafond, un seul compte
   // sature la file.
   REPORT_CREATE: { max: 10, windowMs: 3_600_000 },
+  // Recherche à la frappe : le plafond compte des requêtes amorties à 300 ms,
+  // donc au pire une poignée par seconde de saisie. 120 par minute laisse
+  // écrire deux ou trois termes complets d'affilée sans jamais s'en approcher.
+  //
+  // Il est volontairement généreux : sans session, le compteur porte sur
+  // l'adresse IP, et deux personnes derrière le même accès le partagent. Un
+  // plafond serré ne protégerait rien de précieux — la route ne rend que ce que
+  // la page publique affiche déjà — et couperait une recherche normale au
+  // milieu d'un mot, sans message.
+  COMMUNITY_SEARCH: { max: 120, windowMs: 60_000 },
 } as const

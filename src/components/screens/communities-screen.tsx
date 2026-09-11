@@ -3,6 +3,7 @@ import { BtnLink } from '@/components/nk/button-link'
 import { EmptyState } from '@/components/nk/empty-state'
 import { PageHead } from '@/components/nk/page-head'
 import { CommunityCard } from '@/components/nk/community-card'
+import { CommunitySearch } from '@/components/nk/community-search'
 import { getAuthContext } from '@/lib/api'
 import { listPublicCommunities } from '@/lib/communities'
 import { presignDownload } from '@/lib/s3'
@@ -47,38 +48,46 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
         </div>
       )}
 
-      {communities.length === 0 ? (
-        <EmptyState
-          className="mt-9"
-          icon={<Users />}
-          title="Aucune communauté ouverte"
-          description="Les formateurs n'ont pas encore ouvert leur communauté. Revenez bientôt."
-          action={
-            <BtnLink href={routes.catalog} variant="o">Parcourir le catalogue</BtnLink>
-          }
-        />
-      ) : (
-        <div className="mt-9 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-          {communities.map((community, index) => (
-            <CommunityCard
-              key={community.id}
-              community={{
-                id: community.id,
-                slug: community.slug,
-                name: community.name,
-                description: community.description,
-                priceFcfa: community.priceFcfa,
-                membersCount: community.membersCount,
-                includedCount: community.includedCount,
-                trainerName: community.trainer.fullName ?? 'Formateur NkamVa',
-                coverUrl: covers.get(community.id) ?? null,
-              }}
-              href={routes.community(community.slug)}
-              eager={index === 0}
-            />
-          ))}
-        </div>
-      )}
+      {/*
+        Le champ de recherche, et la liste derrière lui. La liste reste rendue
+        par le serveur et passée en `children` : cette page est indexable, et un
+        champ qui aurait tout remplacé au montage l'aurait vidée aux yeux d'un
+        robot. Il ne prend la place de la liste que lorsqu'une recherche court.
+      */}
+      <CommunitySearch space={space}>
+        {communities.length === 0 ? (
+          <EmptyState
+            className="mt-9"
+            icon={<Users />}
+            title="Aucune communauté ouverte"
+            description="Les formateurs n'ont pas encore ouvert leur communauté. Revenez bientôt."
+            action={
+              <BtnLink href={routes.catalog} variant="o">Parcourir le catalogue</BtnLink>
+            }
+          />
+        ) : (
+          <div className="mt-9 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+            {communities.map((community, index) => (
+              <CommunityCard
+                key={community.id}
+                community={{
+                  id: community.id,
+                  slug: community.slug,
+                  name: community.name,
+                  description: community.description,
+                  priceFcfa: community.priceFcfa,
+                  membersCount: community.membersCount,
+                  includedCount: community.includedCount,
+                  trainerName: community.trainer.fullName ?? 'Formateur NkamVa',
+                  coverUrl: covers.get(community.id) ?? null,
+                }}
+                href={routes.community(community.slug)}
+                eager={index === 0}
+              />
+            ))}
+          </div>
+        )}
+      </CommunitySearch>
     </div>
   )
 }
