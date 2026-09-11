@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Bell, ChevronDown, LogOut, Plus } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Plus, Wallet } from "lucide-react";
 import { Logo } from "@/components/nk/logo";
 import { NavLink } from "@/components/nk/nav-link";
 import { Avatar } from "@/components/nk/avatar";
@@ -203,19 +203,51 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             </nav>
 
             {/*
-              Sous `lg`, l'avatar a quitté l'en-tête : il tient la cinquième case
-              de la barre basse, à portée de pouce, et c'est de là qu'on ouvre son
-              compte. La place libérée revient aux deux gestes qui n'ont pas de
-              destination à eux — être averti, et publier.
+              Trois gestes, à droite, et à **tous** les seuils.
 
-              Le bouton publier reste visible même quand l'abonnement est suspendu
-              (décision 68) : c'est l'écran d'arrivée qui dit pourquoi ça ne passe
-              pas. Le masquer donnerait une application qui a l'air cassée.
+              L'ordre va du patrimoine au flux : ce qu'on a gagné, ce qu'on
+              ajoute, ce qu'on reçoit. Seule la cloche est commune aux deux
+              rôles — un portefeuille est attaché au profil formateur, et un
+              apprenant n'a rien à publier. Il ne voit donc qu'un bouton, et
+              c'est normal.
 
-              À partir de `lg` rien ne change : pas de barre basse là-haut, donc
-              l'avatar et son menu restent le seul chemin vers le compte.
+              Ces trois-là s'effaçaient à partir de `lg`, où l'avatar reprenait
+              l'en-tête et où son menu portait tout. Ils restent désormais
+              visibles partout : la cloche double donc l'entrée « Notifications »
+              du menu du compte, et le portefeuille double sa carte dans
+              l'espace formateur. Doublons assumés — un geste fréquent mérite un
+              raccourci, et la liste du compte sert aussi la feuille « Plus » du
+              téléphone, où la cloche n'est pas toujours à portée.
+
+              Le bouton publier reste visible même quand l'abonnement est
+              suspendu (décision 68) : c'est l'écran d'arrivée qui dit pourquoi
+              ça ne passe pas. Le masquer donnerait une application qui a l'air
+              cassée.
             */}
-            <div className="ml-auto flex items-center gap-1 lg:gap-2.5">
+            <div className="ml-auto flex items-center gap-1 lg:gap-2">
+              {user.isTrainer ? (
+                <>
+                  <NavLink
+                    href="/formateur/portefeuille"
+                    current={isActive(pathname, "/formateur/portefeuille")}
+                    aria-label="Mon portefeuille"
+                    className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-white/70 hover:text-ink aria-[current=page]:text-brand"
+                    pendingClassName="inset-x-2 bottom-1"
+                  >
+                    <Wallet className="size-[21px]" aria-hidden="true" />
+                  </NavLink>
+
+                  <NavLink
+                    href="/formateur/ressources/nouvelle"
+                    aria-label="Publier une ressource"
+                    className="grid size-10 place-items-center rounded-full border-[1.5px] border-line text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
+                    pendingClassName="inset-x-2 bottom-1"
+                  >
+                    <Plus className="size-[21px]" aria-hidden="true" />
+                  </NavLink>
+                </>
+              ) : null}
+
               <NavLink
                 href="/notifications"
                 current={isActive(pathname, "/notifications")}
@@ -224,7 +256,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                     ? `Notifications, ${user.unreadNotifications} non lue${user.unreadNotifications > 1 ? "s" : ""}`
                     : "Notifications"
                 }
-                className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-white/70 hover:text-ink aria-[current=page]:text-brand lg:hidden"
+                className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-white/70 hover:text-ink aria-[current=page]:text-brand"
                 pendingClassName="inset-x-2 bottom-1"
               >
                 <Bell className="size-[21px]" aria-hidden="true" />
@@ -240,17 +272,6 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                   </span>
                 ) : null}
               </NavLink>
-
-              {user.isTrainer ? (
-                <NavLink
-                  href="/formateur/ressources/nouvelle"
-                  aria-label="Publier une ressource"
-                  className="grid size-10 place-items-center rounded-full border-[1.5px] border-line text-ink-2 transition-colors hover:border-ink-3 hover:text-ink lg:hidden"
-                  pendingClassName="inset-x-2 bottom-1"
-                >
-                  <Plus className="size-[21px]" aria-hidden="true" />
-                </NavLink>
-              ) : null}
 
               <div className="hidden lg:block">
                 <AccountMenu
