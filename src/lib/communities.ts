@@ -24,6 +24,7 @@ import { notify, deliverSideEffects } from './notification'
 import { canTrainerWrite } from './subscriptions'
 import { trainerStorage } from './courses'
 import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
+import type { CommunityVisibility } from '@prisma/client'
 import type { CourseListItem } from './dto'
 import type { PrismaTransaction } from './types'
 import { COMMUNITIES_PAGE_SIZE } from './search-limits'
@@ -85,6 +86,8 @@ export interface PublicCommunity {
   description: string | null
   priceFcfa: number
   membersCount: number
+  /** Toujours `PUBLIC` ici — arbitrage 81 — mais lue, pas supposée. */
+  visibility: CommunityVisibility
   coverS3Key: string | null
   forumEnabled: boolean
   eventsEnabled: boolean
@@ -1112,7 +1115,7 @@ export async function listMyIncludedCourses(learnerId: string): Promise<CourseLi
 
 const SELECT_PUBLIC = {
   id: true, slug: true, name: true, description: true, priceFcfa: true,
-  membersCount: true, coverS3Key: true, forumEnabled: true, eventsEnabled: true,
+  membersCount: true, visibility: true, coverS3Key: true, forumEnabled: true, eventsEnabled: true,
   resourcesEnabled: true,
   trainerProfile: {
     select: {
@@ -1141,7 +1144,8 @@ const COURSE_CARD = {
 function toPublic(c: any): PublicCommunity {
   return {
     id: c.id, slug: c.slug, name: c.name, description: c.description,
-    priceFcfa: c.priceFcfa, membersCount: c.membersCount, coverS3Key: c.coverS3Key,
+    priceFcfa: c.priceFcfa, membersCount: c.membersCount, visibility: c.visibility,
+    coverS3Key: c.coverS3Key,
     forumEnabled: c.forumEnabled, eventsEnabled: c.eventsEnabled,
     resourcesEnabled: c.resourcesEnabled,
     trainer: {

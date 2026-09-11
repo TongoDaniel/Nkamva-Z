@@ -71,10 +71,9 @@ export async function GET(request: Request) {
       id: c.id,
       slug: c.slug,
       name: c.name,
-      description: c.description,
       priceFcfa: c.priceFcfa,
       membersCount: c.membersCount,
-      includedCount: c.includedCount,
+      visibility: c.visibility,
       trainerName: c.trainer.fullName ?? 'Formateur NkamVa',
       trainerAvatarUrl: userAvatarSrc({
         id: c.trainer.userId,

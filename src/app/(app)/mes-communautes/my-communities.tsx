@@ -24,8 +24,7 @@ export interface MyCommunityItem {
   href: string;
   /** Celle qu'elle anime passe devant et se distingue à l'œil. */
   own: boolean;
-  /** Pour la sienne : « Ouverte à tous » ou « Sur invitation ». */
-  visibilityLabel?: string;
+
   /** Pour une adhésion : son état, et ce qu'il faut en faire. */
   membership?: {
     /** `ACTIVE`, `PAST_DUE`, `BANNED`… tel qu'écrit en base. */
@@ -75,7 +74,7 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
   const needle = fold(filter.trim());
   const shown = needle
     ? items.filter((item) =>
-        [item.card.name, item.card.trainerName ?? "", item.card.description ?? ""].some((field) =>
+        [item.card.name, item.card.trainerName ?? ""].some((field) =>
           fold(field).includes(needle),
         ),
       )
@@ -130,7 +129,7 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
               highlight={item.own}
               hideTrainerName={item.own}
               badge={badge}
-              meta={item.own ? item.visibilityLabel : item.membership?.dueLabel}
+              meta={item.membership?.dueLabel}
               action={
                 item.own ? (
                   // Sa gestion, pas sa fiche publique — et cette adresse ne

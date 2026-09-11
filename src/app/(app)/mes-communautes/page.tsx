@@ -65,13 +65,12 @@ export default async function MesCommunautesPage({
               id: mienne.id,
               slug: mienne.slug,
               name: mienne.name,
-              description: mienne.description,
               priceFcfa: mienne.priceFcfa,
               // La colonne, comme partout ailleurs : elle est recomptée à
               // chaque changement d'adhésion, et deux nombres sous la même
               // idée sur un seul écran étaient exactement le défaut d'avant.
               membersCount: mienne.membersCount,
-              includedCount: mienne._count.courseLinks,
+              visibility: mienne.visibility,
               // Son propre nom : il ne s'affiche pas sous le titre
               // (`hideTrainerName`), mais il porte les initiales du portrait
               // tant qu'aucune photo n'a été déposée.
@@ -83,7 +82,6 @@ export default async function MesCommunautesPage({
             },
             href: routes.community(mienne.slug),
             own: true,
-            visibilityLabel: mienne.visibility === "PUBLIC" ? "Ouverte à tous" : "Sur invitation",
           } satisfies MyCommunityItem,
         ]
       : []),
@@ -95,6 +93,7 @@ export default async function MesCommunautesPage({
           name: m.community.name,
           priceFcfa: m.community.priceFcfa,
           membersCount: m.community.membersCount,
+          visibility: m.community.visibility,
           trainerName: m.community.trainerName,
           trainerAvatarUrl: userAvatarSrc({
             id: m.community.trainerUserId,
@@ -164,10 +163,12 @@ export default async function MesCommunautesPage({
               id: c.id,
               slug: c.slug,
               name: c.name,
-              description: c.description,
               priceFcfa: c.priceFcfa,
               membersCount: c.membersCount,
-              includedCount: c.includedCount,
+              // Toujours « ouverte » dans la découverte : une communauté privée
+              // ne paraît sur aucune surface publique (arbitrage 81). La marque
+              // compte au-dessus, où l'on peut être membre d'une privée.
+              visibility: c.visibility,
               trainerName: c.trainer.fullName ?? "Formateur NkamVa",
               trainerAvatarUrl: userAvatarSrc({
                 id: c.trainer.userId,
