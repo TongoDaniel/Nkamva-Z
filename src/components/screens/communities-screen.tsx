@@ -6,7 +6,7 @@ import { CommunityBrowser } from '@/components/nk/community-browser'
 import { getAuthContext } from '@/lib/api'
 import { listPublicCommunities } from '@/lib/communities'
 import { COMMUNITIES_PAGE_SIZE } from '@/lib/search-limits'
-import { presignDownload } from '@/lib/s3'
+import { userAvatarSrc } from '@/lib/avatars'
 import { routesOf, type Space } from '@/lib/spaces'
 
 /**
@@ -34,15 +34,6 @@ export async function CommunitiesScreen({
     listPublicCommunities({ search: terme || undefined, pageSize: COMMUNITIES_PAGE_SIZE }),
     getAuthContext(),
   ])
-  // Une URL signée par bannière déposée — produites en parallèle, elles
-  // expirent en cinq minutes et ne survivent donc pas à ce rendu.
-  const covers = new Map(
-    await Promise.all(
-      page.items
-        .filter((c) => c.coverS3Key)
-        .map(async (c) => [c.id, await presignDownload(c.coverS3Key!)] as const),
-    ),
-  )
   // Proposer de devenir formateur à quelqu'un qui l'est déjà — et dont une
   // communauté figure peut-être dans la liste juste en dessous. Les deux pages
   // qui rendent cet écran sont `force-dynamic` : lire la session ici ne coûte
@@ -82,7 +73,10 @@ export async function CommunitiesScreen({
             membersCount: community.membersCount,
             includedCount: community.includedCount,
             trainerName: community.trainer.fullName ?? 'Formateur NkamVa',
-            coverUrl: covers.get(community.id) ?? null,
+            trainerAvatarUrl: userAvatarSrc({
+              id: community.trainer.userId,
+              avatarS3Key: community.trainer.avatarS3Key,
+            }),
           })),
           total: page.total,
           page: page.page,

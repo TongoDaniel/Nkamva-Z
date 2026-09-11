@@ -145,6 +145,9 @@ export interface MyCommunity {
     priceFcfa: number
     membersCount: number
     trainerName: string | null
+    /** Le compte du formateur, pour la photo que la carte pose en tÃªte. */
+    trainerUserId: string
+    trainerAvatarS3Key: string | null
   }
 }
 
@@ -163,7 +166,9 @@ export async function listMyMemberships(learnerId: string): Promise<MyCommunity[
         select: {
           id: true, slug: true, name: true, coverS3Key: true, priceFcfa: true,
           membersCount: true,
-          trainerProfile: { select: { user: { select: { fullName: true } } } },
+          trainerProfile: {
+            select: { userId: true, user: { select: { fullName: true, avatarS3Key: true } } },
+          },
         },
       },
     },
@@ -182,6 +187,8 @@ export async function listMyMemberships(learnerId: string): Promise<MyCommunity[
       priceFcfa: s.community.priceFcfa,
       membersCount: s.community.membersCount,
       trainerName: s.community.trainerProfile.user.fullName,
+      trainerUserId: s.community.trainerProfile.userId,
+      trainerAvatarS3Key: s.community.trainerProfile.user.avatarS3Key,
     },
   }))
 }

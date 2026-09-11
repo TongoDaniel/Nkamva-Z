@@ -89,7 +89,19 @@ export interface PublicCommunity {
   forumEnabled: boolean
   eventsEnabled: boolean
   resourcesEnabled: boolean
-  trainer: { id: string; fullName: string | null; slogan: string | null }
+  /**
+   * `id` est celui du **profil** formateur — c'est lui que les routes
+   * attendent. `userId` et `avatarS3Key` viennent du compte, et servent la
+   * photo que les cartes posent en tête : elle passe par une route à adresse
+   * stable, pas par une URL signée.
+   */
+  trainer: {
+    id: string
+    userId: string
+    fullName: string | null
+    slogan: string | null
+    avatarS3Key: string | null
+  }
   includedCount: number
 }
 
@@ -708,6 +720,11 @@ export async function getMyCommunity(trainerProfileId: string) {
       id: true, slug: true, name: true, description: true, rules: true,
       coverS3Key: true, avatarS3Key: true,
       priceFcfa: true, visibility: true, membersCount: true, messagesPerDay: true,
+      // Le compte derrière le profil : la carte pose sa photo en tête, comme
+      // pour n'importe quelle autre communauté.
+      trainerProfile: {
+        select: { userId: true, user: { select: { fullName: true, avatarS3Key: true } } },
+      },
       forumEnabled: true, messagingEnabled: true,
       resourcesEnabled: true, eventsEnabled: true, createdAt: true,
       _count: {
@@ -1097,7 +1114,14 @@ const SELECT_PUBLIC = {
   id: true, slug: true, name: true, description: true, priceFcfa: true,
   membersCount: true, coverS3Key: true, forumEnabled: true, eventsEnabled: true,
   resourcesEnabled: true,
-  trainerProfile: { select: { id: true, slogan: true, user: { select: { fullName: true } } } },
+  trainerProfile: {
+    select: {
+      id: true,
+      slogan: true,
+      userId: true,
+      user: { select: { fullName: true, avatarS3Key: true } },
+    },
+  },
   // Le compteur compte ce que les listes montrent : sans le filtre de
   // statut, la carte annonçait « 2 incluses » et la fiche n'en listait qu'une.
   _count: { select: { courseLinks: { where: { unlinkedAt: null, course: { status: { not: 'draft' } } } } } },
@@ -1122,8 +1146,10 @@ function toPublic(c: any): PublicCommunity {
     resourcesEnabled: c.resourcesEnabled,
     trainer: {
       id: c.trainerProfile.id,
+      userId: c.trainerProfile.userId,
       fullName: c.trainerProfile.user.fullName,
       slogan: c.trainerProfile.slogan,
+      avatarS3Key: c.trainerProfile.user.avatarS3Key,
     },
     includedCount: c._count.courseLinks,
   }
