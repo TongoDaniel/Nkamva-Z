@@ -244,7 +244,6 @@ export function CourseForm({
           value={values.title}
           onChange={(e) => set("title", e.target.value)}
           error={fieldErrors.title}
-          hint="Entre 3 et 200 caractères. L'adresse publique en est dérivée."
         />
 
         <TextArea
@@ -255,7 +254,6 @@ export function CourseForm({
           value={values.blurb}
           onChange={(v) => set("blurb", v)}
           error={fieldErrors.blurb}
-          hint="10 à 500 caractères. Affichée dans le catalogue et en tête de fiche."
         />
 
         <TextArea
@@ -372,13 +370,10 @@ export function CourseForm({
             il alimentait pourtant la progression de l'apprenant *et* le seuil de
             consommation qui décide d'un litige. Le nombre de sessions, lui, n'a
             plus d'objet — une ressource est un fichier unique.
+
+            L'encart qui l'annonçait à l'écran a été retiré : la mesure a lieu, elle
+            n'est simplement plus expliquée ici.
           */}
-          {values.format === "video" ? (
-            <p className="rounded-nk border border-line-2 bg-paper px-3.5 py-3 text-[13px] leading-relaxed text-ink-2">
-              La durée sera <b className="font-semibold text-ink">mesurée sur votre fichier</b> au
-              moment du dépôt — vous n&apos;avez rien à saisir.
-            </p>
-          ) : null}
 
           <Btn type="submit" block size="lg" loading={save.pending} className="mt-2">
             {mode === "create" ? "Créer le brouillon" : "Enregistrer"}
