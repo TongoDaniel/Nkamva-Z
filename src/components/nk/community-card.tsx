@@ -59,16 +59,34 @@ export interface CommunityCardData {
 /**
  * Carte de communauté, partagée par l'annuaire du visiteur, l'espace connecté
  * et les résultats de recherche.
+ * ==========================================================================
+ * Elle existait en deux exemplaires — une grille à bannière et une ligne
+ * horizontale — que rien ne gardait d'accord. Les réunir sous un seul composant
+ * a évité les deux copies suivantes : celle de la recherche, puis celle de la
+ * grille unifiée.
  *
- * Elle existait en deux exemplaires — une grille à bannière dans
- * `communities-screen`, une ligne horizontale dans `/mes-communautes` — que
- * rien ne gardait d'accord. Les réunir sous un seul composant a évité les deux
- * copies suivantes : celle de la recherche, puis celle de la grille unifiée.
+ * **Elle a été raccourcie.** Sa première forme empilait sept blocs : un bandeau
+ * de 104 px, le titre, le nom, trois lignes de description, les compteurs, une
+ * ligne d'état, un bouton. Dans une colonne de 170 px — ce que donne une grille
+ * de trois sur une fenêtre étroite — tout passait à la ligne et la carte
+ * atteignait 389 px de haut pour dire quatre choses. Ce qui a changé :
+ *
+ *   · **l'en-tête est horizontal.** Le portrait, plus petit, se pose à côté du
+ *     titre au lieu de lui voler un bandeau entier. C'est le gain principal.
+ *   · **la carte s'adapte à sa propre largeur**, pas à celle de l'écran
+ *     (`@container`). Une même carte n'a pas la même place dans une grille de
+ *     une, deux ou trois colonnes : la description et les tailles de texte
+ *     suivent la largeur **qu'elle reçoit**, ce qu'un point de rupture d'écran
+ *     ne sait pas dire.
+ *   · **plus de pastille « Ma communauté ».** Le bouton « Gérer » le disait
+ *     déjà, et le fond teinté aussi. Les pastilles restantes portent un état
+ *     qu'on ne devine pas : échéance à régler, parole retirée, résiliée.
  *
  * Deux façons d'être cliquable, et c'est la présence d'`action` qui tranche :
  * sans elle, le lien du titre est étendu à toute la carte (une seule cible, une
  * seule tabulation) ; avec elle, il reste sur le titre — un lien qui couvre la
  * carte passerait **par-dessus** le bouton et le rendrait inatteignable.
+ * ==========================================================================
  */
 export function CommunityCard({
   community,
@@ -83,9 +101,13 @@ export function CommunityCard({
   community: CommunityCardData;
   /** Cible du titre. Elle dépend de l'espace : c'est l'appelant qui la calcule. */
   href: string;
-  /** Pastille posée sur la bannière — statut d'adhésion, « Ma communauté »… */
+  /**
+   * Pastille d'état — une échéance à régler, une parole retirée, une adhésion
+   * résiliée. Réservée à ce qui ne se devine pas : « Ma communauté » a été
+   * retirée, le bouton « Gérer » et le fond teinté le disent déjà.
+   */
   badge?: React.ReactNode;
-  /** Une ligne sous les compteurs : échéance, date de fin, ce que l'appelant sait. */
+  /** Une ligne sous les compteurs : échéance, visibilité, ce que l'appelant sait. */
   meta?: React.ReactNode;
   /** Bouton de la carte. Sa présence retire le lien étendu (voir ci-dessus). */
   action?: React.ReactNode;
@@ -93,9 +115,9 @@ export function CommunityCard({
   highlight?: boolean;
   /**
    * Cache la ligne du nom sous le titre, sans toucher au portrait. Sur sa
-   * propre communauté, lire son propre nom sous le titre n'apprend rien — mais
-   * le portrait reste le sien, et il lui faut ce nom pour ses initiales quand
-   * aucune photo n'a été déposée.
+   * propre communauté, lire son propre nom n'apprend rien — mais le portrait
+   * reste le sien, et il lui faut ce nom pour ses initiales quand aucune photo
+   * n'a été déposée.
    */
   hideTrainerName?: boolean;
   className?: string;
@@ -105,82 +127,107 @@ export function CommunityCard({
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-nk-lg border shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk focus-within:-translate-y-1 focus-within:shadow-nk",
+        "@container group relative flex flex-col gap-3 rounded-nk-lg border p-4 shadow-nk-sm transition duration-200",
+        "hover:-translate-y-0.5 hover:shadow-nk focus-within:-translate-y-0.5 focus-within:shadow-nk",
         highlight ? "border-[1.5px] border-brand/30 bg-brand-tint/40" : "border-line bg-card",
         className,
       )}
     >
       {/*
-        En tête : la **photo de qui anime**, et non l'affiche de la communauté.
-        On choisit d'abord une personne — c'est elle qu'on retrouve d'une
-        communauté à l'autre, et son visage porte mieux la carte qu'une bannière
-        dont beaucoup n'ont pas déposé.
-
-        Elle tient la même hauteur que l'affiche qu'elle remplace : la géométrie
-        des grilles ne bouge pas. Et son adresse est stable, donc elle ne se
-        périme plus en cours de page.
+        La photo de qui anime, et non l'affiche du salon : c'est la personne
+        qu'on retrouve d'une communauté à l'autre, et son visage porte mieux la
+        carte qu'une bannière que beaucoup n'ont pas déposée. Son adresse est
+        stable, donc elle ne se périme pas en cours de page.
       */}
-      <div className="relative grid h-[104px] place-items-center bg-gradient-to-br from-navy to-info">
+      <div className="flex items-start gap-3">
         <Avatar
-          size="lg"
-          ring
+          size="md"
           src={community.trainerAvatarUrl ?? null}
           name={trainerName}
           alt={trainerName ? `Photo de ${trainerName}` : undefined}
+          className="@min-[260px]:size-[46px]"
         />
-        {badge ? <div className="absolute right-2.5 top-2.5 z-1">{badge}</div> : null}
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-extrabold leading-[1.25] @min-[260px]:text-[16.5px]">
+            <Link
+              href={href}
+              className={cn(
+                "line-clamp-2 text-ink hover:text-brand",
+                action ? null : "after:absolute after:inset-0 after:content-['']",
+              )}
+            >
+              {community.name}
+            </Link>
+          </h2>
+          {trainerName && !hideTrainerName ? (
+            <p className="truncate text-[12.5px] font-semibold text-ink-3">{trainerName}</p>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5 px-5 pb-5 pt-4">
-        <h2 className="text-[17px] font-extrabold leading-tight">
-          <Link
-            href={href}
-            className={cn(
-              "text-ink hover:text-brand",
-              action ? null : "after:absolute after:inset-0 after:content-['']",
-            )}
-          >
-            {community.name}
-          </Link>
-        </h2>
+      {/*
+        La description ne paraît qu'à partir de 260 px de carte. En dessous, deux
+        lignes clampées donnent trois mots et une ellipse — du bruit qui allonge.
+        C'est la largeur de la **carte** qui décide, pas celle de l'écran : la
+        même grille en pose une, deux ou trois par ligne selon la place.
+      */}
+      {community.description ? (
+        <p className="hidden line-clamp-2 text-[13px] leading-relaxed text-ink-2 @min-[260px]:block">
+          {community.description}
+        </p>
+      ) : null}
 
-        {/* Le nom seul : son portrait est juste au-dessus, le répéter en petit
-            à côté de son nom ne dirait rien de plus. */}
-        {trainerName && !hideTrainerName ? (
-          <span className="truncate text-[13px] font-semibold text-ink-2">{trainerName}</span>
-        ) : null}
+      {/*
+        Les compteurs, au-dessus d'un filet : empilés quand la carte est
+        étroite, sur une ligne dès qu'elle a la place.
 
-        {community.description ? (
-          <p className="line-clamp-3 text-[13.5px] leading-relaxed text-ink-2">
-            {community.description}
-          </p>
-        ) : null}
-
-        <dl className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line-2 pt-4 text-[13px] text-ink-3">
-          <div className="flex items-center gap-3.5">
-            <span className="flex items-center gap-1.5">
-              <Users className="size-3.5" aria-hidden="true" />
-              {fmtNumber(community.membersCount)}
-            </span>
-            {community.includedCount ? (
-              <span className="flex items-center gap-1.5">
-                <Library className="size-3.5" aria-hidden="true" />
-                {community.includedCount} incluse{community.includedCount > 1 ? "s" : ""}
-              </span>
-            ) : null}
-          </div>
-          <span>
-            <Price amountFcfa={community.priceFcfa} className="text-[16px]" />
-            <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
+        Et non « sur une ligne, qu'elle passe à la ligne si besoin » : un
+        `flex-wrap` donnait deux lignes ragées et une hauteur qui dépendait de la
+        longueur du prix — quatre pixels de trop et la carte grandissait de
+        trente. Empiler franchement coûte moins haut qu'un retour à la ligne
+        subi, et ne dépend pas du nombre de chiffres.
+      */}
+      <dl className="mt-auto flex flex-col gap-1 border-t border-line-2 pt-3 text-[12.5px] text-ink-3 @min-[260px]:flex-row @min-[260px]:items-baseline @min-[260px]:justify-between @min-[260px]:gap-x-3">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5">
+            <Users className="size-3.5" aria-hidden="true" />
+            {fmtNumber(community.membersCount)}
           </span>
-        </dl>
+          {community.includedCount ? (
+            <span className="flex items-center gap-1.5">
+              <Library className="size-3.5" aria-hidden="true" />
+              {community.includedCount}
+            </span>
+          ) : null}
+        </div>
+        <span className="whitespace-nowrap">
+          <Price amountFcfa={community.priceFcfa} className="text-[15px]" />
+          <small className="ml-1 text-[12.5px] font-semibold text-ink-3">/ mois</small>
+        </span>
+      </dl>
 
-        {meta ? <div className="text-[13px] text-ink-3">{meta}</div> : null}
+      {/*
+        Une pastille d'état prend sa ligne : elle réclame l'attention, et la
+        mettre en concurrence avec le bouton sur la même rangée la dilue.
+      */}
+      {badge ? <div className="relative z-1">{badge}</div> : null}
 
-        {/* `relative z-1` : le bouton doit rester au-dessus de la carte, même
-            quand l'appelant a aussi passé un lien étendu par erreur. */}
-        {action ? <div className="relative z-1 mt-0.5 flex flex-wrap gap-2">{action}</div> : null}
-      </div>
+      {/*
+        La dernière rangée porte la petite ligne de fait à gauche — échéance,
+        visibilité — et le bouton à droite. Les deux partagent une rangée plutôt
+        que d'en prendre chacun une : c'est une trentaine de pixels de hauteur
+        rendus sur chaque carte qui a un bouton. `flex-wrap` les empile quand la
+        carte est trop étroite pour les deux.
+
+        `relative z-1` : le bouton doit rester au-dessus de la carte, même si
+        l'appelant a aussi passé un lien étendu par erreur.
+      */}
+      {meta || action ? (
+        <div className="relative z-1 flex flex-wrap items-center justify-between gap-2">
+          {meta ? <p className="text-[12.5px] leading-snug text-ink-3">{meta}</p> : <span />}
+          {action}
+        </div>
+      ) : null}
     </article>
   );
 }

@@ -106,7 +106,10 @@ export default async function MesCommunautesPage({
         membership: {
           status: m.status,
           canceled: Boolean(m.canceledAt),
-          dueLabel: `${m.canceledAt ? "Prend fin le " : "Prochaine échéance le "}${fmtDate(m.periodEnd)}`,
+          // Court, parce que la carte est étroite : « Prochaine échéance le »
+          // prenait trois lignes dans une colonne de 170 px, et la pastille dit
+          // déjà de quoi il s'agit quand il y a quelque chose à régler.
+          dueLabel: `${m.canceledAt ? "Jusqu'au " : "Échéance le "}${fmtDate(m.periodEnd)}`,
           actionHref:
             m.status === "PAST_DUE"
               ? `/adhesion/${m.community.slug}`
