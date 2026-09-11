@@ -7,6 +7,20 @@ import { fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
+ * La grille qui porte ces cartes, définie une fois pour toutes ses surfaces.
+ *
+ * `auto-fill` plutôt que des colonnes par point de rupture : c'est la **place
+ * disponible** qui décide combien de cartes tiennent sur une ligne, pas une
+ * largeur d'écran devinée. Un `sm:grid-cols-2` à 640 px laissait une seule
+ * colonne dans une fenêtre de 583 px — largeur où deux cartes de 270 px
+ * tiennent sans peine, et où l'écran paraissait donc ne pas savoir se ranger.
+ *
+ * 260 px est le plancher sous lequel une carte cesse d'être lisible : la
+ * bannière s'écrase, et le nom du formateur passe à la ligne.
+ */
+export const COMMUNITY_GRID = "grid gap-[18px] grid-cols-[repeat(auto-fill,minmax(260px,1fr))]";
+
+/**
  * Ce qu'une carte de communauté a besoin de savoir.
  *
  * Volontairement plus pauvre que les objets qui la nourrissent : l'annuaire
@@ -37,8 +51,8 @@ export interface CommunityCardData {
  *
  * Elle existait en deux exemplaires — une grille à bannière dans
  * `communities-screen`, une ligne horizontale dans `/mes-communautes` — que
- * rien ne gardait d'accord. Les réunir sous un seul composant évite la
- * troisième copie que la recherche aurait fabriquée.
+ * rien ne gardait d'accord. Les réunir sous un seul composant a évité les deux
+ * copies suivantes : celle de la recherche, puis celle de la grille unifiée.
  *
  * Deux façons d'être cliquable, et c'est la présence d'`action` qui tranche :
  * sans elle, le lien du titre est étendu à toute la carte (une seule cible, une

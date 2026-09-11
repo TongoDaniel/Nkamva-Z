@@ -2,22 +2,43 @@ import { Users } from 'lucide-react'
 import { BtnLink } from '@/components/nk/button-link'
 import { EmptyState } from '@/components/nk/empty-state'
 import { PageHead } from '@/components/nk/page-head'
-import { CommunityCard } from '@/components/nk/community-card'
-import { CommunitySearch } from '@/components/nk/community-search'
+import { CommunityBrowser } from '@/components/nk/community-browser'
 import { getAuthContext } from '@/lib/api'
 import { listPublicCommunities } from '@/lib/communities'
+import { COMMUNITIES_PAGE_SIZE } from '@/lib/search-limits'
 import { presignDownload } from '@/lib/s3'
 import { routesOf, type Space } from '@/lib/spaces'
 
-/** Liste des communautés, rendue à l'identique dans les deux espaces. */
-export async function CommunitiesScreen({ space }: { space: Space }) {
+/**
+ * L'annuaire des communautés, parcouru par pages.
+ *
+ * La première page est rendue **ici**, côté serveur, et passée au composant qui
+ * la parcourt : cette page est indexable, et une liste qui n'apparaîtrait
+ * qu'après le JavaScript l'aurait vidée aux yeux d'un robot. Le terme aussi est
+ * lu ici, pour qu'un lien de recherche partagé arrive sur ses résultats.
+ *
+ * Aucune exclusion sur cette surface, même pour quelqu'un de connecté : il n'y
+ * a rien au-dessus qui redirait ses communautés, donc les lui cacher n'aurait
+ * servi personne. C'est `/mes-communautes` qui demande l'exclusion.
+ */
+export async function CommunitiesScreen({
+  space,
+  search = '',
+}: {
+  space: Space
+  search?: string
+}) {
   const routes = routesOf(space)
-  const [communities, auth] = await Promise.all([listPublicCommunities(), getAuthContext()])
+  const terme = search.trim()
+  const [page, auth] = await Promise.all([
+    listPublicCommunities({ search: terme || undefined, pageSize: COMMUNITIES_PAGE_SIZE }),
+    getAuthContext(),
+  ])
   // Une URL signée par bannière déposée — produites en parallèle, elles
   // expirent en cinq minutes et ne survivent donc pas à ce rendu.
   const covers = new Map(
     await Promise.all(
-      communities
+      page.items
         .filter((c) => c.coverS3Key)
         .map(async (c) => [c.id, await presignDownload(c.coverS3Key!)] as const),
     ),
@@ -48,46 +69,35 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
         </div>
       )}
 
-      {/*
-        Le champ de recherche, et la liste derrière lui. La liste reste rendue
-        par le serveur et passée en `children` : cette page est indexable, et un
-        champ qui aurait tout remplacé au montage l'aurait vidée aux yeux d'un
-        robot. Il ne prend la place de la liste que lorsqu'une recherche court.
-      */}
-      <CommunitySearch space={space}>
-        {communities.length === 0 ? (
+      <CommunityBrowser
+        space={space}
+        initialTerm={terme}
+        initial={{
+          items: page.items.map((community) => ({
+            id: community.id,
+            slug: community.slug,
+            name: community.name,
+            description: community.description,
+            priceFcfa: community.priceFcfa,
+            membersCount: community.membersCount,
+            includedCount: community.includedCount,
+            trainerName: community.trainer.fullName ?? 'Formateur NkamVa',
+            coverUrl: covers.get(community.id) ?? null,
+          })),
+          total: page.total,
+          page: page.page,
+          pageSize: page.pageSize,
+        }}
+        empty={
           <EmptyState
-            className="mt-9"
+            className="mt-6"
             icon={<Users />}
             title="Aucune communauté ouverte"
             description="Les formateurs n'ont pas encore ouvert leur communauté. Revenez bientôt."
-            action={
-              <BtnLink href={routes.catalog} variant="o">Parcourir le catalogue</BtnLink>
-            }
+            action={<BtnLink href={routes.catalog} variant="o">Parcourir le catalogue</BtnLink>}
           />
-        ) : (
-          <div className="mt-9 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-            {communities.map((community, index) => (
-              <CommunityCard
-                key={community.id}
-                community={{
-                  id: community.id,
-                  slug: community.slug,
-                  name: community.name,
-                  description: community.description,
-                  priceFcfa: community.priceFcfa,
-                  membersCount: community.membersCount,
-                  includedCount: community.includedCount,
-                  trainerName: community.trainer.fullName ?? 'Formateur NkamVa',
-                  coverUrl: covers.get(community.id) ?? null,
-                }}
-                href={routes.community(community.slug)}
-                eager={index === 0}
-              />
-            ))}
-          </div>
-        )}
-      </CommunitySearch>
+        }
+      />
     </div>
   )
 }

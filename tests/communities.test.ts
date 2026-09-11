@@ -68,11 +68,15 @@ describe('Communautés', () => {
     const { community, course, trainer, trainerUser } = await setup()
     await linkCourseToCommunity(community.id, course.id, trainer.id, trainerUser.id)
 
+    // La liste rend désormais une **page** : ses cartes, et de quoi savoir
+    // qu'il y en a d'autres.
     const list = await listPublicCommunities()
-    expect(list).toHaveLength(1)
-    expect(list[0].name).toBe('Les artisans du back')
-    expect(list[0].includedCount).toBe(1)
-    expect(list[0].trainer.fullName).toBe('Awa Sarr')
+    expect(list.total).toBe(1)
+    expect(list.page).toBe(1)
+    expect(list.items).toHaveLength(1)
+    expect(list.items[0].name).toBe('Les artisans du back')
+    expect(list.items[0].includedCount).toBe(1)
+    expect(list.items[0].trainer.fullName).toBe('Awa Sarr')
 
     const detail = await getPublicCommunity('artisans-back')
     expect(detail!.courses.map((c) => c.title)).toEqual(['Masterclass DDD'])
