@@ -1,14 +1,11 @@
-import Link from 'next/link'
-import { Users, Library } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { BtnLink } from '@/components/nk/button-link'
 import { EmptyState } from '@/components/nk/empty-state'
 import { PageHead } from '@/components/nk/page-head'
-import { Price } from '@/components/nk/resource-card'
-import { Avatar } from '@/components/nk/avatar'
+import { CommunityCard } from '@/components/nk/community-card'
 import { getAuthContext } from '@/lib/api'
 import { listPublicCommunities } from '@/lib/communities'
 import { presignDownload } from '@/lib/s3'
-import { fmtNumber } from '@/lib/format'
 import { routesOf, type Space } from '@/lib/spaces'
 
 /** Liste des communautés, rendue à l'identique dans les deux espaces. */
@@ -62,69 +59,23 @@ export async function CommunitiesScreen({ space }: { space: Space }) {
         />
       ) : (
         <div className="mt-9 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-          {communities.map((community) => (
-            <article
+          {communities.map((community, index) => (
+            <CommunityCard
               key={community.id}
-              className="group relative flex flex-col overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk focus-within:-translate-y-1 focus-within:shadow-nk"
-            >
-              {covers.get(community.id) ? (
-                // `img` et non `next/image` : l'URL signée expire, le cache
-                // d'images la garderait sous une clé qui lui survivrait.
-                <img
-                  src={covers.get(community.id)}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="h-[104px] w-full object-cover"
-                />
-              ) : (
-                <div className="h-[104px] bg-gradient-to-br from-navy to-info" />
-              )}
-              <div className="flex flex-1 flex-col gap-2.5 px-5 pb-5 pt-4">
-                <h2 className="text-[17px] font-extrabold leading-tight">
-                  {/* Le lien couvre toute la carte : une seule cible cliquable, un seul
-                      élément dans l'ordre de tabulation. */}
-                  <Link
-                    href={routes.community(community.slug)}
-                    className="text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand"
-                  >
-                    {community.name}
-                  </Link>
-                </h2>
-
-                <div className="flex items-center gap-2">
-                  <Avatar name={community.trainer.fullName ?? 'Formateur NkamVa'} size="sm" />
-                  <span className="truncate text-[13px] font-semibold text-ink-2">
-                    {community.trainer.fullName ?? 'Formateur NkamVa'}
-                  </span>
-                </div>
-
-                {community.description ? (
-                  <p className="line-clamp-3 text-[13.5px] leading-relaxed text-ink-2">
-                    {community.description}
-                  </p>
-                ) : null}
-
-                <dl className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line-2 pt-4 text-[13px] text-ink-3">
-                  <div className="flex items-center gap-3.5">
-                    <span className="flex items-center gap-1.5">
-                      <Users className="size-3.5" aria-hidden="true" />
-                      {fmtNumber(community.membersCount)}
-                    </span>
-                    {community.includedCount > 0 ? (
-                      <span className="flex items-center gap-1.5">
-                        <Library className="size-3.5" aria-hidden="true" />
-                        {community.includedCount} incluse{community.includedCount > 1 ? 's' : ''}
-                      </span>
-                    ) : null}
-                  </div>
-                  <span>
-                    <Price amountFcfa={community.priceFcfa} className="text-[16px]" />
-                    <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
-                  </span>
-                </dl>
-              </div>
-            </article>
+              community={{
+                id: community.id,
+                slug: community.slug,
+                name: community.name,
+                description: community.description,
+                priceFcfa: community.priceFcfa,
+                membersCount: community.membersCount,
+                includedCount: community.includedCount,
+                trainerName: community.trainer.fullName ?? 'Formateur NkamVa',
+                coverUrl: covers.get(community.id) ?? null,
+              }}
+              href={routes.community(community.slug)}
+              eager={index === 0}
+            />
           ))}
         </div>
       )}

@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AlertTriangle, MessageSquareOff, Settings, Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
-import { Avatar } from "@/components/nk/avatar";
+import { CommunityCard } from "@/components/nk/community-card";
 import { getAuthContext } from "@/lib/api";
 import { listMyMemberships } from "@/lib/memberships";
 import { getMyCommunity } from "@/lib/communities";
-import { communityAvatarSrc } from "@/lib/avatars";
-import { fmtDate, fmtFcfa, fmtNumber } from "@/lib/format";
+import { presignDownload } from "@/lib/s3";
+import { fmtDate } from "@/lib/format";
 import { routesOf } from "@/lib/spaces";
 
 /** Espace connecté : les liens de navigation restent dans la coquille applicative. */
@@ -35,6 +34,20 @@ export default async function MesCommunautesPage() {
     auth.user.trainerId ? getMyCommunity(auth.user.trainerId) : null,
   ]);
 
+  // Une URL signée par bannière déposée, toutes en parallèle. Elles expirent en
+  // cinq minutes et ne survivent donc pas à ce rendu : c'est la raison pour
+  // laquelle la recherche va rechercher les siennes au serveur plutôt que de
+  // filtrer une liste déjà peinte (voir `community-search.tsx`).
+  const keyed = [
+    ...(mienne?.coverS3Key ? [[mienne.id, mienne.coverS3Key] as const] : []),
+    ...memberships
+      .filter((m) => m.community.coverS3Key)
+      .map((m) => [m.community.id, m.community.coverS3Key!] as const),
+  ];
+  const covers = new Map(
+    await Promise.all(keyed.map(async ([id, key]) => [id, await presignDownload(key)] as const)),
+  );
+
   return (
     <div className="nk-wrap pb-16">
       <PageHead
@@ -54,51 +67,42 @@ export default async function MesCommunautesPage() {
 
       {/*
         Le salon qu'on anime passe devant, et se distingue à l'œil : fond teinté,
-        photo carrée, et un bouton qui mène à sa gestion — pas à sa fiche
-        publique. L'ordre dit la hiérarchie ; sans lui, on chercherait sa propre
-        communauté au milieu de celles qu'on suit.
+        pastille sur la bannière, et un bouton qui mène à sa gestion — pas à sa
+        fiche publique. L'ordre dit la hiérarchie ; sans lui, on chercherait sa
+        propre communauté au milieu de celles qu'on suit.
+
+        Il vit dans une grille aux mêmes colonnes que la liste du dessous, pour
+        qu'une carte seule ait la largeur des autres plutôt que celle de l'écran.
       */}
       {mienne ? (
-        <section
-          aria-label="La communauté que j'anime"
-          className="mt-6 flex flex-wrap items-center gap-5 rounded-nk-lg border-[1.5px] border-brand/30 bg-brand-tint/40 p-5"
-        >
-          {communityAvatarSrc(mienne) ? (
-            <img
-              src={communityAvatarSrc(mienne)!}
-              alt=""
-              className="size-[42px] shrink-0 rounded-nk-sm object-cover"
+        <section aria-label="La communauté que j'anime" className="mt-6">
+          <div className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+            <CommunityCard
+              community={{
+                id: mienne.id,
+                slug: mienne.slug,
+                name: mienne.name,
+                description: mienne.description,
+                priceFcfa: mienne.priceFcfa,
+                membersCount: mienne._count.subscriptions,
+                includedCount: mienne._count.courseLinks,
+                // Pas de nom de formateur sur sa propre carte : ce serait le sien.
+                trainerName: null,
+                coverUrl: covers.get(mienne.id) ?? null,
+              }}
+              href={routes.community(mienne.slug)}
+              highlight
+              eager
+              badge={<StPill tone="ok">Ma communauté</StPill>}
+              meta={mienne.visibility === "PUBLIC" ? "Ouverte à tous" : "Sur invitation"}
+              action={
+                <BtnLink href="/formateur/communaute" size="sm">
+                  <Settings aria-hidden="true" />
+                  Gérer
+                </BtnLink>
+              }
             />
-          ) : (
-            <span
-              className="grid size-[42px] shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand"
-              aria-hidden="true"
-            >
-              <Users className="size-5" />
-            </span>
-          )}
-
-          <div className="min-w-[240px] flex-1">
-            <p className="text-[13px] font-bold uppercase tracking-wide text-brand-dark">
-              Ma communauté
-            </p>
-            <h2 className="mt-0.5 text-[16.5px] font-bold leading-tight">
-              <Link href={routes.community(mienne.slug)} className="hover:text-brand">
-                {mienne.name}
-              </Link>
-            </h2>
-            <p className="mt-1 text-[13px] text-ink-2">
-              {fmtNumber(mienne._count.subscriptions)} membre
-              {mienne._count.subscriptions > 1 ? "s" : ""} ·{" "}
-              {mienne.visibility === "PUBLIC" ? "Ouverte à tous" : "Sur invitation"} ·{" "}
-              {fmtFcfa(mienne.priceFcfa)} / mois
-            </p>
           </div>
-
-          <BtnLink href="/formateur/communaute" size="sm">
-            <Settings aria-hidden="true" />
-            Gérer
-          </BtnLink>
         </section>
       ) : null}
 
@@ -114,58 +118,57 @@ export default async function MesCommunautesPage() {
           description="Chaque formateur anime la sienne : forum d'entraide, ressources incluses et sessions live."
         />
       ) : (
-        <ul className="mt-6 grid gap-4">
-          {memberships.map((m) => (
-            <li
-              key={m.subscriptionId}
-              className="flex flex-wrap items-center gap-5 rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm"
-            >
-              <Avatar name={m.community.trainerName ?? m.community.name} size="md" />
-
-              <div className="min-w-[240px] flex-1">
-                <h2 className="text-[16.5px] font-bold leading-tight">
-                  <Link href={routes.community(m.community.slug)} className="hover:text-brand">
-                    {m.community.name}
-                  </Link>
-                </h2>
-                <p className="mt-1 text-[13px] text-ink-2">
-                  {m.community.trainerName ? `Animée par ${m.community.trainerName} · ` : ""}
-                  {fmtNumber(m.community.membersCount)} membres ·{" "}
-                  {fmtFcfa(m.community.priceFcfa)} / mois
-                </p>
-              </div>
-
-              <div className="flex flex-col items-start gap-1.5 sm:items-end">
-                {m.status === "PAST_DUE" ? (
-                  <StPill tone="warn">
-                    <AlertTriangle className="size-3.5" aria-hidden="true" /> Échéance à régler
-                  </StPill>
-                ) : m.status === "BANNED" ? (
-                  <StPill tone="muted">
-                    <MessageSquareOff className="size-3.5" aria-hidden="true" /> Parole retirée
-                  </StPill>
-                ) : m.canceledAt ? (
-                  <StPill tone="muted">Résiliée</StPill>
-                ) : (
-                  <StPill tone="ok">Membre</StPill>
-                )}
-                <span className="text-[13px] text-ink-3">
-                  {m.canceledAt ? "Prend fin le " : "Prochaine échéance le "}
-                  {fmtDate(m.periodEnd)}
-                </span>
-              </div>
-
-              <BtnLink
-                href={
-                  m.status === "PAST_DUE"
-                    ? `/adhesion/${m.community.slug}`
-                    : `/mes-communautes/${m.community.slug}`
+        <ul className="mt-6 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+          {memberships.map((m, index) => (
+            <li key={m.subscriptionId} className="flex">
+              <CommunityCard
+                community={{
+                  id: m.community.id,
+                  slug: m.community.slug,
+                  name: m.community.name,
+                  priceFcfa: m.community.priceFcfa,
+                  membersCount: m.community.membersCount,
+                  trainerName: m.community.trainerName,
+                  coverUrl: covers.get(m.community.id) ?? null,
+                }}
+                href={routes.community(m.community.slug)}
+                className="flex-1"
+                eager={!mienne && index === 0}
+                badge={
+                  m.status === "PAST_DUE" ? (
+                    <StPill tone="warn">
+                      <AlertTriangle className="size-3.5" aria-hidden="true" /> Échéance à régler
+                    </StPill>
+                  ) : m.status === "BANNED" ? (
+                    <StPill tone="muted">
+                      <MessageSquareOff className="size-3.5" aria-hidden="true" /> Parole retirée
+                    </StPill>
+                  ) : m.canceledAt ? (
+                    <StPill tone="muted">Résiliée</StPill>
+                  ) : (
+                    <StPill tone="ok">Membre</StPill>
+                  )
                 }
-                variant={m.status === "PAST_DUE" ? "p" : "o"}
-                size="sm"
-              >
-                {m.status === "PAST_DUE" ? "Régler" : "Ouvrir"}
-              </BtnLink>
+                meta={
+                  <>
+                    {m.canceledAt ? "Prend fin le " : "Prochaine échéance le "}
+                    {fmtDate(m.periodEnd)}
+                  </>
+                }
+                action={
+                  <BtnLink
+                    href={
+                      m.status === "PAST_DUE"
+                        ? `/adhesion/${m.community.slug}`
+                        : `/mes-communautes/${m.community.slug}`
+                    }
+                    variant={m.status === "PAST_DUE" ? "p" : "o"}
+                    size="sm"
+                  >
+                    {m.status === "PAST_DUE" ? "Régler" : "Ouvrir"}
+                  </BtnLink>
+                }
+              />
             </li>
           ))}
         </ul>
