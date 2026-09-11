@@ -15,11 +15,17 @@ const UpdateSchema = z.object({
   description: z.string().min(10).max(5000).optional(),
   category: z.string().optional(),
   format: z.string().optional(),
-  priceFcfa: z.number().int().min(500).optional(),
+  // Plancher côté service, comme à la création : il dépend de la destination.
+  priceFcfa: z.number().int().min(0).optional(),
   level: z.string().optional(),
   learnPoints: z.array(z.string()).optional(),
   includes: z.array(z.string()).optional(),
   coverS3Key: z.string().optional(),
+  /**
+   * Changer de destination. Le service refuse en `CIRCUIT_LOCKED` dès que la
+   * ressource s'est engagée — publiée, ou achetée une fois.
+   */
+  circuit: z.enum(['MARKETPLACE', 'COMMUNITY']).optional(),
 })
 
 export async function GET(_req: Request, { params }: { params: Promise<{ courseId: string }> }) {

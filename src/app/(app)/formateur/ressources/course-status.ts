@@ -32,5 +32,9 @@ export const COURSE_LEVELS = [
   { value: "avancé", label: "Avancé" },
 ] as const;
 
-/** Prix plancher appliqué par createCourse/updateCourse. */
-export const MIN_PRICE_FCFA = 500;
+/**
+ * Prix plancher d'une ressource vendue à l'unité, tel que le serveur
+ * l'applique. Réexporté et non recopié : les deux valeurs ont vécu séparées,
+ * un `500` en dur dans `lib/courses.ts` et celle-ci.
+ */
+export { MIN_COURSE_PRICE_FCFA as MIN_PRICE_FCFA } from "@/lib/course-rules";

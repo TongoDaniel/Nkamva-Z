@@ -10,6 +10,8 @@ import { db } from "@/lib/db";
 import { getAuthContext } from "@/lib/api";
 import { getSalesByCourse } from "@/lib/trainer-stats";
 import { trainerStorage } from "@/lib/courses";
+import { circuitIsStillOpen } from "@/lib/course-rules";
+import { getMyCommunity } from "@/lib/communities";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import { CourseForm, type CourseFormValues } from "../course-form";
 import { CourseActions } from "../course-list";
@@ -52,7 +54,21 @@ export default async function EditCoursePage({
     priceFcfa: String(course.priceFcfa),
     learnPoints: course.learnPoints.length ? course.learnPoints : [""],
     includes: course.includes.length ? course.includes : [""],
+    circuit: course.circuit,
   };
+
+  // La destination reste modifiable tant que la ressource n'a rien engagé —
+  // brouillon jamais publié, jamais acheté. Le serveur le juge de son côté et
+  // refuse en `CIRCUIT_LOCKED` ; ici, ça décide seulement de l'état du champ.
+  const sold = await db.purchase.count({ where: { courseId: course.id } });
+  const circuitLocked = !circuitIsStillOpen({
+    status: course.status,
+    publishedAt: course.publishedAt,
+    purchaseCount: sold,
+  });
+  const community = auth.user.trainerId
+    ? await getMyCommunity(auth.user.trainerId)
+    : null;
 
   return (
     <div className="nk-wrap pb-16">
@@ -109,6 +125,10 @@ export default async function EditCoursePage({
         mode="edit"
         courseId={course.id}
         initial={initial}
+        circuitLocked={circuitLocked}
+        community={
+          community ? { name: community.name, resourcesEnabled: community.resourcesEnabled } : null
+        }
         aside={
           <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
             <h2 className="mb-4 text-[16.5px] font-extrabold">Couverture</h2>

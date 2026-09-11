@@ -21,6 +21,8 @@ import {
   hasCommunityAccess,
 } from '@/lib/communities'
 import { listMyResources } from '@/lib/access'
+import { createCourse, updateCourse } from '@/lib/courses'
+import { circuitIsStillOpen } from '@/lib/course-rules'
 
 const JOUR = 86_400_000
 
@@ -297,5 +299,164 @@ describe('Lot 8 — ressources et communautés', () => {
     expect(liste.counts.all).toBe(1)
     // L'achat prime : c'est lui qui porte le droit le plus fort.
     expect(liste.items[0].origin).toBe('purchase')
+  })
+
+  // --- La destination, choisie à la création --------------------------------
+  //
+  // Elle ne se choisissait pas : tout naissait au catalogue, et seul l'écran de
+  // la communauté faisait basculer après coup. Ce que ces cas gardent, c'est
+  // l'indivisibilité — circuit, prix et liaison sont écrits ensemble — et les
+  // deux gardes que la liaison portait déjà.
+
+  /** Le corps minimal d'une création, sans la destination. */
+  const CORPS = {
+    title: 'Ressource née incluse',
+    blurb: 'Une accroche assez longue.',
+    description: 'Une description complète, et un peu plus longue encore.',
+    category: 'dev',
+    format: 'pdf',
+  }
+
+  it('créée « incluse », elle naît liée, sans prix, en brouillon', async () => {
+    const { profile, community, trainerUser } = await decor()
+
+    const course = await createCourse(profile.id, trainerUser.id, {
+      ...CORPS,
+      priceFcfa: 0,
+      circuit: 'COMMUNITY',
+    })
+
+    expect(course.circuit).toBe('COMMUNITY')
+    expect(course.priceFcfa).toBe(0)
+    expect(course.status).toBe('draft')
+    // Le point qui compte : sans cette ligne, la ressource ne serait visible
+    // nulle part — ni en vente, puisque l'achat la refuse, ni sur l'étagère,
+    // qui part des liaisons.
+    const liens = await prisma.communityCourse.findMany({ where: { courseId: course.id } })
+    expect(liens).toHaveLength(1)
+    expect(liens[0].communityId).toBe(community.id)
+    expect(liens[0].unlinkedAt).toBeNull()
+  })
+
+  it('créée pour le catalogue, elle reste sans liaison', async () => {
+    const { profile, trainerUser } = await decor()
+
+    const course = await createCourse(profile.id, trainerUser.id, { ...CORPS, priceFcfa: 15_000 })
+
+    expect(course.circuit).toBe('MARKETPLACE')
+    expect(course.priceFcfa).toBe(15_000)
+    expect(await prisma.communityCourse.count({ where: { courseId: course.id } })).toBe(0)
+  })
+
+  it('sans communauté ouverte, l’inclusion est refusée', async () => {
+    const { profile, trainerUser } = await decor({ status: 'closed' })
+
+    await expect(
+      createCourse(profile.id, trainerUser.id, { ...CORPS, priceFcfa: 0, circuit: 'COMMUNITY' }),
+    ).rejects.toThrow('COMMUNITY_NOT_FOUND')
+    // Et rien n'est écrit au passage : le refus tombe avant la transaction.
+    expect(await prisma.course.count()).toBe(0)
+  })
+
+  it('rayon éteint, l’inclusion est refusée (arbitrage 136)', async () => {
+    const { profile, trainerUser } = await decor({ resourcesEnabled: false })
+
+    await expect(
+      createCourse(profile.id, trainerUser.id, { ...CORPS, priceFcfa: 0, circuit: 'COMMUNITY' }),
+    ).rejects.toThrow('COMMUNITY_RESOURCES_DISABLED')
+    expect(await prisma.course.count()).toBe(0)
+  })
+
+  it('le plancher de prix ne vaut que pour ce qui se vend', async () => {
+    const { profile, trainerUser } = await decor()
+
+    await expect(
+      createCourse(profile.id, trainerUser.id, { ...CORPS, priceFcfa: 100 }),
+    ).rejects.toThrow('PRICE_TOO_LOW')
+
+    // Le même montant, mais incluse : le prix n'a pas d'objet, il ne bloque pas.
+    const incluse = await createCourse(profile.id, trainerUser.id, {
+      ...CORPS,
+      priceFcfa: 100,
+      circuit: 'COMMUNITY',
+    })
+    expect(incluse.priceFcfa).toBe(0)
+  })
+
+  // --- L'amendement à l'arbitrage 137 --------------------------------------
+
+  it('tant que le brouillon n’a rien engagé, la destination change', async () => {
+    const { profile, trainerUser } = await decor()
+    const course = await createCourse(profile.id, trainerUser.id, {
+      ...CORPS,
+      priceFcfa: 0,
+      circuit: 'COMMUNITY',
+    })
+
+    const apres = await updateCourse(course.id, profile.id, trainerUser.id, {
+      circuit: 'MARKETPLACE',
+      priceFcfa: 9_000,
+    })
+
+    expect(apres.circuit).toBe('MARKETPLACE')
+    expect(apres.priceFcfa).toBe(9_000)
+    // Bornée, jamais supprimée : c'est la règle de l'arbitrage 48, et elle vaut
+    // même ici où personne n'a rien reçu.
+    const liens = await prisma.communityCourse.findMany({ where: { courseId: course.id } })
+    expect(liens).toHaveLength(1)
+    expect(liens[0].unlinkedAt).not.toBeNull()
+  })
+
+  it('publiée, la destination se fige', async () => {
+    const { profile, trainerUser } = await decor()
+    const course = await createCourse(profile.id, trainerUser.id, {
+      ...CORPS,
+      priceFcfa: 0,
+      circuit: 'COMMUNITY',
+    })
+    await prisma.course.update({
+      where: { id: course.id },
+      data: { status: 'published', publishedAt: new Date() },
+    })
+
+    await expect(
+      updateCourse(course.id, profile.id, trainerUser.id, {
+        circuit: 'MARKETPLACE',
+        priceFcfa: 9_000,
+      }),
+    ).rejects.toThrow('CIRCUIT_LOCKED')
+  })
+
+  it('un achat suffit à figer la destination', () => {
+    // La règle elle-même, sans passer par une commande : ce qu'un achat
+    // interdit, c'est de rendre gratuit pour les abonnés ce que quelqu'un a payé.
+    expect(circuitIsStillOpen({ status: 'draft', publishedAt: null, purchaseCount: 0 })).toBe(true)
+    expect(circuitIsStillOpen({ status: 'draft', publishedAt: null, purchaseCount: 1 })).toBe(false)
+    expect(circuitIsStillOpen({ status: 'draft', publishedAt: new Date(), purchaseCount: 0 })).toBe(false)
+    expect(circuitIsStillOpen({ status: 'archived', publishedAt: null, purchaseCount: 0 })).toBe(false)
+  })
+
+  // --- Un brouillon ne garnit personne -------------------------------------
+
+  it('un brouillon inclus n’apparaît pas chez le membre, publié oui', async () => {
+    const { profile, community, trainerUser } = await decor()
+    const learner = await membre(community.id)
+    const course = await createCourse(profile.id, trainerUser.id, {
+      ...CORPS,
+      priceFcfa: 0,
+      circuit: 'COMMUNITY',
+    })
+
+    // Rien ne les excluait : un formateur qui liait une ressource en
+    // préparation la posait aussitôt sur l'étagère de ses membres, sans fichier
+    // derrière. Le cas était rare tant que lier demandait d'aller le faire ;
+    // depuis que la destination se choisit à la création, c'est le cas courant.
+    expect((await listMyResources(learner.id)).counts.all).toBe(0)
+
+    await prisma.course.update({
+      where: { id: course.id },
+      data: { status: 'published', publishedAt: new Date() },
+    })
+    expect((await listMyResources(learner.id)).counts.all).toBe(1)
   })
 })

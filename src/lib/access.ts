@@ -391,7 +391,17 @@ async function listMyIncludedEntries(learnerId: string): Promise<
   if (subs.length === 0) return []
 
   const links = await db.communityCourse.findMany({
-    where: { communityId: { in: subs.map((s) => s.communityId) } },
+    where: {
+      communityId: { in: subs.map((s) => s.communityId) },
+      // Pas les brouillons. Rien ne les excluait : une ressource liée en cours
+      // de préparation apparaissait aussitôt dans « Mes ressources », sans
+      // fichier derrière. Le cas était rare tant que lier demandait d'aller le
+      // faire ; depuis que la destination se choisit à la création, une
+      // ressource incluse **naît** brouillon. `not: 'draft'` et non
+      // `= 'published'` : une ressource archivée a été publiée, et ce qu'un
+      // membre a reçu lui reste.
+      course: { status: { not: 'draft' } },
+    },
     select: {
       courseId: true, communityId: true, linkedAt: true, unlinkedAt: true,
       community: { select: { slug: true, name: true } },
