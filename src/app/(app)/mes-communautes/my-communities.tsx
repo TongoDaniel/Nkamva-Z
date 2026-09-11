@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, MessageSquareOff, Search, Settings, Users } from "lucide-react";
+import { AlertTriangle, MessageSquareOff, Search, Settings } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
 import {
@@ -115,7 +115,13 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
       ) : null}
 
       <ul className={COMMUNITY_GRID}>
-        {shown.map((item) => (
+        {shown.map((item) => {
+          // Calculée, et non rendue en composant : `<Badge/>` est toujours un
+          // nœud vrai, même quand il ne rend rien, et la carte réservait alors
+          // une rangée vide — haute de zéro, mais qui consomme l'écart de la
+          // grille.
+          const badge = badgeFor(item);
+          return (
           <li key={item.card.id} className="flex">
             <CommunityCard
               community={item.card}
@@ -123,7 +129,7 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
               className="flex-1"
               highlight={item.own}
               hideTrainerName={item.own}
-              badge={<Badge item={item} />}
+              badge={badge}
               meta={item.own ? item.visibilityLabel : item.membership?.dueLabel}
               action={
                 item.own ? (
@@ -146,17 +152,25 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
               }
             />
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   );
 }
 
-/** La pastille posée sur le portrait : ce que la personne est pour cette communauté. */
-function Badge({ item }: { item: MyCommunityItem }) {
-  if (item.own) return <StPill tone="ok">Ma communauté</StPill>;
+/**
+ * L'état de la personne dans cette communauté, quand il ne se devine pas.
+ *
+ * Rien pour celle qu'elle anime : le bouton « Gérer » et le fond teinté le
+ * disent déjà, et une pastille « Ma communauté » par-dessus ne faisait que
+ * rallonger la carte. Rien non plus pour un membre à jour — « Membre » sur une
+ * carte qui figure dans *ses* communautés n'apprend rien. Il reste ce qui
+ * demande une décision ou explique un silence.
+ */
+function badgeFor(item: MyCommunityItem): React.ReactNode {
   const membership = item.membership;
-  if (!membership) return null;
+  if (item.own || !membership) return null;
   if (membership.status === "PAST_DUE") {
     return (
       <StPill tone="warn">
@@ -172,9 +186,5 @@ function Badge({ item }: { item: MyCommunityItem }) {
     );
   }
   if (membership.canceled) return <StPill tone="muted">Résiliée</StPill>;
-  return (
-    <StPill tone="ok">
-      <Users className="size-3.5" aria-hidden="true" /> Membre
-    </StPill>
-  );
+  return null;
 }
