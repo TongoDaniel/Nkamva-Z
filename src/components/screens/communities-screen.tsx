@@ -68,10 +68,9 @@ export async function CommunitiesScreen({
             id: community.id,
             slug: community.slug,
             name: community.name,
-            description: community.description,
             priceFcfa: community.priceFcfa,
             membersCount: community.membersCount,
-            includedCount: community.includedCount,
+            visibility: community.visibility,
             trainerName: community.trainer.fullName ?? 'Formateur NkamVa',
             trainerAvatarUrl: userAvatarSrc({
               id: community.trainer.userId,

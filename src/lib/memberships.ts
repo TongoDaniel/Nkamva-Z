@@ -29,7 +29,11 @@
 // courant. Aucun modèle de facturation supplémentaire n'a été nécessaire.
 // ==========================================================================
 
-import type { CommunitySubscriptionStatus, PaymentProvider } from '@prisma/client'
+import type {
+  CommunitySubscriptionStatus,
+  CommunityVisibility,
+  PaymentProvider,
+} from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
@@ -144,6 +148,8 @@ export interface MyCommunity {
     coverS3Key: string | null
     priceFcfa: number
     membersCount: number
+    /** Une adhésion peut très bien porter sur une communauté privée. */
+    visibility: CommunityVisibility
     trainerName: string | null
     /** Le compte du formateur, pour la photo que la carte pose en tÃªte. */
     trainerUserId: string
@@ -165,7 +171,7 @@ export async function listMyMemberships(learnerId: string): Promise<MyCommunity[
       community: {
         select: {
           id: true, slug: true, name: true, coverS3Key: true, priceFcfa: true,
-          membersCount: true,
+          membersCount: true, visibility: true,
           trainerProfile: {
             select: { userId: true, user: { select: { fullName: true, avatarS3Key: true } } },
           },
@@ -186,6 +192,7 @@ export async function listMyMemberships(learnerId: string): Promise<MyCommunity[
       coverS3Key: s.community.coverS3Key,
       priceFcfa: s.community.priceFcfa,
       membersCount: s.community.membersCount,
+      visibility: s.community.visibility,
       trainerName: s.community.trainerProfile.user.fullName,
       trainerUserId: s.community.trainerProfile.userId,
       trainerAvatarS3Key: s.community.trainerProfile.user.avatarS3Key,
