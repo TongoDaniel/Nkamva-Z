@@ -95,10 +95,18 @@ export default async function MaCommunautePage({
       />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        {/* « membres », et non « membres actifs » : ce compte suit la définition
+            unique du produit — une adhésion dont la période court —, et un banni
+            en fait partie (arbitrage 40 : écarté de la parole, pas de l'accès).
+            Le dire « actif » l'aurait exclu du mot tout en le comptant.
+
+            L'onglet « Membres », juste en dessous, affiche un autre nombre à
+            dessein : il annonce le nombre de lignes qu'il ouvre, historique
+            compris — ceux qui sont passés par là et dont la période est close. */}
         <StatTile
           icon={<Users />}
           value={fmtNumber(community._count.subscriptions)}
-          label={`membre${community._count.subscriptions > 1 ? "s" : ""} actif${community._count.subscriptions > 1 ? "s" : ""}`}
+          label={`membre${community._count.subscriptions > 1 ? "s" : ""}`}
         />
         <StatTile
           icon={<Library />}

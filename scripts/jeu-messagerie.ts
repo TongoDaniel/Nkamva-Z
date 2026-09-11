@@ -31,6 +31,7 @@
 // fois et les réutiliser. Relancer le script efface et refait le même jeu.
 
 import { config } from 'dotenv'
+import { recountCommunityMembers } from '../src/lib/communities'
 
 config()
 
@@ -258,7 +259,7 @@ async function main() {
   ) {
     const statut = opts.statut ?? 'ACTIVE'
     const depuis = opts.depuis ?? 60
-    return db.communitySubscription.create({
+    const sub = await db.communitySubscription.create({
       data: {
         communityId,
         learnerId,
@@ -270,6 +271,12 @@ async function main() {
             : new Date(Date.now() + 25 * JOUR),
       },
     })
+    // Ce script écrit les adhésions **directement**, sans passer par le service
+    // qui les vend : c'est lui qui a fait dériver `membersCount`, resté à zéro
+    // pendant que la communauté comptait quatre membres. Le recompte rétablit
+    // l'invariant à chaque appel.
+    await recountCommunityMembers(db, communityId)
+    return sub
   }
 
   await adherer(atelier.id, koffi.id)

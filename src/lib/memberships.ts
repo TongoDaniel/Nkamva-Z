@@ -40,6 +40,7 @@ import {
   resumableAsIs, isCheckoutSession,
   type MobileMoneyPayer, type OpenPaymentResult,
 } from './purchases'
+import { recountCommunityMembers } from './communities'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -559,12 +560,10 @@ export async function activateMembershipForPurchase(
     },
   })
 
-  // Le compteur suit les adhésions ouvertes. Il est incrémenté ici seulement :
-  // un renouvellement ne crée pas un membre de plus.
-  await tx.community.update({
-    where: { id: purchase.communityId },
-    data: { membersCount: { increment: 1 } },
-  })
+  // Le compteur suit les adhésions ouvertes. Recompté, et non incrémenté :
+  // voir `recountCommunityMembers`. Un `+1` survit mal à un webhook rejoué, et
+  // il ne répare jamais une ligne qu'un autre chemin a laissée fausse.
+  await recountCommunityMembers(tx, purchase.communityId)
 
   await audit(tx, {
     actorId: purchase.learnerId, actorRole: 'LEARNER',
@@ -839,17 +838,11 @@ async function closeMembership(
       data: { providerStatus: 'CANCELED' },
     })
 
-    // `decrement` sans plancher irait sous zéro si le compteur avait déjà
-    // dérivé ; on l'y ramène plutôt que de laisser un nombre de membres négatif
-    // s'afficher sur la fiche publique.
-    const community = await tx.community.findUnique({
-      where: { id: communityId },
-      select: { membersCount: true },
-    })
-    await tx.community.update({
-      where: { id: communityId },
-      data: { membersCount: Math.max(0, (community?.membersCount ?? 0) - 1) },
-    })
+    // Recompté, et non décrémenté. Le `-1` avait besoin d'un plancher à zéro
+    // pour ne pas afficher un nombre de membres négatif sur la fiche publique :
+    // ce plancher était l'aveu que le compteur pouvait déjà être faux. Un
+    // recompte n'a pas besoin de plancher, et répare la ligne au passage.
+    await recountCommunityMembers(tx, communityId)
 
     await audit(tx, {
       actorId: null, actorRole: 'SYSTEM',

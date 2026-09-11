@@ -44,6 +44,7 @@ import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
 import { assertCanActAsLearner } from './roles'
 import { getSettingNumber } from './settings'
+import { recountCommunityMembers } from './communities'
 import type { PrismaTransaction } from './types'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts doivent rester alignées. */
@@ -729,10 +730,10 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
       },
     })
 
-    await tx.community.update({
-      where: { id: invitation.communityId },
-      data: { membersCount: { increment: 1 } },
-    })
+    // Recompté, et non incrémenté : voir `recountCommunityMembers`. Une
+    // adhésion offerte est un membre comme un autre, et ce compteur a dérivé
+    // pour avoir été tenu à coups de `+1` depuis trois endroits.
+    await recountCommunityMembers(tx, invitation.communityId)
 
     // Il était peut-être en train de payer. On n'encaisse pas ce qu'on offre.
     await tx.purchase.updateMany({

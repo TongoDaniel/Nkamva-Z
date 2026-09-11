@@ -11,6 +11,7 @@ import {
   listPublicCommunities, getPublicCommunity,
   linkCourseToCommunity, unlinkCourseFromCommunity,
   hasCommunityAccess, listMyIncludedCourses,
+  recountCommunityMembers, banCommunityMember, unbanCommunityMember,
 } from '@/lib/communities'
 import { searchCourses } from '@/lib/catalog'
 import { initiatePurchase } from '@/lib/purchases'
@@ -215,5 +216,71 @@ describe('Communautés', () => {
     await expect(
       linkCourseToCommunity(community.id, otherCourse.id, trainer.id, trainerUser.id),
     ).rejects.toThrow('NOT_OWNER')
+  })
+
+  // --- `membersCount`, recompté plutôt qu'incrémenté ------------------------
+  //
+  // Le compteur est dénormalisé, et il avait dérivé : une base affichait 3
+  // membres d'un côté, 0 de l'autre, pour la même communauté. Trois causes,
+  // dont deux que ces cas ferment : une définition de « membre » qui glissait,
+  // et un chemin d'écriture qui ne recomptait pas.
+
+  it('le compteur suit les adhésions ouvertes, banni compris', async () => {
+    const { community, learner } = await setup()
+    const autre = await prisma.user.create({ data: { email: 'autre@test.com', role: 'LEARNER' } })
+    const parti = await prisma.user.create({ data: { email: 'parti@test.com', role: 'LEARNER' } })
+    await subscribe(community.id, learner.id)
+    await subscribe(community.id, autre.id, { status: 'BANNED' })
+    // Période close : il n'est plus membre, il garde ce qu'il a reçu.
+    await subscribe(community.id, parti.id, { status: 'EXPIRED', endDaysAgo: 5 })
+
+    const compte = await recountCommunityMembers(prisma, community.id)
+
+    // Un banni est écarté de la parole, pas de l'accès (arbitrage 40) : il
+    // compte. C'est la définition unique du produit, et elle était lue
+    // autrement par l'écran du formateur — d'où deux nombres pour une idée.
+    expect(compte).toBe(2)
+    const row = await prisma.community.findUnique({ where: { id: community.id } })
+    expect(row?.membersCount).toBe(2)
+  })
+
+  it('le recompte répare une colonne fausse, et ne dérive pas', async () => {
+    const { community, learner } = await setup()
+    await subscribe(community.id, learner.id)
+
+    // Ce qu'un script d'essai ou un seed laisse derrière lui en écrivant une
+    // adhésion sans passer par le service : la colonne ment.
+    await prisma.community.update({ where: { id: community.id }, data: { membersCount: 47 } })
+
+    expect(await recountCommunityMembers(prisma, community.id)).toBe(1)
+    // Idempotent : deux appels donnent le même nombre, là où deux `+1` en
+    // donnaient deux différents.
+    expect(await recountCommunityMembers(prisma, community.id)).toBe(1)
+  })
+
+  it('lever la sanction de quelqu’un dont la période est close le retire du compte', async () => {
+    const { community, learner, trainer, trainerUser } = await setup()
+    // Banni **et** période close : la levée pose `EXPIRED`, qui sort des
+    // adhésions ouvertes. Aucun chemin ne touchait au compteur ici — la
+    // communauté gardait un membre qu'elle n'avait plus.
+    await subscribe(community.id, learner.id, { status: 'BANNED', endDaysAgo: 5 })
+    await recountCommunityMembers(prisma, community.id)
+    expect((await prisma.community.findUnique({ where: { id: community.id } }))?.membersCount).toBe(1)
+
+    await unbanCommunityMember(community.id, learner.id, trainer.id, trainerUser.id)
+
+    const apres = await prisma.communitySubscription.findFirst({ where: { communityId: community.id } })
+    expect(apres?.status).toBe('EXPIRED')
+    expect((await prisma.community.findUnique({ where: { id: community.id } }))?.membersCount).toBe(0)
+  })
+
+  it('bannir ne change pas le nombre de membres', async () => {
+    const { community, learner, trainer, trainerUser } = await setup()
+    await subscribe(community.id, learner.id)
+    await recountCommunityMembers(prisma, community.id)
+
+    await banCommunityMember(community.id, learner.id, trainer.id, trainerUser.id, 'Propos déplacés')
+
+    expect((await prisma.community.findUnique({ where: { id: community.id } }))?.membersCount).toBe(1)
   })
 })

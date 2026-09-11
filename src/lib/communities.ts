@@ -25,6 +25,7 @@ import { canTrainerWrite } from './subscriptions'
 import { trainerStorage } from './courses'
 import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
 import type { CourseListItem } from './dto'
+import type { PrismaTransaction } from './types'
 import { COMMUNITIES_PAGE_SIZE } from './search-limits'
 
 /**
@@ -33,6 +34,49 @@ import { COMMUNITIES_PAGE_SIZE } from './search-limits'
  * — même patron que la restriction de compte.
  */
 export const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
+
+/**
+ * Recompte les membres d'une communauté, et écrit le compteur.
+ * ==========================================================================
+ * `Community.membersCount` est dénormalisé : il évite une jointure sur chaque
+ * carte, chaque fiche, chaque résultat de recherche. Il était tenu par des
+ * `increment: 1` et un `decrement` à trois endroits, et il a dérivé — une base
+ * de développement affichait **3 membres d'un côté, 0 de l'autre** pour la même
+ * communauté.
+ *
+ * Un compteur incrémental dérive de trois façons, et aucune ne se voit :
+ *
+ *   · **un chemin qui oublie.** Un script d'essai, un seed, une correction en
+ *     base qui crée une adhésion sans passer par le service : le compteur ne
+ *     bouge pas, et personne ne l'apprend. C'est l'origine de la dérive
+ *     constatée.
+ *   · **un chemin qui compte deux fois.** Un webhook rejoué, une reprise après
+ *     erreur : `+1` s'applique à nouveau.
+ *   · **une définition qui glisse.** « Membre » se lisait ici comme *adhésion
+ *     ouverte* (`OPEN_STATUSES`, banni compris — arbitrage 40 : écarté de la
+ *     parole, pas de l'accès) et ailleurs comme *actif ou en retard de
+ *     paiement*, ce qui donnait deux nombres pour la même idée.
+ *
+ * Un **recompte** ne dérive pas. Il est idempotent — l'appeler deux fois donne
+ * le même résultat —, il répare la ligne au passage si elle était fausse, et il
+ * ne coûte qu'un `COUNT` sur un événement rare : on adhère, on part, on est
+ * banni quelques fois par mois, pas plusieurs fois par seconde.
+ *
+ * À appeler dans la **même transaction** que le changement d'adhésion : hors
+ * d'elle, un recompte peut lire un état que la transaction voisine n'a pas
+ * encore validé.
+ * ==========================================================================
+ */
+export async function recountCommunityMembers(
+  tx: PrismaTransaction,
+  communityId: string,
+): Promise<number> {
+  const membersCount = await tx.communitySubscription.count({
+    where: { communityId, status: { in: [...OPEN_STATUSES] } },
+  })
+  await tx.community.update({ where: { id: communityId }, data: { membersCount } })
+  return membersCount
+}
 
 export interface PublicCommunity {
   id: string
@@ -668,7 +712,12 @@ export async function getMyCommunity(trainerProfileId: string) {
       resourcesEnabled: true, eventsEnabled: true, createdAt: true,
       _count: {
         select: {
-          subscriptions: { where: { status: { in: ['ACTIVE', 'PAST_DUE'] } } },
+          // `OPEN_STATUSES`, et non `ACTIVE`/`PAST_DUE` : c'était la troisième
+          // définition de « membre » du produit, et celle qui donnait un nombre
+          // différent de `membersCount` sur deux écrans voisins. Un banni reste
+          // un membre (arbitrage 40) ; ce compte dit donc la même chose que la
+          // colonne, qui est désormais recomptée à chaque changement.
+          subscriptions: { where: { status: { in: [...OPEN_STATUSES] } } },
           courseLinks: { where: { unlinkedAt: null, course: { status: { not: 'draft' } } } },
         },
       },
@@ -781,6 +830,12 @@ export async function banCommunityMember(
         bannedById: userId,
       },
     })
+    // Un banni reste un membre — écarté de la parole, pas de l'accès
+    // (arbitrage 40) —, donc ce recompte rend le même nombre. Il est là pour
+    // que l'invariant tienne de lui-même si cette définition changeait, et
+    // parce qu'un chemin qui touche aux adhésions sans recompter est
+    // exactement ce qui a fait dériver ce compteur.
+    await recountCommunityMembers(tx, communityId)
     await audit(tx, {
       actorId: userId, actorRole: 'TRAINER',
       action: 'COMMUNITY_MEMBER_BANNED', targetType: 'CommunitySubscription', targetId: subscription.id,
@@ -833,6 +888,12 @@ export async function unbanCommunityMember(
       where: { id: subscription.id },
       data: { status, bannedAt: null, bannedReason: null, bannedById: null },
     })
+    // Ici le recompte **change** le nombre, et c'était un défaut : lever la
+    // sanction de quelqu'un dont la période est close ou résiliée pose
+    // `EXPIRED`, qui sort des adhésions ouvertes. Personne ne touchait au
+    // compteur sur ce chemin — la communauté gardait un membre qu'elle n'avait
+    // plus, jusqu'à la prochaine adhésion ou au prochain départ.
+    await recountCommunityMembers(tx, communityId)
     await audit(tx, {
       actorId: userId, actorRole: 'TRAINER',
       action: 'COMMUNITY_MEMBER_UNBANNED', targetType: 'CommunitySubscription', targetId: subscription.id,
