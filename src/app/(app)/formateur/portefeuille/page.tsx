@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDownToLine, CreditCard, Lock, Plus, Wallet } from "lucide-react";
+import { ArrowDownToLine, CreditCard, Plus } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
-import { StatTile } from "@/components/nk/stat-tile";
+
 import { StPill } from "@/components/nk/status-pill";
 import { InfoBox } from "@/components/nk/info-box";
-import { EmptyState } from "@/components/nk/empty-state";
 import { getAuthContext } from "@/lib/api";
 import { computeKycScore } from "@/lib/kyc";
 import { getTrainerWallet } from "@/lib/trainer-stats";
@@ -19,6 +18,7 @@ import { listMyPayouts, PAYOUT_MIN_AMOUNT_FCFA, IN_FLIGHT_PAYOUT_STATUSES } from
 import { getMySubscription } from "@/lib/subscriptions";
 import { getTrainerStorage } from "@/lib/storage-tiers";
 import { fmtFcfa, fmtDate } from "@/lib/format";
+import { walletTileLabel } from "../wallet-label";
 import { KycPanel } from "./kyc-panel";
 import { StoragePanel } from "./storage-panel";
 import { PayoutRequestForm } from "./payout-request-form";
@@ -76,7 +76,10 @@ export default async function PortefeuillePage() {
     : withdrawable.reason === "PAYOUT_METHOD_MISSING"
       ? {
           title: "Aucun moyen de paiement enregistré",
-          body: "Enregistrez le compte sur lequel vous voulez être payé. Il sera vérifié avant votre premier retrait.",
+          // Court : le bouton dit le geste, et la section « Moyen de paiement »
+          // explique le reste quelques centimètres plus bas. Trois lignes ici
+          // paraphrasaient ce qui s'y trouve déjà.
+          body: "Il sera vérifié avant votre premier retrait.",
           action: { href: "/formateur/portefeuille/moyen-de-paiement", label: "Enregistrer un compte" },
         }
       : withdrawable.reason === "PAYOUT_METHOD_NOT_VERIFIED"
@@ -105,47 +108,86 @@ export default async function PortefeuillePage() {
         crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Portefeuille" }]}
         title="Portefeuille"
         lead="Votre solde, votre score de confiance et vos retraits. Le solde est crédité à chaque vente réellement encaissée."
-        actions={
-          <>
-            {/* Le solde dit combien ; il ne dit pas d'où. Le renvoi vaut quel
-                que soit l'état du compte de versement. */}
-            <BtnLink href="/formateur/ventes" variant="o">Mes ventes</BtnLink>
-            {active ? null : (
-              <BtnLink href="/formateur/portefeuille/moyen-de-paiement">
-                <Plus aria-hidden="true" />
-                Enregistrer un compte
-              </BtnLink>
-            )}
-          </>
-        }
+        // Le solde dit combien ; il ne dit pas d'où. Le renvoi vaut quel que
+        // soit l'état du compte de versement.
+        //
+        // « Enregistrer un compte » a quitté cet en-tête : le même bouton
+        // paraissait **trois fois** sur l'écran d'un formateur qui n'a pas
+        // encore de compte de versement — ici, dans le bloc de retrait, et dans
+        // la section du moyen de paiement. Il n'en reste qu'un, dans le bloc de
+        // retrait, là où le geste est demandé.
+        actions={<BtnLink href="/formateur/ventes" variant="o">Mes ventes</BtnLink>}
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          icon={<Wallet />}
-          tone="brand"
-          value={fmtFcfa(wallet.balanceFcfa)}
-          label="solde crédité"
-        />
-        <StatTile
-          icon={<Lock />}
-          tone="clay"
-          value={fmtFcfa(wallet.reservedFcfa)}
-          label="réservé par des litiges"
-        />
-        <StatTile
-          icon={<ArrowDownToLine />}
-          tone="gold"
-          value={fmtFcfa(wallet.pendingPayoutFcfa)}
-          label="retrait en cours"
-        />
-        <StatTile
-          icon={<CreditCard />}
-          tone="blue"
-          value={fmtFcfa(wallet.withdrawableFcfa)}
-          label="montant retirable"
-        />
-      </div>
+      {/*
+        Le solde, et le geste qu'il commande, dans une seule carte.
+        ======================================================================
+        Quatre tuiles de même taille s'empilaient ici — solde crédité, réservé,
+        retrait en cours, montant retirable — sur quatre rangées entières dès
+        qu'on lisait l'écran sur un téléphone. Trois d'entre elles affichaient
+        « 0 FCFA » et pesaient autant que celle qui compte.
+
+        Une seule compte vraiment : **ce qu'on peut retirer maintenant**. Elle
+        prend la taille du titre, et les trois autres deviennent ce qu'elles
+        sont — l'explication de l'écart entre le solde et ce montant. Sans
+        elles, un retirable plus petit que le solde serait incompréhensible
+        (c'est déjà la raison d'être de `walletTileLabel`).
+
+        Le formulaire de retrait la rejoint : il vivait dans la colonne
+        latérale, donc **sous** le stockage et l'historique sur téléphone —
+        l'action pour laquelle on ouvre cette page arrivait en cinquième.
+        ======================================================================
+      */}
+      <section
+        aria-labelledby="solde-titre"
+        className="mb-5 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:mb-8 sm:p-6 lg:flex lg:items-start lg:gap-8"
+      >
+        <div className="lg:min-w-0 lg:flex-1">
+          <h2
+            id="solde-titre"
+            className="text-[13px] font-bold uppercase tracking-wide text-ink-3"
+          >
+            Montant retirable
+          </h2>
+          <p className="mt-1 font-display text-[30px] font-extrabold leading-none tracking-[-0.02em] sm:text-[36px]">
+            {fmtFcfa(wallet.withdrawableFcfa)}
+          </p>
+          <p className="mt-1.5 text-[13px] text-ink-3">{walletTileLabel(wallet)}</p>
+
+          {/* L'écart, en trois nombres. Même source que les tuiles d'avant,
+              même ordre : ce qui est entré, ce qui est gelé, ce qui est parti. */}
+          <dl className="mt-4 grid grid-cols-3 gap-x-3 gap-y-1 border-t border-line-2 pt-3.5 text-[13px]">
+            <dt className="text-ink-3">Crédité</dt>
+            <dt className="text-ink-3">Litiges</dt>
+            <dt className="text-ink-3">Retrait en cours</dt>
+            <dd className="font-display font-bold text-ink">{fmtFcfa(wallet.balanceFcfa)}</dd>
+            <dd className="font-display font-bold text-ink">{fmtFcfa(wallet.reservedFcfa)}</dd>
+            <dd className="font-display font-bold text-ink">
+              {fmtFcfa(wallet.pendingPayoutFcfa)}
+            </dd>
+          </dl>
+        </div>
+
+        <div className="mt-5 border-t border-line-2 pt-5 lg:mt-0 lg:w-[300px] lg:shrink-0 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+          {blocker ? (
+            <>
+              <p className="text-[13.5px] font-bold text-ink">{blocker.title}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">{blocker.body}</p>
+              {blocker.action ? (
+                <BtnLink href={blocker.action.href} block className="mt-4">
+                  <Plus aria-hidden="true" />
+                  {blocker.action.label}
+                </BtnLink>
+              ) : null}
+            </>
+          ) : (
+            <PayoutRequestForm
+              withdrawableFcfa={wallet.withdrawableFcfa}
+              minimumFcfa={PAYOUT_MIN_AMOUNT_FCFA}
+            />
+          )}
+        </div>
+      </section>
 
       {/*
         Un impayé se découvrait jusqu'ici par une seule notification, qui pouvait
@@ -192,24 +234,24 @@ export default async function PortefeuillePage() {
         </InfoBox>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-        <div className="grid gap-6">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_340px] lg:items-start">
+        <div className="grid gap-4 sm:gap-6">
           <section
             aria-labelledby="moyen-titre"
-            className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+            className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
           >
-            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-              <h2 id="moyen-titre" className="text-[16.5px] font-extrabold">
+            <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-3">
+              <h2 id="moyen-titre" className="text-[15.5px] font-extrabold sm:text-[16.5px]">
                 Moyen de paiement
               </h2>
-              {active ? (
-                <Link
-                  href="/formateur/portefeuille/moyen-de-paiement"
-                  className="nk-tap text-[13px] font-bold text-brand"
-                >
-                  Le remplacer
-                </Link>
-              ) : null}
+              {/* Un lien, pas un bouton : le geste est le même qu'avec un compte
+                  actif, et le bloc de retrait porte déjà l'appel à l'action. */}
+              <Link
+                href="/formateur/portefeuille/moyen-de-paiement"
+                className="nk-tap text-[13px] font-bold text-brand"
+              >
+                {active ? "Le remplacer" : "En enregistrer un"}
+              </Link>
             </div>
 
             {active ? (
@@ -246,16 +288,17 @@ export default async function PortefeuillePage() {
                 ) : null}
               </>
             ) : (
-              <EmptyState
-                icon={<CreditCard />}
-                title="Aucun compte enregistré"
-                description="Vous serez payé sur le compte que vous enregistrez ici. Il est vérifié avant tout versement, et le vôtre seul est accepté."
-                action={
-                  <BtnLink href="/formateur/portefeuille/moyen-de-paiement">
-                      Enregistrer un compte
-                  </BtnLink>
-                }
-              />
+              // Sans encadré ni bouton : l'état vide occupait une carte entière
+              // pour une phrase, et son bouton était le troisième du même écran.
+              // Le lien du titre suffit, et le bloc de retrait porte l'action.
+              <p className="flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-3">
+                <CreditCard className="mt-0.5 size-4 shrink-0 text-ink-3" aria-hidden="true" />
+                <span>
+                  <b className="font-bold text-ink">Aucun compte enregistré.</b> Vous serez payé
+                  sur le compte que vous enregistrez ici. Il est vérifié avant tout versement, et
+                  le vôtre seul est accepté.
+                </span>
+              </p>
             )}
 
             {archived.length > 0 ? (
@@ -282,18 +325,26 @@ export default async function PortefeuillePage() {
 
           <section
             aria-labelledby="retraits-titre"
-            className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+            className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
           >
-            <h2 id="retraits-titre" className="mb-4 text-[16.5px] font-extrabold">
+            <h2
+              id="retraits-titre"
+              className="mb-3.5 text-[15.5px] font-extrabold sm:text-[16.5px]"
+            >
               Vos retraits
             </h2>
 
             {payouts.items.length === 0 ? (
-              <EmptyState
-                icon={<ArrowDownToLine />}
-                title="Aucun retrait pour l'instant"
-                description="Vos demandes de retrait et leur suivi apparaîtront ici."
-              />
+              // Une phrase, pas un encadré : l'état vide occupait 310 px — une
+              // grande icône, un titre, une description — pour dire qu'il n'y a
+              // rien. Sur un téléphone, c'était la moitié d'un écran de vide.
+              <p className="flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-3">
+                <ArrowDownToLine className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>
+                  <b className="font-bold text-ink">Aucun retrait pour l&apos;instant.</b> Vos
+                  demandes et leur suivi apparaîtront ici.
+                </span>
+              </p>
             ) : (
               <ul className="grid gap-3">
                 {payouts.items.map((p) => {
@@ -331,33 +382,7 @@ export default async function PortefeuillePage() {
           </section>
         </div>
 
-        <aside className="grid gap-6 lg:sticky lg:top-[88px]">
-          <section
-            aria-labelledby="retrait-titre"
-            className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
-          >
-            <h2 id="retrait-titre" className="mb-4 text-[16.5px] font-extrabold">
-              Demander un retrait
-            </h2>
-
-            {blocker ? (
-              <>
-                <p className="text-[13.5px] font-bold text-ink">{blocker.title}</p>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">{blocker.body}</p>
-                {blocker.action ? (
-                  <BtnLink href={blocker.action.href} block className="mt-4">
-                    {blocker.action.label}
-                  </BtnLink>
-                ) : null}
-              </>
-            ) : (
-              <PayoutRequestForm
-                withdrawableFcfa={wallet.withdrawableFcfa}
-                minimumFcfa={PAYOUT_MIN_AMOUNT_FCFA}
-              />
-            )}
-          </section>
-
+        <aside className="lg:sticky lg:top-[88px]">
           <KycPanel kyc={kyc} />
         </aside>
       </div>
