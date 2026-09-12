@@ -284,7 +284,10 @@ async function renderChecks() {
   // Les cinq cases de l'espace connecté ne portent plus de texte : leur nom vit
   // en `aria-label`. C'est lui qu'on vérifie — un onglet sans nom accessible
   // n'existe pas pour un lecteur d'écran, et rien à l'œil ne le dirait.
-  for (const label of ['Accueil', 'Communauté', 'Catalogue', 'Messagerie', 'Compte']) {
+  // La troisième case mène à ses ressources, et le catalogue s'ouvre depuis
+  // cette page : c'est la bibliothèque qu'on rouvre tous les jours, le magasin
+  // qu'on visite pour acheter.
+  for (const label of ['Accueil', 'Communauté', 'Mes ressources', 'Messagerie', 'Compte']) {
     check(`  onglet connecté « ${label} »`, formateur.includes(`aria-label="${label}"`))
   }
   check(
