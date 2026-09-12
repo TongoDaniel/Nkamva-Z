@@ -49,7 +49,7 @@ export function PublicTopbar() {
   const pathname = usePathname() ?? "/";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md">
+    <header className="nk-glass sticky top-0 z-50 border-b border-line">
       <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
         <Logo compact />
 
@@ -66,7 +66,7 @@ export function PublicTopbar() {
                 "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
                 isActive(pathname, item.href)
                   ? "bg-navy text-paper"
-                  : "text-ink-2 hover:bg-white/70 hover:text-ink",
+                  : "text-ink-2 hover:bg-ink/5 hover:text-ink",
               )}
             >
               {item.label}
@@ -91,9 +91,13 @@ export function PublicTopbar() {
 /** Pied de page public — port de `.bigfoot`. */
 export function PublicFooter() {
   return (
-    <footer className="mt-[72px] border-t border-line bg-card">
-      <div className="nk-wrap grid gap-10 pb-10 pt-[52px] sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
-        <div>
+    <footer className="mt-10 border-t border-line bg-paper sm:mt-[72px]">
+      {/* Mesuré à 835 px de haut à 375 px de large, pour un écran qui en fait
+          812 : le pied de page était un écran entier. Les trois colonnes de
+          liens tiennent deux de front sur téléphone — leurs libellés font un
+          mot — et la respiration reprend sa taille dès 640 px. */}
+      <div className="nk-wrap grid grid-cols-2 gap-x-5 gap-y-7 pb-7 pt-8 sm:grid-cols-2 sm:gap-10 sm:pb-10 sm:pt-[52px] lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className="col-span-2 sm:col-span-1">
           <Logo />
           <p className="mt-3 max-w-[34ch] text-sm leading-relaxed text-ink-2">
             Apprendre et former à l&apos;unité, en FCFA, par mobile money ou carte bancaire.

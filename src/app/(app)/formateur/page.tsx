@@ -1,21 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  BookOpen,
-  ChevronRight,
-  CreditCard,
-  FileEdit,
-  Library,
-  MessageSquare,
-  Plus,
-  Radio,
-  Scale,
-  Users,
-  Wallet,
-} from "lucide-react";
-import type { ComponentType } from "react";
+import { ChevronRight, Plus } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
+import { Hint } from "@/components/nk/hint";
 import { StatStrip } from "@/components/nk/stat-strip";
 import { StPill } from "@/components/nk/status-pill";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
@@ -50,19 +38,6 @@ import {
 const routes = routesOf("app");
 
 export const dynamic = "force-dynamic";
-
-/**
- * Les icônes des sections, attachées ici : `sections.ts` est lu des deux côtés
- * de la frontière serveur/client et ne peut donc pas en porter.
- */
-const SECTION_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  "/formateur/ressources": Library,
-  "/formateur/communaute": Users,
-  "/mes-lives": Radio,
-  "/formateur/portefeuille": Wallet,
-  "/formateur/abonnement": CreditCard,
-  "/formateur/litiges": Scale,
-};
 
 export const metadata: Metadata = {
   title: "Espace formateur",
@@ -211,7 +186,6 @@ export default async function FormateurPage({
   if (overview.draftCount > 0) {
     tasks.push({
       key: "drafts",
-      icon: <FileEdit />,
       label: `${overview.draftCount} brouillon${s(overview.draftCount)} à publier`,
       detail: "Ils ne sont visibles de personne tant qu'ils ne sont pas publiés.",
       href: "/formateur/ressources",
@@ -220,7 +194,6 @@ export default async function FormateurPage({
   if (disputesToContest > 0) {
     tasks.push({
       key: "disputes",
-      icon: <Scale />,
       label: `${disputesToContest} litige${s(disputesToContest)} sans contestation`,
       detail: "La modération décidera sans votre version tant que vous n'aurez rien déposé.",
       href: "/formateur/litiges",
@@ -229,7 +202,6 @@ export default async function FormateurPage({
   if (wallet.withdrawableFcfa >= PAYOUT_MIN_AMOUNT_FCFA) {
     tasks.push({
       key: "payout",
-      icon: <Wallet />,
       label: `${fmtFcfa(wallet.withdrawableFcfa)} retirables`,
       detail: "Au-dessus du minimum de retrait. Le virement passe par un compte vérifié.",
       href: "/formateur/portefeuille",
@@ -238,7 +210,6 @@ export default async function FormateurPage({
   if (unreadMessages > 0) {
     tasks.push({
       key: "messages",
-      icon: <MessageSquare />,
       label: `${unreadMessages} message${s(unreadMessages)} non lu${s(unreadMessages)}`,
       detail: "Des apprenants attendent une réponse.",
       href: "/messagerie",
@@ -275,12 +246,18 @@ export default async function FormateurPage({
         : `${tasks.length} choses vous attendent aujourd'hui.`;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title={firstName ? `Bonjour, ${firstName} !` : "Votre espace"}
         lead={lead}
+        /* Le bouton ne paraît pas pendant le régime de démarrage : l'encart
+           « Vos premiers pas » ouvre déjà la même page à sa première ligne, et
+           l'en-tête de l'espace porte un « + » qui y mène aussi. Trois portes
+           pour un geste, dont deux à 40 px l'une de l'autre, sur l'écran où la
+           place manque le plus. Il revient dès que l'encart cède la place aux
+           chiffres. */
         actions={
-          canWrite ? (
+          canWrite && !starting ? (
             <BtnLink href="/formateur/ressources/nouvelle">
               <Plus aria-hidden="true" />
               Publier une ressource
@@ -322,12 +299,17 @@ export default async function FormateurPage({
           aria-labelledby="demarrage"
           className="mb-8 rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm"
         >
-          <h2 id="demarrage" className="mb-1 text-[17px] font-bold">
-            Vos premiers pas
-          </h2>
-          <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
-            Vos chiffres apparaîtront ici dès votre première publication.
-          </p>
+          {/* Le titre porte son ⓘ (arbitrage 138) : pourquoi il n'y a pas
+              encore de chiffres se lit une fois, et rendait deux lignes avant
+              la première étape. */}
+          <div className="mb-3 flex items-center gap-1.5">
+            <h2 id="demarrage" className="text-[17px] font-bold">
+              Vos premiers pas
+            </h2>
+            <Hint label="Pourquoi il n'y a pas encore de chiffres">
+              Vos chiffres apparaîtront ici dès votre première publication.
+            </Hint>
+          </div>
           <ul className="flex flex-col">
             <StepRow
               done={overview.courseCount > 0}
@@ -381,7 +363,7 @@ export default async function FormateurPage({
       {/* Colonne principale : l'activité de formateur, datée, donc prioritaire.
           Colonne latérale : l'apprenante, compacte mais jamais absente. */}
       <div className="grid gap-8 xl:grid-cols-3">
-        <div className="flex flex-col gap-10 xl:col-span-2">
+        <div className="flex flex-col gap-7 sm:gap-10 xl:col-span-2">
           <section aria-labelledby="a-traiter">
             <h2 id="a-traiter" className="mb-4 text-[17px] font-bold">
               À traiter
@@ -462,7 +444,7 @@ export default async function FormateurPage({
           ) : null}
         </div>
 
-        <aside className="flex flex-col gap-10">
+        <aside className="flex flex-col gap-7 sm:gap-10">
           <NextLives sessions={nextLives} />
 
           <section aria-labelledby="reprendre">
@@ -492,7 +474,7 @@ export default async function FormateurPage({
 
       {/* Ce que l'ancien `/formateur` portait et que l'accueil n'avait pas : la
           carte des sections, et le rappel sur le solde. */}
-      <section aria-labelledby="sections" className="mt-10">
+      <section aria-labelledby="sections" className="mt-7 sm:mt-10">
         <h2 id="sections" className="mb-4 text-[17px] font-bold">
           Gérer votre activité
         </h2>
@@ -507,66 +489,52 @@ export default async function FormateurPage({
           elle ne coûte pas un écran de défilement, et c'est « Vos premiers pas »
           qui explique au formateur qui débute.
         */}
+        {/*
+          Plus de pastille d'icône — retirée le 12 septembre 2026 à la demande
+          du propriétaire. Elle était `aria-hidden`, donc décorative par
+          construction, et sept pastilles bleues alignées pesaient plus lourd à
+          l'œil que les libellés qu'elles étaient censées aider à trouver. Ce
+          qui distingue ces cartes, c'est leur nom, puis leur description.
+
+          La carte n'a donc plus de boîte flex : elle n'avait de rangée que
+          parce qu'il fallait poser la pastille à gauche du texte. Le libellé
+          récupère les 44 px de la pastille et les 16 du gouttière, ce qui rend
+          sa chaîne d'exceptions inutile — le chevron en ligne, lui, reste : il
+          n'illustre pas, il annonce que la carte mène ailleurs.
+        */}
         <ul className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
-          {TRAINER_SECTIONS.map((section) => {
-            const Icon = SECTION_ICONS[section.href] ?? BookOpen;
-            return (
-              <li key={section.href}>
-                <Link
-                  href={section.href}
-                  className="group flex h-full items-start gap-3 rounded-nk-lg border border-line bg-card px-3.5 py-3.5 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk sm:gap-4 sm:px-5 sm:py-4"
-                >
-                  {/* Pas d'icône sur téléphone. Dans une colonne de 134 px — ce
-                      que donnent deux colonnes sur un écran de 320 px —, elle
-                      laissait 58 px au texte, et « abonnement » n'y tient pas :
-                      le libellé débordait de sa carte. Elle est décorative
-                      (`aria-hidden`), les libellés sont explicites, et elle
-                      revient dès `sm`. */}
-                  <span
-                    className="hidden size-9 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand sm:grid sm:size-11"
+          {TRAINER_SECTIONS.map((section) => (
+            <li key={section.href}>
+              <Link
+                href={section.href}
+                className="group block h-full rounded-nk-lg border border-line bg-card px-3.5 py-3.5 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk sm:px-5 sm:py-4"
+              >
+                <b className="block text-[14px] font-bold leading-snug text-ink group-hover:text-brand sm:text-[14.5px]">
+                  {section.label}
+                  <ChevronRight
+                    className="ml-1 inline-block size-4 align-[-3px] text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
                     aria-hidden="true"
-                  >
-                    <Icon className="size-4 sm:size-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    {/* Le chevron est **en ligne**, pas dans une boîte flex :
-                        dans une colonne de 163 px, un `flex` empêchait
-                        « Mes publications » de passer à la ligne, et le libellé
-                        débordait de sa carte. */}
-                    <b className="block text-[14px] font-bold leading-snug text-ink group-hover:text-brand sm:text-[14.5px]">
-                      {section.label}
-                      <ChevronRight
-                        className="ml-1 inline-block size-4 align-[-3px] text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
-                        aria-hidden="true"
-                      />
-                    </b>
-                    <span className="mt-1 hidden text-[13px] leading-relaxed text-ink-2 sm:block">
-                      {section.description}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+                  />
+                </b>
+                <span className="mt-1 hidden text-[13px] leading-relaxed text-ink-2 sm:block">
+                  {section.description}
+                </span>
+              </Link>
+            </li>
+          ))}
         </ul>
       </section>
 
-      <p className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
-        <span>
-          Votre solde est crédité à chaque vente confirmée. Les retraits passent par un
-          compte vérifié et votre score de confiance.
-        </span>
-        <span className="flex flex-wrap items-center gap-4">
-          {/* Le détail avant le solde : c'est la question « d'où vient cet
-              argent ? » qui amène ici, et le portefeuille n'y répond pas. */}
-          <Link href="/formateur/ventes" className="nk-tap font-bold text-brand">
-            Voir le détail de mes ventes
-          </Link>
-          <Link href="/formateur/portefeuille" className="nk-tap font-bold text-brand">
-            Ouvrir le portefeuille
-          </Link>
-        </span>
-      </p>
+      {/*
+        Ici vivait un renvoi vers « Mes ventes » et « Portefeuille », avec la
+        règle du solde en trois lignes — 167 px. Retiré le 12 septembre 2026 :
+        **ses deux liens sont deux cartes de la grille juste au-dessus**, et sa
+        règle est déjà écrite en tête du portefeuille (« le solde est crédité à
+        chaque vente réellement encaissée ») et dans le ⓘ du score de
+        confiance. Un troisième exemplaire ne disait rien de plus et coûtait un
+        cinquième de l'écran. Ne pas le réintroduire : si la règle doit se lire
+        d'ici, c'est la description de la carte « Portefeuille » qui la porte.
+      */}
     </div>
   );
 }

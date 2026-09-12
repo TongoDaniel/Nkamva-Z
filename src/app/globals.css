@@ -31,9 +31,20 @@
 /* Bloc non-`inline` : les tokens sont émis comme variables CSS sur :root, donc
    utilisables à la fois par les utilitaires Tailwind et par du CSS manuel. */
 @theme {
-  /* — surfaces & encres — */
+  /* — surfaces & encres —
+     Trois niveaux, depuis l'arbitrage 141. Le fond de page est **blanc**
+     (`--background`) ; la surface posée dessus est blanche elle aussi et ne se
+     détache plus que par son filet et son ombre (`--color-card`) ; et le papier
+     chaud n'est plus le fond — il est devenu le **creux**.
+
+     `--color-paper` garde donc son nom et sa valeur alors que `body` ne s'en
+     sert plus : sur la cinquantaine de `bg-paper` du produit, six seulement
+     peignaient la page. Tous les autres désignaient déjà un creux — puits dans
+     une carte, survol de rangée, pastille de code, piste d'onglets, fond du fil
+     de messagerie. C'est ce rôle-là qui reste, et c'est lui qui porte
+     désormais la chaleur de la maquette, en réserve plutôt qu'en aplat. */
   --color-paper: #f6f3ec;
-  --color-card: #fffefa;
+  --color-card: #ffffff;
   --color-ink: #15211b;
   --color-ink-2: #4c5a52;
   --color-ink-3: #626e69;
@@ -173,11 +184,14 @@
   --brand-2: #2e7cf6;
 
   --radius: 16px;
-  --background: #f6f3ec;
+  /* Le fond de page — arbitrage 141. `--card` vaut la même chose : une carte
+     ne se distingue plus par sa teinte mais par `border-line` + `shadow-nk`,
+     ce que 229 des 236 `bg-card` du produit posaient déjà. */
+  --background: #ffffff;
   --foreground: #15211b;
-  --card: #fffefa;
+  --card: #ffffff;
   --card-foreground: #15211b;
-  --popover: #fffefa;
+  --popover: #ffffff;
   --popover-foreground: #15211b;
   --primary: var(--brand);
   --primary-foreground: #ffffff;
@@ -289,12 +303,19 @@
   }
 
   body {
-    @apply bg-paper text-ink font-sans antialiased;
+    /* `bg-background` et non `bg-paper` : voir le bloc des surfaces plus haut.
+       C'est aussi le seul des deux qui suivra une éventuelle bascule sombre. */
+    @apply bg-background text-ink font-sans antialiased;
     font-size: 15px;
     line-height: 1.5;
   }
 
-  /* Voile de couleur du fond papier — décoratif, ne capte aucun événement. */
+  /* Voile de couleur du fond — décoratif, ne capte aucun événement.
+     Gardé à l'identique sur le fond blanc : c'est ce qui empêche la page de
+     tomber dans le blanc d'imprimante, et c'est la seule trace d'accent qui
+     subsiste quand un écran n'a ni carte ni couverture. Valeurs contrôlées par
+     `veilOk()` dans `bun scripts/snapshot-admin.ts` — les changer se fait des
+     deux côtés. */
   body::before {
     content: "";
     position: fixed;
@@ -361,6 +382,46 @@
   @media (min-width: 48rem) {
     .nk-wrap {
       padding-inline: 1.75rem;
+    }
+  }
+
+  /* Verre dépoli des barres fixes — arbitrage 141.
+     --------------------------------------------------------------------
+     Les trois en-têtes et la barre d'onglets basse portaient `bg-paper/90` :
+     sur un fond de page qui valait exactement la même teinte, les 10 % de
+     transparence ne se voyaient nulle part. La barre était translucide dans le
+     code et opaque à l'œil.
+
+     Recette posée ici et non dans chaque coquille : elles sont quatre à la
+     vouloir identique, et deux d'entre elles se sont déjà éloignées l'une de
+     l'autre par recopie.
+
+     Deux niveaux, pas un :
+     - `--nk-glass-solid` s'applique quand le navigateur ne sait pas flouter
+       (Firefox avec `backdrop-filter` désactivé). Sans le repli, une barre à
+       72 % sans flou laisse lire le texte de la page **à travers** les
+       libellés ;
+     - `--nk-glass-frosted` prend le relais dès que le flou existe, et c'est là
+       que la barre devient réellement transparente.
+
+     Plancher de lisibilité : à 72 % de blanc au-dessus du plus sombre du
+     produit (`--color-navy`, #022342), la barre retombe sur #b6bcc2 et l'encre
+     #15211b y garde 7,9:1 — au-delà de AAA. Descendre sous 60 % passerait sous
+     AA sur une couverture sombre. */
+  /* Les deux taux passent par le **repli** de `var()`, et ne sont surtout pas
+     déclarés ici : posés sur `.nk-glass`, ils atterrissent sur le même élément
+     que le `[--nk-glass-frosted:84%]` d'un appelant, à égalité de spécificité,
+     et c'est alors l'ordre du fichier qui tranche — en leur faveur. La barre
+     d'onglets basse a demandé 84 % et reçu 72 % sans que rien ne le signale. */
+  .nk-glass {
+    background: color-mix(in srgb, var(--background) var(--nk-glass-solid, 92%), transparent);
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nk-glass {
+      background: color-mix(in srgb, var(--background) var(--nk-glass-frosted, 72%), transparent);
+      -webkit-backdrop-filter: blur(16px) saturate(150%);
+      backdrop-filter: blur(16px) saturate(150%);
     }
   }
 

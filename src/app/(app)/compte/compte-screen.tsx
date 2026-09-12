@@ -3,16 +3,6 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import {
-  CreditCard,
-  Library,
-  LogOut,
-  Radio,
-  Scale,
-  Users,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { NavLink } from "@/components/nk/nav-link";
 import { TRAINER_SECTIONS } from "@/app/(app)/formateur/sections";
@@ -29,34 +19,28 @@ import { cn } from "@/lib/utils";
  * on peut revenir, le bouton retour du téléphone y fait ce qu'on attend, et une
  * liste de quinze entrées n'y est pas coincée dans le tiers bas de l'écran.
  *
- * Composant client, pour deux raisons qui n'en font qu'une : les icônes de
- * `nav-entries` (voir l'en-tête de ce module) et `signOut`, qui doit tourner
- * dans le navigateur.
+ * Composant client pour `signOut` et `usePathname`, qui doivent tourner dans le
+ * navigateur. Ce n'était pas la seule raison : les icônes de `nav-entries` en
+ * étaient une aussi, jusqu'à ce que les rangées les perdent (voir `Ligne`).
  * ==========================================================================
  */
 
 /**
- * Les icônes des sections formateur, attachées ici comme le fait déjà
- * `/formateur/page.tsx` : `sections.ts` est lu des deux côtés de la frontière
- * serveur/client et ne peut donc pas en porter.
+ * Une entrée de liste — même géométrie partout, une seule cible de 56 px.
+ *
+ * **Sans icône**, retirée le 12 septembre 2026 à la demande du propriétaire,
+ * comme sur l'accueil formateur. Elle était `aria-hidden`, et quinze glyphes
+ * gris empilés sur un bord ne distinguaient pas des entrées que leur libellé
+ * distingue déjà. C'est pour cela que `icon` est **exclu** des props plutôt
+ * qu'ignoré : `NavEntry` le garde pour la barre d'onglets, qui en a besoin,
+ * mais cet écran-ci ne doit plus pouvoir en recevoir une par distraction.
  */
-const SECTION_ICONS: Record<string, LucideIcon> = {
-  "/formateur/ressources": Library,
-  "/formateur/communaute": Users,
-  "/mes-lives": Radio,
-  "/formateur/portefeuille": Wallet,
-  "/formateur/abonnement": CreditCard,
-  "/formateur/litiges": Scale,
-};
-
-/** Une entrée de liste — même géométrie partout, une seule cible de 56 px. */
 function Ligne({
   href,
   label,
-  icon: Icon,
   badge,
   current,
-}: NavEntry & { badge?: number; current: boolean }) {
+}: Omit<NavEntry, "icon"> & { badge?: number; current: boolean }) {
   return (
     <li>
       <NavLink
@@ -68,7 +52,6 @@ function Ligne({
         )}
         pendingClassName="inset-x-4 bottom-1.5"
       >
-        <Icon className="size-[19px] shrink-0 text-ink-3" aria-hidden="true" />
         {label}
         {badge && badge > 0 ? (
           <span
@@ -131,7 +114,7 @@ export function CompteScreen({
   const compte = liens.filter((lien) => !ailleurs.has(lien.href));
 
   return (
-    <div className="nk-wrap pb-10">
+    <div className="nk-wrap pb-7 sm:pb-10">
       {/* Pas de `PageHead` : le titre de cet écran, c'est la personne. */}
       <header className="flex items-center gap-4 pb-2 pt-8">
         <Avatar name={name} src={avatarUrl} size="lg" alt={`Photo de ${name}`} />
@@ -148,7 +131,6 @@ export function CompteScreen({
               key={section.href}
               href={section.href}
               label={section.label}
-              icon={SECTION_ICONS[section.href] ?? Library}
               current={isActive(pathname, section.href)}
             />
           ))}
@@ -159,7 +141,8 @@ export function CompteScreen({
         {compte.map((lien) => (
           <Ligne
             key={lien.href}
-            {...lien}
+            href={lien.href}
+            label={lien.label}
             current={isActive(pathname, lien.href)}
             badge={
               lien.href === "/notifications"
@@ -175,9 +158,8 @@ export function CompteScreen({
       <button
         type="button"
         onClick={() => signOut({ callbackUrl: "/" })}
-        className="mt-6 flex min-h-14 w-full cursor-pointer items-center justify-center gap-2.5 rounded-nk-lg border border-danger/30 bg-card text-[15px] font-bold text-danger transition-colors hover:bg-danger-tint"
+        className="mt-6 flex min-h-14 w-full cursor-pointer items-center justify-center rounded-nk-lg border border-danger/30 bg-card text-[15px] font-bold text-danger transition-colors hover:bg-danger-tint"
       >
-        <LogOut className="size-[19px]" aria-hidden="true" />
         Se déconnecter
       </button>
     </div>

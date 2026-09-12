@@ -91,7 +91,11 @@ export function TabBar({
       <ul
         className={cn(
           "pointer-events-auto mx-auto flex max-w-sm items-stretch",
-          "min-h-[var(--nk-tabbar-h)] mb-[var(--nk-tabbar-float)] rounded-full border border-line bg-paper/90 px-1.5 shadow-nk-lg backdrop-blur-md",
+          // Plus opaque que les en-têtes : la pilule flotte **au-dessus** du
+          // contenu, qui défile juste derrière elle, et non sous une bande
+          // ancrée en tête de page.
+          "nk-glass [--nk-glass-frosted:84%] [--nk-glass-solid:95%]",
+          "min-h-[var(--nk-tabbar-h)] mb-[var(--nk-tabbar-float)] rounded-full border border-line px-1.5 shadow-nk-lg",
         )}
       >
         {items.map((item, index) => {

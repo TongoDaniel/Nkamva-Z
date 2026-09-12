@@ -16,8 +16,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Check, Circle } from "lucide-react";
-import { BtnLink } from "@/components/nk/button-link";
+import { Check, ChevronRight, Circle } from "lucide-react";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { ProgressRing } from "@/components/nk/progress-ring";
 import { StPill } from "@/components/nk/status-pill";
@@ -120,7 +119,7 @@ export function ResumeList({ items }: { items: ResourceItem[] }) {
 export function Novelties({ courses }: { courses: CourseListItem[] }) {
   if (courses.length === 0) return null;
   return (
-    <section aria-labelledby="suggestions" className="mt-10">
+    <section aria-labelledby="suggestions" className="mt-7 sm:mt-10">
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <h2 id="suggestions" className="text-[17px] font-bold">
           Nouveautés du catalogue
@@ -168,36 +167,56 @@ export interface StateBanner {
 /** Une file à traiter : ce qui réclame une action, et le lien pour la faire. */
 export interface Task {
   key: string;
-  icon: React.ReactNode;
   label: string;
   detail: string;
   href: string;
 }
 
+/**
+ * Une tâche à traiter — **la rangée entière est le lien**.
+ *
+ * Elle portait un bouton « Ouvrir » à droite. Trois défauts d'un coup : le
+ * bouton prenait 78 px de large, ce qui poussait le détail sur deux ou trois
+ * lignes et donnait des rangées inégales (82, 120 puis 101 px sur le même
+ * écran) ; la rangée entière était `flex-wrap`, donc le bouton passait
+ * parfois seul à la ligne ; et un lecteur d'écran annonçait trois liens
+ * nommés « Ouvrir », sans rien pour les distinguer.
+ *
+ * Le lien prend toute la rangée : la cible tactile passe de 78 px de large à
+ * toute la carte, le chevron coûte 16 px au lieu de 78, et le nom accessible
+ * devient l'intitulé de la tâche.
+ *
+ * **Plus de pastille d'icône** (retirée le 12 septembre 2026, à la demande du
+ * propriétaire). Elle était `aria-hidden` et redondante : les quatre tâches
+ * possibles disent déjà ce qu'elles sont — « 2 brouillons à publier »,
+ * « 1 litige sans contestation ». Elle coûtait 48 px de largeur au libellé, qui
+ * est ce qui se lit. Le chevron reste : lui n'illustre pas, il annonce que la
+ * rangée mène ailleurs.
+ */
 export function TaskRow({ task }: { task: Task }) {
   return (
-    <li className="flex flex-wrap items-center gap-4 border-b border-line-2 py-4 first:pt-0 last:border-b-0 last:pb-0">
-      <span
-        className="grid size-9 shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand [&_svg]:size-4"
-        aria-hidden="true"
+    <li className="border-b border-line-2 last:border-b-0">
+      <Link
+        href={task.href}
+        className="group flex items-center gap-3.5 py-3.5 transition-colors duration-150"
       >
-        {task.icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <b className="block text-sm font-bold">{task.label}</b>
-        <small className="text-[13px] text-ink-2">{task.detail}</small>
-      </div>
-      <BtnLink href={task.href} size="sm" variant="o">
-        Ouvrir
-      </BtnLink>
+        <span className="min-w-0 flex-1">
+          <b className="block text-sm font-bold group-hover:text-brand">{task.label}</b>
+          <small className="block text-[13px] leading-snug text-ink-2">{task.detail}</small>
+        </span>
+        <ChevronRight
+          className="size-4 shrink-0 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
+          aria-hidden="true"
+        />
+      </Link>
     </li>
   );
 }
 
 /** Une étape du régime de démarrage. */
 export function StepRow({ done, label, detail, href }: { done: boolean; label: string; detail: string; href: string }) {
-  return (
-    <li className="flex flex-wrap items-center gap-4 border-b border-line-2 py-4 first:pt-0 last:border-b-0 last:pb-0">
+  const corps = (
+    <>
       <span
         className={
           done
@@ -208,18 +227,43 @@ export function StepRow({ done, label, detail, href }: { done: boolean; label: s
       >
         {done ? <Check className="size-4" /> : <Circle className="size-3" />}
       </span>
-      <div className="min-w-0 flex-1">
-        <b className={done ? "block text-sm font-bold text-ink-2 line-through" : "block text-sm font-bold"}>
+      <span className="min-w-0 flex-1">
+        <b
+          className={
+            done
+              ? "block text-sm font-bold text-ink-2 line-through"
+              : "block text-sm font-bold group-hover:text-brand"
+          }
+        >
           {label}
         </b>
-        <small className="text-[13px] text-ink-2">{detail}</small>
-      </div>
+        <small className="block text-[13px] leading-snug text-ink-2">{detail}</small>
+      </span>
       {done ? (
         <StPill tone="ok">Fait</StPill>
       ) : (
-        <BtnLink href={href} size="sm" variant="o">
-          Ouvrir
-        </BtnLink>
+        <ChevronRight
+          className="size-4 shrink-0 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
+          aria-hidden="true"
+        />
+      )}
+    </>
+  );
+
+  // Même partage que `TaskRow` : le lien prend la rangée. Une étape **faite**
+  // n'est pas un lien — il n'y a plus rien à y ouvrir, et la pastille « Fait »
+  // le dit déjà.
+  return (
+    <li className="border-b border-line-2 last:border-b-0">
+      {done ? (
+        <div className="flex items-center gap-3.5 py-3.5">{corps}</div>
+      ) : (
+        <Link
+          href={href}
+          className="group flex items-center gap-3.5 py-3.5 transition-colors duration-150"
+        >
+          {corps}
+        </Link>
       )}
     </li>
   );
