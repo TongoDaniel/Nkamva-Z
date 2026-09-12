@@ -65,12 +65,16 @@ export const VISITOR_TABS: NavEntry[] = [
   coquille ajoute elle-même. Même ordre pour les deux rôles — accueil,
   communauté, catalogue, messagerie —, seule la première change de cible.
 
-  Ce que cet ordre a coûté, et pourquoi il tient quand même :
+  Ce que cet ordre dit, et ce qu'il a coûté :
 
-  · « Mes ressources » perd sa case. C'est la bibliothèque de l'apprenant, ce
-    qu'on ouvre pour reprendre un cours : c'est l'**accueil** qui doit le
-    porter, en tête, plutôt qu'une case qui redirait ce que l'accueil montre
-    déjà. Elle reste dans le compte.
+  · **La troisième case mène à ses ressources, pas au catalogue.** Elle a
+    d'abord pointé vers le catalogue, en laissant à l'accueil le soin de porter
+    la bibliothèque. Ça mettait le magasin à portée de pouce et ce qu'on a déjà
+    payé deux gestes plus loin — alors qu'on ouvre sa bibliothèque pour
+    reprendre un cours, tous les jours, et le catalogue quand on cherche à
+    acheter. Le catalogue s'ouvre depuis cette page, d'un bouton en tête ; il
+    reste **rattaché** à la case, pour qu'elle ne s'éteigne pas quand on y
+    passe.
   · Le catalogue est le même pour tous. Un formateur reste un apprenant — il
     achète —, et sa publication n'est pas une destination mais un geste : elle
     a rejoint l'en-tête, à droite (voir `app-shell.tsx`).
@@ -91,9 +95,14 @@ export const VISITOR_TABS: NavEntry[] = [
  */
 export const COMPTE_TAB: NavEntry = { href: "/compte", label: "Compte", icon: CircleUser };
 
-/** Apprenant. Le catalogue pointe vers `/catalogue` : la version visiteur
- *  rendrait la coquille publique, avec « Se connecter » — on sortirait de son
- *  espace. */
+/**
+ * Apprenant.
+ *
+ * La troisième case mène à sa bibliothèque, et le catalogue y est rattaché : il
+ * s'ouvre depuis cette page. Les deux adresses restent dans l'espace connecté —
+ * `/ressources` rendrait la coquille publique, avec « Se connecter », et on
+ * sortirait de chez soi.
+ */
 export const LEARNER_TABS: NavEntry[] = [
   { href: "/accueil", label: "Accueil", icon: Home },
   {
@@ -101,7 +110,7 @@ export const LEARNER_TABS: NavEntry[] = [
     label: "Communauté",
     icon: Users,
   },
-  { href: "/catalogue", label: "Catalogue", icon: Compass },
+  { href: "/mes-ressources", label: "Mes ressources", icon: Library, related: ["/catalogue"] },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
   COMPTE_TAB,
 ];
@@ -127,7 +136,7 @@ export const TRAINER_TABS: NavEntry[] = [
     icon: Users,
     related: ["/formateur/communaute"],
   },
-  { href: "/catalogue", label: "Catalogue", icon: Compass },
+  { href: "/mes-ressources", label: "Mes ressources", icon: Library, related: ["/catalogue"] },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
   COMPTE_TAB,
 ];
