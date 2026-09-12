@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ImageUp } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { Hint } from "@/components/nk/hint";
 import { toast } from "@/components/nk/toast";
 import { UploadBar } from "@/components/nk/upload-bar";
 import { useAction } from "@/hooks/use-action";
@@ -124,10 +125,15 @@ export function CoverUploader({
       {send.pending ? (
         <UploadBar progress={progress} label="Envoi de la couverture…" />
       ) : null}
-      <p className="mt-2 text-[13px] text-ink-3">
-        PNG, JPEG ou WebP, 5 Mo maximum — l&apos;image est réduite à {IMAGE_MAX_WIDTH} px avant
-        l&apos;envoi, ce qui allège aussi votre forfait. À défaut, une couverture est générée à partir de la
-        catégorie et du format.
+      {/* La contrainte reste à l'air libre — elle évite un envoi refusé —, le
+          traitement qui suit passe derrière le ⓘ. */}
+      <p className="mt-2 flex items-center gap-1 text-[13px] text-ink-3">
+        PNG, JPEG ou WebP, 5 Mo maximum.
+        <Hint label="Ce que devient l'image après l'envoi">
+          L&apos;image est réduite à {IMAGE_MAX_WIDTH} px avant l&apos;envoi, ce qui allège aussi
+          votre forfait. À défaut, une couverture est générée à partir de la catégorie et du
+          format.
+        </Hint>
       </p>
     </div>
   );

@@ -29,7 +29,7 @@ export function LegalPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Accueil", href: "/" }, { label: title }]}
         title={title}
@@ -64,7 +64,7 @@ export function LegalPage({
         {children}
       </article>
 
-      <p className="mx-auto mt-10 max-w-[760px] border-t border-line-2 pt-5 text-[13px] text-ink-3">
+      <p className="mx-auto mt-7 max-w-[760px] border-t border-line-2 pt-5 sm:mt-10 text-[13px] text-ink-3">
         Dernière mise à jour : {updatedAt}. Pour toute question,{" "}
         <Link href="/contact" className="font-semibold text-brand">
           écrivez-nous

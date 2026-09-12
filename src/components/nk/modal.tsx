@@ -21,6 +21,7 @@ export function Modal({
   open,
   onOpenChange,
   title,
+  hint,
   description,
   children,
   footer,
@@ -30,6 +31,13 @@ export function Modal({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   title: string;
+  /**
+   * Le ⓘ posé à côté du titre — un `<Hint>` déjà formé, passé par l'appelant,
+   * pour la règle de fond que la modale applique. **Pas** pour un
+   * avertissement : ce qui change le geste qu'on s'apprête à faire reste dans
+   * le corps de la modale, à l'air libre.
+   */
+  hint?: React.ReactNode;
   description?: React.ReactNode;
   children?: React.ReactNode;
   footer?: React.ReactNode;
@@ -70,7 +78,10 @@ export function Modal({
             size === "lg" && "max-w-[640px]",
           )}
         >
-          <Dialog.Title className="mb-1.5 pr-8 text-[19px] font-bold">{title}</Dialog.Title>
+          <div className="mb-1.5 flex items-center gap-1.5 pr-8">
+            <Dialog.Title className="text-[19px] font-bold">{title}</Dialog.Title>
+            {hint}
+          </div>
           {description ? (
             <Dialog.Description className="mb-5 text-[13.5px] text-ink-2">
               {description}

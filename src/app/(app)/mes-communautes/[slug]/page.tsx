@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { CreditCard, Lock } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
+import { HintedHeading } from "@/components/nk/hint";
 import { BtnLink } from "@/components/nk/button-link";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { getAuthContext } from "@/lib/api";
@@ -77,7 +78,7 @@ export default async function EspaceCommunautePage({
     : await getMembership(space.communityId, auth.user.id);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           { label: "Mes communautés", href: "/mes-communautes" },
@@ -149,20 +150,33 @@ export default async function EspaceCommunautePage({
           ) : null}
 
           <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
-            <h2 className="flex items-center gap-2 text-[15px] font-extrabold">
+            <HintedHeading
+              headingClassName="flex items-center gap-2 text-[15px] font-extrabold"
+              hintLabel="Ce que réservé veut dire ici"
+              hint={
+                space.isTrainer ? (
+                  <>
+                    Ce qui se dit ici n&apos;est visible que de vos membres. Vous animez cette
+                    communauté : elle vous appartient, vous n&apos;y adhérez pas.
+                  </>
+                ) : (
+                  <>
+                    Ce qui se dit ici n&apos;est visible que des membres. Quitter la communauté
+                    ferme l&apos;accès au fil, mais vous gardez les ressources reçues pendant
+                    votre adhésion.
+                  </>
+                )
+              }
+            >
               <Lock className="size-4 text-ink-3" aria-hidden="true" />
               Espace réservé
-            </h2>
+            </HintedHeading>
             {/* L'animateur n'adhère pas à sa propre communauté (voir
                 `initiateMembershipPayment`) : lui proposer de gérer une adhésion
                 qu'il n'a pas, ou de quitter un salon qui lui appartient, n'a
                 aucun sens. Sa sortie, c'est la gestion du salon. */}
             {space.isTrainer ? (
               <>
-                <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-                  Ce qui se dit ici n&apos;est visible que de vos membres. Vous animez
-                  cette communauté : elle vous appartient, vous n&apos;y adhérez pas.
-                </p>
                 <div className="mt-4 grid gap-2">
                   <BtnLink href="/formateur/communaute" variant="o" size="sm" block>
                     Gérer ma communauté
@@ -171,11 +185,6 @@ export default async function EspaceCommunautePage({
               </>
             ) : (
               <>
-                <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-                  Ce qui se dit ici n&apos;est visible que des membres. Quitter la
-                  communauté ferme l&apos;accès au fil, mais vous gardez les ressources
-                  reçues pendant votre adhésion.
-                </p>
                 <div className="mt-4 grid gap-2">
                   {/* Le formateur n'ouvre pas de fil avec lui-même : côté animateur,
                       une conversation naît toujours de celle d'un membre. */}

@@ -10,6 +10,7 @@ import { api, ApiError } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
 import { DELETION_GRACE_DAYS } from "@/lib/dto";
 import type { ProfileView } from "@/lib/profile";
+import { Hint } from "@/components/nk/hint";
 import { SettingCard, SettingRow } from "@/components/nk/setting-card";
 
 const CONFIRM_WORD = "SUPPRIMER";
@@ -76,13 +77,27 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
 
   return (
     <>
+      {/* La carte d'export perd ses deux paragraphes : ce qu'on peut récupérer
+          et ce que contient le fichier se lisent une fois (arbitrage 138). La
+          carte de suppression, juste en dessous, n'y touche pas — un geste
+          irréversible garde ses conséquences à l'air libre. */}
       <SettingCard
         title="Vos données personnelles"
-        subtitle="Vous pouvez récupérer à tout moment une copie complète des données que NkamVa détient sur vous."
+        hint={
+          <Hint label="Ce que vous pouvez récupérer">
+            Vous pouvez récupérer à tout moment une copie complète des données que NkamVa
+            détient sur vous.
+          </Hint>
+        }
       >
         <SettingRow
           title="Copie de vos données"
-          description="Fichier JSON : profil, achats, progression, abonnements, notifications et journal de vos actions."
+          hint={
+            <Hint label="Ce que contient le fichier">
+              Fichier JSON : profil, achats, progression, abonnements, notifications et journal
+              de vos actions.
+            </Hint>
+          }
           action={
             <Btn variant="o" size="sm" loading={action.isRunning("export")} onClick={onExport}>
               <Download aria-hidden="true" />

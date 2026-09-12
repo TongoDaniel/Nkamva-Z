@@ -198,7 +198,7 @@ export default async function LandingPage() {
             ressource à faire défiler, elle ne laisse qu'un ruban vide sous le
             hero : on ne la rend pas. */}
         {courses.length > 0 ? (
-          <Reveal delay={3.2} className="mt-11">
+          <Reveal delay={3.2} className="mt-8 sm:mt-11">
             <div
               className="nk-fade-x nk-marquee-pause overflow-hidden"
               aria-label="Aperçu du catalogue"

@@ -69,7 +69,7 @@ export default async function MessageriePage({
       <h1 className="sr-only">Messages</h1>
 
       {conversations.length === 0 ? (
-        <div className="nk-wrap py-10">
+        <div className="nk-wrap py-7 sm:py-10">
           <EmptyState
             icon={<MessageSquare />}
             title="Aucune conversation"

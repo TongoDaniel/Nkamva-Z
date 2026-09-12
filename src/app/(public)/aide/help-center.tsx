@@ -221,7 +221,7 @@ export function HelpCenter({
 
   return (
     <>
-      <div className="mx-auto max-w-[720px] pb-2 pt-12 text-center">
+      <div className="mx-auto max-w-[720px] pb-2 pt-7 text-center sm:pt-12">
         <h1 className="mb-3 text-[clamp(28px,3.8vw,42px)] font-extrabold leading-[1.06] text-balance">
           Comment pouvons-nous vous aider ?
         </h1>
@@ -258,30 +258,39 @@ export function HelpCenter({
         </div>
       </div>
 
-      <nav aria-label="Thèmes de l'aide" className="mt-10">
+      <nav aria-label="Thèmes de l'aide" className="mt-7 sm:mt-10">
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {groups.map((group) => (
             <li key={group.id}>
+              {/* Carte en rangée sur téléphone, en tuile dès `sm`. Empilées en
+                  colonne, les cinq tuiles demandaient 145 px chacune — 789 px
+                  pour la seule navigation de l'aide, un écran entier avant la
+                  première question. L'icône passe à gauche du texte : la
+                  hauteur tombe à ce que le texte occupe. */}
               <button
                 type="button"
                 onClick={() => goToGroup(group.id)}
-                className="h-full w-full cursor-pointer rounded-nk border border-line bg-card p-5 text-left shadow-nk-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-brand-tint-2 hover:shadow-nk"
+                className="flex h-full w-full cursor-pointer items-start gap-3.5 rounded-nk border border-line bg-card p-4 text-left shadow-nk-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-brand-tint-2 hover:shadow-nk sm:block sm:p-5"
               >
                 <span
-                  className="mb-3.5 grid size-11 place-items-center rounded-[14px] bg-brand-tint text-brand [&_svg]:size-[21px]"
+                  className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-brand-tint text-brand [&_svg]:size-[21px] sm:mb-3.5"
                   aria-hidden="true"
                 >
                   {group.icon}
                 </span>
-                <span className="block text-[16px] font-extrabold text-ink">{group.title}</span>
-                <span className="mt-1 block text-[13px] leading-snug text-ink-2">{group.hint}</span>
+                <span className="min-w-0">
+                  <span className="block text-[16px] font-extrabold text-ink">{group.title}</span>
+                  <span className="mt-1 block text-[13px] leading-snug text-ink-2">
+                    {group.hint}
+                  </span>
+                </span>
               </button>
             </li>
           ))}
         </ul>
       </nav>
 
-      <section aria-labelledby="aide-faq" className="mx-auto mt-14 max-w-[780px]">
+      <section aria-labelledby="aide-faq" className="mx-auto mt-9 max-w-[780px] sm:mt-14">
         <h2
           id="aide-faq"
           className="mb-6 text-center text-[clamp(22px,3vw,30px)] font-extrabold"
@@ -365,7 +374,7 @@ export function HelpCenter({
         )}
       </section>
 
-      <section className="mx-auto mt-4 max-w-[780px] rounded-nk-lg bg-gradient-to-r from-navy to-navy-2 px-8 py-9 text-center text-white">
+      <section className="mx-auto mt-4 max-w-[780px] rounded-nk-lg bg-gradient-to-r from-navy to-navy-2 px-5 py-7 text-center text-white sm:px-8 sm:py-9">
         <h2 className="text-[22px] font-extrabold">Vous n&apos;avez pas trouvé votre réponse ?</h2>
         <p className="mx-auto mt-2 max-w-[52ch] text-[14.5px] leading-relaxed text-[#b9c9dd]">
           Écrivez au support : nous répondons en français sous {responseHours} heures ouvrées.

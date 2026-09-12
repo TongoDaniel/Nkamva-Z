@@ -66,7 +66,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
   const hasSummary = Boolean(duration || levelLabel);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         // Même lignée que `community-screen.tsx` : le parent propre à l'espace,
         // puis l'écran de destination sous le nom qu'il se donne lui-même. Le
@@ -88,7 +88,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
         }
       />
 
-      <div className="grid items-start gap-10 pt-2 lg:grid-cols-[1fr_372px]">
+      <div className="grid items-start gap-7 pt-2 sm:gap-10 lg:grid-cols-[1fr_372px]">
         {/* Colonne principale */}
         <div className="min-w-0 lg:order-1">
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-ink-2">
@@ -174,7 +174,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
 
           <section className="border-t border-line-2 py-8">
             <h2 className="mb-4 text-[22px] font-extrabold">Votre formateur</h2>
-            <div className="grid gap-4.5 rounded-nk-lg border border-line bg-card p-7 sm:grid-cols-[auto_1fr]">
+            <div className="grid gap-4.5 rounded-nk-lg border border-line bg-card p-5 sm:grid-cols-[auto_1fr] sm:p-7">
               <span
                 className="grid size-16 shrink-0 place-items-center rounded-full bg-linear-to-br from-brand to-info text-[22px] font-extrabold text-white"
                 aria-hidden="true"
@@ -303,7 +303,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
       </div>
 
       {relatedOthers.length > 0 ? (
-        <section className="pt-14" aria-labelledby="apparentees">
+        <section className="pt-9 sm:pt-14" aria-labelledby="apparentees">
           <h2 id="apparentees" className="mb-6 text-[22px] font-extrabold">
             Dans la même catégorie
           </h2>

@@ -41,7 +41,7 @@ export async function CommunitiesScreen({
   const isTrainer = Boolean(auth?.user.trainerId)
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[routes.communitiesParent, { label: 'Les communautés' }]}
         title="Les communautés"

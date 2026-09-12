@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, Copy, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { Hint } from "@/components/nk/hint";
 import { StPill } from "@/components/nk/status-pill";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
@@ -111,7 +112,7 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
 
   return (
     <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
-      <div className="mb-1.5 flex flex-wrap items-center gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-x-1.5 gap-y-2">
         <h2 className="flex items-center gap-2 text-[17px] font-extrabold">
           {status.enabled ? (
             <ShieldCheck className="size-[19px] text-brand" aria-hidden="true" />
@@ -120,6 +121,12 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
           )}
           Double authentification
         </h2>
+        {/* Ce qu'est un code à six chiffres se lit une fois (arbitrage 138). La
+            pastille d'état, elle, reste à côté du titre : c'est une donnée. */}
+        <Hint label="Comment fonctionne la double authentification">
+          Un code à six chiffres, généré par une application sur votre téléphone, sera
+          demandé à chaque connexion. Il fonctionne sans réseau ni crédit.
+        </Hint>
         {status.enabled ? (
           <StPill tone="ok">Active</StPill>
         ) : status.required ? (
@@ -128,11 +135,6 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
           <StPill tone="muted">Inactive</StPill>
         )}
       </div>
-
-      <p className="mb-5 max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
-        Un code à six chiffres, généré par une application sur votre téléphone, sera demandé à chaque
-        connexion. Il fonctionne sans réseau ni crédit.
-      </p>
 
       {status.enabled ? (
         <div className="grid gap-4">

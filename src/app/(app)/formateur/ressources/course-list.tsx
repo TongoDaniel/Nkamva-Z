@@ -145,22 +145,37 @@ export function TrainerCourseList({
             const state = COURSE_STATUS[course.status] ?? COURSE_STATUS.draft;
             const duration = fmtDuration(course.durationSeconds);
             return (
+              /*
+                Grille à deux colonnes sur téléphone, rangée d'un seul tenant dès
+                `sm`. En `flex-wrap`, l'icône (64 px), les deux chiffres (123 px)
+                et les gestes se partageaient la première ligne : il restait
+                **74 px** au titre et à ses métadonnées, qui s'enroulaient sur
+                149 px de haut à eux seuls. La ligne mesurait 394 px — la moitié
+                d'un écran pour une ressource. L'icône tient la première colonne,
+                tout le reste la seconde, et les deux rangées du bas traversent.
+              */
               <article
                 key={course.id}
-                className="flex flex-wrap items-center gap-4.5 rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm"
+                className="group relative grid grid-cols-[auto_1fr] items-start gap-x-4 gap-y-3 rounded-nk-lg border border-line bg-card px-4 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk focus-within:border-brand sm:flex sm:flex-wrap sm:items-center sm:gap-4.5 sm:px-5 sm:py-4.5"
               >
                 <span
-                  className="grid size-16 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
+                  className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand sm:size-16"
                   aria-hidden="true"
                 >
-                  <FormatGlyph format={course.format} className="size-6" />
+                  <FormatGlyph format={course.format} className="size-5 sm:size-6" />
                 </span>
 
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 sm:flex-1">
                   <h2 className="text-[15.5px] font-bold leading-tight">
+                    {/* Le lien du titre couvre la ligne (`after:inset-0`), comme
+                        dans `ResourceCard` : une seule cible pour ouvrir la
+                        ressource, et le nom accessible reste le titre. Le bouton
+                        « Modifier » qui menait **à la même adresse** a été retiré :
+                        deux cibles pour une destination, dont une qui coûtait
+                        108 px de large sur la rangée la plus serrée du produit. */}
                     <Link
                       href={`/formateur/ressources/${course.id}`}
-                      className="text-ink hover:text-brand"
+                      className="text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand"
                     >
                       {course.title}
                     </Link>
@@ -176,7 +191,7 @@ export function TrainerCourseList({
                   </p>
                 </div>
 
-                <dl className="flex gap-6 text-center">
+                <dl className="col-span-2 flex gap-6 text-center sm:col-auto">
                   <div>
                     <dd className="font-display text-[17px] font-extrabold">
                       {fmtNumber(course.salesCount)}
@@ -191,11 +206,11 @@ export function TrainerCourseList({
                   </div>
                 </dl>
 
-                <div className="flex flex-wrap gap-2">
-                  <BtnLink href={`/formateur/ressources/${course.id}`} variant="o" size="sm">
-                      <SquarePen aria-hidden="true" />
-                      Modifier
-                  </BtnLink>
+                {/* `relative` : ces gestes sont posés **au-dessus** du voile du
+                    lien de titre, comme le cœur de `ResourceCard` le fait avec
+                    son `z-[3]`. Sans cela, un clic sur « Archiver » ouvrirait
+                    l'éditeur. */}
+                <div className="relative col-span-2 flex flex-wrap gap-2 sm:col-auto">
                   {course.status === "published" ? (
                     <BtnLink href={`/ressources/${course.slug}`} variant="t" size="sm">
                         <ExternalLink aria-hidden="true" />

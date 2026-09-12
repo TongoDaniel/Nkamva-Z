@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Download, FileText } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
+import { Hint } from "@/components/nk/hint";
 import { EmptyState } from "@/components/nk/empty-state";
 import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
@@ -109,7 +110,7 @@ export default async function MesFacturesPage() {
   ];
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         // Le retour aux achats passe par le fil d'Ariane, pas par un bouton :
         // les factures sont une pièce de l'achat, la hiérarchie le dit mieux
@@ -117,6 +118,13 @@ export default async function MesFacturesPage() {
         crumbs={[{ label: "Mes achats", href: "/mes-achats" }, { label: "Mes factures" }]}
         title="Mes factures"
         lead="Chaque paiement encaissé émet une facture numérotée. Elle est figée à l'émission : un changement de tarif ne réécrit jamais une pièce déjà émise."
+        hint={
+          <Hint label="Ce que liste cette page, et d'où vient le PDF">
+            Les cent dernières factures sont listées. Le PDF est regénéré à chaque
+            téléchargement plutôt que conservé : aucune de ses données ne peut bouger, deux
+            rendus donnent la même pièce.
+          </Hint>
+        }
       />
 
       {invoices.length === 0 ? (
@@ -136,13 +144,7 @@ export default async function MesFacturesPage() {
             columns={columns}
             rows={invoices}
             getRowKey={(row) => row.id}
-          />
-          <p className="mt-5 text-[13px] leading-relaxed text-ink-3">
-            Les cent dernières factures sont listées. Le PDF est regénéré à chaque
-            téléchargement plutôt que conservé : aucune de ses données ne peut bouger, deux
-            rendus donnent la même pièce.
-          </p>
-        </div>
+          />        </div>
       )}
     </div>
   );

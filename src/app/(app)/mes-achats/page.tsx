@@ -196,7 +196,7 @@ export default async function MesAchatsPage({
   ];
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title="Mes achats"
         lead="L'historique de vos paiements : ressources achetées à l'unité et abonnements à vos communautés."

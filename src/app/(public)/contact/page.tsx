@@ -18,7 +18,7 @@ export default async function ContactPage() {
   const responseHours = await getSettingNumber("support.response_time_hours");
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Accueil", href: "/" }, { label: "Contact" }]}
         title="Parlons-en"

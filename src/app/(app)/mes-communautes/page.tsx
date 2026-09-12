@@ -121,7 +121,7 @@ export default async function MesCommunautesPage({
   ];
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title={mienne ? "Communautés" : "Mes communautés"}
         lead={
@@ -147,7 +147,7 @@ export default async function MesCommunautesPage({
         écran n'informe personne. L'exclusion est demandée par cet écran et
         dérivée du serveur, jamais reçue du navigateur.
       */}
-      <section aria-labelledby="nk-decouvrir" className="mt-12 border-t border-line-2 pt-8">
+      <section aria-labelledby="nk-decouvrir" className="mt-8 border-t border-line-2 pt-6 sm:mt-12 sm:pt-8">
         <h2 id="nk-decouvrir" className="text-[18px] font-extrabold">
           Découvrir d&apos;autres communautés
         </h2>

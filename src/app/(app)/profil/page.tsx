@@ -29,7 +29,7 @@ export default async function ProfilPage({
   if (!profile) return null;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title="Profil et paramètres"
         lead="Vos informations, votre mot de passe et vos droits sur vos données."

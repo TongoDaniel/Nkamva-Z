@@ -49,7 +49,7 @@ export default async function InvitationPage({
   // Les distinguer dirait au porteur d'un jeton au hasard s'il a visé juste.
   if (!invitation) {
     return (
-      <div className="nk-wrap pb-16 pt-12">
+      <div className="nk-wrap pb-10 pt-8 sm:pb-16 sm:pt-12">
         <EmptyState
           icon={<Gift />}
           title="Cette invitation n'est plus valable"
@@ -67,7 +67,7 @@ export default async function InvitationPage({
   const here = `/invitation/${encodeURIComponent(token)}`;
 
   return (
-    <div className="nk-wrap pb-16 pt-12">
+    <div className="nk-wrap pb-10 pt-8 sm:pb-16 sm:pt-12">
       <div className="mx-auto max-w-[620px] overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk">
         <div className="h-[120px] bg-gradient-to-br from-navy to-info" />
 

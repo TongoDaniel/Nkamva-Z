@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { Hint } from "@/components/nk/hint";
 import { Btn } from "@/components/nk/button";
 import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
@@ -409,14 +410,19 @@ export function CourseForm({
           </datalist>
 
           <div className="mb-[18px]">
-            <label htmlFor="nk-format" className="mb-1.5 block text-[13.5px] font-bold text-ink">
-              Format
-            </label>
+            <div className="mb-1.5 flex items-center gap-1">
+              <label htmlFor="nk-format" className="block text-[13.5px] font-bold text-ink">
+                Format
+              </label>
+              <Hint label="Ce que le format change pour l'acheteur">
+                La vidéo est lue en ligne avec suivi de progression ; les autres formats sont
+                téléchargés.
+              </Hint>
+            </div>
             <select
               id="nk-format"
               value={values.format}
               onChange={(e) => set("format", e.target.value)}
-              aria-describedby="nk-format-hint"
               className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
             >
               {COURSE_FORMATS.map((f) => (
@@ -425,10 +431,6 @@ export function CourseForm({
                 </option>
               ))}
             </select>
-            <p id="nk-format-hint" className="mt-1.5 text-[13px] text-ink-3">
-              La vidéo est lue en ligne avec suivi de progression ; les autres formats sont
-              téléchargés.
-            </p>
           </div>
 
           <div className="mb-[18px]">

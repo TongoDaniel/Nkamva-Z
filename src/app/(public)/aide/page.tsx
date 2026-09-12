@@ -21,7 +21,7 @@ export default async function AidePage() {
   ]);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <HelpCenter
         subscription={subscriptionAnnouncement(plans)}
         responseHours={responseHours}

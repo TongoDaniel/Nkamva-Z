@@ -27,7 +27,7 @@ export default async function NotificationsPage() {
   }));
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title="Notifications"
         lead="Les suites données à vos achats, vos contestations et votre compte."

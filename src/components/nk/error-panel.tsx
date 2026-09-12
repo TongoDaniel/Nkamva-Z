@@ -18,7 +18,7 @@ export function ErrorPanel({
   description?: string;
 }) {
   return (
-    <div className="nk-wrap py-16">
+    <div className="nk-wrap py-10 sm:py-16">
       <EmptyState
         icon={<AlertTriangle />}
         title={title}

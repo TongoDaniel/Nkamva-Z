@@ -20,6 +20,7 @@ export { EmptyState, EmptyRow } from "./empty-state";
 export { Toaster, toast } from "./toast";
 export { DataTable, CellUser, Pager, type Column } from "./data-table";
 export { Modal, ModalRows } from "./modal";
+export { Hint, HintedHeading } from "./hint";
 export { Tabs, type TabItem } from "./tabs";
 export { WizardSteps, WizardCard, type WizardStep } from "./wizard";
 export { Logo } from "./logo";

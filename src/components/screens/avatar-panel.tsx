@@ -4,6 +4,7 @@ import * as React from "react";
 import { ImageUp, Trash2, Users } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
+import { Hint } from "@/components/nk/hint";
 import { UploadBar } from "@/components/nk/upload-bar";
 import { toast } from "@/components/nk/toast";
 import { useAction } from "@/hooks/use-action";
@@ -39,7 +40,7 @@ export function AvatarPanel({
   src,
   kind,
   title,
-  subtitle,
+  about,
   storageNote,
 }: {
   /** Base des trois appels : `POST`, `POST …/confirm`, `DELETE`. */
@@ -50,7 +51,11 @@ export function AvatarPanel({
   src: string | null;
   kind: "person" | "group";
   title: string;
-  subtitle: string;
+  /**
+   * Ce que le panneau explique — rendu **dans l'infobulle** du titre, plus en
+   * sous-titre : nommé `about` pour que l'appelant sache où son texte atterrit.
+   */
+  about: React.ReactNode;
   /** Dit que l'image compte dans le quota — vrai pour un groupe seulement. */
   storageNote?: string;
 }) {
@@ -130,10 +135,20 @@ export function AvatarPanel({
       aria-labelledby={titleId}
       className="mt-6 rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm"
     >
-      <h2 id={titleId} className="text-[17px] font-bold">
-        {title}
-      </h2>
-      <p className="mt-1 text-[13.5px] leading-relaxed text-ink-2">{subtitle}</p>
+      <div className="flex items-center gap-1.5">
+        <h2 id={titleId} className="text-[17px] font-bold">
+          {title}
+        </h2>
+        {/* Où la photo apparaît, ce qu'elle devient à l'envoi, ce qui la
+            remplace : trois phrases lues une fois, réunies derrière le ⓘ
+            (arbitrage 138). Seule la contrainte de format reste écrite — elle
+            évite un envoi refusé. */}
+        <Hint label={`À quoi sert ${kind === "group" ? "la photo du groupe" : "votre photo"}`}>
+          {about} La photo est recadrée au carré et réduite à {AVATAR_SIZE} px avant
+          l&apos;envoi.{storageNote ? ` ${storageNote}` : ""} À défaut,{" "}
+          {kind === "group" ? "un glyphe de groupe tient la place" : "vos initiales tiennent la place"}.
+        </Hint>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-4">
         {src ? (
@@ -193,9 +208,7 @@ export function AvatarPanel({
       {send.pending ? <UploadBar progress={progress} label="Envoi de la photo…" /> : null}
 
       <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
-        PNG, JPEG ou WebP, 2 Mo maximum. La photo est recadrée au carré et réduite à{" "}
-        {AVATAR_SIZE} px avant l&apos;envoi.{storageNote ? ` ${storageNote}` : ""} À défaut,{" "}
-        {kind === "group" ? "un glyphe de groupe tient la place" : "vos initiales tiennent la place"}.
+        PNG, JPEG ou WebP, 2 Mo maximum.
       </p>
     </section>
   );

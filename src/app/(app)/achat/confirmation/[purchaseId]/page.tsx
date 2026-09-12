@@ -47,7 +47,7 @@ export default async function ConfirmationPage({
   const community = purchase.community;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead title="Confirmation de paiement" />
       <ConfirmationStatus
         purchaseId={purchase.id}

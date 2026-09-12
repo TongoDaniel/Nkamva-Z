@@ -31,18 +31,29 @@ function parentCrumb(crumbs: Crumb[]): Crumb | null {
 export function PageHead({
   crumbs,
   title,
+  hint,
   lead,
   actions,
   className,
 }: {
   crumbs?: Crumb[];
   title: React.ReactNode;
+  /**
+   * Le ⓘ posé à côté du titre — un `<Hint>` déjà formé, passé par l'appelant.
+   *
+   * Il arrive tout fait, et n'est pas importé ici, pour deux raisons : le
+   * bouton vit **à côté** du `<h1>` et non dedans — un lecteur d'écran qui
+   * liste les titres n'annonce pas « Mes factures, bouton » —, et les
+   * quelque cent pages qui posent un `PageHead` sans infobulle n'embarquent
+   * pas le popover dans leur paquet client.
+   */
+  hint?: React.ReactNode;
   lead?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("pb-2 pt-8", className)}>
+    <div className={cn("pb-2 pt-5 sm:pt-8", className)}>
       {crumbs?.length && parentCrumb(crumbs) ? (
         <Link
           href={parentCrumb(crumbs)!.href!}
@@ -76,9 +87,12 @@ export function PageHead({
       ) : null}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="mb-2 text-[clamp(28px,3.4vw,40px)] font-extrabold leading-[1.06] text-balance">
-            {title}
-          </h1>
+          <div className="mb-2 flex items-center gap-2">
+            <h1 className="text-[clamp(28px,3.4vw,40px)] font-extrabold leading-[1.06] text-balance">
+              {title}
+            </h1>
+            {hint}
+          </div>
           {lead ? (
             <p className="max-w-[60ch] text-base leading-[1.55] text-ink-2 text-pretty">{lead}</p>
           ) : null}

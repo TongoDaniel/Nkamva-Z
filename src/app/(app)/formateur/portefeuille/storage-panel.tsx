@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Minus, Plus } from "lucide-react";
+import { Hint } from "@/components/nk/hint";
 import { Btn } from "@/components/nk/button";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
@@ -52,9 +53,18 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
       aria-labelledby="stockage-titre"
       className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
     >
-      <h2 id="stockage-titre" className="mb-3.5 text-[15.5px] font-extrabold sm:text-[16.5px]">
-        Stockage
-      </h2>
+      {/* Le tarif du palier reste écrit — c'est un montant, il entre dans la
+          décision. Ce qui part dans le ⓘ est la règle de cadence : elle
+          rassure, elle n'avertit de rien (arbitrage 138). */}
+      <div className="mb-3.5 flex items-center gap-1.5">
+        <h2 id="stockage-titre" className="text-[15.5px] font-extrabold sm:text-[16.5px]">
+          Stockage
+        </h2>
+        <Hint label="Quand un changement de palier prend effet">
+          Le changement prend effet à votre prochain renouvellement, comme votre cadence
+          d&apos;abonnement : rien n&apos;est facturé aujourd&apos;hui.
+        </Hint>
+      </div>
 
       <p className="flex items-baseline justify-between text-[13.5px] font-semibold text-ink-2">
         <span>
@@ -121,11 +131,6 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
           Enregistrer
         </Btn>
       ) : null}
-
-      <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
-        Le changement prend effet à votre prochain renouvellement, comme votre cadence
-        d&apos;abonnement : rien n&apos;est facturé aujourd&apos;hui.
-      </p>
     </section>
   );
 }

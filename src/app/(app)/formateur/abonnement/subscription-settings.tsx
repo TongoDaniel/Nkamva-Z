@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Btn } from "@/components/nk/button";
+import { Hint } from "@/components/nk/hint";
 import { SettingCard, SettingRow } from "@/components/nk/setting-card";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
@@ -70,14 +71,30 @@ export function SubscriptionSettings({
   return (
     <SettingCard
       title="Réglages de votre abonnement"
-      subtitle="Une modification de formule prend effet à votre prochaine échéance. La période en cours n'est ni écourtée, ni recalculée."
+      hint={
+        <Hint label="Quand un changement de formule prend effet">
+          Une modification de formule prend effet à votre prochaine échéance. La période en
+          cours n&apos;est ni écourtée, ni recalculée.
+        </Hint>
+      }
     >
+      {/* Ce qui **est déjà décidé** reste écrit — un changement en attente est un
+          état, pas une explication ; ce qui décrit la possibilité passe au ⓘ
+          (arbitrages 138 et 140). */}
       <SettingRow
         title={`Formule ${CADENCE_LABELS[cadence].toLowerCase()}`}
         description={
           pendingCadence
             ? `Vous passerez en formule ${CADENCE_LABELS[pendingCadence].toLowerCase()} le ${fmtDate(periodEnd)}.`
-            : `Vous pouvez passer en formule ${CADENCE_LABELS[other].toLowerCase()} ; le changement prendra effet le ${fmtDate(periodEnd)}.`
+            : undefined
+        }
+        hint={
+          pendingCadence ? null : (
+            <Hint label="Ce que change une formule">
+              Vous pouvez passer en formule {CADENCE_LABELS[other].toLowerCase()} ; le changement
+              prendra effet le {fmtDate(periodEnd)}.
+            </Hint>
+          )
         }
         action={
           <Btn
@@ -93,10 +110,12 @@ export function SubscriptionSettings({
 
       <SettingRow
         title="Prélèvement automatique"
-        description={
-          autoRenew
-            ? "Votre échéance est prélevée sur votre solde disponible. Si le solde n'y suffit pas, rien n'est prélevé et l'opération est retentée chaque nuit."
-            : "Votre échéance n'est pas prélevée : vous la réglez vous-même, par carte ou mobile money. Une dette laissée à la résiliation reste, elle, retenue sur votre solde."
+        hint={
+          <Hint label="Comment l'échéance est réglée">
+            {autoRenew
+              ? "Votre échéance est prélevée sur votre solde disponible. Si le solde n'y suffit pas, rien n'est prélevé et l'opération est retentée chaque nuit."
+              : "Votre échéance n'est pas prélevée : vous la réglez vous-même, par carte ou mobile money. Une dette laissée à la résiliation reste, elle, retenue sur votre solde."}
+          </Hint>
         }
         action={
           <Btn

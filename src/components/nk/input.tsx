@@ -55,6 +55,14 @@ export interface FieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   error?: string | null;
   id?: string;
   containerClassName?: string;
+  /**
+   * Le ⓘ posé à côté du libellé — un `<Hint>` déjà formé, passé par l'appelant
+   * (arbitrage 138). Il porte la **règle** que le champ applique : ce que
+   * devient un nouveau prix, où s'affiche ce qu'on écrit. `hint`, lui, reste
+   * pour ce qui doit se lire sans clic — une contrainte de saisie, un tarif, un
+   * avertissement. Les deux peuvent coexister.
+   */
+  labelHint?: React.ReactNode;
 }
 
 /**
@@ -81,7 +89,7 @@ function defaultEnterKeyHint(
 }
 
 export const Field = React.forwardRef<HTMLInputElement, FieldProps>(function Field(
-  { label, hint, error, id, className, containerClassName, enterKeyHint, ...props },
+  { label, labelHint, hint, error, id, className, containerClassName, enterKeyHint, ...props },
   ref,
 ) {
   const autoId = React.useId();
@@ -92,9 +100,12 @@ export const Field = React.forwardRef<HTMLInputElement, FieldProps>(function Fie
 
   return (
     <div className={cn("mb-[18px]", containerClassName)}>
-      <label htmlFor={inputId} className="mb-1.5 block text-[13.5px] font-bold text-ink">
-        {label}
-      </label>
+      <div className="mb-1.5 flex items-center gap-1">
+        <label htmlFor={inputId} className="block text-[13.5px] font-bold text-ink">
+          {label}
+        </label>
+        {labelHint}
+      </div>
       <input
         ref={ref}
         id={inputId}

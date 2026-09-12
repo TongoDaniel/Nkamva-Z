@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, Eye, EyeOff } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { BtnLink } from "@/components/nk/button-link";
+import { Hint, HintedHeading } from "@/components/nk/hint";
 import { Field, CheckOption } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
 import { useAction } from "@/hooks/use-action";
@@ -62,6 +63,7 @@ export const EMPTY_COMMUNITY: CommunityFormValues = {
 
 function TextArea({
   label,
+  labelHint,
   hint,
   rows = 4,
   value,
@@ -69,6 +71,8 @@ function TextArea({
   ...props
 }: {
   label: string;
+  /** Le ⓘ du libellé — même partage que le `Field` du socle (arbitrage 138). */
+  labelHint?: React.ReactNode;
   hint?: string;
   rows?: number;
   value: string;
@@ -77,9 +81,12 @@ function TextArea({
   const id = React.useId();
   return (
     <div className="mb-[18px]">
-      <label htmlFor={id} className="mb-1.5 block text-[13.5px] font-bold text-ink">
-        {label}
-      </label>
+      <div className="mb-1.5 flex items-center gap-1">
+        <label htmlFor={id} className="block text-[13.5px] font-bold text-ink">
+          {label}
+        </label>
+        {labelHint}
+      </div>
       <textarea
         id={id}
         rows={rows}
@@ -228,12 +235,13 @@ export function CommunityForm({
       className="mt-6 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm sm:p-8"
     >
       {heading ? (
-        <div className="mb-5">
-          <h2 className="text-[19px] font-extrabold">{heading.title}</h2>
-          <p className="mt-1.5 max-w-[62ch] text-[13.5px] leading-relaxed text-ink-2">
-            {heading.lead}
-          </p>
-        </div>
+        <HintedHeading
+          className="mb-5"
+          hintLabel={`À propos de « ${heading.title} »`}
+          hint={heading.lead}
+        >
+          {heading.title}
+        </HintedHeading>
       ) : null}
 
       <FormError>{error}</FormError>
@@ -265,7 +273,12 @@ export function CommunityForm({
             rows={5}
             maxLength={2000}
             placeholder="À qui s'adresse ce salon, ce qu'on y fait, à quel rythme."
-            hint="C'est ce que lit un visiteur avant de payer. Dites ce qui s'y passe vraiment, pas ce qu'on y trouvera peut-être."
+            labelHint={
+              <Hint label="À quoi sert la présentation">
+                C&apos;est ce que lit un visiteur avant de payer. Dites ce qui s&apos;y passe
+                vraiment, pas ce qu&apos;on y trouvera peut-être.
+              </Hint>
+            }
           />
 
           <TextArea
@@ -275,7 +288,12 @@ export function CommunityForm({
             rows={4}
             maxLength={2000}
             placeholder="Ce qui est attendu, ce qui ne passe pas."
-            hint="Affichées sur la fiche publique. Elles vous servent le jour où vous devez bannir quelqu'un."
+            labelHint={
+              <Hint label="Où les règles s'affichent, et à quoi elles servent">
+                Affichées sur la fiche publique. Elles vous servent le jour où vous devez bannir
+                quelqu&apos;un.
+              </Hint>
+            }
           />
 
           <Field
@@ -288,10 +306,22 @@ export function CommunityForm({
             onChange={(e) => set("priceFcfa", e.target.value)}
             placeholder="5000"
             error={fieldErrors.priceFcfa}
+            /* La commission reste écrite : c'est un montant, il entre dans la
+               décision au moment où l'on fixe le prix. Ce que devient un prix
+               déjà fixé est une règle rassurante, pas un avertissement : elle
+               passe derrière le ⓘ. */
             hint={
               mode === "edit"
-                ? "Un nouveau prix ne s'applique qu'aux adhésions et renouvellements à venir. Personne n'est débité de la différence en cours de mois."
+                ? undefined
                 : `NkamVa prélève ${COMMISSION_LABEL} sur chaque adhésion ; ${TRAINER_SHARE_LABEL} vous reviennent.`
+            }
+            labelHint={
+              mode === "edit" ? (
+                <Hint label="Ce que devient un changement de prix">
+                  Un nouveau prix ne s&apos;applique qu&apos;aux adhésions et renouvellements à
+                  venir. Personne n&apos;est débité de la différence en cours de mois.
+                </Hint>
+              ) : null
             }
             required
           />
@@ -302,20 +332,31 @@ export function CommunityForm({
         <fieldset
           className={cn("mb-[18px]", shows("identity") && "border-t border-line-2 pt-5")}
         >
-          <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Ce qui est ouvert</legend>
-          <p className="mb-3 text-[13px] leading-relaxed text-ink-3">
-            Fermer une rubrique la retire aux membres sans rien effacer : les messages déjà écrits
-            restent, ils cessent seulement d&apos;être alimentés.
-          </p>
-          <ul className="grid gap-1">
+          {/* La légende porte le ⓘ du fieldset, et chaque case le sien. Quatre
+              interrupteurs accompagnés de quatre paragraphes occupaient un
+              écran entier de téléphone. */}
+          <legend className="mb-3 flex items-center gap-1">
+            <span className="text-[13.5px] font-bold text-ink">Ce qui est ouvert</span>
+            <Hint label="Ce que fermer une rubrique fait">
+              Fermer une rubrique la retire aux membres sans rien effacer : les messages déjà
+              écrits restent, ils cessent seulement d&apos;être alimentés.
+            </Hint>
+          </legend>
+          <ul className="grid gap-0.5">
             {SALONS.map((salon) => (
-              <li key={salon.key} className="border-b border-line-2 py-2 last:border-b-0">
+              <li
+                key={salon.key}
+                className="flex items-center gap-1 border-b border-line-2 py-1.5 last:border-b-0"
+              >
+                {/* Le ⓘ vit à côté de `CheckOption`, jamais dedans : le composant
+                    est un `<label>` entier, et un bouton posé à l'intérieur
+                    basculerait la case au moindre clic. */}
                 <CheckOption
                   checked={values[salon.key]}
                   onCheckedChange={(next) => set(salon.key, next)}
                   label={salon.label}
                 />
-                <p className="ml-[30px] text-[13px] leading-relaxed text-ink-3">{salon.hint}</p>
+                <Hint label={`Ce que « ${salon.label} » ouvre`}>{salon.hint}</Hint>
               </li>
             ))}
           </ul>
@@ -381,21 +422,26 @@ export function VisibilityToggle({
     <section className="mt-6 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-[52ch]">
-          <h2 className="flex items-center gap-2 text-[15px] font-bold">
-            {isPublic ? (
-              <Eye className="size-4 text-brand" aria-hidden="true" />
-            ) : (
-              <EyeOff className="size-4 text-ink-3" aria-hidden="true" />
-            )}
-            {isPublic ? "Salon public" : "Salon fermé"}
-          </h2>
-          <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">
-            {isPublic
-              ? "Votre communauté apparaît dans l'annuaire, dans la recherche et sur votre fiche formateur. N'importe qui peut la rejoindre en payant."
-              : "Votre communauté est retirée de l'annuaire, de la recherche et de votre fiche formateur. On n'y entre plus que sur invitation nominative."}
-          </p>
+          {/* Le titre dit l'état, le ⓘ dit ce que cet état entraîne. Ce qui reste
+              écrit est la seule phrase qui avertit d'une perte : les liens de
+              parrainage révoqués. */}
+          <div className="flex items-center gap-1.5">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold">
+              {isPublic ? (
+                <Eye className="size-4 text-brand" aria-hidden="true" />
+              ) : (
+                <EyeOff className="size-4 text-ink-3" aria-hidden="true" />
+              )}
+              {isPublic ? "Salon public" : "Salon fermé"}
+            </h2>
+            <Hint label="Ce que cet état change">
+              {isPublic
+                ? "Votre communauté apparaît dans l'annuaire, dans la recherche et sur votre fiche formateur. N'importe qui peut la rejoindre en payant."
+                : "Votre communauté est retirée de l'annuaire, de la recherche et de votre fiche formateur. On n'y entre plus que sur invitation nominative."}
+            </Hint>
+          </div>
           {isPublic ? (
-            <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
               La fermer révoquera vos liens de parrainage en circulation : ils cesseront de
               fonctionner, définitivement.
             </p>

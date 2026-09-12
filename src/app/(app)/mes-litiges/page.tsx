@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ChevronRight, ShieldCheck } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { StPill } from "@/components/nk/status-pill";
-import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { listMyDisputes } from "@/lib/disputes";
 import { fmtDate, fmtFcfa } from "@/lib/format";
@@ -24,7 +23,7 @@ export default async function MesLitigesPage() {
   const { items, total } = await listMyDisputes(auth.user.id, 1, 20);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         // Comme pour les factures : une contestation naît d'un achat, le fil
         // d'Ariane porte ce lien mieux qu'un bouton « Retour ».
@@ -47,13 +46,26 @@ export default async function MesLitigesPage() {
           {items.map((dispute) => {
             const state = DISPUTE_STATUS[dispute.status];
             return (
+              /*
+                La rangée est le lien. Elle portait un bouton « Ouvrir le dossier » qui menait
+                **à la même adresse** que le titre : deux cibles pour une
+                destination, et surtout 143 px pris à la colonne de texte.
+                En `flex-wrap` avec un `flex-1` qui peut se réduire à zéro, le
+                navigateur gardait tout sur une ligne et écrasait le texte :
+                162 px de large, métadonnées enroulées sur 106 px de haut.
+                Le voile `after:inset-0` étend le lien du titre à la rangée, comme
+                dans `ResourceCard` (arbitrage 140).
+              */
               <li
                 key={dispute.id}
-                className="flex flex-wrap items-center gap-4 rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm"
+                className="group relative flex items-center gap-3 rounded-nk-lg border border-line bg-card px-4 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk focus-within:border-brand sm:px-5 sm:py-4.5"
               >
                 <div className="min-w-0 flex-1">
                   <h2 className="text-[15.5px] font-bold leading-tight">
-                    <Link href={`/mes-litiges/${dispute.id}`} className="text-ink hover:text-brand">
+                    <Link
+                      href={`/mes-litiges/${dispute.id}`}
+                      className="text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand"
+                    >
                       {dispute.purchase.course?.title ?? "Ressource retirée du catalogue"}
                     </Link>
                   </h2>
@@ -68,9 +80,10 @@ export default async function MesLitigesPage() {
                     </p>
                   ) : null}
                 </div>
-                <BtnLink href={`/mes-litiges/${dispute.id}`} variant="o" size="sm">
-                  Ouvrir le dossier
-                </BtnLink>
+                <ChevronRight
+                  className="size-4 shrink-0 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
+                  aria-hidden="true"
+                />
               </li>
             );
           })}
