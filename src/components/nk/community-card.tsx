@@ -9,23 +9,25 @@ import { cn } from "@/lib/utils";
 /**
  * La grille qui porte ces cartes, définie une fois pour toutes ses surfaces.
  *
- * **Deux colonnes au minimum, trois au plus.** Deux même sur un téléphone :
- * une carte par ligne faisait défiler une liste de six communautés sur trois
- * écrans, alors qu'elle ne dit que six choses. Ce qui a rendu ce minimum
- * tenable, c'est la carte elle-même — elle se replie en colonne quand elle
- * reçoit moins de 230 px (voir plus bas).
+ * **Deux colonnes au minimum, trois à partir de `sm`.** Deux même sur un
+ * téléphone : une carte par ligne faisait défiler une liste de six communautés
+ * sur trois écrans, alors qu'elle ne dit que six choses. Ce qui a rendu ce
+ * minimum tenable, c'est la carte elle-même — elle se replie en colonne quand
+ * elle reçoit moins de 256 px (voir plus bas).
  *
- * Les seuils sont écrits en largeurs réelles plutôt qu'avec `sm:`/`lg:` : à
- * 640 px, `sm:` ne s'était pas encore déclenché dans une fenêtre de 583 px, où
- * trois cartes tiennent. Les points de rupture du produit décrivent des
- * téléphones et des bureaux ; une grille de cartes, elle, ne dépend que de la
- * place qu'on lui donne.
+ * Des seuils en largeurs réelles — une variante `min-` suivie d'une largeur en
+ * pixels — ont été écrits ici puis retirés : l'arbitrage 110 fait de l'échelle
+ * Tailwind la source unique des points de rupture, et `scripts/smoke-mobile.ts`
+ * le garde (le garde-fou lit aussi les commentaires, d'où cette périphrase). La conséquence est
+ * assumée — dans une fenêtre de 583 px il reste deux colonnes là où trois
+ * tiendraient, mais deux était le minimum demandé, et une échelle partagée vaut
+ * mieux qu'un seuil juste pour cette grille.
  *
  * `auto-fill` a été essayé et écarté : il ne sait pas s'arrêter à trois, et
  * donnait six colonnes sur un grand écran — des cartes perdues dans la largeur
  * là où la maquette en pose trois.
  */
-export const COMMUNITY_GRID = "grid gap-[18px] grid-cols-2 min-[560px]:grid-cols-3";
+export const COMMUNITY_GRID = "grid gap-[18px] grid-cols-2 sm:grid-cols-3";
 
 /**
  * Ce qu'une carte de communauté a besoin de savoir — et rien de plus.
@@ -77,8 +79,9 @@ export interface CommunityCardData {
  * Une même carte n'a pas la même place selon que la grille en pose deux ou
  * trois par ligne, ni selon la fenêtre : c'est la largeur **qu'elle reçoit**
  * qui décide, ce qu'un point de rupture d'écran ne sait pas dire. En dessous de
- * 230 px, le portrait passe au-dessus du nom plutôt qu'à côté — un avatar de
- * 42 px et deux mots de titre ne tiennent pas côte à côte dans 100 px.
+ * `@3xs` — 256 px, l'échelle des conteneurs — le portrait passe au-dessus du
+ * nom plutôt qu'à côté : un avatar de 42 px et deux mots de titre ne tiennent
+ * pas côte à côte dans 100 px.
  *
  * Sa première forme empilait sept blocs et montait à 389 px de haut dans une
  * colonne de 170 px, pour dire quatre choses. Ce qui reste tient en trois :
@@ -131,7 +134,7 @@ export function CommunityCard({
       className={cn(
         "@container group relative flex flex-col gap-2.5 rounded-nk-lg border p-3 shadow-nk-sm transition duration-200",
         "hover:-translate-y-0.5 hover:shadow-nk focus-within:-translate-y-0.5 focus-within:shadow-nk",
-        "@min-[230px]:gap-3 @min-[230px]:p-4",
+        "@3xs:gap-3 @3xs:p-4",
         highlight ? "border-[1.5px] border-brand/30 bg-brand-tint/40" : "border-line bg-card",
         className,
       )}
@@ -145,16 +148,16 @@ export function CommunityCard({
         avec la carte : à 46 px il pèse déjà son poids, et un bandeau de 104 px
         est exactement ce qu'on vient de retirer.
       */}
-      <div className="flex flex-col gap-1.5 @min-[230px]:flex-row @min-[230px]:items-start @min-[230px]:gap-3">
+      <div className="flex flex-col gap-1.5 @3xs:flex-row @3xs:items-start @3xs:gap-3">
         <Avatar
           size="md"
           src={community.trainerAvatarUrl ?? null}
           name={trainerName}
           alt={trainerName ? `Photo de ${trainerName}` : undefined}
-          className="@min-[230px]:size-[46px]"
+          className="@3xs:size-[46px]"
         />
         <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] font-extrabold leading-[1.25] @min-[230px]:text-[16px]">
+          <h2 className="text-[14px] font-extrabold leading-[1.25] @3xs:text-[16px]">
             <Link
               href={href}
               className={cn(
@@ -166,7 +169,7 @@ export function CommunityCard({
             </Link>
           </h2>
           {trainerName && !hideTrainerName ? (
-            <p className="truncate text-[12px] font-semibold text-ink-3 @min-[230px]:text-[12.5px]">
+            <p className="truncate text-[13px] font-semibold text-ink-3 @3xs:text-[13px]">
               {trainerName}
             </p>
           ) : null}
@@ -181,8 +184,8 @@ export function CommunityCard({
       */}
       <dl
         className={cn(
-          "mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-line-2 pt-2.5 text-[12px] text-ink-3",
-          "@min-[230px]:text-[12.5px] @min-[300px]:justify-between",
+          "mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-line-2 pt-2.5 text-[13px] text-ink-3",
+          "@3xs:text-[13px] @3xs:justify-between",
         )}
       >
         <span className="flex items-center gap-1.5">
@@ -204,9 +207,9 @@ export function CommunityCard({
         <span className="whitespace-nowrap">
           <Price
             amountFcfa={community.priceFcfa}
-            className="text-[13.5px] @min-[230px]:text-[15px]"
+            className="text-[13.5px] @3xs:text-[15px]"
           />
-          <small className="ml-1 text-[12px] font-semibold text-ink-3">/ mois</small>
+          <small className="ml-1 text-[13px] font-semibold text-ink-3">/ mois</small>
         </span>
       </dl>
 
@@ -227,7 +230,7 @@ export function CommunityCard({
       */}
       {meta || action ? (
         <div className="relative z-1 flex flex-wrap items-center justify-between gap-2">
-          {meta ? <p className="text-[12px] leading-snug text-ink-3">{meta}</p> : <span />}
+          {meta ? <p className="text-[13px] leading-snug text-ink-3">{meta}</p> : <span />}
           {action}
         </div>
       ) : null}
