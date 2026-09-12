@@ -64,7 +64,7 @@ export default async function StatutCandidaturePage() {
   }[application.status as "SUBMITTED" | "APPROVED" | "REJECTED"];
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Devenir formateur", href: "/devenir-formateur" }, { label: "Suivi" }]}
         title="Suivi de ma candidature"

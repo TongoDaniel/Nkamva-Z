@@ -84,7 +84,7 @@ export function ContactForm({ responseHours }: { responseHours: number }) {
     return (
       <div
         role="status"
-        className="rounded-nk-lg border border-line bg-card p-8 text-center shadow-nk-sm"
+        className="rounded-nk-lg border border-line bg-card p-5 text-center shadow-nk-sm sm:p-8"
       >
         <span className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-brand-tint text-brand">
           <CheckCircle2 className="size-7" aria-hidden="true" />

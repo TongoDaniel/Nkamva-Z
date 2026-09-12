@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Hint } from "@/components/nk/hint";
 import { CheckOption } from "@/components/nk/input";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
@@ -24,7 +25,14 @@ export function EmailPrefsPanel({ profile }: { profile: ProfileView }) {
   return (
     <SettingCard
       title="Emails d'information"
-      subtitle="Ce que NkamVa vous envoie en plus de vos notifications. Vos reçus d'achat, vos factures, l'ouverture de vos accès, et tout ce qui touche à un impayé, à un litige ou à la sécurité de votre compte ne sont pas concernés : ils partent toujours."
+      hint={
+        <Hint label="Ce que ce réglage ne touche pas">
+          Ce que NkamVa vous envoie en plus de vos notifications. Vos reçus d&apos;achat, vos
+          factures, l&apos;ouverture de vos accès, et tout ce qui touche à un impayé, à un
+          litige ou à la sécurité de votre compte ne sont pas concernés : ils partent
+          toujours.
+        </Hint>
+      }
     >
       <div className="flex flex-col gap-5">
         <PrefToggle
@@ -95,8 +103,14 @@ function PrefToggle({
   return (
     <fieldset disabled={save.pending} className="disabled:opacity-60">
       <legend className="sr-only">{label}</legend>
-      <CheckOption checked={enabled} onCheckedChange={toggle} name={name} label={label} />
-      <p className="mt-1.5 max-w-[60ch] text-[13px] leading-relaxed text-ink-2">{help}</p>
+      {/* Le ⓘ vit à côté de la case, jamais dedans : `CheckOption` est un
+          `<label>` entier, et un bouton posé à l'intérieur basculerait la
+          préférence au moindre clic. Le paragraphe d'aide qui suivait chaque
+          case coûtait trois lignes pour un interrupteur (arbitrage 138). */}
+      <div className="flex items-center gap-1">
+        <CheckOption checked={enabled} onCheckedChange={toggle} name={name} label={label} />
+        <Hint label={`Ce que couvre « ${label} »`}>{help}</Hint>
+      </div>
     </fieldset>
   );
 }

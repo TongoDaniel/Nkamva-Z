@@ -270,7 +270,7 @@ export function PdfReader({
 
   if (erreur) {
     return (
-      <div className="grid min-h-[380px] place-items-center rounded-nk-lg border border-line bg-card p-8 text-center">
+      <div className="grid min-h-[380px] place-items-center rounded-nk-lg border border-line bg-card p-5 text-center sm:p-8">
         <p className="max-w-[46ch] text-ink-2">
           {erreur} Vous pouvez le télécharger depuis la liste de vos ressources.
         </p>

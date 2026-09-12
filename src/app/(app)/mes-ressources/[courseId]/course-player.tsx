@@ -204,7 +204,7 @@ export function CoursePlayer({
 
   if (error) {
     return (
-      <div className="rounded-nk-lg border border-line bg-card p-8 text-center shadow-nk-sm">
+      <div className="rounded-nk-lg border border-line bg-card p-5 text-center shadow-nk-sm sm:p-8">
         <AlertTriangle className="mx-auto mb-4 size-8 text-gold-ink" aria-hidden="true" />
         <h2 className="mb-2 text-lg font-extrabold">Lecture indisponible</h2>
         <p className="mx-auto mb-6 max-w-[46ch] text-ink-2">{error}</p>
@@ -265,7 +265,7 @@ export function CoursePlayer({
         ) : null}
 
         {isArchive ? (
-          <div className="rounded-nk-lg border border-line bg-card p-8 text-center shadow-nk-sm">
+          <div className="rounded-nk-lg border border-line bg-card p-5 text-center shadow-nk-sm sm:p-8">
             <span className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-brand-tint text-brand">
               <Download className="size-6" aria-hidden="true" />
             </span>

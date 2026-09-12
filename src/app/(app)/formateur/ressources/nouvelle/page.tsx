@@ -19,7 +19,7 @@ export default async function NouvelleRessourcePage() {
   const community = auth?.user.trainerId ? await getMyCommunity(auth.user.trainerId) : null;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           { label: "Espace formateur", href: "/formateur" },

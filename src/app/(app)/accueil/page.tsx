@@ -90,7 +90,7 @@ export default async function AccueilPage({
     ) : null;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title={firstName ? `Bonjour, ${firstName} !` : "Votre espace"}
         lead="Reprenez là où vous en étiez, ou découvrez de nouvelles ressources."
@@ -132,7 +132,7 @@ export default async function AccueilPage({
         </Link>
       </div>
 
-      <section aria-labelledby="reprendre" className="mb-10">
+      <section aria-labelledby="reprendre" className="mb-7 sm:mb-10">
         <div className="mb-4 flex items-baseline justify-between gap-3">
           <h2 id="reprendre" className="text-[17px] font-bold">
             Reprendre

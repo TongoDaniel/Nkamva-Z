@@ -38,7 +38,7 @@ export default async function ReplayPage({ params }: { params: Params }) {
   const messages = await listReplayMessages(replayId, auth.user.id);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Mes lives", href: "/mes-lives" }, { label: replay.title }]}
         title={<span className="sr-only">{replay.title}</span>}

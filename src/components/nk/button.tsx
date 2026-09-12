@@ -38,7 +38,11 @@ export const btnVariants = cva(
       size: {
         sm: "px-4 py-[9px] text-[13.5px] [&_svg]:size-4",
         md: "px-[22px] py-[13px] text-[15px] [&_svg]:size-[17px]",
-        lg: "px-7 py-4 text-base [&_svg]:size-[18px]",
+        // `lg` adopte la métrique de `md` sous `sm` : 58 px de haut et 28 px
+        // de marge latérale sur un téléphone, c’est un bouton plus grand que
+        // le pouce qui le presse, et deux CTA côte à côte ne tenaient plus
+        // sur une ligne. La générosité revient dès 640 px.
+        lg: "px-[22px] py-[13px] text-[15px] [&_svg]:size-[17px] sm:px-7 sm:py-4 sm:text-base sm:[&_svg]:size-[18px]",
       },
       block: {
         true: "w-full",

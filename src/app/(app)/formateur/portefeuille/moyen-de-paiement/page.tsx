@@ -32,7 +32,7 @@ export default async function MoyenDePaiementPage() {
       active.verificationStatus === "BLOCKED");
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           { label: "Espace formateur", href: "/formateur" },

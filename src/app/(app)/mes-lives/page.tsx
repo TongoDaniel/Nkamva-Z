@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { PlayCircle, Radio, Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
+import { Hint } from "@/components/nk/hint";
 import { BtnLink } from "@/components/nk/button-link";
-import { StatTile } from "@/components/nk/stat-tile";
+import { StatStrip } from "@/components/nk/stat-strip";
 import { getAuthContext } from "@/lib/api";
 import { db } from "@/lib/db";
 import { listAgenda, listMyReplays, REPLAY_RETENTION_MONTHS } from "@/lib/lives";
@@ -72,13 +72,28 @@ export default async function MesLivesPage({
   const registered = hosted.reduce((total, s) => total + s.attendees, 0);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title="Mes lives & agenda"
         lead={
           trainerId
             ? "Les séances que vous animez, celles de vos communautés, et tous leurs replays."
             : "Vos sessions en direct et les replays de vos communautés."
+        }
+        /* Arbitrages 38, 51 et 55, requalifiés : l'enregistrement n'est pas une
+           option, le replay porte la date du live, et le téléchargement est un
+           droit uniforme — il n'y a pas de case « téléchargeable » par
+           session. Ne pas en ajouter. La règle se lit une fois, au ⓘ. */
+        hint={
+          trainerId ? (
+            <Hint label="Ce que devient un live une fois terminé">
+              Chaque live que vous animez est enregistré automatiquement : vous n&apos;avez rien à
+              déclencher, et le replay porte la date de la séance, pas celle de sa mise en ligne.
+              Tout membre de la communauté peut le télécharger. Chaque enregistrement est
+              conservé {REPLAY_RETENTION_MONTHS} mois, puis supprimé — vous serez prévenu un
+              mois avant, et l&apos;espace vous sera rendu.
+            </Hint>
+          ) : null
         }
         actions={
           trainerId ? (
@@ -89,29 +104,27 @@ export default async function MesLivesPage({
         }
       />
 
-      {/* Les trois tuiles ne comptent que ce que l'utilisateur anime — c'est là
-          que se logeait le chiffre faux d'avant la fusion. */}
+      {/*
+        Les trois chiffres ne comptent que ce que l'utilisateur anime — c'est là
+        que se logeait le chiffre faux d'avant la fusion.
+
+        Une **bande** et non trois tuiles : empilées une par ligne sous `sm`,
+        elles occupaient 290 px pour dire trois nombres, et repoussaient
+        l'agenda — la raison d'être de l'écran — sous la ligne de flottaison.
+        Même arbitrage que sur l'accueil formateur et les litiges.
+      */}
       {trainerId ? (
-        <div className="my-8 grid gap-4 sm:grid-cols-3">
-          <StatTile
-            icon={<Radio />}
-            tone="brand"
-            value={hosted.length}
-            label={`session${hosted.length > 1 ? "s" : ""} à animer`}
-          />
-          <StatTile
-            icon={<Users />}
-            tone="blue"
-            value={fmtNumber(registered)}
-            label="inscriptions cumulées"
-          />
-          <StatTile
-            icon={<PlayCircle />}
-            tone="gold"
-            value={myReplays.length}
-            label={`replay${myReplays.length > 1 ? "s" : ""} que vous avez produit${myReplays.length > 1 ? "s" : ""}`}
-          />
-        </div>
+        <StatStrip
+          className="my-5 sm:my-8"
+          items={[
+            { value: hosted.length, label: `session${hosted.length > 1 ? "s" : ""} à animer` },
+            { value: fmtNumber(registered), label: "inscriptions cumulées" },
+            {
+              value: myReplays.length,
+              label: `replay${myReplays.length > 1 ? "s" : ""} produit${myReplays.length > 1 ? "s" : ""}`,
+            },
+          ]}
+        />
       ) : null}
 
       <AgendaPane
@@ -121,20 +134,6 @@ export default async function MesLivesPage({
         exploreHref={routes.communities}
         initialTab={onglet === "replays" ? "replays" : "upcoming"}
       />
-
-      {/* Arbitrages 38, 51 et 55, requalifiés : l'enregistrement n'est pas une
-          option, le replay porte la date du live, et le téléchargement est un
-          droit uniforme — il n'y a pas de case « téléchargeable » par session.
-          Ne pas en ajouter. */}
-      {trainerId ? (
-        <p className="mt-10 rounded-nk-lg border border-line bg-card px-5 py-4 text-[13px] leading-relaxed text-ink-2 shadow-nk-sm">
-          Chaque live que vous animez est enregistré automatiquement : vous n&apos;avez rien à
-          déclencher, et le replay porte la date de la séance, pas celle de sa mise en ligne.
-          Tout membre de la communauté peut le télécharger. Chaque enregistrement est conservé{" "}
-          {REPLAY_RETENTION_MONTHS} mois, puis supprimé — vous serez prévenu un mois avant, et
-          l&apos;espace vous sera rendu.
-        </p>
-      ) : null}
     </div>
   );
 }

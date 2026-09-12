@@ -56,7 +56,7 @@ export default async function AdhesionPage({
   // état que le tunnel d'achat d'une ressource dont on est l'auteur.
   if (auth.user.trainerId && auth.user.trainerId === community.trainer.id) {
     return (
-      <div className="nk-wrap pb-16">
+      <div className="nk-wrap pb-10 sm:pb-16">
         <PageHead
           crumbs={[
             { label: "Communautés", href: routes.communities },
@@ -80,7 +80,7 @@ export default async function AdhesionPage({
   }
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           { label: "Communautés", href: routes.communities },

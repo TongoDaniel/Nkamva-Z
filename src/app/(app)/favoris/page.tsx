@@ -40,7 +40,7 @@ export default async function FavorisPage() {
   const { courses, communities } = await listMyFavorites(auth.user.id);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Accueil", href: routes.home }, { label: "Favoris" }]}
         title="Vos favoris"

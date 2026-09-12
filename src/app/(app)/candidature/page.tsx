@@ -54,7 +54,7 @@ export default async function CandidaturePage() {
     : null;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Devenir formateur", href: "/devenir-formateur" }, { label: "Ma candidature" }]}
         title={

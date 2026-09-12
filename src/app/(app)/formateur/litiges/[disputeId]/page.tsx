@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Info } from "lucide-react";
+import { Hint } from "@/components/nk/hint";
 import { PageHead } from "@/components/nk/page-head";
 import { StPill } from "@/components/nk/status-pill";
 import { BtnLink } from "@/components/nk/button-link";
@@ -38,7 +39,7 @@ export default async function TrainerDisputePage({
   const openTicket = dispute.tickets.find((t) => t.status === "OPEN");
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           { label: "Espace formateur", href: "/formateur" },
@@ -112,7 +113,16 @@ export default async function TrainerDisputePage({
           aria-label="Le dossier"
           className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
         >
-          <h2 className="mb-4 text-[15.5px] font-extrabold sm:text-[16.5px]">Le dossier</h2>
+          {/* Ce que le formateur ne voit pas d'un dossier est une règle, pas un
+              avertissement : elle rejoint le ⓘ du titre (arbitrage 138), comme
+              sur la liste des litiges. */}
+          <div className="mb-4 flex items-center gap-1.5">
+            <h2 className="text-[15.5px] font-extrabold sm:text-[16.5px]">Le dossier</h2>
+            <Hint label="Ce qui ne vous est pas communiqué">
+              L&apos;identité de l&apos;acheteur et le détail qu&apos;il a rédigé ne vous sont
+              pas communiqués.
+            </Hint>
+          </div>
           <dl className="grid gap-3 text-sm">
             <div className="flex justify-between gap-3">
               <dt className="text-ink-2">Motif déclaré</dt>
@@ -169,11 +179,6 @@ export default async function TrainerDisputePage({
               </dl>
             </div>
           ) : null}
-
-          <p className="mt-5 border-t border-line-2 pt-4 text-[13px] leading-relaxed text-ink-3">
-            L&apos;identité de l&apos;acheteur et le détail qu&apos;il a rédigé ne vous sont pas
-            communiqués.
-          </p>
 
           {dispute.purchase.course ? (
             <BtnLink href={`/formateur/ressources`} variant="o" size="sm" block className="mt-4">

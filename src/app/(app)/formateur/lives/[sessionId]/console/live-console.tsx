@@ -21,6 +21,7 @@ import { Btn } from "@/components/nk/button";
 import { BtnLink } from "@/components/nk/button-link";
 import { ReportButton } from "@/components/nk/report-button";
 import { StPill } from "@/components/nk/status-pill";
+import { Hint } from "@/components/nk/hint";
 import { Tabs } from "@/components/nk/tabs";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
@@ -411,19 +412,33 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
         aria-label="Modération de la session"
         className="overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm"
       >
-        <Tabs
-          label="Modération de la session"
-          panelId="console-panneau"
-          value={panel}
-          onValueChange={(value) => setPanel(value as Panel)}
-          items={[
-            { value: "requests", label: "Demandes", count: queue.length },
-            { value: "participants", label: "Participants", count: room.participants.length },
-            { value: "chat", label: "Salon", count: room.messages.length },
-          ]}
-          size="sm"
-          className="!mb-0 px-2"
-        />
+        {/* Les deux règles de la console — arbitrages 40 et 42 — tenaient chacune
+            un paragraphe en pied de panneau. Pendant un direct, c'est là que la
+            place manque le plus : elles se lisent désormais au ⓘ, posé au bout
+            de la barre. */}
+        <div className="flex items-center gap-1 pr-3">
+          <Tabs
+            label="Modération de la session"
+            panelId="console-panneau"
+            value={panel}
+            onValueChange={(value) => setPanel(value as Panel)}
+            items={[
+              { value: "requests", label: "Demandes", count: queue.length },
+              { value: "participants", label: "Participants", count: room.participants.length },
+              { value: "chat", label: "Salon", count: room.messages.length },
+            ]}
+            size="sm"
+            className="!mb-0 min-w-0 flex-1 px-2"
+          />
+          <Hint
+            label="Ce que la console peut, et ce que devient le salon"
+            align="end"
+          >
+            Vous pouvez couper un micro, pas retirer quelqu&apos;un de la session : exclure
+            relève du bannissement de la communauté. Le salon, lui, est conservé et rattaché
+            au replay — ce qui s&apos;y écrit reste lisible après la session.
+          </Hint>
+        </div>
 
         <div id="console-panneau" className="p-4">
           {panel === "requests" ? (
@@ -606,14 +621,6 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                   ))}
                 </ul>
               )}
-
-              {/* Arbitrage 40 : la console ne sait que couper un micro. Exclure
-                  quelqu'un d'une session est un autre geste, qui relève du
-                  bannissement de communauté — ne pas l'ajouter ici. */}
-              <p className="mt-3 border-t border-line-2 pt-3 text-[13px] leading-relaxed text-ink-3">
-                Vous pouvez couper un micro, pas retirer quelqu&apos;un de la session : exclure
-                relève du bannissement de la communauté.
-              </p>
             </>
           ) : (
             <>
@@ -671,13 +678,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                 <Btn type="submit" size="sm" disabled={!draft.trim() || action.busy} aria-label="Envoyer">
                   <Send aria-hidden="true" />
                 </Btn>
-              </form>
-              {/* Arbitrage 42 : le salon survit à la session, attaché au replay. */}
-              <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
-                Ce salon est conservé et rattaché au replay : ce qui s&apos;écrit ici reste lisible
-                après la session.
-              </p>
-            </>
+              </form>            </>
           )}
         </div>
       </section>

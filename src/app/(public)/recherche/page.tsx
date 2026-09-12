@@ -36,7 +36,7 @@ export default async function RecherchePage({
   const tooShort = (q ?? "").trim().length > 0 && (q ?? "").trim().length < SEARCH_MIN_LENGTH;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Accueil", href: "/" }, { label: "Recherche" }]}
         title={results.query ? `Résultats pour « ${results.query} »` : "Recherche"}

@@ -4,12 +4,19 @@ import { cn } from "@/lib/utils";
 /** Carte de réglages — port de `.setcard`. */
 export function SettingCard({
   title,
+  hint,
   subtitle,
   children,
   footer,
   className,
 }: {
   title: string;
+  /**
+   * Le ⓘ posé à côté du titre — un `<Hint>` déjà formé (arbitrage 138).
+   * C'est là que va l'explication d'un réglage ; `subtitle` ne garde que ce qui
+   * doit se lire sans clic, et une carte de geste destructeur n'y touche pas.
+   */
+  hint?: React.ReactNode;
   subtitle?: React.ReactNode;
   children?: React.ReactNode;
   footer?: React.ReactNode;
@@ -26,7 +33,10 @@ export function SettingCard({
         className,
       )}
     >
-      <h2 className="text-[16px] font-extrabold sm:text-[17px]">{title}</h2>
+      <div className="flex items-center gap-1.5">
+        <h2 className="text-[16px] font-extrabold sm:text-[17px]">{title}</h2>
+        {hint}
+      </div>
       {subtitle ? (
         <p className="mb-4 mt-1.5 text-[13.5px] leading-relaxed text-ink-2 sm:mb-5 sm:text-[14px]">
           {subtitle}
@@ -43,11 +53,14 @@ export function SettingCard({
 /** Ligne « intitulé + action » d'une carte de réglages (`.secrow`). */
 export function SettingRow({
   title,
+  hint,
   description,
   action,
   danger,
 }: {
   title: React.ReactNode;
+  /** Le ⓘ de la ligne — même règle que celui de la carte (arbitrage 138). */
+  hint?: React.ReactNode;
   description?: React.ReactNode;
   action: React.ReactNode;
   danger?: boolean;
@@ -55,7 +68,10 @@ export function SettingRow({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-2 py-3.5 first:border-t-0 first:pt-0 sm:gap-4 sm:py-4">
       <div className="min-w-0 flex-1">
-        <b className={cn("block text-[14.5px]", danger && "text-danger")}>{title}</b>
+        <div className="flex items-center gap-1.5">
+          <b className={cn("text-[14.5px]", danger && "text-danger")}>{title}</b>
+          {hint}
+        </div>
         {description ? (
           <small className="mt-0.5 block max-w-[52ch] text-[13px] leading-relaxed text-ink-2">
             {description}

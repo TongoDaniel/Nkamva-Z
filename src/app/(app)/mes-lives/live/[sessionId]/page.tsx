@@ -39,7 +39,7 @@ export default async function LivePage({ params }: { params: Params }) {
   }
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           { label: "Mes lives", href: "/mes-lives" },

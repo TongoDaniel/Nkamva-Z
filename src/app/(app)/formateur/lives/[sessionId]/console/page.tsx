@@ -43,7 +43,7 @@ export default async function ConsolePage({ params }: { params: Params }) {
   if (!room.isHost) redirect(`/mes-lives/live/${sessionId}`);
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           { label: "Espace formateur", href: "/formateur" },

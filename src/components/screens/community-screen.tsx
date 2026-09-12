@@ -42,7 +42,7 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
   ].filter(Boolean) as { icon: typeof MessageSquare; label: string }[]
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[
           routes.communitiesParent,

@@ -115,6 +115,64 @@ const RULES: Rule[] = [
 /** Plafond du cliquet ci-dessus, relevé le 14 août 2026. */
 const REFRESH_CEILING = 14
 
+/**
+ * Le plafond, en regard du plancher typographique.
+ * ==========================================================================
+ * L'arbitrage 116 a posé un plancher : rien sous 13 px. Il manquait la borne
+ * haute — non pas sur la taille des lettres, qui va bien (mesuré le
+ * 12 septembre 2026 : titres de page à 28 px, section à 26, héros de la
+ * vitrine à 34 sur deux lignes), mais sur **les espacements hérités du grand
+ * écran**. Un `pt-14` écrit sans préfixe vaut 56 px à 375 px de large ; c'est
+ * là que partaient les écrans : 64 px de vide en pied de chaque page, un pied
+ * de page public de 835 px pour un écran de 812, cinq tuiles d'aide à 145 px.
+ *
+ * La règle : au-delà de 40 px (échelle 10), un espacement doit soit porter un
+ * préfixe, soit voir sa chaîne de classes proposer une reprise `sm:`. Le
+ * mobile d'abord, la générosité ensuite.
+ *
+ * C'est un **cliquet**, pas un verdict : deux occurrences restent, toutes deux
+ * dans l'admin, hors périmètre du chantier (arbitrage mobile first). Si le
+ * compte monte, quelqu'un a écrit une marge de grand écran sans reprise.
+ */
+const CEILING_MAX = 2
+
+/** `p-10`, `mt-12`, `gap-14`… — l'échelle 10 et au-delà vaut 40 px et plus. */
+const GRAND_ESPACEMENT =
+  /(?<![-\w:])(?:p|px|py|pt|pb|m|mx|my|mt|mb|gap|gap-x|gap-y|space-y)-(?:1[0-9]|2[0-9]|3[0-6])(?![\w.[-])/g
+
+function ceilingScan() {
+  const hits: string[] = []
+  for (const file of sources(SRC)) {
+    const rel = relative(SRC, file).replace(/\\/g, '/')
+    if (isUi(rel)) continue
+    const lines = readFileSync(file, 'utf8').split('\n')
+    lines.forEach((line, i) => {
+      // On ne lit que des chaînes de classes : un `gap-10` dans un commentaire
+      // ou un nom de variable n'est pas un style.
+      const chaines = [...line.matchAll(/className=(?:"([^"]*)"|\{cn\(\s*"([^"]*)")/g)].map(
+        (m) => m[1] ?? m[2],
+      )
+      for (const chaine of chaines) {
+        GRAND_ESPACEMENT.lastIndex = 0
+        let m: RegExpExecArray | null
+        while ((m = GRAND_ESPACEMENT.exec(chaine))) {
+          const avant = chaine.slice(Math.max(0, m.index - 4), m.index)
+          if (/(sm|md|lg|xl|2xl):$/.test(avant)) continue
+          if (/\bsm:/.test(chaine)) continue
+          hits.push(`${rel}:${i + 1} ${m[0]}`)
+        }
+      }
+    })
+  }
+  check(
+    `aucun espacement au-dessus de 40 px sans reprise \`sm:\` (plafond ${CEILING_MAX})`,
+    hits.length <= CEILING_MAX,
+    hits.length > CEILING_MAX
+      ? `${hits.length} occurrence(s) — ${hits.slice(0, 4).join(', ')} — écrire la valeur mobile, puis \`sm:\` pour le grand écran`
+      : '',
+  )
+}
+
 function ruleScan() {
   console.log('Règles du code')
   const files = sources(SRC)
@@ -136,6 +194,8 @@ function ruleScan() {
       hits.length > limit ? `${hits.length} occurrence(s) — ${unique.slice(0, 3).join(', ')} — ${rule.why}` : '',
     )
   }
+
+  ceilingScan()
 
   // La primitive d'historique doit rester branchée : c'est elle qui rend le
   // bouton retour d'Android non destructeur, et rien ne le signale si elle

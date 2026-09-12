@@ -97,7 +97,7 @@ export default async function TarifsPage() {
   ];
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Accueil", href: "/" }, { label: "Tarifs" }]}
         title="Des tarifs pensés pour l'Afrique"
@@ -110,7 +110,7 @@ export default async function TarifsPage() {
             key={plan.name}
             aria-label={plan.name}
             className={cn(
-              "flex flex-col rounded-nk-lg border bg-card p-7 shadow-nk-sm",
+              "flex flex-col rounded-nk-lg border bg-card p-5 shadow-nk-sm sm:p-7",
               plan.featured ? "border-brand shadow-nk" : "border-line",
             )}
           >
@@ -144,7 +144,7 @@ export default async function TarifsPage() {
         ))}
       </div>
 
-      <section aria-labelledby="faq-tarifs" className="mx-auto mt-14 max-w-[760px]">
+      <section aria-labelledby="faq-tarifs" className="mx-auto mt-9 max-w-[760px] sm:mt-14">
         <h2 id="faq-tarifs" className="mb-6 text-center text-[clamp(22px,3vw,30px)] font-extrabold">
           Avant de vous lancer
         </h2>

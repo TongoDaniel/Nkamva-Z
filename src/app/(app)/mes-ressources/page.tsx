@@ -39,7 +39,7 @@ export default async function MesRessourcesPage({
   const { counts } = result;
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title="Mes ressources"
         lead="Vos ressources achetées et celles incluses dans vos communautés, au même endroit. L'accès est à vie."

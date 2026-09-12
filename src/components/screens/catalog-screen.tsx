@@ -176,7 +176,7 @@ export function CatalogScreen({
 }) {
   const routes = routesOf(space);
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[routes.catalogParent, { label: "Le catalogue" }]}
         title="Le catalogue"

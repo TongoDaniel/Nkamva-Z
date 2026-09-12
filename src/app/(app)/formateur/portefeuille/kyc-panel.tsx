@@ -1,4 +1,5 @@
 import { Check, Minus } from "lucide-react";
+import { Hint } from "@/components/nk/hint";
 import { StPill } from "@/components/nk/status-pill";
 import { fmtDate } from "@/lib/format";
 import {
@@ -74,9 +75,29 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
       className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
     >
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 id="kyc-titre" className="text-[15.5px] font-extrabold sm:text-[16.5px]">
-          Score de confiance
-        </h2>
+        <div className="flex items-center gap-1.5">
+          <h2 id="kyc-titre" className="text-[15.5px] font-extrabold sm:text-[16.5px]">
+            Score de confiance
+          </h2>
+          {/* À quoi sert le score est une règle (arbitrage 138) ; le délai de
+              sécurité **en cours**, lui, reste écrit sous la liste : ce n'est pas
+              une explication, c'est ce qui retient un retrait aujourd'hui. */}
+          <Hint label="À quoi sert ce score">
+            {kyc.firstPayout ? (
+              <>
+                Votre <b>premier retrait passe toujours en revue manuelle</b>, quel que soit ce
+                score. L&apos;approbation automatique à partir de {KYC_THRESHOLD_VERIFIED} points
+                ne s&apos;applique qu&apos;aux suivants.
+              </>
+            ) : (
+              <>
+                À partir de {KYC_THRESHOLD_VERIFIED} points, vos retraits sont approuvés
+                automatiquement — hors délai de sécurité en cours sur un moyen de paiement
+                récent.
+              </>
+            )}
+          </Hint>
+        </div>
         <StPill tone={badge.tone}>{badge.label}</StPill>
       </div>
 
@@ -135,32 +156,13 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
         ))}
       </ul>
 
-      <p className="mt-4 border-t border-line pt-3.5 text-[13px] leading-relaxed text-ink-3">
-        {kyc.firstPayout ? (
-          <>
-            Votre <b className="font-bold text-ink-2">premier retrait passe toujours en revue
-            manuelle</b>, quel que soit ce score. L&apos;approbation automatique à partir de{" "}
-            {KYC_THRESHOLD_VERIFIED} points ne s&apos;applique qu&apos;aux suivants.
-          </>
-        ) : (
-          <>
-            À partir de {KYC_THRESHOLD_VERIFIED} points, vos retraits sont approuvés
-            automatiquement — hors délai de sécurité en cours sur un moyen de paiement récent.
-          </>
-        )}
-        {/* `carenceUntil` reste renseigné après l'échéance : c'est la date du
-            délai, pas son état. La condition portait dessus, si bien qu'un
-            formateur dont le délai était écoulé depuis des semaines lisait
-            encore « en cours » — sur la ligne même qui lui explique pourquoi
-            ses retraits ne partent pas tout seuls. `carenceActive` compare, lui,
-            à l'instant présent. */}
-        {kyc.carenceActive ? (
-          <>
-            {" "}
-            Délai de sécurité en cours jusqu&apos;au {fmtDate(kyc.details.carenceUntil!)}.
-          </>
-        ) : null}
-      </p>
+      {/* Ne reste ici que ce qui retient un retrait maintenant. Le reste — ce
+          à quoi sert le score — est passé dans le ⓘ du titre. */}
+      {kyc.carenceActive ? (
+        <p className="mt-4 border-t border-line pt-3.5 text-[13px] leading-relaxed text-ink-3">
+          Délai de sécurité en cours jusqu&apos;au {fmtDate(kyc.details.carenceUntil!)}.
+        </p>
+      ) : null}
     </section>
   );
 }

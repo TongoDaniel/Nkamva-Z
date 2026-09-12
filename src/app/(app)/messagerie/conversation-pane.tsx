@@ -753,7 +753,7 @@ export function ConversationPane({
             )}
           </>
         ) : (
-          <p className="m-auto px-6 py-16 text-center text-[13.5px] text-ink-3">
+          <p className="m-auto px-6 py-10 text-center text-[13.5px] text-ink-3 sm:py-16">
             Choisissez une conversation.
           </p>
         )}

@@ -52,7 +52,7 @@ export default async function AbonnementPage() {
   const ended = subscription.subscriptionStatus === "CANCELED";
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Mon abonnement" }]}
         title="Mon abonnement"

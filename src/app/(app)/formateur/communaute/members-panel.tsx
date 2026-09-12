@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Gift, MessageSquare, Search, ShieldBan, ShieldCheck, Users } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
+import { HintedHeading } from "@/components/nk/hint";
 import { PillInput } from "@/components/nk/input";
 import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
@@ -184,18 +185,26 @@ export function MembersPanel({
 
   return (
     <section className="mt-6 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm sm:p-8">
-      <h2 className="text-[19px] font-extrabold">
+      {/* La règle du bannissement passe derrière le ⓘ : elle se lit une fois,
+          et elle est de toute façon rappelée dans la modale de bannissement,
+          au seul moment où elle change quelque chose. En tête de panneau, elle
+          coûtait cinq lignes avant le premier membre. */}
+      <HintedHeading
+        hintLabel="Ce que fait un bannissement"
+        hint={
+          <>
+            Bannir retire la parole, pas l&apos;accès : le membre continue de lire le salon et ses
+            ressources incluses jusqu&apos;au terme de la période qu&apos;il a réglée. Lui couper
+            ce qu&apos;il a payé serait une sanction financière, et c&apos;est au remboursement de
+            traiter ces cas.
+          </>
+        }
+      >
         Membres
         <Chip tone="muted" className="ml-2 align-middle font-display">
           {rows.length}
         </Chip>
-      </h2>
-      <p className="mt-1.5 max-w-[62ch] text-[13.5px] leading-relaxed text-ink-2">
-        Bannir retire la parole, pas l&apos;accès : le membre continue de lire le salon et ses
-        ressources incluses jusqu&apos;au terme de la période qu&apos;il a réglée. Lui couper ce
-        qu&apos;il a payé serait une sanction financière, et c&apos;est au remboursement de traiter
-        ces cas.
-      </p>
+      </HintedHeading>
 
       {rows.length === 0 ? (
         <EmptyState
@@ -206,8 +215,11 @@ export function MembersPanel({
         />
       ) : (
         <>
-          <div className="mt-6 flex flex-wrap items-center gap-3.5">
-            <div className="min-w-[220px] max-w-[420px] flex-1">
+          {/* `min-w-0` et non `min-w-[220px]` : le compteur passait à la ligne
+              sur un téléphone, et cette ligne coûtait autant que le champ
+              lui-même. Les deux tiennent désormais sur la même rangée à 375 px. */}
+          <div className="mt-5 flex items-center gap-3">
+            <div className="min-w-0 max-w-[420px] flex-1">
               <label htmlFor="membres-recherche" className="sr-only">
                 Rechercher un membre par son nom
               </label>
@@ -230,7 +242,8 @@ export function MembersPanel({
           <Tabs
             label="Filtrer les membres par état d'adhésion"
             variant="chip"
-            className="mt-4"
+            size="sm"
+            className="mt-3.5"
             value={filter}
             onValueChange={setFilter}
             items={FILTERS.map((f) => ({
@@ -253,19 +266,36 @@ export function MembersPanel({
             const state = STATUS[row.status] ?? { label: row.status, tone: "muted" as const };
             const isBanned = row.status === "BANNED";
             return (
+              /*
+                L'état remonte sur la ligne du nom, et les deux actions
+                partagent une rangée. Auparavant, la pastille et chaque bouton
+                se posaient tour à tour sur leur propre ligne — quatre rangées
+                pour quatre informations, et cinq membres qui ne tenaient pas
+                sur un écran de téléphone.
+              */
               <li
                 key={row.learnerId}
-                className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-nk border border-line px-4 py-3"
+                // `min-w-0` : la liste est une grille, et un élément de grille
+                // refuse par défaut de descendre sous la largeur minimale de
+                // son contenu. Un nom très long élargissait la ligne au-delà de
+                // l'écran — 19 px de débordement horizontal pour toute la page,
+                // alors même que le nom, lui, était bien coupé.
+                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-nk border border-line px-3.5 py-3 sm:px-4"
               >
                 <Avatar name={row.fullName ?? "Membre"} size="sm" />
-                <div className="min-w-[180px] flex-1">
-                  <p className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-                    {row.fullName ?? "Membre"}
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[14px] font-semibold text-ink">
+                    {/* `min-w-0` avec `truncate` : sans lui, un élément de
+                        conteneur flex refuse de rétrécir sous la largeur de son
+                        contenu, et un nom très long déborderait au lieu d'être
+                        coupé. */}
+                    <span className="min-w-0 truncate">{row.fullName ?? "Membre"}</span>
                     {row.viaInvitation ? (
                       <span title="Entré par une invitation">
                         <Gift className="size-3.5 text-ink-3" aria-label="Entré par invitation" />
                       </span>
                     ) : null}
+                    <StPill tone={state.tone}>{state.label}</StPill>
                   </p>
                   <p className="mt-0.5 text-[13px] text-ink-3">
                     {row.canceledAt ? "Résiliée · accès jusqu'au " : "Échéance le "}
@@ -278,48 +308,50 @@ export function MembersPanel({
                   ) : null}
                 </div>
 
-                <StPill tone={state.tone}>{state.label}</StPill>
+                {/* Pleine largeur sous `sm` — donc une rangée à part, alignée à
+                    droite — puis en bout de ligne dès que la place existe. */}
+                <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
+                  {/* Le fil suppose une adhésion ouverte et des messages directs
+                      actifs : proposer d'écrire à une adhésion terminée mènerait
+                      à un refus du serveur, que rien n'annonçait au clic. Un
+                      membre banni garde son bouton — c'est souvent là qu'il faut
+                      lui expliquer la sanction. */}
+                  {messagingEnabled && OPEN_STATUSES.includes(row.status) ? (
+                    <Btn
+                      variant="t"
+                      size="sm"
+                      onClick={() => write(row)}
+                      loading={action.isRunning(`write:${row.learnerId}`)}
+                    >
+                      <MessageSquare className="size-4" aria-hidden="true" />
+                      Écrire
+                    </Btn>
+                  ) : null}
 
-                {/* Le fil suppose une adhésion ouverte et des messages directs
-                    actifs : proposer d'écrire à une adhésion terminée mènerait
-                    à un refus du serveur, que rien n'annonçait au clic. Un
-                    membre banni garde son bouton — c'est souvent là qu'il faut
-                    lui expliquer la sanction. */}
-                {messagingEnabled && OPEN_STATUSES.includes(row.status) ? (
-                  <Btn
-                    variant="t"
-                    size="sm"
-                    onClick={() => write(row)}
-                    loading={action.isRunning(`write:${row.learnerId}`)}
-                  >
-                    <MessageSquare className="size-4" aria-hidden="true" />
-                    Écrire
-                  </Btn>
-                ) : null}
-
-                {isBanned ? (
-                  <Btn
-                    variant="o"
-                    size="sm"
-                    onClick={() => unban(row)}
-                    loading={action.isRunning(`unban:${row.learnerId}`)}
-                  >
-                    <ShieldCheck className="size-4" aria-hidden="true" />
-                    Rendre la parole
-                  </Btn>
-                ) : row.status === "ACTIVE" || row.status === "PAST_DUE" ? (
-                  <Btn
-                    variant="t"
-                    size="sm"
-                    onClick={() => {
-                      setTarget(row);
-                      setReason("");
-                    }}
-                  >
-                    <ShieldBan className="size-4" aria-hidden="true" />
-                    Bannir
-                  </Btn>
-                ) : null}
+                  {isBanned ? (
+                    <Btn
+                      variant="o"
+                      size="sm"
+                      onClick={() => unban(row)}
+                      loading={action.isRunning(`unban:${row.learnerId}`)}
+                    >
+                      <ShieldCheck className="size-4" aria-hidden="true" />
+                      Rendre la parole
+                    </Btn>
+                  ) : row.status === "ACTIVE" || row.status === "PAST_DUE" ? (
+                    <Btn
+                      variant="t"
+                      size="sm"
+                      onClick={() => {
+                        setTarget(row);
+                        setReason("");
+                      }}
+                    >
+                      <ShieldBan className="size-4" aria-hidden="true" />
+                      Bannir
+                    </Btn>
+                  ) : null}
+                </div>
               </li>
             );
           })}

@@ -23,7 +23,7 @@ export async function TrainersScreen({ space }: { space: Space }) {
   }
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Accueil", href: routes.home }, { label: "Formateurs" }]}
         title="Nos formateurs"

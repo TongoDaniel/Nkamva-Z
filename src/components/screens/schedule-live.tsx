@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CalendarPlus } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { Hint } from "@/components/nk/hint";
 import { Modal } from "@/components/nk/modal";
 import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
@@ -110,7 +111,17 @@ export function ScheduleLive({
         Programmer une séance
       </Btn>
 
-      <Modal open={open} onOpenChange={setOpen} title="Programmer une séance">
+      <Modal
+        open={open}
+        onOpenChange={setOpen}
+        title="Programmer une séance"
+        hint={
+          <Hint label="Ce qui est enregistré, et ce qui en reste">
+            La séance sera enregistrée automatiquement : vous n&apos;avez rien à déclencher, et il
+            n&apos;y a pas de case à cocher. Le replay portera la date de la session.
+          </Hint>
+        }
+      >
         <form onSubmit={submit} noValidate className="grid gap-4">
           {error ? (
             <p role="alert" className="rounded-nk-sm bg-danger-tint px-3.5 py-2.5 text-[13.5px] text-danger">
@@ -182,11 +193,6 @@ export function ScheduleLive({
               />
             </label>
           </div>
-
-          <p className="text-[13px] leading-relaxed text-ink-3">
-            La séance sera enregistrée automatiquement : vous n&apos;avez rien à déclencher, et il
-            n&apos;y a pas de case à cocher. Le replay portera la date de la session.
-          </p>
 
           <div className="flex justify-end gap-2">
             <Btn type="button" variant="t" onClick={() => setOpen(false)}>

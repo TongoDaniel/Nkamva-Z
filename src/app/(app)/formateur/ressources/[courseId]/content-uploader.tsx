@@ -3,6 +3,7 @@
 import * as React from "react";
 import { FileUp, CheckCircle2, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
+import { Hint } from "@/components/nk/hint";
 import { toast } from "@/components/nk/toast";
 import { UploadBar } from "@/components/nk/upload-bar";
 import { useAction } from "@/hooks/use-action";
@@ -313,10 +314,15 @@ export function ContentUploader({
         )
       ) : null}
 
+      {/* Le fait — pourquoi le bouton de suppression a disparu — reste visible ;
+          la règle qui l'explique tient dans le ⓘ. */}
       {currentKey && sold ? (
-        <p className="text-[13px] leading-relaxed text-ink-3">
-          Cette ressource a été achetée : son contenu doit rester accessible à ses acheteurs et ne
-          peut plus être supprimé. En contrepartie, il ne compte plus dans votre quota de stockage.
+        <p className="flex items-center gap-1 text-[13px] leading-relaxed text-ink-3">
+          Contenu verrouillé : cette ressource a déjà été achetée.
+          <Hint label="Pourquoi ce contenu ne peut plus être supprimé">
+            Son contenu doit rester accessible à ses acheteurs et ne peut plus être supprimé. En
+            contrepartie, il ne compte plus dans votre quota de stockage.
+          </Hint>
         </p>
       ) : null}
 

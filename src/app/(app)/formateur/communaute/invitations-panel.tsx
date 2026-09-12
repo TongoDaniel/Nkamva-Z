@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Gift, Link2, Loader2, Mail, Search, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
+import { HintedHeading } from "@/components/nk/hint";
 import { Field, PillInput } from "@/components/nk/input";
 import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
@@ -254,11 +255,19 @@ export function InvitationsPanel({
 
   return (
     <section className="mt-6 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm sm:p-8">
-      <h2 className="text-[19px] font-extrabold">Inviter</h2>
-      <p className="mt-1.5 max-w-[62ch] text-[13.5px] leading-relaxed text-ink-2">
-        Une invitation nominative s&apos;adresse à une personne et ne sert qu&apos;une fois. Un lien
-        de parrainage se recopie et vaut pour plusieurs entrées, au tarif plein.
-      </p>
+      {/* Les deux boutons du formulaire nomment déjà les deux voies ; ce qui
+          les distingue se lit une fois, derrière le ⓘ. */}
+      <HintedHeading
+        hintLabel="Nominative ou parrainage : la différence"
+        hint={
+          <>
+            Une invitation nominative s&apos;adresse à une personne et ne sert qu&apos;une fois. Un
+            lien de parrainage se recopie et vaut pour plusieurs entrées, au tarif plein.
+          </>
+        }
+      >
+        Inviter
+      </HintedHeading>
 
       <form onSubmit={issueNominative} noValidate className="mt-5 border-t border-line-2 pt-5">
         <div className="grid gap-x-4 sm:grid-cols-[1fr_auto]">

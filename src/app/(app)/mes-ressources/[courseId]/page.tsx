@@ -48,7 +48,7 @@ export default async function LecturePage({
   });
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Mes ressources", href: "/mes-ressources" }, { label: course.title }]}
         title={course.title}

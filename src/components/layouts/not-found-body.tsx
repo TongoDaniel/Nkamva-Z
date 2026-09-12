@@ -16,7 +16,7 @@ export function NotFoundBody({ space = "public" }: { space?: Space }) {
   const routes = routesOf(space);
 
   return (
-    <div className="nk-wrap py-20">
+    <div className="nk-wrap py-12 sm:py-20">
       <EmptyState
         icon={<Compass />}
         title="Cette page n'existe pas"

@@ -8,6 +8,7 @@ import { FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
 import type { ProfileView } from "@/lib/profile";
+import { Hint } from "@/components/nk/hint";
 import { SettingCard } from "@/components/nk/setting-card";
 
 interface Draft {
@@ -81,7 +82,12 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
     <form onSubmit={onSubmit} noValidate>
       <SettingCard
         title="Informations du profil"
-        subtitle="Votre nom apparaît sur votre profil public et auprès des formateurs dont vous achetez les ressources."
+        hint={
+          <Hint label="Où votre nom apparaît">
+            Votre nom apparaît sur votre profil public et auprès des formateurs dont vous
+            achetez les ressources.
+          </Hint>
+        }
         footer={
           <>
             <Btn variant="o" disabled={!dirty || save.pending} onClick={() => setDraft(initial)}>
@@ -155,7 +161,16 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
         </div>
       </SettingCard>
 
-      <SettingCard title="Compte" subtitle="Informations non modifiables depuis cet écran.">
+      <SettingCard
+        title="Compte"
+        subtitle="Informations non modifiables depuis cet écran."
+        hint={
+          <Hint label="Pourquoi l'adresse e-mail ne se change pas ici">
+            Le changement d&apos;adresse e-mail suppose une vérification de la nouvelle adresse :
+            il arrivera avec cette étape.
+          </Hint>
+        }
+      >
         <dl className="grid gap-3 text-sm">
           <div className="flex flex-wrap justify-between gap-3 border-b border-line-2 pb-3">
             <dt className="text-ink-2">Adresse e-mail</dt>
@@ -172,10 +187,6 @@ export function ProfileInfoPanel({ profile }: { profile: ProfileView }) {
             <dd className="font-bold">{fmtDate(profile.createdAt)}</dd>
           </div>
         </dl>
-        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
-          Le changement d&apos;adresse e-mail suppose une vérification de la nouvelle adresse : il
-          arrivera avec cette étape.
-        </p>
       </SettingCard>
     </form>
   );

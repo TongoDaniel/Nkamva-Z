@@ -59,7 +59,7 @@ export function ProfileTabs({
               name={profile.preferredName || profile.fullName || profile.email}
               src={profile.avatarUrl}
               title="Votre photo"
-              subtitle="Elle vous accompagne dans la messagerie, dans les communautés que vous rejoignez, et en tête de votre espace."
+              about="Elle vous accompagne dans la messagerie, dans les communautés que vous rejoignez, et en tête de votre espace."
             />
             <ProfileInfoPanel profile={profile} />
             <EmailPrefsPanel profile={profile} />

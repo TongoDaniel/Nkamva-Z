@@ -56,7 +56,7 @@ export default async function MaCommunautePage({
   // court, il n'a pas besoin de sa propre page.
   if (!community) {
     return (
-      <div className="nk-wrap pb-16">
+      <div className="nk-wrap pb-10 sm:pb-16">
         <PageHead
           crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Ma communauté" }]}
           title="Ouvrir votre communauté"
@@ -83,7 +83,7 @@ export default async function MaCommunautePage({
   };
 
   return (
-    <div className="nk-wrap pb-16">
+    <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Ma communauté" }]}
         title={community.name}
@@ -143,7 +143,7 @@ export default async function MaCommunautePage({
               name={community.name}
               src={communityAvatarSrc(community)}
               title="Photo du groupe"
-              subtitle="Le rond qui porte votre communauté dans la messagerie de ses membres."
+              about="Le rond qui porte votre communauté dans la messagerie de ses membres."
               storageNote="Elle compte dans votre stockage."
             />
 
