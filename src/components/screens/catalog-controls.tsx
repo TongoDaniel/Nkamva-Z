@@ -304,7 +304,7 @@ export function CatalogToolbar({
         id="catalog-filters-drawer"
         aria-label="Filtres du catalogue"
         hidden={!drawerOpen}
-        className="fixed inset-y-0 left-0 z-[140] w-[min(320px,86vw)] overflow-y-auto border-r border-line bg-paper px-5 py-5 shadow-nk-lg lg:hidden"
+        className="fixed inset-y-0 left-0 z-[140] w-[min(320px,86vw)] overflow-y-auto border-r border-line bg-card px-5 py-5 shadow-nk-lg lg:hidden"
       >
         <div className="mb-3 flex justify-end">
           <button

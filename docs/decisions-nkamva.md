@@ -1963,6 +1963,450 @@ pour ces formats ; il lui manquait l'information, pas le pouvoir.
 
 ---
 
+## Arbitrage 138 — Les textes longs passent derrière un ⓘ, sauf trois familles
+
+> Rendu le 12 septembre 2026, à la demande du propriétaire, en partant de
+> l'écran « Membres » de *Ma communauté* : sur un téléphone, il fallait
+> franchir 350 px d'en-tête — dont un paragraphe de cinq lignes sur le
+> bannissement — avant le premier membre.
+
+**138. Une règle que l'interface applique déjà se lit dans une infobulle ; un
+avertissement, jamais.** Le balayage a trouvé **88 paragraphes** de plus de
+150 caractères dans les écrans. Ils ne se valent pas, et les masquer tous serait
+une faute. Quatre familles, trois sorts :
+
+| Famille | Exemples | Sort |
+|---|---|---|
+| **Règle de fond** rattachée à un titre, lue une fois puis décor | ce que devient un banni, nominative contre parrainage, ce qu'on voit d'un dossier de litige, d'où vient le PDF d'une facture | **ⓘ** |
+| **Avertissement avant un geste coûteux** | « le motif lui est communiqué tel quel », l'accès suspendu pendant l'examen d'une contestation, le renommage qui casse l'adresse publique, les micro-virements, le nom du titulaire qui ne correspond pas | **reste à l'air libre** |
+| **Contenu contractuel ou commercial** | `legal/` (22 paragraphes), la vitrine, la page d'invitation | **reste à l'air libre** — valeur juridique et référencement |
+| **Admin** | 24 paragraphes | **hors périmètre**, comme au chantier mobile first |
+
+Cas mixte : une **contrainte de formulaire** (« PNG, JPEG ou WebP, 5 Mo
+maximum ») reste écrite — elle évite un envoi refusé — et seul son
+« pourquoi » passe derrière le ⓘ.
+
+**Ce qui reste visible quand le texte part dans la bulle : rien.** Le titre
+seul. Le pari est explicite — la règle est de toute façon rappelée là où elle
+s'applique : la modale de bannissement porte déjà « il garde l'accès en lecture
+jusqu'au terme de sa période ».
+
+**Mise en œuvre.** `components/nk/hint.tsx` — un vrai bouton et un popover
+Radix, **pas** l'attribut `title=`, qui n'existe pas au doigt. Ouverture **au
+clic partout**, tactile comme bureau : un seul comportement, et rien qui
+s'ouvre au passage de la souris. `Échap`, clic extérieur, restitution du focus
+et repli près d'un bord viennent de Radix ; le retour d'Android de
+`useHistoryLayer`, comme pour les modales. `PageHead` et `Modal` ont chacun une
+fente `hint` qui reçoit un `<Hint>` **déjà formé** : le bouton vit à côté du
+titre et non dedans (un lecteur d'écran ne doit pas annoncer « Mes factures,
+bouton »), et les cent pages sans infobulle n'embarquent pas le popover.
+
+`bun scripts/smoke-infobulles.ts` garde la frontière dans les deux sens : le ⓘ
+présent, le paragraphe absent, **et** les textes qui doivent rester lisibles
+sans clic toujours là.
+
+> Piège de vérification : le contenu d'une bulle est passé en `children` à un
+> composant client, donc **sérialisé dans la charge RSC** de la page. Il est
+> dans la source HTML alors que personne ne le voit. Toute assertion d'absence
+> doit retirer les `<script>` d'abord.
+
+### Le premier inventaire était faux — 302 blocs, pas 88
+
+Le balayage d'origine ne cherchait que des `<p>` de plus de 150 caractères. Il
+excluait par construction **la prose passée en props** — `hint`, `subtitle`,
+`description`, `storageNote`, `help`, `lead` — et les paragraphes de 100 à
+150 caractères qui **s'empilent** dans une même carte. C'est là que se trouvait
+le pire : un panneau photo où deux textes encadrent trois boutons, quatre cases
+à cocher suivies de quatre paragraphes, une carte de préférences d'e-mail où
+590 caractères accompagnent deux interrupteurs.
+
+Compte réel, seuil ramené à 80 caractères et props comprises : **302 blocs dans
+119 fichiers** — 138 dans l'espace connecté, 88 dans l'admin, 36 sur la
+vitrine, 40 dans le légal.
+
+**Le critère qui tranche, une fois pour toutes : un avertissement reste, une
+description peut partir.** Non pas « est-ce utile à la décision » — tout texte
+l'est un peu — mais : **que coûte de ne pas l'avoir lu ?**
+
+- une phrase qui annonce une **perte** (un lien révoqué, un accès coupé, un
+  délai qui bloque un retrait, trois refus qui suspendent un dossier) coûte
+  cher si elle n'est pas lue : elle reste à l'air libre ;
+- une phrase qui **rassure** (« rien n'est facturé aujourd'hui », « personne
+  n'est débité de la différence ») ne coûte rien à ne pas lire : on agit avec
+  un doute de plus, le résultat est le même. Elle peut passer au ⓘ ;
+- un **montant** reste toujours écrit : la commission sous un prix, le tarif
+  d'un palier de stockage. Ce n'est pas de la prose, c'est une donnée ;
+- une **carte de geste destructeur** ne bouge pas d'un mot. Sur « Supprimer mon
+  compte », même la phrase qui rassure reste : elle est la contrepartie du
+  bouton rouge.
+
+**Deuxième vague, écrans repris** (12 septembre 2026) : le panneau photo (deux
+écrans), la fiche publique d'une communauté — en-tête de section, présentation,
+règles, prix, visibilité, les quatre rubriques et leur légende —, le profil
+— informations, compte, e-mails d'information et ses deux bascules, double
+authentification, copie des données —, le stockage et le score de confiance du
+portefeuille, le format d'une ressource, le dossier d'un litige, et la console
+d'animation, où les deux règles de pied de panneau se lisent désormais au bout
+de la barre d'onglets.
+
+Trois fentes `hint` ont été ouvertes pour cela — `Field`/`TextArea`,
+`SettingCard`, `SettingRow` — et une règle de mise en œuvre est apparue : **le
+ⓘ ne se met jamais dans un `CheckOption`**, qui est un `<label>` entier ; un
+bouton posé dedans basculerait la case au moindre clic. Il vit dans une rangée
+flex, à côté.
+
+**Ce qui a été examiné et laissé en place, à dessein** : les états de paiement
+et d'abonnement, les états d'adhésion, les règles du compte de versement
+(quatre points — identité, vérification, délai de sécurité, trois refus), la
+suppression de compte, les états vides, les messages d'erreur, les blocages qui
+expliquent pourquoi un geste n'est pas possible, et les `lead` de `PageHead` —
+l'identité d'une page n'est pas une aide.
+
+### Ce que l'écran « Membres » y gagne
+
+En-tête du panneau **350 px → 241 px** (paragraphe dans le ⓘ, compteur ramené
+sur la ligne de recherche, filtres resserrés de trois rangées à deux) et fiche
+membre **~143 px → 117 px** (l'état remonte sur la ligne du nom, les deux
+actions partagent une rangée). Mesuré à 375 × 812.
+
+**Et la barre d'onglets ramène son onglet actif dans la fenêtre.** Arrivé sur
+`?onglet=membres`, « Membres » était coupé par le bord droit : 379 px de
+rubriques pour 339 disponibles, sans barre de défilement visible pour le dire.
+La taille resserrée devient le défaut sous `sm`, et `Tabs` fait défiler la
+barre jusqu'à l'onglet courant en laissant déborder son voisin — c'est ce
+débord qui apprend que la barre glisse.
+
+---
+
+## Arbitrage 139 — Le plafond mobile : la typographie va bien, les espacements non
+
+> Rendu le 12 septembre 2026, à la demande du propriétaire (« vérifie si la
+> taille des lettres, boutons ou autres ne sont pas trop grands pour le
+> mobile »). Mesuré à 375 × 812 sur **une trentaine d'écrans**, puis complété
+> par un balayage statique — la base de développement n'a ni ressource, ni
+> litige, ni session live, donc les pages de détail et d'achat ne se rendent
+> pas.
+
+**139. Le plancher de l'arbitrage 116 a désormais son plafond, et il ne porte
+pas sur les lettres.** La mesure a démenti l'intuition :
+
+| Ce qu'on soupçonnait | Ce que la mesure dit |
+|---|---|
+| titres trop gros | `clamp(28px…)` sur les 60 `PageHead`, `clamp(26px…)` en section : **conforme aux usages** (iOS *large title* 34, Material *headline large* 32) |
+| héros de la vitrine à 34 px | **deux lignes, 71 px de haut** — rien à corriger |
+| états vides trop hauts | déjà resserrés : `py-9 sm:py-14`, icône `size-12 sm:size-16` |
+| chiffres de tuiles à 26-34 px | délibéré — c'est la donnée, pas de la prose |
+| débordement horizontal | **zéro**, sur toutes les pages visitées |
+
+Ce qui débordait vraiment, c'étaient **les espacements et les tailles hérités du
+grand écran**, jamais reprises pour le téléphone :
+
+- **le bouton `lg`** : 58 px de haut et 28 px de marge latérale à 375 px, sur
+  **56 points d'appel**. Il adopte la métrique de `md` sous `sm` (50 px, 22 px)
+  et retrouve sa générosité à 640 px. Un CTA déjà pleine largeur n'a pas
+  besoin d'être plus grand que le pouce qui le presse ;
+- **le pied de page public** : **835 px** de haut pour un écran de 812. Marge de
+  72 px, padding de 52, trois gaps de 40 entre quatre colonnes empilées. Les
+  trois colonnes de liens passent à deux de front sur téléphone — leurs
+  libellés font un mot — : **644 px**, et rien ne change au-delà de 640 ;
+- **64 px de vide en pied de chaque page** (`nk-wrap pb-16`, 48 fichiers), sous
+  lesquels vient encore se poser la réserve de la barre d'onglets → 40 px ;
+- **32 px au-dessus de chaque titre de page** (`PageHead pt-8`) → 20 px ;
+- **56 px en tête des écrans d'authentification** (`auth-shell pt-14`) → 32 px ;
+- **les cinq tuiles de l'aide à 145 px** — 789 px pour une navigation, un écran
+  entier avant la première question. En rangée sur téléphone, icône à gauche :
+  **79 px** ;
+- une vingtaine de séparations de section (`mt-10` à `mt-14`), de grilles à
+  `gap-10` et de cartes à `p-7`/`p-8`.
+
+**La règle, symétrique du plancher :** au-delà de 40 px (échelle 10), un
+espacement doit porter un préfixe de palier ou proposer une reprise `sm:` dans
+sa chaîne de classes. Gardée par `ceilingScan()` dans `bun run check:mobile`,
+en **cliquet à 2** — les deux restantes vivent dans l'admin, hors périmètre.
+
+**Ce qui a été mesuré puis laissé tel quel** : les rangées de navigation à
+`min-h-14` (56 px est la hauteur de liste juste, pas un excès), les deux cartes
+de choix de compte de versement à 143 px (leur description décide du geste),
+les lignes de conversation à 70 px (avatar + deux lignes), les questions de FAQ
+à 86 px (une question de deux lignes est une cible, pas du décor), et les
+sections de la vitrine à `pt-14 sm:pt-[76px]` — valeur mobile déjà choisie
+pendant le chantier.
+
+> **Méthode, réutilisable.** Le panneau navigateur ne sait pas faire de capture
+> (voir la note sur les frames) et le projet n'embarque pas Playwright. Les
+> trente écrans ont été mesurés en plaçant une **iframe de 375 × 812** dans une
+> page déjà authentifiée, puis en bouclant dessus : même origine, donc
+> `contentWindow.getComputedStyle` répond, et les media queries suivent la
+> largeur de l'iframe. Une seule requête pour huit pages. Les écrans d'auth, eux,
+> ne se mesurent qu'**hors session** — ils redirigent — et leur rendu se
+> vérifie alors par `curl`.
+
+---
+
+## Arbitrage 140 — L'accueil formateur : une rangée est un lien, pas un bouton
+
+> Rendu le 12 septembre 2026 sur capture du propriétaire (« redesigner les
+> différentes sections de la page d'accueil et les redimensionner »). Mesuré à
+> 375 × 812 sur `/formateur`, régime de démarrage.
+
+**État des lieux.** « À traiter » — la seule section qui demande une décision —
+commençait à **y = 680**, sous la ligne de flottaison. Au-dessus : un bandeau de
+157 px, puis un encart « Vos premiers pas » de **428 px** dont les trois
+rangées mesuraient **82, 120 et 101 px** — inégales sur le même écran.
+
+**140. La rangée entière est le lien.** `TaskRow` et `StepRow` portaient un
+bouton « Ouvrir » à droite. Trois défauts d'un seul dessin :
+
+- le bouton prenait **78 px de large**, poussait le détail sur deux ou trois
+  lignes, et la rangée étant `flex-wrap`, il passait parfois seul à la ligne —
+  d'où les hauteurs inégales ;
+- la cible tactile était un rectangle de 78 px dans une carte de 298 ;
+- un lecteur d'écran annonçait **trois liens nommés « Ouvrir »**, rien pour les
+  distinguer.
+
+Le lien prend toute la rangée, le chevron coûte 16 px au lieu de 78, et le nom
+accessible devient l'intitulé de la tâche. Rangées **uniformes à 85 px** sur
+téléphone, 66 px à 1200. Une étape **faite** n'est pas un lien — il n'y a plus
+rien à ouvrir, et la pastille « Fait » le dit.
+
+**Deux doublons retirés au passage :**
+
+1. **Le bouton « Publier une ressource » ne paraît plus pendant le régime de
+   démarrage.** L'encart « Vos premiers pas » ouvre la même page à sa première
+   ligne, et l'en-tête de l'espace porte un « + » qui y mène : trois portes pour
+   un geste, dont deux à 40 px l'une de l'autre. Il revient dès que l'encart
+   cède la place aux chiffres.
+2. **Le renvoi « solde / ventes / portefeuille » en pied de page est supprimé**
+   (167 px). Ses deux liens étaient **déjà deux cartes de la grille juste
+   au-dessus**, et sa règle est écrite en tête du portefeuille (« le solde est
+   crédité à chaque vente réellement encaissée ») et dans le ⓘ du score de
+   confiance. Ne pas le réintroduire : si la règle doit se lire de l'accueil,
+   c'est la description de la carte « Portefeuille » qui la porte.
+
+Et « pourquoi il n'y a pas encore de chiffres » passe au ⓘ du titre
+(arbitrage 138).
+
+| | avant | après |
+|---|---|---|
+| bandeau d'accueil | 157 px | **90 px** |
+| « Vos premiers pas » | 428 px | **328 px** |
+| renvoi portefeuille | 167 px | **0** |
+| « À traiter » commence à | y = 680 | **y = 513** — visible sans défiler |
+| page entière | 1590 px | **1246 px** |
+
+> `TaskRow` et `StepRow` vivent dans `accueil/blocs.tsx`, le module partagé des
+> deux accueils, mais **seul `/formateur` les rend** : l'accueil apprenant
+> n'affiche ni file à traiter ni régime de démarrage. Les modifier ne touche
+> donc qu'un écran, malgré les apparences.
+
+### Le même passage sur les autres écrans principaux
+
+**Le défaut est plus grave qu'un excès de hauteur : c'est une colonne de texte
+écrasée.** Une rangée `flex flex-wrap items-center` dont le bloc de texte porte
+`min-w-0 flex-1` **peut se réduire à zéro** : le navigateur garde donc l'icône,
+les chiffres et les boutons sur la première ligne et donne au texte ce qui
+reste. Mesuré à 375 px :
+
+| Écran | Rangée | Colonne de texte | Après |
+|---|---|---|---|
+| `/formateur/ressources` | 394 px | **74 px** (métadonnées enroulées sur 149 px) | **228 px**, texte à 242 |
+| `/formateur/litiges` | 186 px | **162 px** (méta sur 106 px) | **123 px**, texte à 278 |
+| `/mes-litiges` | même dessin | même dessin | même correctif |
+
+Trois corrections, toujours les mêmes :
+
+1. **Le bouton qui doublait le titre disparaît.** « Modifier », « Voir le
+   dossier », « Ouvrir le dossier » menaient **à l'adresse du titre**. Le voile
+   `after:inset-0` étend le lien du titre à la rangée (motif `ResourceCard`), et
+   un chevron de 16 px remplace un bouton de 108 à 143 px.
+2. **Les gestes qui restent sont relevés d'un cran** (`relative`), comme le cœur
+   de `ResourceCard` l'est par son `z-[3]` — sinon un clic sur « Archiver »
+   ouvrirait l'éditeur. Vérifié par `elementFromPoint`.
+3. **Sur téléphone, la rangée dense devient une grille** `grid-cols-[auto_1fr]`
+   — icône dans la première colonne, tout le reste dans la seconde, les deux
+   rangées du bas qui traversent — et retrouve son `flex` d'un seul tenant dès
+   `sm`. À 1200 px, la ligne de publication mesure 102 px comme avant.
+
+**Deux autres écrans, deux motifs déjà tranchés ailleurs :**
+
+- `/mes-lives` empilait **trois `StatTile` sur 290 px** pour dire trois nombres,
+  repoussant l'agenda — la raison d'être de l'écran — sous la ligne de
+  flottaison. La bande `StatStrip` fait **97 px** : c'est la même décision que
+  sur l'accueil formateur et les litiges, elle manquait ici.
+- `/formateur/abonnement` : la carte de réglages passe de **599 à 368 px**. Son
+  sous-titre et deux descriptions de ligne rejoignent leur ⓘ ; **la rangée de
+  résiliation garde tout son texte** (137 px) — argent, irréversibilité,
+  arbitrage 139.
+
+| Page | avant | après |
+|---|---|---|
+| `/formateur/ressources` (2 ressources) | 1295 px | **942 px** |
+| `/mes-lives` | 1683 px | **1470 px** |
+| `/formateur/abonnement` | 1494 px | **1263 px** |
+
+**Examinés et laissés tels quels** : `/notifications` (rangée de 140 px, mais
+c'est le corps du message — le raccourcir serait cacher l'information),
+`/mes-communautes` (grille à deux colonnes de 161 px, reprise récemment),
+`/messagerie` (rangées de 70 px, texte à 331), `/mes-achats` et
+`/formateur/ventes` (tableaux, pas de bouton en bout de rangée), et
+`/mes-ressources` — dont le bouton « Ouvrir » mène au **lecteur** quand le
+titre mène à la **fiche publique** : deux destinations, pas un doublon.
+
+> **Comment ces mesures ont été prises.** La base de développement n'a ni
+> ressource, ni achat, ni litige : ces trois écrans ne rendaient que leur état
+> vide. Deux ressources et un litige **marqués** ont été créés le temps de la
+> mesure, puis supprimés (base vérifiée revenue à zéro). `/mes-litiges` reste
+> le seul écran contrôlé **par sa structure HTML** et non par sa géométrie : il
+> demande une session apprenant, que le navigateur ne peut pas prendre en cours
+> de route (voir la note sur l'injection de cookie).
+
+### Suite, le 12 septembre 2026 — les pastilles d'icône quittent l'accueil formateur
+
+Demandé par le propriétaire sur capture (« enlève ces icônes »), sur les deux
+blocs où elles vivaient : les **sept cartes** de « Gérer votre activité » et les
+**rangées** de « À traiter ».
+
+Elles étaient `aria-hidden` toutes les deux — décoratives par construction, donc
+rien n'est perdu côté lecteur d'écran. Et elles n'aidaient pas à trouver :
+« Mes ventes », « Portefeuille », « 1 litige sans contestation » se distinguent
+par leur nom, pas par un glyphe ; sept pastilles bleues alignées pesaient plus à
+l'œil que les libellés qu'elles étaient censées servir.
+
+Ce que leur départ emporte :
+
+- la carte de section **n'a plus de boîte flex**. Elle n'avait de rangée que
+  pour poser la pastille à gauche du texte, et la chaîne d'exceptions qui
+  allait avec (`hidden … sm:grid`, réintroduction à `sm`, le commentaire sur les
+  58 px laissés au libellé dans une colonne de 134) disparaît avec elle ;
+- le libellé récupère 44 px de pastille et 16 de gouttière à partir de `sm` ;
+- `SECTION_ICONS` et le champ `icon` de `Task` sont supprimés — la table n'avait
+  d'autre raison d'être que cette pastille, et le champ n'était lu qu'ici.
+
+**Le chevron reste**, dans les deux blocs : lui n'illustre pas le contenu, il
+annonce que la carte ou la rangée mène ailleurs. C'est la même distinction que
+l'arbitrage 140 avait faite entre un bouton « Ouvrir » et une rangée cliquable.
+
+**« Mon compte » a suivi**, dans la foulée et à la demande du propriétaire. Le
+motif y était un peu différent — pas une pastille teintée mais un glyphe gris en
+tête de rangée — et le résultat le même : quinze icônes empilées sur un bord ne
+distinguaient pas des entrées que leur libellé distingue déjà.
+
+Une nuance de code, propre à cet écran : `icon` est **exclu** des props de
+`Ligne` (`Omit<NavEntry, "icon">`) plutôt que simplement laissé de côté.
+`NavEntry` doit garder le champ — la barre d'onglets basse s'en sert — mais rien
+ne devait pouvoir en repasser une ici par distraction, notamment via le `{...lien}`
+qui servait d'appel et qui est désormais explicite.
+
+Le bouton « Se déconnecter » a suivi dans le même mouvement. J'avais proposé de
+le garder — action isolée, repère d'un geste qu'on ne veut pas déclencher par
+erreur — et le propriétaire a tranché l'inverse : **aucune icône sur cet écran**.
+C'est cohérent, et le bouton n'en avait pas besoin pour se signaler : il est déjà
+le seul élément rouge de la page, pleine largeur, à 56 px. `compte-screen.tsx`
+n'importe plus rien de `lucide-react`.
+
+Mesuré à 375 × 812 après coup : grille formateur à **252 px** pour sept cartes,
+les 14 rangées de « Mon compte » toutes à **56 px** — la cible documentée —, la
+pastille de notifications toujours alignée à droite, aucun débordement, et
+**zéro `<svg>`** dans les rangées des deux écrans hors chevron.
+
+---
+
+## Arbitrage 141 — Le fond passe au blanc, et le papier chaud devient le creux
+
+> Rendu le 12 septembre 2026 à la demande du propriétaire (« je voudrais que la
+> navbar soit un peu transparente et que le background soit maintenant
+> blanc »). Vérifié dans le panneau navigateur sur la vitrine, le catalogue,
+> `/compte`, `/formateur/portefeuille` et `/formateur/abonnement`, à 375 × 812.
+
+**141. Le fond de page est blanc ; la teinte de la maquette ne disparaît pas,
+elle recule dans les creux.**
+
+La demande semblait tenir en deux valeurs. Elle en touchait trois, parce que la
+maquette n'avait que **deux** niveaux de surface là où il en faut trois :
+
+| rôle | avant | après |
+|---|---|---|
+| fond de page | `--color-paper` #f6f3ec | `--background` **#ffffff** |
+| surface posée dessus | `--color-card` #fffefa | `--color-card` **#ffffff** |
+| creux dans une surface | `--color-paper` #f6f3ec | `--color-paper` #f6f3ec (inchangé) |
+
+Le piège est dans la première colonne : `--color-paper` **tenait les deux
+rôles**. Sur la cinquantaine de `bg-paper` du produit, six peignaient la page —
+les trois coquilles, le tiroir de filtres, deux barres. **Tous les autres
+désignaient un creux** : puits dans une carte, survol de rangée, pastille de
+code, piste d'onglets, fond du fil de messagerie. Passer le token au blanc les
+aurait effacés d'un coup, sans qu'aucun contrôle ne le signale — un puits
+invisible reste un puits valide.
+
+D'où la répartition retenue : **le fond de page change de token** (`bg-paper` →
+`bg-background`, six occurrences), et `--color-paper` garde son nom, sa valeur
+et son rôle de creux. Ce n'est pas de la conservation par prudence : c'est ce
+qui laisse à l'identité chaude de la maquette un endroit où vivre sur une page
+blanche — les puits, le pied de page public, les pistes d'onglets.
+
+**Ce que la carte perd, et par quoi c'est remplacé.** Carte et fond valent
+désormais le même blanc : une carte ne se distingue plus que par son filet et
+son ombre. C'était déjà le cas en pratique — **229 des 236 `bg-card` du
+produit** portent `border border-line`, et les sept autres sont des surfaces
+posées sur une image ou sur un voile de modale. Aucun appel n'a eu à changer.
+
+**La transparence de la barre, et pourquoi elle ne se voyait pas.** Les trois
+en-têtes et la barre d'onglets basse portaient déjà `bg-paper/90
+backdrop-blur-md`. Sur un fond de page qui valait *exactement la même teinte*,
+les 10 % de transparence ne se voyaient nulle part : la barre était translucide
+dans le code et opaque à l'œil. La recette part donc dans une utilitaire unique
+— `.nk-glass` de `globals.css` — plutôt que recopiée quatre fois :
+
+- **72 % de blanc + `blur(16px) saturate(150%)`** pour les en-têtes ;
+- **84 %** pour la pilule basse, qui flotte *au-dessus* du contenu et non sous
+  une bande ancrée en tête de page ;
+- **92 / 95 % sans flou** en repli `@supports` : une barre à 72 % sans flou
+  laisse lire le texte de la page **à travers** ses libellés.
+
+Plancher de lisibilité tenu : à 72 % de blanc au-dessus du plus sombre du
+produit (`--color-navy` #022342), la barre retombe sur #b6bcc2, où l'encre
+#15211b garde **7,9:1** — au-delà de AAA. Sous 60 % on passerait sous AA sur une
+couverture sombre ; c'est la borne à ne pas franchir si quelqu'un veut « plus
+transparent ».
+
+**Deux effets de bord traités**, tous deux du même genre — une valeur qui ne
+voulait plus rien dire sur un fond blanc :
+
+- les survols de la barre étaient `hover:bg-white/70` : du blanc à 70 % sur du
+  blanc. Ils passent à `hover:bg-ink/5`, qui se voit sur du verre dépoli là où
+  un aplat opaque ferait tache ;
+- le pied de page public était `bg-card` : une bande blanche sur une page
+  blanche n'est plus une bande. Il prend `bg-paper`, et referme la page sur la
+  teinte chaude.
+
+**Un défaut trouvé en vérifiant, et ce qu'il apprend.** La pilule basse demandait
+84 % par `[--nk-glass-frosted:84%]` et recevait 72 %. `.nk-glass` déclarait ses
+deux taux *sur elle-même* : posés sur le même élément que la propriété
+arbitraire de l'appelant, à égalité de spécificité, c'est l'ordre du fichier qui
+tranchait — en faveur de l'utilitaire. Les deux taux passent désormais par le
+**repli de `var()`**, qui ne s'applique que si personne n'a rien dit. La règle
+vaut pour toute utilitaire `.nk-*` paramétrable : *une valeur réglable ne se
+déclare pas, elle se replie*.
+
+**Ce qui n'a pas bougé, délibérément** : le voile de `body::before` (radiales de
+marque à 6 %), qui est ce qui empêche la page de tomber dans le blanc
+d'imprimante et dont les valeurs sont contrôlées par `veilOk()` de
+`snapshot-admin.ts` ; les filets (`--color-line` #e4dfd2), qui étaient déjà
+dessinés contre une carte quasi blanche et prennent simplement plus de travail ;
+le squelette de chargement ; et le gabarit des courriels (`src/lib/email.ts`),
+qui garde son fond papier — une carte blanche sur fond teinté est la disposition
+juste dans une boîte mail, pas dans une page.
+
+> **Contrôles.** `npx tsc --noEmit` vert, `eslint` vert sur les fichiers
+> touchés, fond et barres mesurés par styles calculés sur cinq écrans dont deux
+> authentifiés. `bun scripts/snapshot-admin.ts` **n'a pas pu tourner** : la base
+> de développement n'a plus de super-admin. Le garde-fou n'assertait toutefois
+> que les tokens d'accent et le voile, dont aucun n'est touché par cette
+> livraison. `bun run check:mobile` reste sur son **échec antérieur**
+> (`max-h-[72vh]` dans `pdf-reader.tsx`), sans rapport avec ce changement.
+
+---
+
 ## Recette de l'audit — 5 septembre 2026
 
 Le chantier ouvert par l'audit fonctionnel du 1er septembre 2026 est **clos sur

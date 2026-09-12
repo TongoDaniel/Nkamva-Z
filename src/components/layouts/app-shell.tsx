@@ -175,7 +175,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
         <header
           className={cn(
-            "sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md",
+            "nk-glass sticky top-0 z-50 border-b border-line",
             threadFocus && "hidden md:block",
           )}
         >
@@ -192,7 +192,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                     current={current}
                     className={cn(
                       "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
-                      current ? "bg-ink text-paper" : "text-ink-2 hover:bg-white/70 hover:text-ink",
+                      current ? "bg-ink text-paper" : "text-ink-2 hover:bg-ink/5 hover:text-ink",
                     )}
                     pendingClassName="inset-x-3.5 bottom-[5px]"
                   >
@@ -231,7 +231,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                     href="/formateur/portefeuille"
                     current={isActive(pathname, "/formateur/portefeuille")}
                     aria-label="Mon portefeuille"
-                    className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-white/70 hover:text-ink aria-[current=page]:text-brand"
+                    className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-ink/5 hover:text-ink aria-[current=page]:text-brand"
                     pendingClassName="inset-x-2 bottom-1"
                   >
                     <Wallet className="size-[21px]" aria-hidden="true" />
@@ -256,7 +256,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                     ? `Notifications, ${user.unreadNotifications} non lue${user.unreadNotifications > 1 ? "s" : ""}`
                     : "Notifications"
                 }
-                className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-white/70 hover:text-ink aria-[current=page]:text-brand"
+                className="grid size-10 place-items-center rounded-full text-ink-2 transition-colors hover:bg-ink/5 hover:text-ink aria-[current=page]:text-brand"
                 pendingClassName="inset-x-2 bottom-1"
               >
                 <Bell className="size-[21px]" aria-hidden="true" />
