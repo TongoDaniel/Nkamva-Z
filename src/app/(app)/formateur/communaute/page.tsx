@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { Library, MessagesSquare, Users } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
-import { StatTile } from "@/components/nk/stat-tile";
+import { StatStrip } from "@/components/nk/stat-strip";
 import { getAuthContext } from "@/lib/api";
 import { getMyCommunity, listCommunityMembers } from "@/lib/communities";
 import { listCommunityInvitations } from "@/lib/invitations";
@@ -94,33 +93,33 @@ export default async function MaCommunautePage({
         }
       />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {/* « membres », et non « membres actifs » : ce compte suit la définition
-            unique du produit — une adhésion dont la période court —, et un banni
-            en fait partie (arbitrage 40 : écarté de la parole, pas de l'accès).
-            Le dire « actif » l'aurait exclu du mot tout en le comptant.
+      {/*
+        Trois chiffres dans une bande, et non trois cartes : empilées sous `sm`,
+        elles prenaient près de 300 px pour dire trois nombres.
 
-            L'onglet « Membres », juste en dessous, affiche un autre nombre à
-            dessein : il annonce le nombre de lignes qu'il ouvre, historique
-            compris — ceux qui sont passés par là et dont la période est close. */}
-        <StatTile
-          icon={<Users />}
-          value={fmtNumber(community._count.subscriptions)}
-          label={`membre${community._count.subscriptions > 1 ? "s" : ""}`}
-        />
-        <StatTile
-          icon={<Library />}
-          value={community._count.courseLinks}
-          label={`ressource${community._count.courseLinks > 1 ? "s" : ""} incluse${community._count.courseLinks > 1 ? "s" : ""}`}
-          tone="blue"
-        />
-        <StatTile
-          icon={<MessagesSquare />}
-          value={community.messagesPerDay}
-          label="messages / jour"
-          tone="gold"
-        />
-      </div>
+        « membres », et non « membres actifs » : ce compte suit la définition
+        unique du produit — une adhésion dont la période court —, et un banni en
+        fait partie (arbitrage 40 : écarté de la parole, pas de l'accès). Le dire
+        « actif » l'aurait exclu du mot tout en le comptant.
+
+        L'onglet « Membres », juste en dessous, affiche un autre nombre à
+        dessein : il annonce le nombre de lignes qu'il ouvre, historique compris
+        — ceux qui sont passés par là et dont la période est close.
+      */}
+      <StatStrip
+        className="mt-5 sm:mt-6"
+        items={[
+          {
+            label: `membre${community._count.subscriptions > 1 ? "s" : ""}`,
+            value: fmtNumber(community._count.subscriptions),
+          },
+          {
+            label: `ressource${community._count.courseLinks > 1 ? "s" : ""} incluse${community._count.courseLinks > 1 ? "s" : ""}`,
+            value: community._count.courseLinks,
+          },
+          { label: "messages / jour", value: community.messagesPerDay },
+        ]}
+      />
 
       {/* Les tuiles restent au-dessus des onglets : c'est l'état de santé du
           salon, pas le contenu d'une rubrique. */}

@@ -55,11 +55,16 @@ export default async function TrainerCoursesPage({
         crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Mes publications" }]}
         title="Mes publications"
         lead="Gérez vos ressources, suivez leurs ventes et préparez vos prochains contenus."
+        // Rien quand la liste est vide : l'état vide, juste dessous, porte déjà
+        // le même bouton. Deux appels au même geste sur un écran qui n'a rien
+        // d'autre à montrer, c'est un bégaiement.
         actions={
-          <BtnLink href="/formateur/ressources/nouvelle">
+          rows.length === 0 ? null : (
+            <BtnLink href="/formateur/ressources/nouvelle">
               <Plus aria-hidden="true" />
               Publier une ressource
-          </BtnLink>
+            </BtnLink>
+          )
         }
       />
 
