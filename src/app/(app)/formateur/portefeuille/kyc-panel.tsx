@@ -71,10 +71,10 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
   return (
     <section
       aria-labelledby="kyc-titre"
-      className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+      className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
     >
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 id="kyc-titre" className="text-[16.5px] font-extrabold">
+        <h2 id="kyc-titre" className="text-[15.5px] font-extrabold sm:text-[16.5px]">
           Score de confiance
         </h2>
         <StPill tone={badge.tone}>{badge.label}</StPill>
@@ -97,7 +97,14 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
         />
       </div>
 
-      <ul className="mt-5 grid gap-3">
+      {/*
+        Le détail ne paraît que sous un critère **non acquis** : c'est là qu'il
+        dit quoi faire — « 0 sur 3 à ce jour », « ne compte qu'à partir de votre
+        première vente ». Sous un critère déjà gagné, il ne faisait que tenir
+        une ligne de plus ; la liste occupait 298 px sur un téléphone, et la
+        moitié ne servait qu'à confirmer ce que la coche disait déjà.
+      */}
+      <ul className="mt-4 grid gap-2.5">
         {criteria.map((c) => (
           <li key={c.label} className="flex items-start gap-3">
             <span
@@ -119,14 +126,16 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
                   {c.done ? `+${c.weight}` : `${c.weight} pts`}
                 </span>
               </span>
-              <span className="block text-[13px] leading-relaxed text-ink-3">{c.detail}</span>
+              {c.done ? null : (
+                <span className="block text-[13px] leading-snug text-ink-3">{c.detail}</span>
+              )}
             </span>
             <span className="sr-only">{c.done ? "Acquis" : "Non acquis"}</span>
           </li>
         ))}
       </ul>
 
-      <p className="mt-5 border-t border-line pt-4 text-[13px] leading-relaxed text-ink-3">
+      <p className="mt-4 border-t border-line pt-3.5 text-[13px] leading-relaxed text-ink-3">
         {kyc.firstPayout ? (
           <>
             Votre <b className="font-bold text-ink-2">premier retrait passe toujours en revue

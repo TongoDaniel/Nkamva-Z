@@ -50,9 +50,9 @@ export function StoragePanel({ storage }: { storage: StorageView }) {
   return (
     <section
       aria-labelledby="stockage-titre"
-      className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+      className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
     >
-      <h2 id="stockage-titre" className="mb-4 text-[16.5px] font-extrabold">
+      <h2 id="stockage-titre" className="mb-3.5 text-[15.5px] font-extrabold sm:text-[16.5px]">
         Stockage
       </h2>
 
