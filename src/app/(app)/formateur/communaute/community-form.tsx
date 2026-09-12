@@ -378,7 +378,7 @@ export function VisibilityToggle({
   );
 
   return (
-    <section className="mt-6 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
+    <section className="mt-6 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-[52ch]">
           <h2 className="flex items-center gap-2 text-[15px] font-bold">

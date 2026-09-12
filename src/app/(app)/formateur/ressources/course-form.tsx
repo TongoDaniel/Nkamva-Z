@@ -336,8 +336,8 @@ export function CourseForm({
           indisponible**, avec sa raison. La masquer laisserait croire qu'il n'y
           a qu'une destination possible.
         */}
-        <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
-          <h2 className="mb-1 text-[16.5px] font-extrabold">Destination</h2>
+        <section className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6">
+          <h2 className="mb-1 text-[15.5px] font-extrabold sm:text-[16.5px]">Destination</h2>
           <p className="mb-4 text-[13px] leading-relaxed text-ink-3">
             {circuitLocked
               ? "Elle ne change plus : cette ressource est publiée ou déjà achetée."
@@ -390,7 +390,7 @@ export function CourseForm({
 
         {aside}
         <aside className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm lg:sticky lg:top-[88px]">
-          <h2 className="mb-4 text-[16.5px] font-extrabold">Classement et prix</h2>
+          <h2 className="mb-4 text-[15.5px] font-extrabold sm:text-[16.5px]">Classement et prix</h2>
 
           <Field
             label="Catégorie"

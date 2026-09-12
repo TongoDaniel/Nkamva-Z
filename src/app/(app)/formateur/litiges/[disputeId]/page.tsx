@@ -65,7 +65,7 @@ export default async function TrainerDisputePage({
             aria-label="Vos éléments"
             className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm sm:p-6"
           >
-            <h2 className="mb-1.5 text-[16.5px] font-extrabold">Apporter des éléments</h2>
+            <h2 className="mb-1.5 text-[15.5px] font-extrabold sm:text-[16.5px]">Apporter des éléments</h2>
             <p className="mb-5 text-[13.5px] leading-relaxed text-ink-2">
               Si vous estimez la contestation infondée, transmettez à la modération ce qui
               l&apos;atteste. Vos éléments ne sont pas communiqués à l&apos;acheteur.
@@ -110,9 +110,9 @@ export default async function TrainerDisputePage({
 
         <aside
           aria-label="Le dossier"
-          className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+          className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
         >
-          <h2 className="mb-4 text-[16.5px] font-extrabold">Le dossier</h2>
+          <h2 className="mb-4 text-[15.5px] font-extrabold sm:text-[16.5px]">Le dossier</h2>
           <dl className="grid gap-3 text-sm">
             <div className="flex justify-between gap-3">
               <dt className="text-ink-2">Motif déclaré</dt>

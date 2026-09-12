@@ -132,8 +132,8 @@ export function PaymentPanel({
 
   if (amountFcfa === 0 && !ended) {
     return (
-      <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
-        <h2 className="mb-3 text-[16.5px] font-extrabold">Rien à régler</h2>
+      <section className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6">
+        <h2 className="mb-3 text-[15.5px] font-extrabold sm:text-[16.5px]">Rien à régler</h2>
         <p className="flex items-start gap-2 text-[13.5px] leading-relaxed text-ink-2">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
           Votre abonnement est à jour. La prochaine échéance vous sera annoncée à son ouverture.
@@ -145,8 +145,8 @@ export function PaymentPanel({
   if (awaiting) {
     const byCard = provider === "STRIPE";
     return (
-      <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
-        <h2 className="text-[16.5px] font-extrabold">
+      <section className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6">
+        <h2 className="text-[15.5px] font-extrabold sm:text-[16.5px]">
           {byCard ? "Nous confirmons votre paiement" : "Confirmez sur votre téléphone"}
         </h2>
         <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">
@@ -159,8 +159,8 @@ export function PaymentPanel({
   }
 
   return (
-    <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
-      <h2 className="text-[16.5px] font-extrabold">
+    <section className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6">
+      <h2 className="text-[15.5px] font-extrabold sm:text-[16.5px]">
         {ended ? "Rouvrir mon espace" : "Régler mon échéance"}
       </h2>
       <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
