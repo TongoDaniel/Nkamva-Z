@@ -156,15 +156,21 @@ export default async function PortefeuillePage() {
 
           {/* L'écart, en trois nombres. Même source que les tuiles d'avant,
               même ordre : ce qui est entré, ce qui est gelé, ce qui est parti. */}
-          <dl className="mt-4 grid grid-cols-3 gap-x-3 gap-y-1 border-t border-line-2 pt-3.5 text-[13px]">
-            <dt className="text-ink-3">Crédité</dt>
-            <dt className="text-ink-3">Litiges</dt>
-            <dt className="text-ink-3">Retrait en cours</dt>
-            <dd className="font-display font-bold text-ink">{fmtFcfa(wallet.balanceFcfa)}</dd>
-            <dd className="font-display font-bold text-ink">{fmtFcfa(wallet.reservedFcfa)}</dd>
-            <dd className="font-display font-bold text-ink">
-              {fmtFcfa(wallet.pendingPayoutFcfa)}
-            </dd>
+          <dl className="mt-4 grid grid-cols-3 gap-x-3 border-t border-line-2 pt-3.5 text-[13px]">
+            {[
+              { label: "Crédité", value: wallet.balanceFcfa },
+              { label: "Litiges", value: wallet.reservedFcfa },
+              { label: "Retrait en cours", value: wallet.pendingPayoutFcfa },
+            ].map((item) => (
+              // Chaque paire dans son bloc, et non trois `dt` suivis de trois
+              // `dd` : au sens du langage, cela disait que ces trois termes
+              // partagent ces trois définitions. `justify-between` garde les
+              // valeurs alignées quand un libellé passe à la ligne.
+              <div key={item.label} className="flex min-w-0 flex-col justify-between gap-1">
+                <dt className="text-ink-3">{item.label}</dt>
+                <dd className="font-display font-bold text-ink">{fmtFcfa(item.value)}</dd>
+              </div>
+            ))}
           </dl>
         </div>
 

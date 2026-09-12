@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { StPill } from "@/components/nk/status-pill";
-import { StatTile } from "@/components/nk/stat-tile";
+import { StatStrip } from "@/components/nk/stat-strip";
 import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { listTrainerDisputes, getFrozenTotal } from "@/lib/trainer-disputes";
@@ -38,16 +38,16 @@ export default async function FormateurLitigesPage() {
         lead="Les achats contestés. Vous pouvez apporter des éléments à l'équipe de modération."
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatTile tone="blue" value={fmtNumber(total)} label="dossiers au total" />
-        <StatTile tone="gold" value={fmtNumber(open)} label="en cours d'examen" />
-        <StatTile
-          tone="clay"
-          value={fmtNumber(frozen)}
-          suffix="FCFA"
-          label="actuellement gelés"
-        />
-      </div>
+      {/* Trois chiffres dans une bande, et non trois cartes : empilées sous
+          `sm`, elles prenaient près de 300 px pour afficher trois zéros. */}
+      <StatStrip
+        className="mb-5 sm:mb-8"
+        items={[
+          { label: "dossiers au total", value: fmtNumber(total) },
+          { label: "en cours d'examen", value: fmtNumber(open) },
+          { label: "actuellement gelés", value: fmtNumber(frozen), suffix: "FCFA" },
+        ]}
+      />
 
       {total === 0 ? (
         <EmptyState
