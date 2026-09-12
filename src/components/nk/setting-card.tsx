@@ -18,10 +18,22 @@ export function SettingCard({
   return (
     <section
       aria-label={title}
-      className={cn("mb-5 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm sm:p-7", className)}
+      className={cn(
+        // Resserré sur téléphone : `p-6` posait 24 px de marge de chaque côté
+        // d'un écran de 375, pour une carte qui n'aligne que des lignes de
+        // réglage. La respiration revient dès `sm`.
+        "mb-4 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:mb-5 sm:p-6 lg:p-7",
+        className,
+      )}
     >
-      <h2 className="text-[17px] font-extrabold">{title}</h2>
-      {subtitle ? <p className="mb-5 mt-1.5 text-[14px] leading-relaxed text-ink-2">{subtitle}</p> : <div className="mb-5" />}
+      <h2 className="text-[16px] font-extrabold sm:text-[17px]">{title}</h2>
+      {subtitle ? (
+        <p className="mb-4 mt-1.5 text-[13.5px] leading-relaxed text-ink-2 sm:mb-5 sm:text-[14px]">
+          {subtitle}
+        </p>
+      ) : (
+        <div className="mb-4 sm:mb-5" />
+      )}
       {children}
       {footer ? <div className="mt-5 flex flex-wrap justify-end gap-2.5">{footer}</div> : null}
     </section>
@@ -41,7 +53,7 @@ export function SettingRow({
   danger?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line-2 py-4 first:border-t-0 first:pt-0">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-2 py-3.5 first:border-t-0 first:pt-0 sm:gap-4 sm:py-4">
       <div className="min-w-0 flex-1">
         <b className={cn("block text-[14.5px]", danger && "text-danger")}>{title}</b>
         {description ? (

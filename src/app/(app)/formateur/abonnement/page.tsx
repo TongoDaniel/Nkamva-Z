@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { CalendarClock, CreditCard, RefreshCw, Wallet } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
-import { StatTile } from "@/components/nk/stat-tile";
+import { StatStrip } from "@/components/nk/stat-strip";
 import { StPill } from "@/components/nk/status-pill";
 import { InfoBox } from "@/components/nk/info-box";
-import { EmptyState } from "@/components/nk/empty-state";
 import { getAuthContext } from "@/lib/api";
 import { getMySubscription, SUBSCRIPTION_GRACE_DAYS } from "@/lib/subscriptions";
 import { getSubscriptionPaymentState } from "@/lib/subscription-payment";
@@ -60,43 +59,58 @@ export default async function AbonnementPage() {
         lead="Votre formule, vos échéances et vos règlements. Le stockage supplémentaire est facturé avec l'abonnement, sur la même ligne."
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          icon={<CreditCard />}
-          tone="brand"
-          value={fmtFcfa(subscription.subscriptionPriceFcfa ?? 0)}
-          // « annuelle » s'accorde avec « formule », jamais avec « abonnement ».
-          label={`formule ${CADENCE_LABELS[subscription.subscriptionCadence].toLowerCase()}`}
-        />
-        <StatTile
-          icon={<CalendarClock />}
-          tone="blue"
-          value={fmtDate(subscription.subscriptionCurrentPeriodEnd) ?? "—"}
-          label={ended ? "terme atteint" : canceled ? "fin de votre abonnement" : "prochaine échéance"}
-        />
-        <StatTile
-          icon={<RefreshCw />}
-          tone={subscription.autoRenew ? "brand" : "clay"}
-          value={subscription.autoRenew ? "Activé" : "Désactivé"}
-          label="prélèvement automatique"
-        />
-        <StatTile
-          icon={<Wallet />}
-          tone="gold"
-          value={fmtFcfa(wallet.withdrawableFcfa)}
-          label="solde disponible pour prélever"
-        />
-      </div>
-
       {/*
-        L'état d'abord, et en toutes lettres : c'est la question que le formateur
-        vient se poser, et le portefeuille n'y répondait que lorsqu'il devait de
-        l'argent.
+        L'état, puis les quatre chiffres qui le détaillent, dans une seule carte.
+        ======================================================================
+        L'état en toutes lettres vient **en premier** : c'est la question que le
+        formateur vient se poser. Il était rendu après quatre tuiles, donc sous
+        la ligne de flottaison d'un téléphone.
+
+        Et ces quatre tuiles s'empilaient une par ligne sous `sm` : près de
+        400 px pour un prix, une date, un mot et un solde. Elles tiennent en une
+        bande de deux colonnes, sous l'état qu'elles expliquent.
+        ======================================================================
       */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <StPill tone={status.tone}>{status.label}</StPill>
-        <span className="text-[13px] text-ink-2">{status.help}</span>
-      </div>
+      <section
+        aria-labelledby="etat-titre"
+        className="mb-5 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:mb-8 sm:p-6"
+      >
+        <h2 id="etat-titre" className="sr-only">
+          État de votre abonnement
+        </h2>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <StPill tone={status.tone}>{status.label}</StPill>
+          <span className="text-[13px] leading-relaxed text-ink-2">{status.help}</span>
+        </p>
+
+        <StatStrip
+          bare
+          className="mt-4"
+          items={[
+            {
+              // « annuelle » s'accorde avec « formule », jamais avec « abonnement ».
+              label: `formule ${CADENCE_LABELS[subscription.subscriptionCadence].toLowerCase()}`,
+              value: fmtFcfa(subscription.subscriptionPriceFcfa ?? 0),
+            },
+            {
+              label: ended
+                ? "terme atteint"
+                : canceled
+                  ? "fin de votre abonnement"
+                  : "prochaine échéance",
+              value: fmtDate(subscription.subscriptionCurrentPeriodEnd) ?? "—",
+            },
+            {
+              label: "prélèvement automatique",
+              value: subscription.autoRenew ? "Activé" : "Désactivé",
+            },
+            {
+              label: "solde disponible pour prélever",
+              value: fmtFcfa(wallet.withdrawableFcfa),
+            },
+          ]}
+        />
+      </section>
 
       {subscription.dueTotalFcfa > 0 && subscription.suspensionAt && !ended ? (
         <InfoBox className="border border-gold/40 bg-gold-tint text-ink">
@@ -124,8 +138,8 @@ export default async function AbonnementPage() {
         </InfoBox>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-        <div className="grid gap-6">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+        <div className="grid gap-4 sm:gap-6">
           <SubscriptionSettings
             cadence={subscription.subscriptionCadence}
             pendingCadence={subscription.pendingCadence}
@@ -138,18 +152,25 @@ export default async function AbonnementPage() {
 
           <section
             aria-labelledby="historique-titre"
-            className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+            className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
           >
-            <h2 id="historique-titre" className="mb-4 text-[16.5px] font-extrabold">
+            <h2
+              id="historique-titre"
+              className="mb-3.5 text-[15.5px] font-extrabold sm:text-[16.5px]"
+            >
               Vos périodes
             </h2>
 
             {history.length === 0 ? (
-              <EmptyState
-                icon={<CalendarClock />}
-                title="Aucune période facturée"
-                description="Vos échéances apparaîtront ici, réglées ou non."
-              />
+              // Une phrase, pas un encadré : dans une carte parmi d'autres, un
+              // état vide de 310 px coûte plus qu'il ne dit.
+              <p className="flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-3">
+                <CalendarClock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>
+                  <b className="font-bold text-ink">Aucune période facturée.</b> Vos échéances
+                  apparaîtront ici, réglées ou non.
+                </span>
+              </p>
             ) : (
               <ul className="grid gap-3">
                 {history.map((charge) => {
@@ -193,7 +214,7 @@ export default async function AbonnementPage() {
           </section>
         </div>
 
-        <aside className="grid gap-6 lg:sticky lg:top-[88px]">
+        <aside className="lg:sticky lg:top-[88px]">
           <PaymentPanel
             amountFcfa={payment?.amountFcfa ?? 0}
             pending={payment?.pending ?? false}

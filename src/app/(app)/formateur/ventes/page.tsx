@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Receipt, Coins, Percent, Wallet, Undo2 } from "lucide-react";
+import { Receipt, Wallet, Undo2 } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { EmptyState } from "@/components/nk/empty-state";
 import { BtnLink } from "@/components/nk/button-link";
 import { StPill } from "@/components/nk/status-pill";
-import { StatTile } from "@/components/nk/stat-tile";
+import { StatStrip } from "@/components/nk/stat-strip";
 import { DataTable, type Column } from "@/components/nk/data-table";
 import { FormatGlyph } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
@@ -196,21 +196,22 @@ export default async function MesVentesPage({
       />
 
       {result.total > 0 ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile
-            icon={<Receipt />}
-            value={summary.count}
-            label={`vente${summary.count > 1 ? "s" : ""} encaissée${summary.count > 1 ? "s" : ""}`}
-          />
-          <StatTile icon={<Coins />} value={fmtFcfa(summary.grossFcfa)} label="encaissé au total" tone="blue" />
-          <StatTile
-            icon={<Percent />}
-            value={fmtFcfa(summary.commissionFcfa)}
-            label="de commission retenue"
-            tone="gold"
-          />
-          <StatTile icon={<Wallet />} value={fmtFcfa(summary.netFcfa)} label="revenus nets" />
-        </div>
+        // Quatre chiffres dans une bande : empilés une par ligne sous `sm`, ils
+        // repoussaient le tableau des ventes — ce qu'on vient lire — d'un écran
+        // entier. Et ils se lisent ensemble : brut, commission, net, c'est une
+        // soustraction, pas quatre nombres indépendants.
+        <StatStrip
+          className="mt-5 sm:mt-6"
+          items={[
+            {
+              label: `vente${summary.count > 1 ? "s" : ""} encaissée${summary.count > 1 ? "s" : ""}`,
+              value: summary.count,
+            },
+            { label: "encaissé au total", value: fmtFcfa(summary.grossFcfa) },
+            { label: "de commission retenue", value: fmtFcfa(summary.commissionFcfa) },
+            { label: "revenus nets", value: fmtFcfa(summary.netFcfa) },
+          ]}
+        />
       ) : null}
 
       {/* Les remboursements se disent à côté du total, jamais dedans : mêlés,

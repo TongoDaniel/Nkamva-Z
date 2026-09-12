@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   BookOpen,
   ChevronRight,
-  Coins,
   CreditCard,
   FileEdit,
   Library,
@@ -11,14 +10,13 @@ import {
   Plus,
   Radio,
   Scale,
-  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
-import { StatTile } from "@/components/nk/stat-tile";
+import { StatStrip } from "@/components/nk/stat-strip";
 import { StPill } from "@/components/nk/status-pill";
 import { FormatGlyph, formatLabel } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
@@ -352,34 +350,32 @@ export default async function FormateurPage({
           </ul>
         </section>
       ) : (
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatTile
-            icon={<TrendingUp />}
-            tone="brand"
-            value={fmtNumber(overview.salesCount)}
-            label={`vente${s(overview.salesCount)} confirmée${s(overview.salesCount)}`}
-          />
-          <StatTile
-            icon={<Coins />}
-            tone="clay"
-            value={fmtNumber(overview.netRevenueFcfa)}
-            suffix="FCFA"
-            label="revenus nets cumulés"
-          />
-          <StatTile
-            icon={<Wallet />}
-            tone="gold"
-            value={fmtNumber(wallet.withdrawableFcfa)}
-            suffix="FCFA"
-            label={walletTileLabel(wallet)}
-          />
-          <StatTile
-            icon={<Users />}
-            tone="blue"
-            value={fmtNumber(activeMembers)}
-            label={`membre${s(activeMembers)} actif${s(activeMembers)}`}
-          />
-        </div>
+        // Quatre chiffres dans une bande : empilés une par ligne sous `sm`, ils
+        // repoussaient « À traiter » — la seule section qui demande une
+        // décision — sous la ligne de flottaison d'un téléphone.
+        <StatStrip
+          className="mb-5 sm:mb-8"
+          items={[
+            {
+              label: `vente${s(overview.salesCount)} confirmée${s(overview.salesCount)}`,
+              value: fmtNumber(overview.salesCount),
+            },
+            {
+              label: "revenus nets cumulés",
+              value: fmtNumber(overview.netRevenueFcfa),
+              suffix: "FCFA",
+            },
+            {
+              label: walletTileLabel(wallet),
+              value: fmtNumber(wallet.withdrawableFcfa),
+              suffix: "FCFA",
+            },
+            {
+              label: `membre${s(activeMembers)} actif${s(activeMembers)}`,
+              value: fmtNumber(activeMembers),
+            },
+          ]}
+        />
       )}
 
       {/* Colonne principale : l'activité de formateur, datée, donc prioritaire.
@@ -500,30 +496,51 @@ export default async function FormateurPage({
         <h2 id="sections" className="mb-4 text-[17px] font-bold">
           Gérer votre activité
         </h2>
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {/*
+          Deux colonnes dès le téléphone, et la phrase de description réservée
+          aux écrans qui ont la place.
+
+          Sept cartes à une colonne, chacune avec ses deux lignes d'explication,
+          faisaient 873 px — un tiers de la page pour une grille de navigation
+          dont les libellés se suffisent : « Mes ventes », « Portefeuille »,
+          « Mes publications ». La description revient à partir de `sm`, là où
+          elle ne coûte pas un écran de défilement, et c'est « Vos premiers pas »
+          qui explique au formateur qui débute.
+        */}
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
           {TRAINER_SECTIONS.map((section) => {
             const Icon = SECTION_ICONS[section.href] ?? BookOpen;
             return (
               <li key={section.href}>
                 <Link
                   href={section.href}
-                  className="group flex h-full items-start gap-4 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk"
+                  className="group flex h-full items-start gap-3 rounded-nk-lg border border-line bg-card px-3.5 py-3.5 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk sm:gap-4 sm:px-5 sm:py-4"
                 >
+                  {/* Pas d'icône sur téléphone. Dans une colonne de 134 px — ce
+                      que donnent deux colonnes sur un écran de 320 px —, elle
+                      laissait 58 px au texte, et « abonnement » n'y tient pas :
+                      le libellé débordait de sa carte. Elle est décorative
+                      (`aria-hidden`), les libellés sont explicites, et elle
+                      revient dès `sm`. */}
                   <span
-                    className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
+                    className="hidden size-9 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand sm:grid sm:size-11"
                     aria-hidden="true"
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-4 sm:size-5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <b className="flex items-center gap-1.5 text-[14.5px] font-bold text-ink group-hover:text-brand">
+                    {/* Le chevron est **en ligne**, pas dans une boîte flex :
+                        dans une colonne de 163 px, un `flex` empêchait
+                        « Mes publications » de passer à la ligne, et le libellé
+                        débordait de sa carte. */}
+                    <b className="block text-[14px] font-bold leading-snug text-ink group-hover:text-brand sm:text-[14.5px]">
                       {section.label}
                       <ChevronRight
-                        className="size-4 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
+                        className="ml-1 inline-block size-4 align-[-3px] text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-brand"
                         aria-hidden="true"
                       />
                     </b>
-                    <span className="mt-1 block text-[13px] leading-relaxed text-ink-2">
+                    <span className="mt-1 hidden text-[13px] leading-relaxed text-ink-2 sm:block">
                       {section.description}
                     </span>
                   </span>

@@ -52,11 +52,11 @@ export default async function MoyenDePaiementPage() {
         */}
         <section
           aria-labelledby="regle-titre"
-          className="mb-7 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm"
+          className="mb-7 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6"
         >
           <h2
             id="regle-titre"
-            className="mb-3 flex items-center gap-2 text-[16.5px] font-extrabold"
+            className="mb-3 flex items-center gap-2 text-[15.5px] font-extrabold sm:text-[16.5px]"
           >
             <ShieldCheck className="size-[18px] text-brand" aria-hidden="true" />
             Avant de commencer

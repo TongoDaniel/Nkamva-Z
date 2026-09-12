@@ -130,8 +130,8 @@ export default async function EditCoursePage({
           community ? { name: community.name, resourcesEnabled: community.resourcesEnabled } : null
         }
         aside={
-          <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
-            <h2 className="mb-4 text-[16.5px] font-extrabold">Couverture</h2>
+          <section className="rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-6">
+            <h2 className="mb-4 text-[15.5px] font-extrabold sm:text-[16.5px]">Couverture</h2>
             {/* C'est ici que le formateur juge son dépôt : ce panneau montrait
                 la couverture générée quoi qu'il ait envoyé. */}
             <div className="mb-3.5 overflow-hidden rounded-nk">
@@ -145,7 +145,7 @@ export default async function EditCoursePage({
             <CoverUploader courseId={course.id} currentKey={course.coverS3Key} />
 
             <div className="mt-6 border-t border-line-2 pt-6">
-              <h2 className="mb-4 text-[16.5px] font-extrabold">Contenu de la ressource</h2>
+              <h2 className="mb-4 text-[15.5px] font-extrabold sm:text-[16.5px]">Contenu de la ressource</h2>
               <ContentUploader
                 courseId={course.id}
                 format={course.format}

@@ -41,16 +41,29 @@ const COLS: Record<number, string> = {
 
 export function StatStrip({
   items,
+  bare,
   className,
 }: {
   items: readonly StatStripItem[];
+  /**
+   * Sans la carte : bande posée **dans** une autre carte, séparée par un filet.
+   *
+   * Un booléen plutôt qu'une classe qui annule les précédentes : `shadow-none`
+   * passé en `className` ne gagnait pas contre le `shadow-nk-sm` du composant,
+   * et la bande gardait une ombre à l'intérieur d'une carte qui en avait déjà
+   * une. Ce qu'on veut dire, c'est « pas de carte », pas « défais ces trois
+   * classes-là ».
+   */
+  bare?: boolean;
   className?: string;
-}) {
-  if (items.length === 0) return null;
+}) {  if (items.length === 0) return null;
   return (
     <dl
       className={cn(
-        "grid gap-x-3 gap-y-4 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-5",
+        "grid gap-x-3 gap-y-4",
+        bare
+          ? "border-t border-line-2 pt-4"
+          : "rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:p-5",
         COLS[items.length] ?? "grid-cols-2 sm:grid-cols-4",
         className,
       )}
