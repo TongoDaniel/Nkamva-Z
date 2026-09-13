@@ -8,7 +8,6 @@ export interface TrainerSummary {
   user: { id?: string; fullName: string | null; bio?: string | null };
   ratingAverage: number;
   ratingCount: number;
-  studentsCount?: number;
   /** Accroche courte du formateur (TrainerProfile.slogan). */
   slogan?: string | null;
   /** Présentation publique (TrainerProfile.description). */
@@ -43,7 +42,6 @@ export interface CourseDetail extends CourseListItem {
   includes: string[];
   language: string;
   status: string;
-  trainerProfile: TrainerSummary & { studentsCount: number };
 }
 
 export type PaymentProvider = "STRIPE" | "PAWAPAY";

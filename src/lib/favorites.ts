@@ -117,7 +117,7 @@ export async function listMyFavorites(userId: string): Promise<FavoritesView> {
           publishedAt: true, status: true,
           trainerProfile: {
             select: {
-              id: true, ratingAverage: true, ratingCount: true, studentsCount: true, slogan: true,
+              id: true, ratingAverage: true, ratingCount: true, slogan: true,
               user: { select: { fullName: true } },
             },
           },
@@ -154,7 +154,6 @@ export async function listMyFavorites(userId: string): Promise<FavoritesView> {
         user: { fullName: c.trainerProfile.user.fullName },
         ratingAverage: c.trainerProfile.ratingAverage,
         ratingCount: c.trainerProfile.ratingCount,
-        studentsCount: c.trainerProfile.studentsCount,
         slogan: c.trainerProfile.slogan,
       },
     })) as CourseListItem[]

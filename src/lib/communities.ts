@@ -1135,7 +1135,7 @@ const COURSE_CARD = {
   priceFcfa: true, level: true, durationSeconds: true, coverS3Key: true, publishedAt: true,
   trainerProfile: {
     select: {
-      id: true, ratingAverage: true, ratingCount: true, studentsCount: true, slogan: true,
+      id: true, ratingAverage: true, ratingCount: true, slogan: true,
       user: { select: { fullName: true } },
     },
   },
@@ -1168,7 +1168,6 @@ function toCard(c: any): CourseListItem {
       user: { fullName: c.trainerProfile.user.fullName },
       ratingAverage: c.trainerProfile.ratingAverage,
       ratingCount: c.trainerProfile.ratingCount,
-      studentsCount: c.trainerProfile.studentsCount,
       slogan: c.trainerProfile.slogan,
     },
   } as CourseListItem

@@ -8,7 +8,9 @@
 //   · on ne propose jamais à quelqu'un ce qu'il a déjà, ni ce qu'il a publié ;
 //   · l'onglet « Tendance » des événements ne montre que des communautés
 //     publiques, ouvertes, qu'on n'a pas rejointes ;
-//   · un apprenant est une personne, comptée une fois.
+//   · un apprenant est une personne, comptée une fois ;
+//   · l'annuaire, la fiche, la recherche et la fiche ressource lisent ce même
+//     compte, et l'annuaire comme la recherche se rangent dessus (arbitrage 143).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
@@ -18,7 +20,8 @@ import {
   trendingTrainers,
   TRENDING_WINDOW_DAYS,
 } from '@/lib/trending'
-import { countTrainerLearners } from '@/lib/trainers'
+import { countTrainerLearners, getPublicTrainer, listPublicTrainers } from '@/lib/trainers'
+import { searchEverything } from '@/lib/search'
 
 const JOUR = 86_400_000
 const NOW = new Date('2026-09-13T10:00:00Z')
@@ -281,5 +284,71 @@ describe('Tendance — formateurs', () => {
 
     const counts = await countTrainerLearners([profile.id])
     expect(counts.get(profile.id)).toBe(2)
+  })
+})
+
+describe('Apprenants réels — annuaire, fiche et recherche (arbitrage 143)', () => {
+  beforeEach(async () => { await cleanDatabase() })
+  afterEach(async () => { await cleanDatabase() })
+
+  /** Un formateur visible, sous un nom choisi : l'ordre alphabétique départage. */
+  async function named(fullName: string) {
+    const trainer = await makeTrainer()
+    await prisma.user.update({ where: { id: trainer.user.id }, data: { fullName } })
+    return trainer
+  }
+
+  /**
+   * Zoé a deux acheteurs, Yann un membre, Awa et Bruno personne. La colonne
+   * morte est absente du schéma : si un écran la relisait, tsc le refuserait —
+   * ce qui est tenu ici, c'est l'ordre et le nombre.
+   */
+  async function monde() {
+    const awa = await named('Awa Diallo')
+    const zoe = await named('Zoé Mbarga')
+    const bruno = await named('Bruno Etoundi')
+    const yann = await named('Yann Kamga')
+    await makeCourse(awa.profile.id)
+    await makeCourse(bruno.profile.id)
+    const coursZoe = await makeCourse(zoe.profile.id)
+    const communauteYann = await makeCommunity(yann.profile.id)
+
+    const [a, b, c] = await Promise.all([makeUser(), makeUser(), makeUser()])
+    await sell(coursZoe, a.id)
+    await sell(coursZoe, b.id)
+    await join(communauteYann.id, c.id)
+    return { awa, zoe, bruno, yann }
+  }
+
+  it("range l'annuaire par apprenants réels, puis par nom", async () => {
+    const { awa, zoe, bruno, yann } = await monde()
+
+    const listed = await listPublicTrainers()
+    expect(listed.map((t) => t.id)).toEqual([
+      zoe.profile.id, yann.profile.id, awa.profile.id, bruno.profile.id,
+    ])
+    expect(listed.map((t) => t.learners)).toEqual([2, 1, 0, 0])
+  })
+
+  it('garde cet ordre sous un filtre de recherche', async () => {
+    const { awa, zoe, bruno, yann } = await monde()
+
+    // « b » n'est ni dans « Accroche », le slogan de tous, ni chez Awa ni chez
+    // Yann : il ne reste que Zoé Mbarga et Bruno Etoundi.
+    const filtered = await listPublicTrainers('b')
+    expect(filtered.map((t) => t.id)).toEqual([zoe.profile.id, bruno.profile.id])
+
+    // Le slogan, lui, les ramène tous : la recherche transversale suit l'annuaire.
+    const results = await searchEverything('Accroche')
+    expect(results.trainers.map((t) => t.id)).toEqual([
+      zoe.profile.id, yann.profile.id, awa.profile.id, bruno.profile.id,
+    ])
+  })
+
+  it("donne à la fiche le même compte qu'à l'annuaire", async () => {
+    const { zoe, awa } = await monde()
+
+    expect((await getPublicTrainer(zoe.profile.id))!.learners).toBe(2)
+    expect((await getPublicTrainer(awa.profile.id))!.learners).toBe(0)
   })
 })

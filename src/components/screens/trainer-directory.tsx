@@ -24,8 +24,9 @@ function fold(value: string): string {
 /**
  * Barre d'outils du listing formateurs (`.ctabs` + `.ctoolbar` de la maquette).
  * Le filtrage se fait côté client : `listPublicTrainers` ramène déjà la liste
- * complète (plafonnée à 60), il n'y a pas de pagination à préserver comme au
- * catalogue. Les onglets sont dérivés des domaines réellement présents, pas
+ * complète (plafonnée à 60), rangée par apprenants réels puis par nom
+ * (arbitrage 143), il n'y a pas de pagination à préserver comme au catalogue.
+ * Filtrer garde cet ordre. Les onglets sont dérivés des domaines réellement présents, pas
  * d'une taxonomie figée qui afficherait des catégories vides.
  */
 export function TrainerDirectory({
@@ -194,12 +195,12 @@ export function TrainerDirectory({
                       <dt>communauté{trainer.communityCount > 1 ? "s" : ""}</dt>
                     </div>
                   ) : null}
-                  {trainer.studentsCount > 0 ? (
+                  {trainer.learners > 0 ? (
                     <div className="flex gap-1.5">
                       <dd className="font-extrabold text-ink">
-                        {fmtNumber(trainer.studentsCount)}
+                        {fmtNumber(trainer.learners)}
                       </dd>
-                      <dt>apprenants</dt>
+                      <dt>apprenant{trainer.learners > 1 ? "s" : ""}</dt>
                     </div>
                   ) : null}
                   {trainer.experienceYears ? (

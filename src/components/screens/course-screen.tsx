@@ -6,7 +6,6 @@ import {
   GraduationCap,
   PenLine,
   ShieldCheck,
-  Users,
 } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
@@ -18,6 +17,7 @@ import { StatTile } from "@/components/nk/stat-tile";
 import { initials } from "@/components/nk/avatar";
 import { getPublicCourse, searchCourses } from "@/lib/catalog";
 import { checkCourseAccess } from "@/lib/access";
+import { countTrainerLearners } from "@/lib/trainers";
 import { getAuthContext } from "@/lib/api";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import { routesOf, type Space } from "@/lib/spaces";
@@ -30,7 +30,13 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
   if (!course) notFound();
 
   // Un visiteur connecté qui possède déjà la ressource voit l'accès, pas l'achat.
-  const auth = await getAuthContext();
+  const [auth, learnerCounts] = await Promise.all([
+    getAuthContext(),
+    // Apprenants réels du formateur (arbitrage 143). Comptés ici plutôt que dans
+    // `getPublicCourse`, que la page d'achat et l'API partagent sans en avoir
+    // l'usage.
+    countTrainerLearners(course.trainerProfile ? [course.trainerProfile.id] : []),
+  ]);
   const access = auth ? await checkCourseAccess(course.id, auth.user.id) : null;
   const owned = access?.granted ?? false;
   const suspended = access?.reason === "ACCESS_SUSPENDED";
@@ -47,6 +53,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
   const relatedOthers = related.filter((c) => c.slug !== course.slug).slice(0, 3);
 
   const trainer = course.trainerProfile;
+  const learners = trainer ? (learnerCounts.get(trainer.id) ?? 0) : 0;
   const trainerName = trainer?.user?.fullName ?? "Formateur NkamVa";
   const bio = trainerBio(trainer);
   const duration = fmtDuration(course.durationSeconds);
@@ -91,11 +98,11 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
       <div className="grid items-start gap-7 pt-2 sm:gap-10 lg:grid-cols-[1fr_372px]">
         {/* Colonne principale */}
         <div className="min-w-0 lg:order-1">
+          {/* Pas d'apprenants ici : le compte est celui du formateur, et placé
+              entre la langue et la durée il se lisait comme celui de la
+              ressource. Il vit dans l'encart « Votre formateur » (arbitrage
+              143). */}
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-ink-2">
-            <li className="inline-flex items-center gap-2">
-              <Users className="size-4 text-ink-3" aria-hidden="true" />
-              {fmtNumber(trainer?.studentsCount ?? 0)} apprenants
-            </li>
             <li className="inline-flex items-center gap-2">
               <Globe className="size-4 text-ink-3" aria-hidden="true" />
               {course.language === "fr" ? "Français" : course.language}
@@ -186,22 +193,26 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
                 {trainer?.slogan ? (
                   <p className="mb-2.5 mt-0.5 text-sm font-semibold text-ink-2">{trainer.slogan}</p>
                 ) : null}
-                <p className="flex flex-wrap gap-4.5 text-[13px] font-semibold text-ink-3">
-                  <span>
-                    <b className="text-[14.5px] font-extrabold text-ink">
-                      {fmtNumber(trainer?.studentsCount ?? 0)}
-                    </b>{" "}
-                    apprenants
-                  </span>
-                  {trainer?.ratingCount ? (
-                    <span>
-                      <b className="text-[14.5px] font-extrabold text-ink">
-                        {trainer.ratingAverage.toFixed(1)}
-                      </b>{" "}
-                      / 5 ({trainer.ratingCount} avis)
-                    </span>
-                  ) : null}
-                </p>
+                {learners > 0 || trainer?.ratingCount ? (
+                  <p className="flex flex-wrap gap-4.5 text-[13px] font-semibold text-ink-3">
+                    {learners > 0 ? (
+                      <span>
+                        <b className="text-[14.5px] font-extrabold text-ink">
+                          {fmtNumber(learners)}
+                        </b>{" "}
+                        apprenant{learners > 1 ? "s" : ""}
+                      </span>
+                    ) : null}
+                    {trainer?.ratingCount ? (
+                      <span>
+                        <b className="text-[14.5px] font-extrabold text-ink">
+                          {trainer.ratingAverage.toFixed(1)}
+                        </b>{" "}
+                        / 5 ({trainer.ratingCount} avis)
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
               {bio ? (
                 <p className="text-[14.5px] leading-relaxed text-ink-2 sm:col-span-2">{bio}</p>

@@ -36,8 +36,9 @@ export const PUBLIC_TRAINER_WHERE = {
 /**
  * Le nombre **réel** d'apprenants de chaque formateur.
  * ==========================================================================
- * `TrainerProfile.studentsCount` n'est écrit que par le seed de démonstration :
- * en production il vaut zéro partout. Ce compte-ci se lit à la source.
+ * `TrainerProfile.studentsCount` n'était écrit que par le seed de démonstration :
+ * en production il valait zéro partout, et il a quitté le schéma (arbitrage
+ * 143). Ce compte-ci se lit à la source, et c'est le seul que lisent les écrans.
  *
  * Un apprenant, c'est une personne distincte qui a **acheté** un de ses
  * contenus (réglé, non remboursé — ressource ou adhésion payée) **ou** qui est
@@ -70,6 +71,56 @@ export async function countTrainerLearners(trainerIds: string[]): Promise<Map<st
   return new Map(rows.map((row) => [row.trainerId, Number(row.learners)]))
 }
 
+/** Plafond de l'annuaire : il n'a pas de pagination, le filtrage est client. */
+const DIRECTORY_LIMIT = 60
+
+/**
+ * L'ordre des listes publiques de formateurs — arbitrage 143.
+ * ==========================================================================
+ * Le plus d'apprenants réels d'abord, puis l'ordre alphabétique. L'annuaire et
+ * la recherche triaient sur `studentsCount`, qui valait zéro partout en
+ * production : leur ordre était celui de la base, c'est-à-dire aucun.
+ *
+ * Le compte ne se trie pas en base sans recopier `PUBLIC_TRAINER_WHERE` en SQL,
+ * ce qui ferait deux sources de la règle de visibilité. On lit donc les
+ * identifiants de **tous** les formateurs visibles, on compte en une requête,
+ * on trie ici, puis on coupe. Le coût suit le nombre de formateurs visibles,
+ * pas l'audience ; quand il pèsera, il faudra un compteur — et, cette fois, un
+ * chemin applicatif qui le tient à jour.
+ *
+ * L'ordre alphabétique départage : une base jeune, où personne n'a encore
+ * d'apprenant, rend un annuaire qu'on parcourt, pas un ordre d'insertion. Un
+ * profil sans nom passe en dernier, puisqu'il s'affiche sous un nom générique.
+ * ==========================================================================
+ */
+export async function rankPublicTrainers(options: {
+  /** Filtre ajouté à la visibilité, jamais substitué à elle. */
+  filter?: Prisma.TrainerProfileWhereInput
+  limit: number
+}): Promise<{ ids: string[]; learners: Map<string, number> }> {
+  const candidates = await db.trainerProfile.findMany({
+    where: { AND: [PUBLIC_TRAINER_WHERE, ...(options.filter ? [options.filter] : [])] },
+    select: { id: true, user: { select: { fullName: true } } },
+  })
+  const learners = await countTrainerLearners(candidates.map((c) => c.id))
+
+  const ids = candidates
+    .sort((a, b) => {
+      const nameA = a.user.fullName
+      const nameB = b.user.fullName
+      return (
+        (learners.get(b.id) ?? 0) - (learners.get(a.id) ?? 0) ||
+        Number(!nameA) - Number(!nameB) ||
+        (nameA ?? '').localeCompare(nameB ?? '', 'fr') ||
+        a.id.localeCompare(b.id)
+      )
+    })
+    .slice(0, options.limit)
+    .map((c) => c.id)
+
+  return { ids, learners }
+}
+
 export interface PublicTrainer {
   id: string
   fullName: string | null
@@ -79,7 +130,8 @@ export interface PublicTrainer {
   experienceYears: number | null
   ratingAverage: number
   ratingCount: number
-  studentsCount: number
+  /** Apprenants réels — voir `countTrainerLearners`. */
+  learners: number
   publishedCount: number
   /**
    * Communautés publiques ouvertes. Non décoratif : c'est ce qui permet à une
@@ -90,23 +142,24 @@ export interface PublicTrainer {
 }
 
 export async function listPublicTrainers(search?: string): Promise<PublicTrainer[]> {
+  const { ids, learners } = await rankPublicTrainers({
+    filter: search
+      ? {
+          OR: [
+            { user: { fullName: { contains: search, mode: 'insensitive' as const } } },
+            { slogan: { contains: search, mode: 'insensitive' as const } },
+            { domains: { has: search } },
+          ],
+        }
+      : undefined,
+    limit: DIRECTORY_LIMIT,
+  })
+  if (ids.length === 0) return []
+
   const trainers = await db.trainerProfile.findMany({
-    where: {
-      AND: [
-        PUBLIC_TRAINER_WHERE,
-        ...(search
-          ? [
-              {
-                OR: [
-                  { user: { fullName: { contains: search, mode: 'insensitive' as const } } },
-                  { slogan: { contains: search, mode: 'insensitive' as const } },
-                  { domains: { has: search } },
-                ],
-              },
-            ]
-          : []),
-      ],
-    },
+    // La visibilité est rejouée : entre le classement et cette lecture, un
+    // profil a pu être suspendu.
+    where: { AND: [{ id: { in: ids } }, PUBLIC_TRAINER_WHERE] },
     select: {
       id: true,
       slogan: true,
@@ -115,7 +168,6 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
       experienceYears: true,
       ratingAverage: true,
       ratingCount: true,
-      studentsCount: true,
       user: { select: { fullName: true } },
       _count: {
         select: {
@@ -124,23 +176,26 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
         },
       },
     },
-    orderBy: [{ studentsCount: 'desc' }, { ratingAverage: 'desc' }],
-    take: 60,
   })
 
-  return trainers.map((t) => ({
-    id: t.id,
-    fullName: t.user.fullName,
-    slogan: t.slogan,
-    description: t.description,
-    domains: t.domains,
-    experienceYears: t.experienceYears,
-    ratingAverage: t.ratingAverage,
-    ratingCount: t.ratingCount,
-    studentsCount: t.studentsCount,
-    publishedCount: t._count.courses,
-    communityCount: t._count.communities,
-  }))
+  const byId = new Map(trainers.map((t) => [t.id, t]))
+  return ids.flatMap((id) => {
+    const t = byId.get(id)
+    if (!t) return []
+    return [{
+      id: t.id,
+      fullName: t.user.fullName,
+      slogan: t.slogan,
+      description: t.description,
+      domains: t.domains,
+      experienceYears: t.experienceYears,
+      ratingAverage: t.ratingAverage,
+      ratingCount: t.ratingCount,
+      learners: learners.get(t.id) ?? 0,
+      publishedCount: t._count.courses,
+      communityCount: t._count.communities,
+    }]
+  })
 }
 
 export interface PublicTrainerDetail extends PublicTrainer {
@@ -180,48 +235,52 @@ export interface PublicTrainerCourse {
  * distingue pas d'un identifiant inexistant.
  */
 export async function getPublicTrainer(trainerId: string): Promise<PublicTrainerDetail | null> {
-  const trainer = await db.trainerProfile.findFirst({
-    where: { AND: [{ id: trainerId }, PUBLIC_TRAINER_WHERE] },
-    select: {
-      id: true,
-      slogan: true,
-      description: true,
-      websiteUrl: true,
-      domains: true,
-      experienceYears: true,
-      ratingAverage: true,
-      ratingCount: true,
-      studentsCount: true,
-      approvedAt: true,
-      userId: true,
-      user: { select: { fullName: true } },
-      _count: {
-        select: {
-          courses: { where: { status: 'published' } },
-          communities: { where: { status: 'active', visibility: 'PUBLIC' } },
+  // Le compte part avec la fiche plutôt qu'après elle : pour un identifiant
+  // inconnu, il rend une table vide et ne coûte rien.
+  const [trainer, learners] = await Promise.all([
+    db.trainerProfile.findFirst({
+      where: { AND: [{ id: trainerId }, PUBLIC_TRAINER_WHERE] },
+      select: {
+        id: true,
+        slogan: true,
+        description: true,
+        websiteUrl: true,
+        domains: true,
+        experienceYears: true,
+        ratingAverage: true,
+        ratingCount: true,
+        approvedAt: true,
+        userId: true,
+        user: { select: { fullName: true } },
+        _count: {
+          select: {
+            courses: { where: { status: 'published' } },
+            communities: { where: { status: 'active', visibility: 'PUBLIC' } },
+          },
+        },
+        courses: {
+          where: { status: 'published' },
+          select: {
+            id: true, slug: true, title: true, blurb: true, category: true, format: true,
+            priceFcfa: true, level: true, durationSeconds: true, coverS3Key: true,
+            publishedAt: true,
+          },
+          orderBy: { publishedAt: 'desc' },
+          take: 24,
+        },
+        communities: {
+          // Arbitrage 81. Le panneau « Communauté » de la fiche formateur est une
+          // surface publique : une privée n'y figure pas, sans quoi son existence
+          // et son tarif seraient annoncés à tout visiteur.
+          where: { status: 'active', visibility: 'PUBLIC' },
+          select: { slug: true, name: true, description: true, priceFcfa: true, membersCount: true },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
         },
       },
-      courses: {
-        where: { status: 'published' },
-        select: {
-          id: true, slug: true, title: true, blurb: true, category: true, format: true,
-          priceFcfa: true, level: true, durationSeconds: true, coverS3Key: true,
-          publishedAt: true,
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 24,
-      },
-      communities: {
-        // Arbitrage 81. Le panneau « Communauté » de la fiche formateur est une
-        // surface publique : une privée n'y figure pas, sans quoi son existence
-        // et son tarif seraient annoncés à tout visiteur.
-        where: { status: 'active', visibility: 'PUBLIC' },
-        select: { slug: true, name: true, description: true, priceFcfa: true, membersCount: true },
-        orderBy: { createdAt: 'asc' },
-        take: 1,
-      },
-    },
-  })
+    }),
+    countTrainerLearners([trainerId]),
+  ])
 
   if (!trainer) return null
 
@@ -236,7 +295,7 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
     experienceYears: trainer.experienceYears,
     ratingAverage: trainer.ratingAverage,
     ratingCount: trainer.ratingCount,
-    studentsCount: trainer.studentsCount,
+    learners: learners.get(trainer.id) ?? 0,
     approvedAt: trainer.approvedAt,
     publishedCount: trainer._count.courses,
     communityCount: trainer._count.communities,

@@ -10,7 +10,7 @@
 // ==========================================================================
 
 import { db } from './db'
-import { PUBLIC_TRAINER_WHERE } from './trainers'
+import { PUBLIC_TRAINER_WHERE, rankPublicTrainers } from './trainers'
 import type { CourseListItem } from './dto'
 import { SEARCH_MIN_LENGTH } from './search-limits'
 
@@ -61,7 +61,7 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
         priceFcfa: true, level: true, durationSeconds: true, coverS3Key: true, publishedAt: true,
         trainerProfile: {
           select: {
-            id: true, ratingAverage: true, ratingCount: true, studentsCount: true, slogan: true,
+            id: true, ratingAverage: true, ratingCount: true, slogan: true,
             user: { select: { fullName: true } },
           },
         },
@@ -72,27 +72,29 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
 
     // Mêmes conditions de visibilité que l'annuaire, et par le même objet : un
     // formateur qui n'a pas de fiche atteignable ne doit pas remonter ici, sans
-    // quoi la recherche fabriquerait des liens vers des 404.
-    db.trainerProfile.findMany({
-      where: {
-        AND: [
-          PUBLIC_TRAINER_WHERE,
-          {
-            OR: [
-              { user: { fullName: contains } },
-              { slogan: contains },
-              { domains: { has: query } },
-            ],
-          },
+    // quoi la recherche fabriquerait des liens vers des 404. Même ordre aussi,
+    // par la même fonction (arbitrage 143).
+    rankPublicTrainers({
+      filter: {
+        OR: [
+          { user: { fullName: contains } },
+          { slogan: contains },
+          { domains: { has: query } },
         ],
       },
-      select: {
-        id: true, slogan: true, domains: true,
-        user: { select: { fullName: true } },
-        _count: { select: { courses: { where: { status: 'published' } } } },
-      },
-      orderBy: { studentsCount: 'desc' },
-      take: PER_SECTION,
+      limit: PER_SECTION,
+    }).then(async ({ ids }) => {
+      if (ids.length === 0) return []
+      const rows = await db.trainerProfile.findMany({
+        where: { AND: [{ id: { in: ids } }, PUBLIC_TRAINER_WHERE] },
+        select: {
+          id: true, slogan: true, domains: true,
+          user: { select: { fullName: true } },
+          _count: { select: { courses: { where: { status: 'published' } } } },
+        },
+      })
+      const byId = new Map(rows.map((row) => [row.id, row]))
+      return ids.flatMap((id) => byId.get(id) ?? [])
     }),
 
     db.community.findMany({
@@ -122,7 +124,6 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
         user: { fullName: c.trainerProfile.user.fullName },
         ratingAverage: c.trainerProfile.ratingAverage,
         ratingCount: c.trainerProfile.ratingCount,
-        studentsCount: c.trainerProfile.studentsCount,
         slogan: c.trainerProfile.slogan,
       },
     })) as CourseListItem[],

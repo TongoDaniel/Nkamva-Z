@@ -378,9 +378,18 @@ model TrainerProfile {
   subscriptionCharges          SubscriptionCharge[]
   subscriptionPayments         SubscriptionPayment[]
   wallet                       Wallet?
+  /**
+   * ⚠️ Alimentées par rien : aucun modèle d'avis n'existe. Les écrans les
+   * masquent tant qu'elles valent zéro — ne jamais les afficher sans cette garde.
+   */
   ratingAverage                Float                     @default(0)
   ratingCount                  Int                       @default(0)
-  studentsCount                Int                       @default(0)
+  // `studentsCount` a quitté le schéma (arbitrage 143) : il n'était écrit que
+  // par le seed, et le nombre d'apprenants se lit à la source par
+  // `countTrainerLearners` (`src/lib/trainers.ts`). La colonne subsiste en base,
+  // inerte, jusqu'à la migration qui la supprime au déploiement suivant — la
+  // retirer maintenant casserait le conteneur encore en service, puisque
+  // `migrate deploy` passe avant `docker compose up`.
   approvedAt                   DateTime?
   suspendedAt                  DateTime?
   suspendedReason              String?
