@@ -11,6 +11,8 @@ import { getAuthContext } from "@/lib/api";
 import { listMyResources } from "@/lib/access";
 import { searchCourses } from "@/lib/catalog";
 import { listAgenda } from "@/lib/lives";
+import { visualsOfMember } from "@/lib/community-visual";
+import { trendingSessions } from "@/lib/trending";
 import { loadTrainerPanel } from "@/lib/trainer-home";
 import { getTrainerVisibility } from "@/lib/trainers";
 import { PAYOUT_MIN_AMOUNT_FCFA } from "@/lib/payouts";
@@ -24,7 +26,7 @@ import { VisibilityNotice } from "./visibility-notice";
 import { walletTileLabel } from "./wallet-label";
 import {
   BANNER_TONES,
-  NextLives,
+  buildEventItems,
   Novelties,
   ResumeList,
   StepRow,
@@ -33,6 +35,7 @@ import {
   type StateBanner,
   type Task,
 } from "../accueil/blocs";
+import { UpcomingEvents } from "../accueil/upcoming-events";
 
 /** Espace connecté : les liens de navigation restent dans la coquille applicative. */
 const routes = routesOf("app");
@@ -75,7 +78,7 @@ export default async function FormateurPage({
 
   // Tout part en une seule vague : ce qui coûte face à une base distante n'est
   // pas le nombre de requêtes, c'est la profondeur de cascade.
-  const [trainer, agenda, mine, suggestions, profile, visibility] = await Promise.all([
+  const [trainer, agenda, mine, suggestions, profile, visibility, visuals, trendingLives] = await Promise.all([
     loadTrainerPanel(trainerId, userId),
     listAgenda(userId, trainerId),
     listMyResources(userId, "all", 1, 20),
@@ -87,7 +90,13 @@ export default async function FormateurPage({
       select: { fullName: true, preferredName: true },
     }),
     getTrainerVisibility(trainerId),
+    // Arbitrage 142 — le bloc Événements, comme sur l'accueil apprenant. Les
+    // visuels couvrent la communauté qu'il anime et celles qu'il suit, dans la
+    // même vague que l'agenda.
+    visualsOfMember(userId, trainerId),
+    trendingSessions({ viewerId: userId }),
   ]);
+  const events = await buildEventItems({ agenda, visuals, trending: trendingLives });
 
   // La maquette accueille par le prénom. `preferredName` prime quand il existe ;
   // sinon on prend le premier mot du nom complet, faute de champ dédié.
@@ -103,7 +112,6 @@ export default async function FormateurPage({
     // qu'il a **publié**.
     .filter((c) => c.trainerProfile.id !== trainerId)
     .slice(0, 3);
-  const nextLives = agenda.slice(0, 2);
 
   const accessDenied =
     erreur === "acces-refuse" ? (
@@ -445,8 +453,6 @@ export default async function FormateurPage({
         </div>
 
         <aside className="flex flex-col gap-7 sm:gap-10">
-          <NextLives sessions={nextLives} />
-
           <section aria-labelledby="reprendre">
             <div className="mb-4 flex items-baseline justify-between gap-3">
               <h2 id="reprendre" className="text-[17px] font-bold">
@@ -469,6 +475,21 @@ export default async function FormateurPage({
           </section>
         </aside>
       </div>
+
+      {/* Pleine largeur, et non dans la colonne latérale où vivaient les deux
+          « Prochains directs » : une ligne d'événement porte une date, une
+          vignette, un titre et une marque, ce qu'un tiers d'écran ne tient
+          pas. Rien ne s'affiche quand aucune des deux listes n'a de séance. */}
+      {events.mine.length + events.trending.length > 0 ? (
+        <UpcomingEvents
+          mine={events.mine}
+          trending={events.trending}
+          hasCommunities={visuals.size > 0}
+          agendaHref="/mes-lives"
+          exploreHref={routes.communities}
+          className="mt-7 sm:mt-10"
+        />
+      ) : null}
 
       <Novelties courses={suggested} />
 

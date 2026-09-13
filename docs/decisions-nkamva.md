@@ -2407,6 +2407,104 @@ juste dans une boîte mail, pas dans une page.
 
 ---
 
+## Arbitrage 142 — L'accueil se range par communautés, et la tendance se mesure
+
+> Demandé le 13 septembre 2026 par le propriétaire, maquettes à l'appui
+> (rangées « Vos communautés », « Documents achetés », « Formateurs
+> tendance », « Documents tendance », et une liste « Événements à venir »),
+> avec **deux onglets** d'événements : ceux des communautés rejointes, et ceux
+> des communautés en tendance. Proposition discutée avant tout code ; décisions
+> prises sur les recommandations, sauf la huitième.
+
+**142. L'accueil reprend la structure des maquettes, pas ce qu'elles
+affichaient sans que la base le sache.**
+
+Les maquettes montraient des faits qui n'existent pas. Aucun n'a été simulé :
+
+| maquette | réalité | retenu |
+|---|---|---|
+| étoiles ★ 4.6 (1 200) | aucun modèle d'avis ; `ratingAverage`/`ratingCount` alimentés par rien | **pas d'étoiles** |
+| « 176 918 participants » | `studentsCount` écrit par le seul seed, zéro en production | compte **réel** (`countTrainerLearners`) |
+| « Tendance » | le tri `popular` retombait sur la date | mesure définie ci-dessous |
+| « Complet », « Places limitées » | aucune jauge (arbitrage 46) | En direct · J'anime · Aujourd'hui · prix d'adhésion |
+| lieu physique | tout est en ligne | heure, durée, fuseau de l'animateur (arbitrage 107) |
+| catégorie de communauté | le champ n'existe pas | nom de la communauté |
+| photo de séance | le champ n'existe pas | bannière, sinon photo de groupe, sinon portrait |
+| thème sombre | l'arbitrage 141 vient de passer au blanc | **thème clair** |
+| sélecteur de mois | le calendrier vit sur `/mes-lives` | retiré, le titre y mène |
+| « Documents » | une ressource est aussi une vidéo ou un kit | **« ressources »** |
+
+**La tendance, et son honnêteté.** `src/lib/trending.ts` est la source unique.
+Sur 30 jours glissants : achats réglés et non remboursés pour les ressources,
+nouvelles adhésions pour les communautés, achats sur leurs contenus pour les
+formateurs. **Sous trois éléments classés, on ne prétend pas classer** : la
+fonction rend `ranked: false`, et l'écran titre « Nouveautés du catalogue » ou
+« Formateurs à découvrir ». Une ressource qu'on possède (achetée ou reçue par
+une communauté) ou qu'on a publiée n'est jamais proposée.
+
+**Les deux onglets ne promettent pas la même chose.** « Mes communautés » mène à
+la salle, ou à la console pour qui anime. « Tendance » mène à la **fiche** de la
+communauté : la salle refuse un non-membre (`NOT_MEMBER`). L'onglet Tendance
+expose le titre et l'horaire des séances des communautés **publiques** qu'on n'a
+pas rejointes — exposition nouvelle, acceptée : une communauté ouverte est déjà
+une vitrine. Une privée n'y paraît jamais, pas même dans la charge du composant
+client (vérifié par le smoke test). L'onglet ouvert par défaut est celui qui a
+quelque chose à montrer.
+
+**La page, de haut en bas** : bandeau « En direct maintenant » s'il y a lieu ·
+Vos communautés (vignettes) · Événements à venir · Mes ressources (les
+commencées en tête, progression sur la carte) · Formateurs tendance ·
+Ressources tendance. Les tuiles « 0 ressource achetée · 0 en cours » et la
+liste « Reprendre » sont fondues dans la rangée « Mes ressources ». Un compte
+neuf voit une invitation à rejoindre une communauté, puis la tendance.
+
+**Le formateur** (décision 8, contraire à la recommandation) : son accueil
+`/formateur` reçoit le bloc Événements en pleine largeur, à la place des deux
+« Prochains directs » de la colonne latérale, trop étroite pour une ligne à
+vignette. Le reste de son tableau de bord ne change pas.
+
+**L'heure ne se rend pas deux fois.** Le serveur ignore le fuseau du lecteur :
+le premier rendu écrit l'heure dans le fuseau **de l'animateur**, identique au
+serveur et au navigateur ; une fois monté, le bloc repasse dans celui du
+lecteur et rappelle l'autre s'il diffère. Les filtres de période attendent le
+même moment. `LiveSessionRow` n'a pas encore cette précaution sur `/mes-lives`
+— défaut signalé à part.
+
+**Sans nouvelle génération de composants** : `CommunityCard` gagne une forme
+vignette (`thumbnail`) et `CommunityThumb`, `ResourceCard` un `href`, un pied
+(`footer`) et une forme compacte, `Cover` exporte ses rayures, `membershipBadge`
+sert `/mes-communautes` et l'accueil. `ScrollCarousel` ne montre plus ses
+flèches sur téléphone. Les visuels passent par `src/lib/community-visual.ts` :
+les clés de stockage n'entrent pas dans `AgendaSession`, qui part vers le
+navigateur.
+
+**Mesures qui ont corrigé la première version** (375 px puis 1280 px) : lignes
+d'événement de 126 px sur téléphone — la vignette y est masquée sous `sm` — et de
+108 px sur bureau, ramenées à 88 en remontant la communauté sur la ligne de
+l'heure ; pastilles de période à 389 px pour 337 disponibles, d'où « Semaine » et
+« Mois » ; 20 px entre deux sections selon celle qui précédait, d'où un écart
+unique et des rangées défilantes qui rendent leur marge (`-mb-4`).
+
+**Ce qui reste ouvert** : aucun cache sur les classements (`unstable_cache` ne
+tourne pas sous vitest ; ils partent dans la vague parallèle de la page) ; les
+écrans formateur et l'annuaire lisent encore `studentsCount` ; `/mes-lives`
+formate l'heure dans le fuseau du serveur.
+
+> **Contrôles.** `npx tsc --noEmit` vert ; `eslint` vert sur les fichiers
+> touchés ; `tests/tendance.test.ts` — 9 tests sur la base locale ; 128 des 129
+> tests des modules voisins passent, l'échec restant étant celui, antérieur,
+> d'`atteignabilite` (`POST /api/me/avatar/confirm`). `bun
+> scripts/smoke-accueil.ts` pose un petit monde marqué, lit `/accueil` et
+> `/formateur` comme un navigateur, puis efface tout. DOM mesuré à 375 et
+> 1280 px, sans débordement ni texte sous 13 px. `bun run check:mobile` : seul
+> l'échec antérieur de `pdf-reader.tsx`. En `next dev`, le flux RSC sérialise
+> aussi les props des composants **serveur** pour les outils de débogage — des
+> `coverS3Key` y paraissent, comme sur `/mes-ressources` avant ce chantier ; le
+> smoke test vérifie donc les props du composant client, les seules qui
+> voyagent en production.
+
+---
+
 ## Recette de l'audit — 5 septembre 2026
 
 Le chantier ouvert par l'audit fonctionnel du 1er septembre 2026 est **clos sur

@@ -146,6 +146,8 @@ export interface MyCommunity {
     slug: string
     name: string
     coverS3Key: string | null
+    /** La photo de groupe — second choix de la vignette de l'accueil. */
+    avatarS3Key: string | null
     priceFcfa: number
     membersCount: number
     /** Une adhésion peut très bien porter sur une communauté privée. */
@@ -170,7 +172,7 @@ export async function listMyMemberships(learnerId: string): Promise<MyCommunity[
       id: true, status: true, periodEnd: true, canceledAt: true,
       community: {
         select: {
-          id: true, slug: true, name: true, coverS3Key: true, priceFcfa: true,
+          id: true, slug: true, name: true, coverS3Key: true, avatarS3Key: true, priceFcfa: true,
           membersCount: true, visibility: true,
           trainerProfile: {
             select: { userId: true, user: { select: { fullName: true, avatarS3Key: true } } },
@@ -190,6 +192,7 @@ export async function listMyMemberships(learnerId: string): Promise<MyCommunity[
       slug: s.community.slug,
       name: s.community.name,
       coverS3Key: s.community.coverS3Key,
+      avatarS3Key: s.community.avatarS3Key,
       priceFcfa: s.community.priceFcfa,
       membersCount: s.community.membersCount,
       visibility: s.community.visibility,

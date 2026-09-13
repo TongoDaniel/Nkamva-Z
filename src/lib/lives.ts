@@ -899,7 +899,12 @@ export interface AgendaSession {
    */
   timeZone: string | null
   durationMinutes: number
-  community: ViewCommunity
+  /**
+   * `id` en plus du nom et du slug : l'accueil retrouve par lui la bannière et
+   * le portrait de la communauté (`lib/community-visual.ts`). Les clés de
+   * stockage, elles, restent hors de ce type — il part vers le navigateur.
+   */
+  community: ViewCommunity & { id: string }
   host: ViewHost
   attendees: number
   live: boolean
@@ -914,10 +919,16 @@ export interface AgendaSession {
   mine: boolean
 }
 
-const AGENDA_SELECT = {
+/**
+ * Exporté avec `toAgenda` pour l'onglet « Tendance » de l'accueil
+ * (`lib/trending.ts`) : une séance y a la même forme qu'ici, et une seconde
+ * sélection aurait dérivé au premier champ ajouté.
+ */
+export const AGENDA_SELECT = {
   id: true, title: true, description: true, status: true,
   scheduledStartAt: true, timeZone: true, durationMinutes: true,
   peakParticipants: true, startedAt: true,
+  communityId: true,
   community: {
     select: {
       name: true, slug: true,
@@ -927,10 +938,11 @@ const AGENDA_SELECT = {
   _count: { select: { participants: { where: { leftAt: null } } } },
 } as const
 
-function toAgenda(s: {
+export function toAgenda(s: {
   id: string; title: string; description: string | null; status: LiveSessionStatus
   scheduledStartAt: Date; timeZone: string | null
   durationMinutes: number; peakParticipants: number
+  communityId: string
   community: {
     name: string; slug: string
     trainerProfile: { slogan: string | null; user: { fullName: string | null } }
@@ -946,7 +958,7 @@ function toAgenda(s: {
     startsAt: s.scheduledStartAt,
     timeZone: s.timeZone,
     durationMinutes: s.durationMinutes,
-    community: { name: s.community.name, slug: s.community.slug },
+    community: { id: s.communityId, name: s.community.name, slug: s.community.slug },
     host: {
       name: s.community.trainerProfile.user.fullName ?? 'Formateur NkamVa',
       role: s.community.trainerProfile.slogan ?? 'Formateur',
