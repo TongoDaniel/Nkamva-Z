@@ -6,6 +6,7 @@ import { BtnLink } from "@/components/nk/button-link";
 import { EmptyState } from "@/components/nk/empty-state";
 import { LiveSessionRow, ReplayRow } from "@/components/nk/live-row";
 import { Tabs } from "@/components/nk/tabs";
+import { FALLBACK_HOST_TIME_ZONE, useReaderTimeZoneKnown } from "@/hooks/use-reader-time-zone";
 import { cn } from "@/lib/utils";
 import type { AgendaSession, ReplayView } from "@/lib/lives";
 
@@ -20,13 +21,42 @@ type Origin = "all" | "mine" | "joined";
 
 const DAY_NAMES = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
 
-/** Clé de jour, commune au calendrier et au filtre de liste. */
-function dayKey(date: Date) {
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+/**
+ * Le jour du calendrier où tombe un instant, dans un fuseau donné — `undefined` :
+ * celui du lecteur.
+ *
+ * Pas `getDate()` : il lit le fuseau de la machine qui rend. Une séance à
+ * 23 h 30 UTC tombait le 15 sur le serveur de production et le 16 à Paris — le
+ * calendrier hydraté ne ressemblait plus à celui du serveur, et React jetait
+ * tout le rendu serveur de la page.
+ */
+function calendarDay(date: Date, timeZone: string | undefined) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    timeZone,
+  }).formatToParts(date);
+  const part = (type: "year" | "month" | "day") =>
+    Number(parts.find((p) => p.type === type)?.value);
+  return { year: part("year"), month: part("month") - 1, day: part("day") };
 }
 
-function longDay(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(date);
+/** Clé de jour, commune au calendrier et au filtre de liste. */
+function dayKey(date: Date, timeZone: string | undefined) {
+  const { year, month, day } = calendarDay(date, timeZone);
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Le calendrier ne manipule que des jours, jamais des instants : ses dates sont
+ * construites et lues en UTC, ce qui les rend identiques d'une machine à
+ * l'autre.
+ */
+function longDay(year: number, month: number, day: number) {
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month, day)),
+  );
 }
 
 /** Ce qu'un jour du calendrier porte — un jour peut porter les trois. */
@@ -53,24 +83,29 @@ function MonthGrid({
   selected,
   onPick,
   showOrigins,
+  timeZone,
 }: {
   marks: Map<string, DayMark>;
   selected: string | null;
   onPick: (key: string, mark: DayMark) => void;
   showOrigins: boolean;
+  /** Le fuseau où « aujourd'hui » se lit — le même que celui des marques. */
+  timeZone: string | undefined;
 }) {
-  const today = new Date();
+  const today = calendarDay(new Date(), timeZone);
   const [offset, setOffset] = React.useState(0);
 
-  const view = new Date(today.getFullYear(), today.getMonth() + offset, 1);
-  const year = view.getFullYear();
-  const month = view.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  // getDay() met dimanche à 0 ; la semaine française commence lundi.
-  const leading = (view.getDay() + 6) % 7;
-  const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(
-    view,
-  );
+  const view = new Date(Date.UTC(today.year, today.month + offset, 1));
+  const year = view.getUTCFullYear();
+  const month = view.getUTCMonth();
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  // getUTCDay() met dimanche à 0 ; la semaine française commence lundi.
+  const leading = (view.getUTCDay() + 6) % 7;
+  const monthLabel = new Intl.DateTimeFormat("fr-FR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(view);
 
   const navClass =
     "nk-tap grid size-8 cursor-pointer place-items-center rounded-nk-sm text-ink-2 transition hover:bg-line-2 hover:text-ink";
@@ -134,10 +169,7 @@ function MonthGrid({
         {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
           const key = `${year}-${month}-${day}`;
           const mark = marks.get(key);
-          const isToday =
-            day === today.getDate() &&
-            month === today.getMonth() &&
-            year === today.getFullYear();
+          const isToday = day === today.day && month === today.month && year === today.year;
           const isSelected = selected === key;
 
           if (!mark) {
@@ -235,6 +267,12 @@ export function AgendaPane({
   const [origin, setOrigin] = React.useState<Origin>("all");
   const [day, setDay] = React.useState<string | null>(null);
 
+  // Le calendrier range des séances de plusieurs animateurs : il n'a pas de
+  // fuseau d'animateur unique où se lire. Jusqu'à l'hydratation il prend donc
+  // le repli des lignes, puis le fuseau du lecteur — au même rendu qu'elles.
+  const readerKnown = useReaderTimeZoneKnown();
+  const timeZone = readerKnown ? undefined : FALLBACK_HOST_TIME_ZONE;
+
   const keeps = React.useCallback(
     (mine: boolean) => origin === "all" || (origin === "mine") === mine,
     [origin],
@@ -253,7 +291,7 @@ export function AgendaPane({
   const marks = React.useMemo(() => {
     const map = new Map<string, DayMark>();
     const touch = (date: Date, field: keyof Omit<DayMark, "count">) => {
-      const key = dayKey(date);
+      const key = dayKey(date, timeZone);
       const mark = map.get(key) ?? { mine: false, joined: false, replay: false, count: 0 };
       mark[field] = true;
       mark.count += 1;
@@ -262,7 +300,7 @@ export function AgendaPane({
     for (const s of byOrigin.sessions) touch(s.startsAt, s.mine ? "mine" : "joined");
     for (const r of byOrigin.replays) touch(r.recordedAt, "replay");
     return map;
-  }, [byOrigin]);
+  }, [byOrigin, timeZone]);
 
   // Changer d'origine peut retirer du calendrier le jour sélectionné : le
   // filtre se relâche alors de lui-même. Le garder afficherait un état vide
@@ -272,13 +310,13 @@ export function AgendaPane({
   const shown = React.useMemo(
     () => ({
       sessions: activeDay
-        ? byOrigin.sessions.filter((s) => dayKey(s.startsAt) === activeDay)
+        ? byOrigin.sessions.filter((s) => dayKey(s.startsAt, timeZone) === activeDay)
         : byOrigin.sessions,
       replays: activeDay
-        ? byOrigin.replays.filter((r) => dayKey(r.recordedAt) === activeDay)
+        ? byOrigin.replays.filter((r) => dayKey(r.recordedAt, timeZone) === activeDay)
         : byOrigin.replays,
     }),
-    [byOrigin, activeDay],
+    [byOrigin, activeDay, timeZone],
   );
 
   const pickDay = (key: string, mark: DayMark) => {
@@ -294,7 +332,7 @@ export function AgendaPane({
   const dayLabel = React.useMemo(() => {
     if (!activeDay) return null;
     const [y, m, d] = activeDay.split("-").map(Number);
-    return longDay(new Date(y, m, d));
+    return longDay(y, m, d);
   }, [activeDay]);
 
   return (
@@ -389,7 +427,13 @@ export function AgendaPane({
       </div>
 
       <div className="grid gap-4">
-        <MonthGrid marks={marks} selected={activeDay} onPick={pickDay} showOrigins={isTrainer} />
+        <MonthGrid
+          marks={marks}
+          selected={activeDay}
+          onPick={pickDay}
+          showOrigins={isTrainer}
+          timeZone={timeZone}
+        />
         <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
           <span
             className="mb-3 grid size-10 place-items-center rounded-xl bg-gold-tint text-gold-ink"
