@@ -1040,6 +1040,13 @@ export interface ReplayView {
   title: string
   description: string | null
   recordedAt: Date
+  /**
+   * Fuseau de la séance enregistrée (arbitrage 107) — nul si elle a été
+   * programmée avant. Le replay porte la date du live : son premier rendu
+   * l'écrit dans le fuseau où la ligne d'agenda l'écrivait
+   * (`hooks/use-reader-time-zone.ts`).
+   */
+  timeZone: string | null
   durationSeconds: number
   status: string
   community: ViewCommunity
@@ -1102,7 +1109,7 @@ export async function hasReplayAccess(
 const REPLAY_SELECT = {
   id: true, sessionId: true, title: true, recordedAt: true, durationSeconds: true,
   status: true, purgeAt: true, communityId: true, s3Key: true, audioS3Key: true,
-  session: { select: { description: true } },
+  session: { select: { description: true, timeZone: true } },
   community: {
     select: {
       name: true, slug: true,
@@ -1116,7 +1123,7 @@ function toReplay(r: {
   id: string; sessionId: string; title: string; recordedAt: Date
   durationSeconds: number | null; status: string; purgeAt: Date
   audioS3Key: string | null
-  session: { description: string | null }
+  session: { description: string | null; timeZone: string | null }
   community: {
     name: string; slug: string
     trainerProfile: { userId: string; slogan: string | null; user: { fullName: string | null } }
@@ -1129,6 +1136,7 @@ function toReplay(r: {
     title: r.title,
     description: r.session.description,
     recordedAt: r.recordedAt,
+    timeZone: r.session.timeZone,
     // Le lecteur divise par cette valeur : un zéro y produirait une barre de
     // progression à NaN. Une séance sans durée connue vaut une seconde.
     durationSeconds: r.durationSeconds ?? 1,

@@ -1,5 +1,8 @@
+"use client";
+
 import { BtnLink } from "./button-link";
 import { StPill } from "./status-pill";
+import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import type { AgendaSession, ReplayView } from "@/lib/lives";
 
@@ -11,47 +14,25 @@ import type { AgendaSession, ReplayView } from "@/lib/lives";
  * rendent : recopier le balisage aurait produit une seconde génération de
  * lignes, qui aurait dérivé au premier ajustement — le défaut exact que la
  * convergence des cartes de ressource a coûté cher à corriger.
- */
-
-function dayNumber(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(date);
-}
-function shortDay(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(date).replace(".", "");
-}
-function shortMonth(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(date).replace(".", "");
-}
-function timeLabel(date: Date) {
-  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(date);
-}
-
-/**
- * Arbitrage 107 — l'heure s'affiche toujours dans le fuseau du lecteur ; on
- * rappelle celui de l'animateur **seulement** s'il en diffère.
  *
- * Sans cette condition, tout le monde lirait « 18 h 00 (Africa/Douala) » à
- * Douala, ce qui n'apprend rien et alourdit chaque ligne. Avec, un membre de la
- * diaspora sait que 19 h 00 chez lui est bien la séance de 18 h 00 annoncée.
- * Le nom de ville plutôt que l'identifiant : « Douala » se lit, `Africa/Douala`
- * se déchiffre.
+ * `"use client"` parce qu'elles écrivent une date. Rendues par un composant
+ * serveur, elles la sortiraient dans le fuseau du conteneur — UTC en
+ * production — sans qu'aucun rendu vienne jamais la corriger. Le fuseau se
+ * choisit dans `hooks/use-reader-time-zone.ts`, comme sur l'accueil.
  */
-export function hostTimeLabel(date: Date, timeZone: string | null): string | null {
-  if (!timeZone) return null
-  try {
-    if (timeZone === Intl.DateTimeFormat().resolvedOptions().timeZone) return null
-    const time = new Intl.DateTimeFormat("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone,
-    }).format(date);
-    const city = timeZone.split("/").pop()?.replace(/_/g, " ") ?? timeZone;
-    return `${time} à ${city}`;
-  } catch {
-    // Fuseau inconnu du navigateur : mieux vaut ne rien dire que d'afficher un
-    // identifiant brut à côté d'une heure déjà juste.
-    return null;
-  }
+
+// `timeZone` indéfini : le fuseau du lecteur.
+function dayNumber(date: Date, timeZone: string | undefined) {
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", timeZone }).format(date);
+}
+function shortDay(date: Date, timeZone: string | undefined) {
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone }).format(date).replace(".", "");
+}
+function shortMonth(date: Date, timeZone: string | undefined) {
+  return new Intl.DateTimeFormat("fr-FR", { month: "short", timeZone }).format(date).replace(".", "");
+}
+function timeLabel(date: Date, timeZone: string | undefined) {
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone }).format(date);
 }
 
 const ROW = "flex flex-wrap items-center gap-4 rounded-nk border border-line bg-card px-4 py-3.5";
@@ -80,9 +61,12 @@ export function LiveSessionRow({
   session: AgendaSession;
   showCommunity?: boolean;
 }) {
+  const { timeZone, hostLabel } = useSessionTimeZone(session.timeZone);
+  const host = hostLabel(session.startsAt);
+
   return (
     <article className={ROW}>
-      <DateBlock top={dayNumber(session.startsAt)} bottom={shortDay(session.startsAt)} />
+      <DateBlock top={dayNumber(session.startsAt, timeZone)} bottom={shortDay(session.startsAt, timeZone)} />
       <div className="min-w-0 flex-1">
         <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold">
           {session.title}
@@ -96,13 +80,9 @@ export function LiveSessionRow({
           {session.mine
             ? `${fmtNumber(session.attendees)} inscrit${session.attendees > 1 ? "s" : ""}`
             : session.host.name}{" "}
-          · {timeLabel(session.startsAt)} · {session.durationMinutes} min
+          · {timeLabel(session.startsAt, timeZone)} · {session.durationMinutes} min
         </p>
-        {hostTimeLabel(session.startsAt, session.timeZone) ? (
-          <p className="mt-0.5 truncate text-[13px] text-ink-3">
-            soit {hostTimeLabel(session.startsAt, session.timeZone)}
-          </p>
-        ) : null}
+        {host ? <p className="mt-0.5 truncate text-[13px] text-ink-3">soit {host}</p> : null}
       </div>
       {session.mine ? (
         <BtnLink
@@ -132,9 +112,15 @@ export function ReplayRow({
   replay: ReplayView;
   showCommunity?: boolean;
 }) {
+  // Le replay porte la date de son live, pas celle de sa mise en ligne : son
+  // premier rendu prend donc le fuseau de la séance enregistrée, avec le même
+  // repli que la ligne d'agenda. Il ne rappelle pas l'heure de l'animateur —
+  // la ligne n'affiche pas d'heure, et un rendez-vous passé n'en a plus besoin.
+  const { timeZone } = useSessionTimeZone(replay.timeZone);
+
   return (
     <article className={ROW}>
-      <DateBlock top={dayNumber(replay.recordedAt)} bottom={shortMonth(replay.recordedAt)} />
+      <DateBlock top={dayNumber(replay.recordedAt, timeZone)} bottom={shortMonth(replay.recordedAt, timeZone)} />
       <div className="min-w-0 flex-1">
         <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold">
           {replay.title}

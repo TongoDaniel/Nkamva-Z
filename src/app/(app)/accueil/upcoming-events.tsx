@@ -18,13 +18,10 @@
 // ligne), une catégorie de communauté, une photo de séance. Le sélecteur de mois
 // non plus : le calendrier vit sur `/mes-lives`, vers lequel mène le titre.
 //
-// **L'heure.** Le serveur ne connaît pas le fuseau du lecteur. Rendre l'heure
-// dans le sien, puis dans celui du navigateur, ferait deux textes différents
-// pour le même nœud — une erreur d'hydratation, ou pire une heure fausse
-// figée. Le premier rendu, serveur et navigateur confondus, écrit donc l'heure
-// dans le fuseau **de l'animateur**, qui est une donnée de la séance et donne
-// le même texte partout ; une fois monté, le composant repasse dans le fuseau
-// du lecteur, et rappelle celui de l'animateur s'il diffère (arbitrage 107).
+// **L'heure.** Le serveur ne connaît pas le fuseau du lecteur. Le premier
+// rendu écrit donc l'heure dans le fuseau **de l'animateur**, puis le composant
+// repasse dans celui du lecteur une fois hydraté — la règle vit dans
+// `hooks/use-reader-time-zone.ts`, partagée avec les lignes de `/mes-lives`.
 // Les filtres de période attendent le même moment : « aujourd'hui » dépend de
 // l'endroit où l'on est.
 // ==========================================================================
@@ -35,7 +32,7 @@ import { ChevronRight } from "lucide-react";
 import { Tabs } from "@/components/nk/tabs";
 import { StPill } from "@/components/nk/status-pill";
 import { CommunityThumb, type ThumbnailSrc } from "@/components/nk/community-card";
-import { hostTimeLabel } from "@/components/nk/live-row";
+import { useReaderTimeZoneKnown, useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { fmtNumber } from "@/lib/format";
 import { SectionTitle } from "./section-title";
 
@@ -57,13 +54,6 @@ export interface EventItem {
   /** Prix mensuel de l'adhésion — onglet « Tendance » seulement. */
   priceFcfa: number | null;
 }
-
-/**
- * Le fuseau du premier rendu quand la séance n'en porte pas (programmée avant
- * l'arbitrage 107). Celui du marché d'origine de la plateforme : c'est l'heure
- * que l'animateur avait le plus probablement en tête.
- */
-const FALLBACK_HOST_TIME_ZONE = "Africa/Douala";
 
 /** Au-delà, la ligne suivante renvoie vers la liste complète. */
 const MAX_ROWS = 5;
@@ -92,18 +82,22 @@ const PERIOD_SUFFIX: Record<Period, string> = {
 };
 
 /**
- * L'heure du navigateur, une fois monté — `null` avant. Rafraîchie chaque
+ * L'heure du navigateur, une fois hydraté — `null` avant. Rafraîchie chaque
  * minute : un accueil laissé ouvert doit voir « Aujourd'hui » basculer, et une
  * séance terminée sortir de la liste.
+ *
+ * Elle devient non nulle au rendu même où les lignes passent au fuseau du
+ * lecteur : les filtres et l'heure affichée basculent ensemble, jamais l'un
+ * avant l'autre.
  */
 function useNow(): Date | null {
-  const [now, setNow] = React.useState<Date | null>(null);
+  const readerKnown = useReaderTimeZoneKnown();
+  const [now, setNow] = React.useState(() => new Date());
   React.useEffect(() => {
-    setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  return now;
+  return readerKnown ? now : null;
 }
 
 /** Fin exclue de la période, en heure locale. `null` : pas de borne. */
@@ -155,8 +149,9 @@ function dateParts(iso: string, timeZone: string | undefined) {
 }
 
 function EventRow({ item, now }: { item: EventItem; now: Date | null }) {
-  const parts = dateParts(item.startsAt, now ? undefined : item.timeZone ?? FALLBACK_HOST_TIME_ZONE);
-  const host = now ? hostTimeLabel(new Date(item.startsAt), item.timeZone) : null;
+  const { timeZone, hostLabel } = useSessionTimeZone(item.timeZone);
+  const parts = dateParts(item.startsAt, timeZone);
+  const host = hostLabel(new Date(item.startsAt));
   const today = now ? sameLocalDay(new Date(item.startsAt), now) : false;
 
   // Une seule marque par ligne, la plus urgente : deux pastilles côte à côte
