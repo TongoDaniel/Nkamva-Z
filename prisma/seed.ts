@@ -1200,26 +1200,14 @@ async function seedSubscriptionStates() {
 async function reconcileCounters() {
   step('Compteurs')
 
-  // `studentsCount` n'est maintenu par aucun chemin applicatif : aucun achat ne
-  // l'incrémente. Il est donc recalculé ici pour ne pas mentir — mais il
-  // redeviendra faux au premier achat réel, et c'est un défaut du produit, pas
-  // du jeu de données.
-  const trainers = await db.trainerProfile.findMany({ select: { id: true } })
-  for (const trainer of trainers) {
-    const buyers = await db.purchase.findMany({
-      where: { trainerId: trainer.id, providerStatus: 'SUCCEEDED' },
-      select: { learnerId: true },
-      distinct: ['learnerId'],
-    })
-    await db.trainerProfile.update({
-      where: { id: trainer.id },
-      data: { studentsCount: buyers.length },
-    })
-  }
-
-  // Idem pour l'activité des salons : le job `refreshCommunityActivity` la
-  // recalcule en production, on l'aligne ici pour que les fiches publiques
-  // n'affichent pas « 0 message / jour » sur un forum manifestement vivant.
+  // L'activité des salons : le job `refreshCommunityActivity` la recalcule en
+  // production, on l'aligne ici pour que les fiches publiques n'affichent pas
+  // « 0 message / jour » sur un forum manifestement vivant.
+  //
+  // `studentsCount` était recalculé ici aussi, et nulle part ailleurs : aucun
+  // achat ne l'incrémentait, si bien qu'il valait zéro en production pendant
+  // que la démo affichait des centaines d'apprenants. Il a quitté le schéma
+  // (arbitrage 143) ; le nombre se lit à la source, il n'y a plus rien à aligner.
   for (const seed of COMMUNITIES) {
     const communityId = cid(seed.key)
     const [members, recent] = await Promise.all([
@@ -1234,7 +1222,7 @@ async function reconcileCounters() {
     })
   }
 
-  note('studentsCount et activité des salons recalculés')
+  note('activité des salons recalculée')
 }
 
 // ==========================================================================

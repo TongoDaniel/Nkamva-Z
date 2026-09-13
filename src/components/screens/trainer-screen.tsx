@@ -31,7 +31,6 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
     user: { fullName: trainer.fullName },
     ratingAverage: trainer.ratingAverage,
     ratingCount: trainer.ratingCount,
-    studentsCount: trainer.studentsCount,
     slogan: trainer.slogan,
   }
 
@@ -69,9 +68,11 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
                   <b className="font-bold text-ink">{trainer.publishedCount}</b> ressource
                   {trainer.publishedCount > 1 ? 's' : ''}
                 </span>
-                {trainer.studentsCount > 0 ? (
+                {/* Le même compte que l'accueil — arbitrage 143. */}
+                {trainer.learners > 0 ? (
                   <span>
-                    <b className="font-bold text-ink">{fmtNumber(trainer.studentsCount)}</b> apprenants
+                    <b className="font-bold text-ink">{fmtNumber(trainer.learners)}</b> apprenant
+                    {trainer.learners > 1 ? 's' : ''}
                   </span>
                 ) : null}
                 {trainer.experienceYears ? (

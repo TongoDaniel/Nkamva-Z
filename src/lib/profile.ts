@@ -172,7 +172,7 @@ export async function buildGdprExport(userId: string) {
           select: {
             id: true, slogan: true, description: true, websiteUrl: true, domains: true,
             experienceYears: true, subscriptionCadence: true, subscriptionStatus: true, commissionRate: true,
-            ratingAverage: true, ratingCount: true, studentsCount: true, createdAt: true,
+            ratingAverage: true, ratingCount: true, createdAt: true,
           },
         },
       },

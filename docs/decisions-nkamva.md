@@ -2486,9 +2486,9 @@ l'heure ; pastilles de période à 389 px pour 337 disponibles, d'où « Semaine
 unique et des rangées défilantes qui rendent leur marge (`-mb-4`).
 
 **Ce qui reste ouvert** : aucun cache sur les classements (`unstable_cache` ne
-tourne pas sous vitest ; ils partent dans la vague parallèle de la page) ; les
-écrans formateur et l'annuaire lisent encore `studentsCount` ; `/mes-lives`
-formate l'heure dans le fuseau du serveur.
+tourne pas sous vitest ; ils partent dans la vague parallèle de la page) ;
+~~les écrans formateur et l'annuaire lisent encore `studentsCount`~~ — fermé par
+l'arbitrage 143 ; `/mes-lives` formate l'heure dans le fuseau du serveur.
 
 > **Contrôles.** `npx tsc --noEmit` vert ; `eslint` vert sur les fichiers
 > touchés ; `tests/tendance.test.ts` — 9 tests sur la base locale ; 128 des 129
@@ -2502,6 +2502,113 @@ formate l'heure dans le fuseau du serveur.
 > `coverS3Key` y paraissent, comme sur `/mes-ressources` avant ce chantier ; le
 > smoke test vérifie donc les props du composant client, les seules qui
 > voyagent en production.
+
+---
+
+## Arbitrage 143 — Un apprenant se compte à un seul endroit, et `studentsCount` s'en va
+
+> Tranché le 13 septembre 2026, à la suite de l'arbitrage 142 qui l'avait
+> laissé ouvert. Demandé par le propriétaire : brancher les écrans restants sur
+> le compte réel, trancher le tri de l'annuaire et le sort de la colonne.
+
+**Le constat.** `TrainerProfile.studentsCount` n'était écrit que par
+`prisma/seed.ts`. Aucun achat, aucune adhésion ne le mettait à jour : il valait
+zéro en production, et la démo affichait des centaines d'apprenants. Depuis
+l'arbitrage 142, l'accueil lit le compte réel (`countTrainerLearners`) ; la
+fiche formateur, l'annuaire et la fiche ressource lisaient encore la colonne.
+Deux chiffres pour la même idée, ce que la règle de source unique interdit.
+
+**143. Un seul compte d'apprenants, `countTrainerLearners`, lu en une requête
+par liste.**
+
+| écran | avant | après |
+|---|---|---|
+| annuaire `/formateurs` | `studentsCount` | `listPublicTrainers` → `learners`, un `COUNT` pour toute la liste |
+| fiche formateur | `studentsCount` | `getPublicTrainer` → `learners`, compté en parallèle de la fiche |
+| fiche ressource | `studentsCount` en en-tête et dans l'encart « Votre formateur », affiché même à zéro | compté dans `course-screen.tsx`, masqué à zéro, **dans l'encart seulement** |
+| recherche `/recherche` | triée sur `studentsCount` | triée par `rankPublicTrainers` |
+
+La fiche ressource compte **dans l'écran**, pas dans `getPublicCourse` : la page
+d'achat et `GET /api/courses/[slug]` partagent cette fonction et n'ont que faire
+du chiffre. Les trois écrans masquent désormais le compte à zéro et accordent
+« apprenant » au singulier ; la fiche ressource affichait « 0 apprenants » sous
+chaque titre en production.
+
+**Le tri de l'annuaire : les apprenants réels d'abord, puis le nom.** La
+colonne ne peut plus porter le tri, et le compte ne se trie pas en base sans
+recopier `PUBLIC_TRAINER_WHERE` en SQL — ce qui ferait deux sources de la règle
+de visibilité (arbitrage 108). `rankPublicTrainers` (`src/lib/trainers.ts`) lit
+donc les identifiants de tous les formateurs visibles, compte en une requête,
+trie en mémoire, puis coupe ; l'annuaire et la recherche l'appellent tous deux.
+
+L'ordre compte plus qu'il n'y paraît : l'annuaire est **plafonné à 60** et sans
+pagination, si bien que le tri décide aussi de qui y entre. Les autres options
+ont été écartées pour cette raison :
+
+- *la tendance sur 30 jours* doublerait le bloc « Formateurs tendance » de
+  l'accueil, et une base jeune ne classe pas (arbitrage 142) ;
+- *l'ordre alphabétique seul* couperait au soixante-et-unième par l'initiale ;
+- *l'ancienneté ou la nouveauté* couperait les établis, ou les derniers venus.
+
+Le nom départage — une base où personne n'a encore d'apprenant rend un
+annuaire qu'on parcourt, pas l'ordre d'insertion — et un profil sans nom passe
+en dernier. Les notes ne départagent plus : elles ne sont alimentées par rien.
+
+Le coût suit le nombre de **formateurs visibles**, pas l'audience. Le jour où il
+pèsera, il faudra un compteur dénormalisé ; il devra naître avec le chemin
+applicatif qui le tient à jour, faute de quoi il redeviendra `studentsCount`
+(voir `membersCount`, qui diverge déjà).
+
+**La colonne est retirée, en deux temps.** La garder inerte a été écarté : une
+colonne présente a l'air de faire foi — trois écrans l'ont lue, et le seed
+l'entretenait si bien que la démo mentait dans l'autre sens. Hors du schéma,
+toute relecture est refusée par `tsc`.
+
+1. **Ce changement** retire le champ de `schema.prisma` et du seed, sans
+   migration. Le client Prisma ne le connaît plus ; la colonne reste en base,
+   `NOT NULL DEFAULT 0`, et les créations de profil n'en souffrent pas.
+2. **Le déploiement suivant**, une fois ce code en service sur le staging, porte
+   la migration `ALTER TABLE "trainer_profiles" DROP COLUMN "studentsCount";`.
+
+Pourquoi pas d'un coup : `deploy-staging.yml` joue `migrate deploy` **avant**
+`docker compose up -d`. Pendant la fenêtre, l'ancien conteneur sert encore des
+requêtes qui sélectionnent la colonne — `getPublicCourse`, donc la fiche
+ressource **et la page d'achat**, mais aussi les favoris, les cartes de
+communauté, la recherche et l'export RGPD. Un push sur `develop` déclenche un
+déploiement : les deux temps ne doivent pas partir dans le même push.
+
+D'ici là, `prisma migrate dev` proposera spontanément ce `DROP` : c'est attendu,
+il suffit de nommer la migration. `db:push` le jouerait aussitôt — raison de
+plus pour ne jamais s'en servir ici.
+
+**Signalé, hors périmètre.** `ratingAverage` et `ratingCount` ne sont alimentées
+par rien non plus, mais les trois écrans qui les lisent (fiche formateur, fiche
+ressource, `ResourceCard`) les masquent à zéro : elles n'affichent rien de faux.
+Elles restent au schéma, commentées : elles ont un usage à venir, un modèle
+d'avis, là où `studentsCount` a un remplaçant. L'export RGPD perd un champ qui
+valait toujours zéro.
+
+**L'en-tête de la fiche ressource perd le chiffre** (demandé par le
+propriétaire le même jour). Placé entre la langue et la durée, le nombre
+d'apprenants **du formateur** se lisait comme celui de la ressource. Il ne
+paraît plus que dans l'encart « Votre formateur », où son sujet est clair.
+
+**Ce qui reste ouvert** : la migration du second temps.
+
+> **Contrôles.** `npx tsc --noEmit` vert, sur un client Prisma régénéré sans le
+> champ ; `eslint` vert sur les fichiers touchés. `tests/tendance.test.ts` et
+> `tests/visibilite-formateur.test.ts` : 23 sur 23, dont trois nouveaux (ordre
+> de l'annuaire, ordre sous filtre et dans la recherche, compte de la fiche).
+> Les onze autres fichiers qui importent les modules touchés : 132 passent, 6
+> échouent dans `lot4-invariants` et `memberships`. Rejoués sur `develop`
+> intact : 5 échecs, les mêmes, et `lot4-invariants` oscille seul entre 3 et 4.
+> `atteignabilite` : seul l'échec antérieur de `POST /api/me/avatar/confirm`.
+> **Smoke test** sur la base de dev, où la colonne valait 0 pour les trois
+> formateurs visibles : l'annuaire affiche Awa Sarr (4), Yao Kouadio (2), Awa
+> Fuseau (1 apprenant, au singulier), dans cet ordre ; la fiche d'Awa Sarr, 4 ;
+> une ressource publiée temporaire à son nom, 4 dans l'encart et plus rien en
+> en-tête, puis retirée. Aucune erreur serveur. La migration n'a été jouée sur aucune
+> base.
 
 ---
 

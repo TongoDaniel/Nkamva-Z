@@ -90,7 +90,7 @@ export async function getPublicCourse(slug: string) {
           // faisait échouer la requête Prisma. La présentation publique du
           // formateur est `TrainerProfile.description`, avec `User.bio` en repli.
           user: { select: { id: true, fullName: true, bio: true } },
-          ratingAverage: true, ratingCount: true, studentsCount: true,
+          ratingAverage: true, ratingCount: true,
           slogan: true, description: true,
         },
       },
