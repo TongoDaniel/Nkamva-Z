@@ -36,7 +36,7 @@ function timeLabel(date: Date) {
  * Le nom de ville plutôt que l'identifiant : « Douala » se lit, `Africa/Douala`
  * se déchiffre.
  */
-function hostTimeLabel(date: Date, timeZone: string | null): string | null {
+export function hostTimeLabel(date: Date, timeZone: string | null): string | null {
   if (!timeZone) return null
   try {
     if (timeZone === Intl.DateTimeFormat().resolvedOptions().timeZone) return null

@@ -55,7 +55,10 @@ export function ScrollCarousel({
     <div className={className}>
       <div className="mb-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         {head}
-        <div className="flex shrink-0 gap-2 self-end sm:self-auto">
+        {/* Pas de flèches sur téléphone : le pouce fait défiler la piste, et
+            elles y prenaient une rangée entière sous le titre pour un geste
+            que personne n'y fait. */}
+        <div className="hidden shrink-0 gap-2 sm:flex">
           <CarouselButton direction="prev" disabled={atStart} onClick={() => scrollByPage(-1)} />
           <CarouselButton direction="next" disabled={atEnd} onClick={() => scrollByPage(1)} />
         </div>

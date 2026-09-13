@@ -19,16 +19,51 @@ export function Price({ amountFcfa, className }: { amountFcfa: number; className
   );
 }
 
+/**
+ * Ce que la carte lit d'une ressource. Plus étroit que `CourseListItem` : une
+ * ressource **possédée** (`ResourceItem.course`) n'a ni accroche ni prix, et
+ * doit pouvoir passer par la même carte plutôt que par une seconde génération.
+ */
+export type ResourceCardCourse = Pick<
+  CourseListItem,
+  "id" | "slug" | "title" | "category" | "format" | "durationSeconds" | "coverS3Key"
+> & {
+  priceFcfa?: number;
+  trainerProfile?: {
+    user?: { fullName: string | null } | null;
+    ratingAverage?: number;
+    ratingCount?: number;
+  } | null;
+};
+
 /** Carte ressource partagée catalogue / accueil / suggestions — port de `.rc`. */
 export function ResourceCard({
   course,
   space,
+  href,
+  footer,
+  compact,
   favoritable,
   favorited,
   eager,
   className,
 }: {
-  course: CourseListItem;
+  course: ResourceCardCourse;
+  /**
+   * Cible du lien, quand ce n'est pas la fiche du catalogue — une ressource
+   * possédée s'ouvre dans `/mes-ressources`, pas sur sa page de vente.
+   */
+  href?: string;
+  /**
+   * Remplace la rangée du prix. C'est la progression de lecture, pour une
+   * ressource déjà à soi : lui afficher son prix n'aurait aucun sens.
+   */
+  footer?: React.ReactNode;
+  /**
+   * Forme resserrée des rangées défilantes : sans la pastille de catégorie, et
+   * avec des marges de vignette. La carte y fait 220 px de large, pas 300.
+   */
+  compact?: boolean;
   /**
    * Espace qui rend la carte. Prop obligatoire et sans valeur par défaut : une
    * carte posée dans l'espace connecté qui pointerait vers `/ressources` ferait
@@ -70,16 +105,26 @@ export function ResourceCard({
           <FavButton courseTitle={course.title} courseId={course.id} defaultPressed={favorited} />
         ) : null}
       </Cover>
-      <div className="flex flex-1 flex-col gap-2 px-[18px] pb-[18px] pt-4">
-        <Chip tone={categoryTone(course.category)} className="self-start">
-          {course.category}
-        </Chip>
-        <h3 className="text-[16.5px] font-bold leading-tight">
+      <div
+        className={cn(
+          "flex flex-1 flex-col",
+          compact ? "gap-1.5 px-3.5 pb-3.5 pt-3" : "gap-2 px-[18px] pb-[18px] pt-4",
+        )}
+      >
+        {compact ? null : (
+          <Chip tone={categoryTone(course.category)} className="self-start">
+            {course.category}
+          </Chip>
+        )}
+        <h3 className={cn("font-bold leading-tight", compact ? "text-[15px]" : "text-[16.5px]")}>
           {/* Le lien couvre toute la carte : une seule cible cliquable, un seul
               élément dans l'ordre de tabulation. */}
           <Link
-            href={routesOf(space).course(course.slug)}
-            className="text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand"
+            href={href ?? routesOf(space).course(course.slug)}
+            className={cn(
+              "text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand",
+              compact && "line-clamp-2",
+            )}
           >
             {course.title}
           </Link>
@@ -93,20 +138,27 @@ export function ResourceCard({
           </span>
           {trainerName}
         </p>
-        {course.trainerProfile?.ratingCount > 0 ? (
+        {(course.trainerProfile?.ratingCount ?? 0) > 0 ? (
           <p className="flex items-center gap-1 text-[13px] font-medium text-ink-3">
             <Star className="size-3.5 fill-gold text-gold" aria-hidden="true" />
-            {course.trainerProfile.ratingAverage.toFixed(1)}
+            {(course.trainerProfile?.ratingAverage ?? 0).toFixed(1)}
             <span className="sr-only">sur 5,</span>
-            <span>({course.trainerProfile.ratingCount} avis)</span>
+            <span>({course.trainerProfile?.ratingCount} avis)</span>
           </p>
         ) : null}
-        <div className="mt-auto flex items-center justify-between border-t border-line-2 pt-2.5">
-          <Price amountFcfa={course.priceFcfa} />
-          <span className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-brand" aria-hidden="true">
-            Voir
-            <ArrowRight className="size-[15px] transition-transform duration-200 group-hover:translate-x-1" />
-          </span>
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-line-2 pt-2.5">
+          {footer ?? (
+            <>
+              <Price
+                amountFcfa={course.priceFcfa ?? 0}
+                className={compact ? "text-[16px]" : undefined}
+              />
+              <span className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-brand" aria-hidden="true">
+                Voir
+                <ArrowRight className="size-[15px] transition-transform duration-200 group-hover:translate-x-1" />
+              </span>
+            </>
+          )}
         </div>
       </div>
     </article>

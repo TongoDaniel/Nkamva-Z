@@ -139,6 +139,16 @@ export interface CoverProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
+/**
+ * Le fond rayé d'une couverture sans image. Exporté pour les vignettes de
+ * communauté (`CommunityThumb`), qui retombent sur le même fond : une seconde
+ * recette de rayures aurait donné deux familles de couvertures vides.
+ */
+export function coverStripes(key?: string | null): string {
+  const tone = TONES[coverTone(key)];
+  return `repeating-linear-gradient(-52deg, ${tone.a} 0 14px, ${tone.b} 14px 28px)`;
+}
+
 export function Cover({
   category,
   format,
@@ -149,13 +159,10 @@ export function Cover({
   children,
   ...props
 }: CoverProps) {
-  const tone = TONES[coverTone(category)];
   return (
     <div
       className={cn("relative grid aspect-video place-items-center overflow-hidden", className)}
-      style={{
-        background: `repeating-linear-gradient(-52deg, ${tone.a} 0 14px, ${tone.b} 14px 28px)`,
-      }}
+      style={{ background: coverStripes(category) }}
       {...props}
     >
       {imageUrl ? (

@@ -16,6 +16,25 @@ export interface CatalogQuery {
   pageSize: number
 }
 
+/**
+ * Ce qu'une carte de ressource lit en base. Exporté pour que les rangées de
+ * l'accueil (`lib/trending.ts`) rendent exactement la même carte que le
+ * catalogue : deux `select` recopiés auraient divergé au premier champ ajouté.
+ */
+export const COURSE_LIST_SELECT = {
+  id: true, slug: true, title: true, blurb: true,
+  category: true, format: true, priceFcfa: true, level: true,
+  durationSeconds: true, publishedAt: true,
+  coverS3Key: true,
+  trainerProfile: {
+    select: {
+      id: true,
+      user: { select: { fullName: true } },
+      ratingAverage: true, ratingCount: true,
+    },
+  },
+} as const
+
 export async function searchCourses(params: CatalogQuery) {
   const where: any = {
     status: 'published',
@@ -49,19 +68,7 @@ export async function searchCourses(params: CatalogQuery) {
   const [items, total] = await Promise.all([
     db.course.findMany({
       where,
-      select: {
-        id: true, slug: true, title: true, blurb: true,
-        category: true, format: true, priceFcfa: true, level: true,
-        durationSeconds: true, publishedAt: true,
-        coverS3Key: true,
-        trainerProfile: {
-          select: {
-            id: true,
-            user: { select: { fullName: true } },
-            ratingAverage: true, ratingCount: true,
-          },
-        },
-      },
+      select: COURSE_LIST_SELECT,
       orderBy,
       skip: (params.page - 1) * params.pageSize,
       take: params.pageSize,

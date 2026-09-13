@@ -1,8 +1,10 @@
 import * as React from "react";
 import Link from "next/link";
-import { Globe, Lock, Users } from "lucide-react";
+import { AlertTriangle, Globe, Lock, MessageSquareOff, Users } from "lucide-react";
 import { Avatar } from "./avatar";
+import { coverStripes } from "./cover";
 import { Price } from "./resource-card";
+import { StPill } from "./status-pill";
 import { fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +69,90 @@ export interface CommunityCardData {
 }
 
 /**
+ * La pastille d'une adhésion, réservée à ce qui demande une décision ou explique
+ * un silence. Partagée par `/mes-communautes` et les vignettes de l'accueil :
+ * l'échéance à régler doit se lire pareil aux deux endroits.
+ */
+export function membershipBadge({
+  status,
+  canceled,
+}: {
+  status: string;
+  canceled: boolean;
+}): React.ReactNode {
+  if (status === "PAST_DUE") {
+    return (
+      <StPill tone="warn">
+        <AlertTriangle className="size-3.5" aria-hidden="true" /> Échéance à régler
+      </StPill>
+    );
+  }
+  if (status === "BANNED") {
+    return (
+      <StPill tone="muted">
+        <MessageSquareOff className="size-3.5" aria-hidden="true" /> Parole retirée
+      </StPill>
+    );
+  }
+  if (canceled) return <StPill tone="muted">Résiliée</StPill>;
+  return null;
+}
+
+/**
+ * Les adresses d'une vignette — produites côté serveur par `thumbnailOf`
+ * (`lib/community-visual.ts`). Aucune clé de stockage ne descend jusqu'ici.
+ */
+export interface ThumbnailSrc {
+  /** La bannière de la communauté. */
+  cover: string | null;
+  /** Photo de groupe, sinon portrait du formateur. */
+  portrait: string | null;
+}
+
+/**
+ * Vignette d'une communauté : sa bannière si elle en a une, sinon un portrait
+ * posé sur le fond rayé des couvertures vides — le même que celui des
+ * ressources, pour qu'il n'existe qu'une famille d'images absentes.
+ *
+ * Décorative (`aria-hidden`) : le nom de la communauté la jouxte partout.
+ */
+export function CommunityThumb({
+  thumbnail,
+  name,
+  compact,
+  className,
+}: {
+  thumbnail: ThumbnailSrc;
+  /** Porte les initiales, et choisit la teinte des rayures. */
+  name: string;
+  /** Portrait réduit, pour une vignette de rangée. */
+  compact?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("relative grid shrink-0 place-items-center overflow-hidden", className)}
+      style={thumbnail.cover ? undefined : { background: coverStripes(name) }}
+      aria-hidden="true"
+    >
+      {thumbnail.cover ? (
+        // `img` et non `next/image` : l'adresse est signée pour cinq minutes, et
+        // l'optimiseur la mettrait en cache au-delà — même raison que `Cover`.
+        <img
+          src={thumbnail.cover}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      ) : (
+        <Avatar size={compact ? "sm" : "lg"} src={thumbnail.portrait} name={name} ring />
+      )}
+    </div>
+  );
+}
+
+/**
  * Carte de communauté, partagée par l'annuaire du visiteur, l'espace connecté
  * et les résultats de recherche.
  * ==========================================================================
@@ -101,6 +187,7 @@ export function CommunityCard({
   action,
   highlight,
   hideTrainerName,
+  thumbnail,
   className,
 }: {
   community: CommunityCardData;
@@ -125,9 +212,47 @@ export function CommunityCard({
    * déposée.
    */
   hideTrainerName?: boolean;
+  /**
+   * Sa présence fait passer la carte en **vignette** — l'image en tête, le nom
+   * et le formateur dessous —, la forme des rangées défilantes de l'accueil.
+   * Les marques (membres, visibilité, prix) n'y figurent pas : on y retrouve
+   * ses propres communautés, où le prix déjà payé n'apprend rien. `meta` et
+   * `action` y sont ignorés ; `badge` reste, parce qu'une échéance à régler
+   * doit se voir partout.
+   */
+  thumbnail?: ThumbnailSrc;
   className?: string;
 }) {
   const trainerName = community.trainerName ?? null;
+
+  if (thumbnail) {
+    return (
+      <article
+        className={cn(
+          "group relative flex flex-col overflow-hidden rounded-nk-lg border border-line bg-card shadow-nk-sm transition duration-200",
+          "hover:-translate-y-0.5 hover:shadow-nk focus-within:-translate-y-0.5 focus-within:shadow-nk",
+          className,
+        )}
+      >
+        <CommunityThumb thumbnail={thumbnail} name={community.name} className="aspect-video w-full" />
+        <div className="flex flex-1 flex-col gap-1 px-3.5 pb-3.5 pt-3">
+          {/* `h3` : la vignette vit sous le titre d'une section de page. */}
+          <h3 className="text-[15px] font-bold leading-snug">
+            <Link
+              href={href}
+              className="line-clamp-2 text-ink after:absolute after:inset-0 after:content-[''] hover:text-brand"
+            >
+              {community.name}
+            </Link>
+          </h3>
+          {trainerName && !hideTrainerName ? (
+            <p className="truncate text-[13px] text-ink-3">{trainerName}</p>
+          ) : null}
+          {badge ? <div className="relative z-1 mt-auto pt-1">{badge}</div> : null}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article

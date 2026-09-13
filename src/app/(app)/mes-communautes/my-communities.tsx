@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, MessageSquareOff, Search, Settings } from "lucide-react";
+import { Search, Settings } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
-import { StPill } from "@/components/nk/status-pill";
 import {
   COMMUNITY_GRID,
+  membershipBadge,
   CommunityCard,
   type CommunityCardData,
 } from "@/components/nk/community-card";
@@ -170,20 +170,6 @@ export function MyCommunities({ items }: { items: MyCommunityItem[] }) {
 function badgeFor(item: MyCommunityItem): React.ReactNode {
   const membership = item.membership;
   if (item.own || !membership) return null;
-  if (membership.status === "PAST_DUE") {
-    return (
-      <StPill tone="warn">
-        <AlertTriangle className="size-3.5" aria-hidden="true" /> Échéance à régler
-      </StPill>
-    );
-  }
-  if (membership.status === "BANNED") {
-    return (
-      <StPill tone="muted">
-        <MessageSquareOff className="size-3.5" aria-hidden="true" /> Parole retirée
-      </StPill>
-    );
-  }
-  if (membership.canceled) return <StPill tone="muted">Résiliée</StPill>;
-  return null;
+  // Les libellés vivent avec la carte : l'accueil pose les mêmes.
+  return membershipBadge(membership);
 }

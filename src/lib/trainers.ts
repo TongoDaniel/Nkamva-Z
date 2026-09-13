@@ -33,6 +33,43 @@ export const PUBLIC_TRAINER_WHERE = {
   ],
 } satisfies Prisma.TrainerProfileWhereInput
 
+/**
+ * Le nombre **réel** d'apprenants de chaque formateur.
+ * ==========================================================================
+ * `TrainerProfile.studentsCount` n'est écrit que par le seed de démonstration :
+ * en production il vaut zéro partout. Ce compte-ci se lit à la source.
+ *
+ * Un apprenant, c'est une personne distincte qui a **acheté** un de ses
+ * contenus (réglé, non remboursé — ressource ou adhésion payée) **ou** qui est
+ * membre de sa communauté aujourd'hui (adhésion ouverte, offerte comprise). Le
+ * `UNION` dédoublonne : qui a acheté une ressource puis adhéré compte une fois.
+ *
+ * En SQL plutôt qu'en deux `findMany` : un `COUNT(DISTINCT)` ne rapatrie pas
+ * une ligne par apprenant, et le nombre de lignes grandit avec l'audience.
+ * ==========================================================================
+ */
+export async function countTrainerLearners(trainerIds: string[]): Promise<Map<string, number>> {
+  if (trainerIds.length === 0) return new Map()
+  const rows = await db.$queryRaw<Array<{ trainerId: string; learners: number }>>`
+    SELECT t."trainerId", COUNT(DISTINCT t."learnerId")::int AS learners
+    FROM (
+      SELECT p."trainerId", p."learnerId"
+      FROM "purchases" p
+      WHERE p."trainerId" = ANY(${trainerIds})
+        AND p."providerStatus" = 'SUCCEEDED'
+        AND p."refundedAt" IS NULL
+      UNION
+      SELECT c."trainerId", s."learnerId"
+      FROM "community_subscriptions" s
+      JOIN "communities" c ON c."id" = s."communityId"
+      WHERE c."trainerId" = ANY(${trainerIds})
+        AND s."status" IN ('ACTIVE', 'PAST_DUE', 'BANNED')
+    ) t
+    GROUP BY t."trainerId"
+  `
+  return new Map(rows.map((row) => [row.trainerId, Number(row.learners)]))
+}
+
 export interface PublicTrainer {
   id: string
   fullName: string | null
