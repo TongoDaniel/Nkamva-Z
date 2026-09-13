@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SearchX, Users, GraduationCap } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { BtnLink } from "@/components/nk/button-link";
-import { Chip } from "@/components/nk/chip";
+import { HeadingCount } from "@/components/nk/heading-count";
 import { EmptyState } from "@/components/nk/empty-state";
 import { PageHead } from "@/components/nk/page-head";
 import { Price, ResourceCard } from "@/components/nk/resource-card";
@@ -78,9 +78,7 @@ export default async function RecherchePage({
             <section aria-labelledby="res-ressources">
               <h2 id="res-ressources" className="mb-5 text-[clamp(20px,2.2vw,26px)] font-extrabold">
                 Ressources
-                <Chip tone="muted" className="ml-2 align-middle font-display">
-                  {results.courses.length}
-                </Chip>
+                <HeadingCount n={results.courses.length} />
               </h2>
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {results.courses.map((course) => (
@@ -94,9 +92,7 @@ export default async function RecherchePage({
             <section aria-labelledby="res-formateurs">
               <h2 id="res-formateurs" className="mb-5 text-[clamp(20px,2.2vw,26px)] font-extrabold">
                 Formateurs
-                <Chip tone="muted" className="ml-2 align-middle font-display">
-                  {results.trainers.length}
-                </Chip>
+                <HeadingCount n={results.trainers.length} />
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {results.trainers.map((trainer) => {
@@ -132,9 +128,7 @@ export default async function RecherchePage({
             <section aria-labelledby="res-communautes">
               <h2 id="res-communautes" className="mb-5 text-[clamp(20px,2.2vw,26px)] font-extrabold">
                 Communautés
-                <Chip tone="muted" className="ml-2 align-middle font-display">
-                  {results.communities.length}
-                </Chip>
+                <HeadingCount n={results.communities.length} />
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {results.communities.map((community) => (
