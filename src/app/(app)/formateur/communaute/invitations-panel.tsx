@@ -4,7 +4,7 @@ import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Gift, Link2, Loader2, Mail, Search, Trash2 } from "lucide-react";
 import { Btn } from "@/components/nk/button";
-import { Chip } from "@/components/nk/chip";
+import { HeadingCount } from "@/components/nk/heading-count";
 import { HintedHeading } from "@/components/nk/hint";
 import { Field, PillInput } from "@/components/nk/input";
 import { StPill } from "@/components/nk/status-pill";
@@ -340,9 +340,7 @@ export function InvitationsPanel({
       <div className="mt-7 border-t border-line-2 pt-5">
         <h3 className="mb-3.5 text-[15px] font-bold">
           Invitations émises
-          <Chip tone="muted" className="ml-2 align-middle font-display">
-            {rows.length}
-          </Chip>
+          <HeadingCount n={rows.length} />
         </h3>
 
         {rows.length === 0 ? (

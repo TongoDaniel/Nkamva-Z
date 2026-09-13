@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Gift, MessageSquare, Search, ShieldBan, ShieldCheck, Users } from "lucide-react";
 import { Btn } from "@/components/nk/button";
-import { Chip } from "@/components/nk/chip";
+import { HeadingCount } from "@/components/nk/heading-count";
 import { HintedHeading } from "@/components/nk/hint";
 import { PillInput } from "@/components/nk/input";
 import { StPill } from "@/components/nk/status-pill";
@@ -201,9 +201,7 @@ export function MembersPanel({
         }
       >
         Membres
-        <Chip tone="muted" className="ml-2 align-middle font-display">
-          {rows.length}
-        </Chip>
+        <HeadingCount n={rows.length} />
       </HintedHeading>
 
       {rows.length === 0 ? (
