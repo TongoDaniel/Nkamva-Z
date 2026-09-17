@@ -14,6 +14,7 @@
 
 import type { Prisma } from '@prisma/client'
 import { db } from './db'
+import { userAvatarSrc } from './avatars'
 
 /**
  * Ce qui rend un formateur visible des visiteurs. **Source unique** : la
@@ -124,6 +125,8 @@ export async function rankPublicTrainers(options: {
 export interface PublicTrainer {
   id: string
   fullName: string | null
+  /** Sa photo de profil, quand il en a déposé une — sinon ses initiales. */
+  avatarUrl: string | null
   slogan: string | null
   description: string | null
   domains: string[]
@@ -168,7 +171,7 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
       experienceYears: true,
       ratingAverage: true,
       ratingCount: true,
-      user: { select: { fullName: true } },
+      user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
       _count: {
         select: {
           courses: { where: { status: 'published' } },
@@ -185,6 +188,7 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
     return [{
       id: t.id,
       fullName: t.user.fullName,
+      avatarUrl: userAvatarSrc(t.user),
       slogan: t.slogan,
       description: t.description,
       domains: t.domains,
@@ -251,7 +255,7 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
         ratingCount: true,
         approvedAt: true,
         userId: true,
-        user: { select: { fullName: true } },
+        user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
         _count: {
           select: {
             courses: { where: { status: 'published' } },
@@ -288,6 +292,7 @@ export async function getPublicTrainer(trainerId: string): Promise<PublicTrainer
     id: trainer.id,
     userId: trainer.userId,
     fullName: trainer.user.fullName,
+    avatarUrl: userAvatarSrc(trainer.user),
     slogan: trainer.slogan,
     description: trainer.description,
     websiteUrl: trainer.websiteUrl,

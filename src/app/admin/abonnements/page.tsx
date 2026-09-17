@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { userAvatarSrc } from "@/lib/avatars";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Inbox } from "lucide-react";
@@ -129,7 +130,7 @@ export default async function AbonnementsPage({
                   key={charge.id}
                   className="flex flex-wrap items-center gap-4 border-b border-line-2 py-3.5 last:border-b-0"
                 >
-                  <Avatar name={name} size="sm" />
+                  <Avatar name={name} src={userAvatarSrc(trainer)} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
                     <small className="block truncate text-[13px] text-ink-3">

@@ -653,7 +653,7 @@ export async function listPayouts(filters: { status?: PayoutStatus; page?: numbe
       where,
       include: {
         trainerProfile: {
-          select: { id: true, verifiedLegalName: true, user: { select: { id: true, email: true, fullName: true } } },
+          select: { id: true, verifiedLegalName: true, user: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } } },
         },
         payoutMethod: { select: { id: true, type: true, accountNature: true, verificationStatus: true } },
       },
@@ -673,7 +673,7 @@ export async function getPayoutDetail(payoutId: string) {
       trainerProfile: {
         select: {
           id: true, verifiedLegalName: true,
-          user: { select: { id: true, email: true, fullName: true } },
+          user: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
           wallet: { select: { balance: true, reservedBalance: true, pendingPayoutBalance: true, negativeSince: true } },
         },
       },

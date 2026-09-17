@@ -78,6 +78,7 @@ export default async function MesCommunautesPage({
               trainerAvatarUrl: userAvatarSrc({
                 id: mienne.trainerProfile.userId,
                 avatarS3Key: mienne.trainerProfile.user.avatarS3Key,
+                avatarUrl: mienne.trainerProfile.user.avatarUrl,
               }),
             },
             href: routes.community(mienne.slug),
@@ -98,6 +99,7 @@ export default async function MesCommunautesPage({
           trainerAvatarUrl: userAvatarSrc({
             id: m.community.trainerUserId,
             avatarS3Key: m.community.trainerAvatarS3Key,
+            avatarUrl: m.community.trainerAvatarUrl,
           }),
         },
         href: routes.community(m.community.slug),
@@ -173,6 +175,7 @@ export default async function MesCommunautesPage({
               trainerAvatarUrl: userAvatarSrc({
                 id: c.trainer.userId,
                 avatarS3Key: c.trainer.avatarS3Key,
+                avatarUrl: c.trainer.avatarUrl,
               }),
             })),
             total: decouverte.total,

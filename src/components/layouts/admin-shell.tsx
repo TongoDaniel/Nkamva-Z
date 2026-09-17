@@ -98,6 +98,8 @@ export interface AdminUser {
   name: string;
   email: string;
   adminRole: string | null;
+  /** Sa photo, comme dans l'espace connecté : la coquille admin n'en avait pas. */
+  avatarUrl: string | null;
 }
 
 export function AdminShell({
@@ -125,7 +127,7 @@ export function AdminShell({
 
   // Le retour d'Android referme le panneau au lieu de quitter l'écran.
   useHistoryLayer(open, React.useCallback(() => setOpen(false), []));
-  const { name, email, adminRole } = user;
+  const { name, email, adminRole, avatarUrl } = user;
 
   // Décision 7 — le filtrage se fait ici, pas dans le layout : la navigation
   // porte des icônes, qui ne peuvent pas traverser la frontière serveur. La
@@ -282,7 +284,7 @@ export function AdminShell({
             href="/admin/mon-compte"
             className="flex min-w-0 flex-1 items-center gap-3 rounded-nk-sm hover:opacity-80"
           >
-            <Avatar name={name} size="sm" />
+            <Avatar name={name} src={avatarUrl} size="sm" />
             <div className="min-w-0">
               <b className="block truncate text-[13.3px] text-white">{name}</b>
               <small className="block truncate text-[13px] text-[#98a49b]">

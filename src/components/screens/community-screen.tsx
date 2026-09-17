@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { userAvatarSrc } from '@/lib/avatars'
 import { notFound } from 'next/navigation'
 import { MessageSquare, PlayCircle, Users, Library } from 'lucide-react'
 import { BtnLink } from '@/components/nk/button-link'
@@ -76,7 +77,16 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
             )}
             <div className="px-6 pb-6">
               <div className="-mt-8">
-                <Avatar name={trainerName} size="lg" />
+                <Avatar
+                  name={trainerName}
+                  src={userAvatarSrc({
+                    id: community.trainer.userId,
+                    avatarS3Key: community.trainer.avatarS3Key,
+                    avatarUrl: community.trainer.avatarUrl,
+                  })}
+                  size="lg"
+                  alt={`Photo de ${trainerName}`}
+                />
               </div>
               {/* Le nom mène à la fiche formateur, qui sert de vraies données. */}
               <p className="mt-3 text-[15px] text-ink-2">

@@ -20,6 +20,7 @@
 
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
+import { userAvatarSrc } from './avatars'
 import { notify, deliverSideEffects } from './notification'
 import { canTrainerWrite } from './subscriptions'
 import { trainerStorage } from './courses'
@@ -104,6 +105,12 @@ export interface PublicCommunity {
     fullName: string | null
     slogan: string | null
     avatarS3Key: string | null
+    /**
+     * L'adresse externe de la photo — comptes d'essai, photo venue d'un
+     * fournisseur d'identité. `userAvatarSrc` la prend quand aucune photo n'a été
+     * déposée : sans elle, ces comptes n'avaient jamais de portrait sur une carte.
+     */
+    avatarUrl: string | null
   }
   includedCount: number
 }
@@ -231,7 +238,12 @@ export async function getPublicCommunity(
       visibility: true,
       // Surcharge volontaire de `SELECT_PUBLIC` : `userId` sert au contrôle
       // ci-dessous, et n'a rien à faire dans la fiche publique.
-      trainerProfile: { select: { id: true, slogan: true, userId: true, user: { select: { fullName: true } } } },
+      trainerProfile: {
+        select: {
+          id: true, slogan: true, userId: true,
+          user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
+        },
+      },
     },
   })
   if (!community) return null
@@ -726,7 +738,10 @@ export async function getMyCommunity(trainerProfileId: string) {
       // Le compte derrière le profil : la carte pose sa photo en tête, comme
       // pour n'importe quelle autre communauté.
       trainerProfile: {
-        select: { userId: true, user: { select: { fullName: true, avatarS3Key: true } } },
+        select: {
+          userId: true,
+          user: { select: { fullName: true, avatarS3Key: true, avatarUrl: true } },
+        },
       },
       forumEnabled: true, messagingEnabled: true,
       resourcesEnabled: true, eventsEnabled: true, createdAt: true,
@@ -756,6 +771,8 @@ export async function getMyCommunity(trainerProfileId: string) {
 export interface CommunityMember {
   learnerId: string
   fullName: string | null
+  /** Sa photo, quand elle existe — le panneau « Membres » n'affichait que des initiales. */
+  avatarUrl: string | null
   status: string
   periodStart: Date
   periodEnd: Date
@@ -786,13 +803,14 @@ export async function listCommunityMembers(
       learnerId: true, status: true, periodStart: true, periodEnd: true,
       bannedAt: true, bannedReason: true, canceledAt: true, invitationId: true,
       createdAt: true,
-      learner: { select: { fullName: true } },
+      learner: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
     },
   })
 
   return rows.map((row) => ({
     learnerId: row.learnerId,
     fullName: row.learner.fullName,
+    avatarUrl: userAvatarSrc(row.learner),
     status: row.status,
     periodStart: row.periodStart,
     periodEnd: row.periodEnd,
@@ -1122,7 +1140,7 @@ const SELECT_PUBLIC = {
       id: true,
       slogan: true,
       userId: true,
-      user: { select: { fullName: true, avatarS3Key: true } },
+      user: { select: { fullName: true, avatarS3Key: true, avatarUrl: true } },
     },
   },
   // Le compteur compte ce que les listes montrent : sans le filtre de
@@ -1154,6 +1172,7 @@ function toPublic(c: any): PublicCommunity {
       fullName: c.trainerProfile.user.fullName,
       slogan: c.trainerProfile.slogan,
       avatarS3Key: c.trainerProfile.user.avatarS3Key,
+      avatarUrl: c.trainerProfile.user.avatarUrl,
     },
     includedCount: c._count.courseLinks,
   }

@@ -75,6 +75,7 @@ export async function CommunitiesScreen({
             trainerAvatarUrl: userAvatarSrc({
               id: community.trainer.userId,
               avatarS3Key: community.trainer.avatarS3Key,
+              avatarUrl: community.trainer.avatarUrl,
             }),
           })),
           total: page.total,

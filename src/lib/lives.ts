@@ -41,6 +41,7 @@ import {
 import {
   isMuxConfigured, createLiveStream, disableLiveStream, playbackUrl, downloadUrl,
 } from './mux'
+import { userAvatarSrc } from './avatars'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts restent alignées. */
 const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
@@ -525,19 +526,31 @@ export interface LiveRoomView {
   handRaisedAt: Date | null
   /** Rang dans la file des demandes de parole (arbitrage 36), 1 = premier. */
   handPosition: number | null
+  /**
+   * Arbitrage 144 — ce participant a-t-il le droit de montrer son écran ?
+   * Toujours vrai pour l'animateur.
+   */
+  screenAllowed: boolean
+  /** Sa demande de partage en attente, s'il en a une. */
+  screenRequestedAt: Date | null
   participants: Array<{
     userId: string
     name: string | null
+    /** Photo de profil, quand elle existe — sinon l'écran retombe sur les initiales. */
+    avatarUrl: string | null
     isHost: boolean
     mutedByHost: boolean
     onStage: boolean
     handRaisedAt: Date | null
     handPosition: number | null
+    screenAllowed: boolean
+    screenRequestedAt: Date | null
   }>
   messages: Array<{
     id: string
     authorId: string
     authorName: string | null
+    authorAvatarUrl: string | null
     /** Nul quand le message a été retiré par la Modération. */
     body: string | null
     createdAt: Date
@@ -563,7 +576,10 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
         select: {
           name: true, slug: true,
           trainerProfile: {
-            select: { userId: true, slogan: true, user: { select: { fullName: true } } },
+            select: {
+              userId: true, slogan: true,
+              user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
+            },
           },
         },
       },
@@ -584,7 +600,10 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     where: { sessionId_userId: { sessionId, userId } },
     create: { sessionId, userId },
     update: { leftAt: null },
-    select: { mutedByHost: true, handRaisedAt: true, onStage: true },
+    select: {
+      mutedByHost: true, handRaisedAt: true, onStage: true,
+      screenRequestedAt: true, screenAllowedAt: true,
+    },
   })
 
   // Arbitrage 93 — une place se prend en entrant, dans la limite du plafond.
@@ -612,7 +631,8 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       orderBy: { joinedAt: 'asc' },
       select: {
         userId: true, mutedByHost: true, handRaisedAt: true, onStage: true,
-        user: { select: { fullName: true } },
+        screenRequestedAt: true, screenAllowedAt: true,
+        user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
       },
     }),
     db.liveMessage.findMany({
@@ -621,7 +641,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       take: 200,
       select: {
         id: true, authorId: true, body: true, createdAt: true, deletedAt: true,
-        author: { select: { fullName: true } },
+        author: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
       },
     }),
   ])
@@ -647,6 +667,10 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
   // bannissement, ni restriction de compte, **et** à condition de tenir une des
   // neuf places (arbitrage 93). L'animateur, lui, publie toujours.
   const canPublish = viewer.isTrainer || (onStage && !participant.mutedByHost && muted === null)
+  // Arbitrage 144 — l'animateur montre son écran de plein droit ; un
+  // participant, seulement si l'animateur le lui a accordé. Le droit voyage
+  // dans le jeton, jamais dans l'écran.
+  const canShareScreen = viewer.isTrainer || participant.screenAllowedAt !== null
   const token = session.status === 'LIVE'
     ? await mintJoinToken({
         roomName: session.roomName,
@@ -655,6 +679,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
           ? session.community.trainerProfile.user.fullName ?? 'Animateur'
           : participants.find((p) => p.userId === userId)?.user.fullName ?? 'Participant',
         canPublish,
+        canShareScreen,
         isHost: viewer.isTrainer,
       })
     : null
@@ -673,6 +698,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     host: {
       name: session.community.trainerProfile.user.fullName ?? 'Formateur NkamVa',
       role: session.community.trainerProfile.slogan ?? 'Formateur',
+      avatarUrl: userAvatarSrc(session.community.trainerProfile.user),
     },
     live: session.status === 'LIVE',
     isHost: viewer.isTrainer,
@@ -683,20 +709,28 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     stage: stageStateOf(participants, userId, onStage),
     handRaisedAt: participant.handRaisedAt,
     handPosition: positionOf(userId),
+    screenAllowed: canShareScreen,
+    screenRequestedAt: participant.screenRequestedAt,
     participants: participants.map((p) => ({
       userId: p.userId,
       name: p.user.fullName,
+      avatarUrl: userAvatarSrc(p.user),
       isHost: p.userId === hostUserId,
       mutedByHost: p.mutedByHost,
       onStage: p.userId === userId ? onStage : p.onStage,
       handRaisedAt: p.handRaisedAt,
       handPosition: positionOf(p.userId),
+      // L'animateur n'a pas de ligne d'autorisation en base : son droit tient à
+      // ce qu'il anime, et la console ne doit pas lui proposer de se l'accorder.
+      screenAllowed: p.userId === hostUserId || p.screenAllowedAt !== null,
+      screenRequestedAt: p.screenRequestedAt,
     })),
     // Un message retiré garde sa place et son auteur, jamais son texte.
     messages: messages.map((m) => ({
       id: m.id,
       authorId: m.authorId,
       authorName: m.author.fullName,
+      authorAvatarUrl: userAvatarSrc(m.author),
       body: m.deletedAt ? null : m.body,
       createdAt: m.createdAt,
       deleted: m.deletedAt !== null,
@@ -713,7 +747,11 @@ export async function leaveLiveSession(sessionId: string, userId: string): Promi
     // Quitter la salle rend la place (arbitrage 93). Sans cela, une séance
     // finirait par n'avoir plus une seule place libre pour des gens partis
     // depuis une heure — et la file des mains levées ne s'écoulerait plus.
-    data: { leftAt: new Date(), handRaisedAt: null, onStage: false },
+    // La demande de partage part avec la main levée, et pour la même raison :
+    // une file où figurent des gens partis ne s'écoule plus. L'autorisation
+    // déjà accordée, elle, reste — revenir après une coupure ne fait pas
+    // redemander (arbitrage 144).
+    data: { leftAt: new Date(), handRaisedAt: null, screenRequestedAt: null, onStage: false },
   })
 }
 
@@ -741,6 +779,98 @@ export async function toggleHand(sessionId: string, userId: string, raised: bool
   })
 
   return { raised }
+}
+
+// --- Demander à montrer son écran (arbitrage 144) ---
+
+/**
+ * Demande — ou retire — l'autorisation de partager son écran.
+ *
+ * Le pendant exact de la main levée, et pour la même raison : le participant ne
+ * s'accorde rien, il se signale. Ce qui change, c'est ce qui est demandé —
+ * montrer, et non parler — parce que l'animateur n'arbitre pas les deux de la
+ * même façon : donner la parole coûte une des neuf places (arbitrage 93),
+ * accepter un écran coûte la scène entière le temps qu'il dure.
+ *
+ * Demander quand on est déjà autorisé ne fait rien : il n'y a rien à obtenir.
+ */
+export async function requestScreenShare(sessionId: string, userId: string, wanted: boolean) {
+  const session = await db.liveSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, communityId: true, status: true },
+  })
+  if (!session) throw new Error('LIVE_SESSION_NOT_FOUND')
+  if (session.status !== 'LIVE') throw new Error('LIVE_NOT_STARTED')
+
+  const viewer = await resolveViewer(session.communityId, userId)
+  // Un compte restreint ou banni assiste sans intervenir (arbitrage 40) :
+  // montrer son écran est une intervention.
+  assertCanSpeak(viewer)
+
+  const participant = await db.liveParticipant.findUnique({
+    where: { sessionId_userId: { sessionId, userId } },
+    select: { screenAllowedAt: true },
+  })
+  if (!participant) throw new Error('PARTICIPANT_NOT_FOUND')
+  if (wanted && participant.screenAllowedAt !== null) return { requested: false, allowed: true }
+
+  await db.liveParticipant.update({
+    where: { sessionId_userId: { sessionId, userId } },
+    data: { screenRequestedAt: wanted ? new Date() : null },
+  })
+
+  return { requested: wanted, allowed: participant.screenAllowedAt !== null }
+}
+
+/**
+ * L'animateur accorde ou retire le partage d'écran.
+ *
+ * Accorder **efface la demande** du même geste, comme donner la parole baisse la
+ * main (arbitrage 41) : laisser la demande dans la file ferait attendre
+ * quelqu'un qui a déjà obtenu ce qu'il voulait.
+ *
+ * Retirer ne coupe pas le micro et ne touche à aucune place : les deux droits
+ * sont indépendants (voir `publishableSources`). Le partage en cours, lui,
+ * s'arrête — LiveKit révoque la source, et le navigateur rend la piste.
+ */
+export async function setParticipantScreen(
+  sessionId: string,
+  targetUserId: string,
+  hostUserId: string,
+  allowed: boolean,
+) {
+  const session = await assertIsHost(sessionId, hostUserId)
+  // L'animateur partage de plein droit : il n'y a rien à s'accorder, et lui
+  // offrir le geste laisserait croire qu'il peut se le retirer.
+  if (targetUserId === hostUserId) throw new Error('HOST_ALWAYS_SHARES')
+
+  const target = await db.liveParticipant.findUnique({
+    where: { sessionId_userId: { sessionId, userId: targetUserId } },
+    select: { mutedByHost: true },
+  })
+  if (!target) throw new Error('PARTICIPANT_NOT_FOUND')
+
+  await db.liveParticipant.update({
+    where: { sessionId_userId: { sessionId, userId: targetUserId } },
+    data: {
+      screenAllowedAt: allowed ? new Date() : null,
+      ...(allowed ? { screenRequestedAt: null } : {}),
+    },
+  })
+
+  // Le verrou de micro est relu et repoussé tel quel : LiveKit remplace toute
+  // la permission à chaque mise à jour, et ne pas la porter ici rendrait la
+  // parole à quelqu'un à qui on ne voulait qu'accorder un écran.
+  await setParticipantCanPublish(session.roomName, targetUserId, !target.mutedByHost, allowed)
+
+  await auditStandalone({
+    actorId: hostUserId, actorRole: 'TRAINER',
+    action: allowed ? 'LIVE_SCREEN_GRANTED' : 'LIVE_SCREEN_REVOKED',
+    targetType: 'LiveSession', targetId: sessionId,
+    meta: { targetUserId },
+  })
+
+  return { allowed }
 }
 
 // --- Modérer (arbitrages 35, 40, 41) ---
@@ -785,7 +915,15 @@ export async function setParticipantMuted(
   })
   if (updated.count === 0) throw new Error('PARTICIPANT_NOT_FOUND')
 
-  await setParticipantCanPublish(session.roomName, targetUserId, !muted)
+  // Arbitrage 144 — l'autorisation d'écran est relue et repoussée avec le
+  // verrou : LiveKit remplace toute la permission à chaque mise à jour, si bien
+  // qu'un simple « couper le micro » retirerait au passage un partage d'écran
+  // que personne n'a voulu interrompre.
+  const screen = await db.liveParticipant.findUnique({
+    where: { sessionId_userId: { sessionId, userId: targetUserId } },
+    select: { screenAllowedAt: true },
+  })
+  await setParticipantCanPublish(session.roomName, targetUserId, !muted, screen?.screenAllowedAt != null)
 
   await auditStandalone({
     actorId: hostUserId, actorRole: 'TRAINER',
@@ -822,7 +960,7 @@ export async function muteEveryone(sessionId: string, hostUserId: string) {
 
   const targets = await db.liveParticipant.findMany({
     where: { sessionId, leftAt: null, userId: { not: hostUserId }, mutedByHost: false },
-    select: { userId: true },
+    select: { userId: true, screenAllowedAt: true },
   })
 
   // La scène se vide en même temps que les micros se coupent : neuf places
@@ -833,7 +971,12 @@ export async function muteEveryone(sessionId: string, hostUserId: string) {
   })
 
   for (const target of targets) {
-    await setParticipantCanPublish(session.roomName, target.userId, false)
+    // Couper tous les micros ne retire pas les écrans accordés (arbitrage 144) :
+    // c'est même la situation qui les rend utiles — une salle silencieuse où
+    // une personne montre son travail.
+    await setParticipantCanPublish(
+      session.roomName, target.userId, false, target.screenAllowedAt !== null,
+    )
   }
 
   await auditStandalone({
@@ -884,6 +1027,8 @@ export interface ViewCommunity {
 export interface ViewHost {
   name: string
   role: string
+  /** Sa photo de profil, quand il en a déposé une. */
+  avatarUrl: string | null
 }
 
 export interface AgendaSession {
@@ -932,7 +1077,12 @@ export const AGENDA_SELECT = {
   community: {
     select: {
       name: true, slug: true,
-      trainerProfile: { select: { slogan: true, user: { select: { fullName: true } } } },
+      trainerProfile: {
+        select: {
+          slogan: true,
+          user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
+        },
+      },
     },
   },
   _count: { select: { participants: { where: { leftAt: null } } } },
@@ -945,7 +1095,10 @@ export function toAgenda(s: {
   communityId: string
   community: {
     name: string; slug: string
-    trainerProfile: { slogan: string | null; user: { fullName: string | null } }
+    trainerProfile: {
+      slogan: string | null
+      user: { id: string; fullName: string | null; avatarS3Key: string | null; avatarUrl: string | null }
+    }
   }
   _count: { participants: number }
 }, mine: boolean): AgendaSession {
@@ -962,6 +1115,7 @@ export function toAgenda(s: {
     host: {
       name: s.community.trainerProfile.user.fullName ?? 'Formateur NkamVa',
       role: s.community.trainerProfile.slogan ?? 'Formateur',
+      avatarUrl: userAvatarSrc(s.community.trainerProfile.user),
     },
     // Pendant la séance, le nombre de présents ; après, le pic atteint.
     attendees: s.status === 'LIVE' ? s._count.participants : s.peakParticipants,
@@ -1114,7 +1268,12 @@ const REPLAY_SELECT = {
     select: {
       name: true, slug: true,
       // `userId` sert à `getReplay` pour renseigner `mine` sans seconde requête.
-      trainerProfile: { select: { userId: true, slogan: true, user: { select: { fullName: true } } } },
+      trainerProfile: {
+        select: {
+          userId: true, slogan: true,
+          user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
+        },
+      },
     },
   },
 } as const
@@ -1126,7 +1285,11 @@ function toReplay(r: {
   session: { description: string | null; timeZone: string | null }
   community: {
     name: string; slug: string
-    trainerProfile: { userId: string; slogan: string | null; user: { fullName: string | null } }
+    trainerProfile: {
+      userId: string
+      slogan: string | null
+      user: { id: string; fullName: string | null; avatarS3Key: string | null; avatarUrl: string | null }
+    }
   }
 }, mine: boolean): ReplayView {
   return {
@@ -1145,6 +1308,7 @@ function toReplay(r: {
     host: {
       name: r.community.trainerProfile.user.fullName ?? 'Formateur NkamVa',
       role: r.community.trainerProfile.slogan ?? 'Formateur',
+      avatarUrl: userAvatarSrc(r.community.trainerProfile.user),
     },
     // Arbitrage 43 requalifié par 55 : les deux cadences ayant des droits
     // identiques, aucune ne refuse le téléchargement. C'est donc un droit

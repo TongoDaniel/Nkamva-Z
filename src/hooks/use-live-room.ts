@@ -10,11 +10,32 @@ import {
   type RemoteTrackPublication,
 } from "livekit-client";
 
+/**
+ * `TrackSource.SCREEN_SHARE` du protocole LiveKit, écrit ici plutôt qu'importé.
+ *
+ * L'énumération vit dans `@livekit/protocol`, que `livekit-client` tire sans
+ * que le projet le déclare : l'importer nous rendrait dépendants d'un paquet
+ * transitif, qu'une montée de version de `livekit-client` pourrait déplacer
+ * sans prévenir. La valeur, elle, est figée par le protocole — c'est un numéro
+ * de champ, pas un détail d'implémentation. Voir `publishableSources` côté
+ * serveur, qui pose la même correspondance dans l'autre sens.
+ */
+const SCREEN_SHARE_SOURCE = 3;
+
 export interface LiveTile {
+  /** Clé de rendu : l'identité, suffixée pour la tuile d'écran d'une même personne. */
+  key: string;
+  /** L'identité LiveKit — c'est-à-dire l'identifiant de l'utilisateur. */
   identity: string;
   name: string;
   isLocal: boolean;
   speaking: boolean;
+  /**
+   * Arbitrage 144 — la caméra et l'écran partagé d'une même personne sont deux
+   * tuiles, pas une tuile qui change de contenu. Les fondre ferait disparaître
+   * le visage de qui présente au moment précis où l'on veut le voir.
+   */
+  kind: "camera" | "screen";
   /** Piste vidéo à attacher, s'il y en a une de publiée. */
   attach: ((el: HTMLVideoElement | null) => void) | null;
 }
@@ -30,8 +51,17 @@ export interface LiveRoomState {
   camEnabled: boolean;
   /** Le serveur a-t-il retiré le droit de publier ? C'est le verrou de l'animateur. */
   canPublish: boolean;
+  /**
+   * Arbitrage 144 — le serveur a-t-il ouvert la source « écran » ? Lu sur les
+   * permissions du participant local et jamais sur un état React : c'est ce qui
+   * rend l'autorisation non négociable depuis la console du navigateur.
+   */
+  canShareScreen: boolean;
+  /** Ce navigateur partage-t-il son écran en ce moment ? */
+  screenEnabled: boolean;
   setMic: (on: boolean) => Promise<void>;
   setCam: (on: boolean) => Promise<void>;
+  setScreen: (on: boolean) => Promise<void>;
   /**
    * Pourquoi le micro ou la caméra n'ont pas pu s'ouvrir. Nul quand tout va
    * bien, et remis à nul dès qu'une tentative réussit.
@@ -104,7 +134,9 @@ export function useLiveRoom(
   const [activeSpeaker, setActiveSpeaker] = React.useState<string | null>(null);
   const [micEnabled, setMicEnabled] = React.useState(false);
   const [camEnabled, setCamEnabled] = React.useState(false);
+  const [screenEnabled, setScreenEnabled] = React.useState(false);
   const [canPublish, setCanPublish] = React.useState(false);
+  const [canShareScreen, setCanShareScreen] = React.useState(false);
 
   // Le jeton n'est lu qu'au moment de se connecter. Déclaré **avant** l'effet de
   // connexion : React exécute les effets dans l'ordre de déclaration, la
@@ -125,27 +157,49 @@ export function useLiveRoom(
     const snapshot = () => {
       if (!alive) return;
       const all: Participant[] = [room.localParticipant, ...room.remoteParticipants.values()];
-      setTiles(
-        all.map((p) => {
-          const publication = p.getTrackPublication(Track.Source.Camera);
-          const track = publication?.track;
-          return {
-            identity: p.identity,
-            name: p.name || p.identity,
-            isLocal: p === room.localParticipant,
-            speaking: p.isSpeaking,
-            attach: track
-              ? (el: HTMLVideoElement | null) => {
-                  if (el) track.attach(el);
-                  else track.detach();
-                }
-              : null,
-          };
-        }),
+
+      const attacherOf = (source: Track.Source, p: Participant) => {
+        const track = p.getTrackPublication(source)?.track;
+        return track
+          ? (el: HTMLVideoElement | null) => {
+              if (el) track.attach(el);
+              else track.detach();
+            }
+          : null;
+      };
+
+      const next: LiveTile[] = [];
+      for (const p of all) {
+        const base = {
+          identity: p.identity,
+          name: p.name || p.identity,
+          isLocal: p === room.localParticipant,
+          speaking: p.isSpeaking,
+        };
+        next.push({ ...base, key: p.identity, kind: "camera", attach: attacherOf(Track.Source.Camera, p) });
+        // La tuile d'écran n'existe que tant que la piste est publiée : elle
+        // disparaît d'elle-même à l'arrêt du partage, sans qu'aucun écran ait à
+        // suivre un état « quelqu'un présente-t-il ? ».
+        const screen = attacherOf(Track.Source.ScreenShare, p);
+        if (screen) {
+          next.push({ ...base, key: `${p.identity}:ecran`, kind: "screen", speaking: false, attach: screen });
+        }
+      }
+      setTiles(next);
+
+      const permissions = room.localParticipant.permissions;
+      setCanPublish(permissions?.canPublish ?? false);
+      // `canPublishSources` est vide quand le serveur n'a rien restreint : dans
+      // ce cas `canPublish` fait foi, et tout est publiable. Ne lire que la
+      // liste ferait passer une salle sans restriction pour une salle fermée.
+      const sources = permissions?.canPublishSources ?? [];
+      setCanShareScreen(
+        (permissions?.canPublish ?? false) &&
+          (sources.length === 0 || sources.includes(SCREEN_SHARE_SOURCE)),
       );
-      setCanPublish(room.localParticipant.permissions?.canPublish ?? false);
       setMicEnabled(room.localParticipant.isMicrophoneEnabled);
       setCamEnabled(room.localParticipant.isCameraEnabled);
+      setScreenEnabled(room.localParticipant.isScreenShareEnabled);
     };
 
     const onSpeakers = (speakers: Participant[]) => {
@@ -218,6 +272,32 @@ export function useLiveRoom(
     setCamEnabled(room.localParticipant.isCameraEnabled);
   }, []);
 
+  /**
+   * Arbitrage 144 — le partage d'écran, une fois le serveur d'accord.
+   *
+   * Deux refus se ressemblent et ne se disent pas pareil : le navigateur qui
+   * n'obtient pas la fenêtre (la personne a fermé le sélecteur, ou le système
+   * interdit la capture), et le serveur qui n'a pas ouvert la source. Le second
+   * ne devrait pas se produire — le bouton n'apparaît qu'autorisé — mais s'il
+   * arrive, il vaut mieux le dire que laisser un bouton sans effet.
+   */
+  const setScreen = React.useCallback(async (on: boolean) => {
+    const room = roomRef.current;
+    if (!room) return;
+    try {
+      await room.localParticipant.setScreenShareEnabled(on, { audio: true });
+      setDeviceError(null);
+    } catch (err) {
+      const nom = err instanceof Error ? err.name : '';
+      setDeviceError(
+        nom === 'NotAllowedError'
+          ? "Le partage d'écran a été refusé, ou la fenêtre n'a pas été choisie."
+          : "L'écran n'a pas pu être partagé. Réessayez.",
+      );
+    }
+    setScreenEnabled(room.localParticipant.isScreenShareEnabled);
+  }, []);
+
   return {
     connected,
     connecting,
@@ -226,9 +306,12 @@ export function useLiveRoom(
     activeSpeaker,
     micEnabled,
     camEnabled,
+    screenEnabled,
     canPublish,
+    canShareScreen,
     setMic,
     setCam,
+    setScreen,
     deviceError,
   };
 }

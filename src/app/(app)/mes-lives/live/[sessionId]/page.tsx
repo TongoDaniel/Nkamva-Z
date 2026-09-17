@@ -39,15 +39,31 @@ export default async function LivePage({ params }: { params: Params }) {
   }
 
   return (
-    <div className="nk-wrap pb-10 sm:pb-16">
-      <PageHead
-        crumbs={[
-          { label: "Mes lives", href: "/mes-lives" },
-          { label: session.title },
-        ]}
-        title={<span className="sr-only">{session.title}</span>}
-      />
-      <LiveRoom room={session} />
+    /*
+      Arbitrage 147 — sur téléphone, la salle **est** l'écran : pas de gouttière,
+      pas de fil d'Ariane, rien qui défile. La coquille lui donne la hauteur de
+      la fenêtre (`app-shell.tsx`), cette colonne la distribue. À partir de `lg`,
+      on retrouve une page ordinaire, avec sa gouttière et son fil.
+    */
+    <div className="flex min-h-0 flex-1 flex-col lg:block lg:pb-16">
+      <div className="hidden lg:block">
+        <div className="nk-wrap">
+          <PageHead
+            crumbs={[
+              { label: "Mes lives", href: "/mes-lives" },
+              { label: session.title },
+            ]}
+            title={<span className="sr-only">{session.title}</span>}
+          />
+        </div>
+      </div>
+      {/* Le titre reste annoncé sur téléphone, où le fil d'Ariane ne l'est plus. */}
+      <h1 className="sr-only lg:hidden">{session.title}</h1>
+      {/* La gouttière de `nk-wrap`, à partir de `lg` seulement : sur téléphone,
+          la salle va d'un bord à l'autre. */}
+      <div className="flex min-h-0 flex-1 flex-col lg:mx-auto lg:block lg:w-full lg:max-w-[var(--container-wrap)] lg:px-7">
+        <LiveRoom room={session} />
+      </div>
     </div>
   );
 }

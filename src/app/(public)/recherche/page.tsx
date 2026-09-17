@@ -102,7 +102,7 @@ export default async function RecherchePage({
                       key={trainer.id}
                       className="flex items-center gap-3.5 rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm"
                     >
-                      <Avatar name={name} />
+                      <Avatar name={name} src={trainer.avatarUrl} alt={`Photo de ${name}`} />
                       <div className="min-w-0 flex-1">
                         <h3 className="truncate text-[15px] font-extrabold">
                           <Link href={`/formateurs/${trainer.id}`} className="text-ink hover:text-brand">

@@ -48,7 +48,7 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
       <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1fr_320px]">
         <div>
           <div className="flex flex-wrap items-start gap-5 rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
-            <Avatar name={name} size="lg" />
+            <Avatar name={name} src={trainer.avatarUrl} size="lg" alt={`Photo de ${name}`} />
             <div className="min-w-[220px] flex-1">
               {trainer.domains.length > 0 ? (
                 <ul className="mb-2 flex flex-wrap gap-1.5">

@@ -55,11 +55,28 @@ export function Avatar({ className, size, tone, name, src, alt, ring, ...props }
       aria-hidden={alt ? undefined : true}
       {...props}
     >
+      {/*
+        Les initiales restent **sous** la photo, elles ne la remplacent pas.
+
+        Une adresse qui ne répond pas — photo purgée du stockage, URL externe
+        d'un compte d'essai, réseau coupé — ne laisse alors pas un rond vide mais
+        les initiales, sans une ligne de JavaScript : l'image en échec n'affiche
+        rien, et ce qui est derrière réapparaît. `onError` aurait demandé de
+        rendre ce composant client, alors qu'il est posé par des écrans serveur
+        dans presque toute l'application.
+      */}
+      <span className={cn("grid size-full place-items-center", src && "col-start-1 row-start-1")}>
+        {label}
+      </span>
       {src ? (
-        <img src={src} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
-      ) : (
-        label
-      )}
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="col-start-1 row-start-1 size-full object-cover"
+        />
+      ) : null}
     </span>
   );
 }

@@ -194,6 +194,7 @@ export default async function MaCommunautePage({
             initial={members.map((row) => ({
               learnerId: row.learnerId,
               fullName: row.fullName,
+              avatarUrl: row.avatarUrl,
               status: row.status,
               periodEnd: row.periodEnd.toISOString(),
               bannedReason: row.bannedReason,

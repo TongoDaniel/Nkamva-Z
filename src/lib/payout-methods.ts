@@ -870,7 +870,7 @@ export async function listPayoutMethods(filters: {
       where,
       include: {
         trainerProfile: {
-          select: { id: true, verifiedLegalName: true, user: { select: { id: true, email: true, fullName: true } } },
+          select: { id: true, verifiedLegalName: true, user: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } } },
         },
       },
       orderBy: { createdAt: 'asc' },

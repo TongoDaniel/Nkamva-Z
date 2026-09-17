@@ -2612,6 +2612,253 @@ paraît plus que dans l'encart « Votre formateur », où son sujet est clair.
 
 ---
 
+---
+
+## Arbitrage 144 — Le partage d'écran d'un participant passe par l'animateur
+
+> Tranché le 16 septembre 2026, demandé par le propriétaire : « il faudrait
+> qu'il y ait un partage d'écran, le partage d'écran côté apprenant devrait
+> être validé par le formateur ».
+
+**La règle.** L'animateur partage son écran de plein droit, sans rien demander
+à personne. Un participant, lui, **demande** ; l'animateur accorde, et peut
+retirer. La demande se range dans la file de la console, mêlée aux mains
+levées, dans l'ordre d'arrivée.
+
+**Ce qui n'est pas lié.** Le droit de montrer son écran est **indépendant** du
+verrou de micro (arbitrage 35) et des neuf places de la scène (arbitrage 93) :
+
+- couper le micro de quelqu'un ne lui retire pas l'écran qu'on vient de lui
+  accorder — le cas courant est même une salle entièrement coupée où une
+  personne expose son travail ;
+- « couper tous les micros » n'y touche pas davantage ;
+- accorder un écran ne consomme aucune des neuf places, et le bouton ne se
+  désactive donc jamais sur une scène pleine.
+
+Les fondre en un seul droit aurait fait de « autorisez-moi à montrer » une
+demande de parole déguisée, et de « je vous coupe » une interdiction de montrer
+que personne n'avait prononcée.
+
+**Où vit la règle.** Dans le jeton, pas dans l'écran. `canPublishSources` de
+LiveKit porte la liste exacte des sources publiables — `camera` et `microphone`
+quand la parole est ouverte, `screen_share` et `screen_share_audio` quand
+l'écran l'est, et rien du tout pour un verrou complet. Attention, ce champ
+**supersède `canPublish`** : dès qu'il est renseigné, seules les sources listées
+passent, d'où `publishableSources()` qui les compose des deux droits. Vérifié
+en salle réelle le 16 septembre 2026 : un participant non autorisé qui appelle
+`setScreenShareEnabled` reçoit `PublishTrackError: insufficient permissions` du
+serveur, sans qu'aucun écran ait eu à l'en empêcher.
+
+**Base.** Deux horodatages sur `LiveParticipant`, et non deux booléens, pour la
+raison qui avait fait choisir `handRaisedAt` : `screenRequestedAt` ordonne la
+file, `screenAllowedAt` date l'autorisation. Quitter la salle efface la demande
+— une file peuplée de gens partis ne s'écoule plus — mais garde l'autorisation :
+revenir après une coupure ne fait pas redemander. Accorder efface la demande,
+comme donner la parole baisse la main (arbitrage 41). Journalisé en
+`LIVE_SCREEN_GRANTED` / `LIVE_SCREEN_REVOKED`.
+
+---
+
+## Arbitrage 145 — La scène d'un direct : trois dispositions, et l'animateur toujours le plus visible
+
+> Tranché le 16 septembre 2026, même demande : « le plein écran, le fait qu'on
+> puisse changer de disposition d'écran de participant, le tout en faisant en
+> sorte que le formateur soit toujours le plus visible ».
+
+**Trois dispositions**, choisies par le lecteur et gardées dans son navigateur
+(`nk.live.disposition`) : **galerie**, **intervenant** (une grande tuile, les
+autres en bande) et **présentation** (l'écran partagé en grand). La disposition
+est un choix de lecture, jamais un état de la séance : personne ne l'impose à
+personne.
+
+**L'animateur est toujours la personne la plus visible.** En galerie, sa tuile
+occupe quatre cases — deux fois plus large et deux fois plus haute, mesuré à
+502 × 282 contre 245 × 137 ; en intervenant, c'est lui qui a la grande place ;
+en présentation, il est la **première** vignette de la bande. Aucun locuteur
+actif ne le déloge : parler plus fort n'est pas animer. C'est aussi pourquoi les
+tuiles ne se réordonnent pas au fil de la parole — une grille qui danse à chaque
+phrase est illisible.
+
+**Un écran partagé prend la grande place**, y compris en galerie où il occupe
+lui aussi quatre cases. Deux tailles doubles peuvent donc coexister, et c'est
+voulu : la règle dit que l'animateur est la **personne** la plus visible, pas
+qu'il passe devant le document qu'on commente. Un écran de travail réduit à
+245 px ne se lit pas. La caméra et l'écran d'une même personne sont deux tuiles
+distinctes — fondre les deux ferait disparaître le visage de qui présente au
+moment précis où l'on veut le voir.
+
+**Le plein écran a un repli, et ce n'est pas un luxe.** `requestFullscreen` sur
+un élément n'existe pas dans Safari iOS — seule une balise vidéo sait s'y mettre
+en plein écran — et certains cadres le refusent (« Permissions check failed »).
+Le bouton tente donc l'API, puis retombe sur un **plein cadre** en CSS, qui
+occupe la fenêtre sans la quitter, et se ferme par Échap comme le vrai. Ce
+plein cadre passe par un **portail sur `body`** : `<main>` porte
+`position: relative; z-index: 1`, qui ouvre un contexte d'empilement où aucun
+`z-index` ne peut passer devant l'en-tête collant de la page. Les commandes
+(micro, caméra, écran) sont rendues **dans** la scène pour rester atteignables
+en plein écran.
+
+**Un composant, pas deux.** La salle de l'apprenant et la console de l'animateur
+partagent désormais `live-stage.tsx` et `live-control.tsx`. Elles portaient
+chacune leur grille et leur bouton rond, à l'identique ; le partage d'écran
+aurait fait la troisième copie.
+
+**Trois défauts de mise en page corrigés au passage**, constatés à l'écran :
+la file des demandes écrasait le nom du participant à **31 px** (« Ko… ») en
+étalant « main levée depuis 8 min » sur six lignes, et sur mobile les boutons
+passaient par-dessus le texte ; l'entête de séance laissait « Terminer » et
+« Quitter » flotter au milieu d'un titre long, avec le nom de la communauté
+tronqué à « Atelier … » ; et la barre d'onglets du panneau débordait à 360 px.
+
+---
+
+## Arbitrage 146 — La photo de profil s'affiche partout où un nom s'affiche
+
+> Tranché le 16 septembre 2026 : « j'espère que les photos de profil sont
+> branchées dans toute la plateforme ».
+
+**Le constat.** Le dépôt de photo existe depuis la migration
+`photos_de_profil` (9 septembre 2026), et `Avatar` accepte une source depuis le
+même jour. Mais sur **30** avatars rendus par l'application, **9** seulement
+recevaient la photo : l'accueil, la messagerie et la barre de compte. Partout
+ailleurs — tout le live, le lecteur de replay, les membres d'une communauté, la
+fiche formateur, l'annuaire, la fiche communauté, la recherche et les huit
+tableaux du back-office — on affichait des initiales à quelqu'un qui avait
+déposé son portrait.
+
+**La règle.** Là où un nom s'affiche avec un avatar, la photo suit. Une seule
+source, `userAvatarSrc()`, qui rend l'adresse stable
+`/api/media/users/<id>/avatar` empreintée par la clé de stockage ; les
+initiales restent le repli, jamais le défaut. En pratique cela demande deux
+choses ensemble, et c'est ce qui manquait : **élargir la sélection Prisma**
+(`id`, `avatarS3Key`, `avatarUrl`) et passer `src` à l'avatar. Une seule des
+deux ne produit rien de visible.
+
+Reste un avatar sans photo, et c'est voulu : celui du panneau de dépôt
+lui-même, qui montre les initiales tant qu'aucune photo n'existe.
+
+---
+
+## Arbitrage 147 — Sur téléphone, la salle d'un direct tient dans un écran
+
+> Tranché le 16 septembre 2026, demandé par le propriétaire : « la salle mobile
+> aussi, fais-la tenir dans un écran ».
+
+**Le constat.** La salle était une page qu'on fait défiler : entête, scène,
+commandes, puis le panneau. Dès qu'on lisait le salon, le micro, la caméra et la
+main levée sortaient de l'écran — au moment précis où l'on veut réagir.
+
+**La règle, sous `lg` seulement.** La salle occupe la hauteur de la fenêtre
+(`h-dvh`) et **rien n'y défile que la liste des messages** : la scène en haut,
+plafonnée à `56dvh`, avec ses commandes dedans ; le panneau prend le reste, le
+champ de saisie collé en bas. Mesuré à 375 × 812 avec dix-huit messages : la
+page ne défile pas, le fil défile dans ses 245 px, le champ et la main levée
+restent visibles. À partir de `lg`, la page redevient un document ordinaire, en
+deux colonnes, avec son fil d'Ariane.
+
+**Ce que la coquille retire dans la salle, sous `lg`.** L'en-tête de
+l'application (la salle a le sien : titre, état, « Quitter ») et **la barre
+d'onglets**. Celle-ci n'était pas seulement une question de place : en sortir
+par un onglet quitte la page sans quitter la séance — la présence reste ouverte
+côté serveur, et la place sur la scène avec elle. « Quitter » fait le geste
+proprement. Le mécanisme est celui de la messagerie (`fullBleed` dans
+`app-shell.tsx`), décidé par le chemin plutôt que par un effet, pour éviter
+qu'un premier rendu non contraint ne saute à l'hydratation.
+
+**Deux conséquences.** La date de la séance disparaît de l'entête sur
+téléphone — elle n'apprend plus rien à qui est déjà entré. Et le salon s'ouvre
+désormais sur les **derniers** messages, sauf si l'on est remonté lire.
+
+**Au passage : une photo cassée ne laisse plus un rond vide.** `Avatar` pose les
+initiales *sous* l'image plutôt qu'à sa place ; une adresse qui ne répond pas
+les laisse réapparaître, sans JavaScript — le composant reste utilisable par les
+écrans serveur.
+
+**Pas encore fait :** la console de l'animateur a le même défaut sur téléphone.
+
+---
+
+## Arbitrage 148 — Salle d'un direct : volets en boutons, et fond blanc à l'essai
+
+> 16 septembre 2026, demandé par le propriétaire : « que les onglets soient comme
+> des boutons, à la suite du bouton pour lever la main », et « voir à quoi ça
+> ressemblerait avec un fond blanc ».
+
+**Volets en boutons, sous `lg`.** Salon, Participants (avec sa pastille
+chiffrée) et Notes deviennent trois boutons ronds dans la rangée du micro, de la
+caméra, de l'écran et de la main. La barre d'onglets entre la scène et le salon
+disparaît sur téléphone — une ligne de gagnée, et un seul endroit pour le pouce.
+Sept boutons de 44 px tiennent dans 375 px. Hors direct, la rangée ne porte que
+les volets. À partir de `lg`, le panneau est à côté de la scène et garde ses
+onglets.
+
+**Trois natures de bouton, trois lectures.** `device` (micro, caméra) : le rouge
+avertit quelqu'un qui se croit entendu. `toggle` (main levée, partage d'écran) :
+bleu plein quand c'est ouvert, neutre sinon — **une main baissée n'est plus
+rouge**, ce qu'elle était depuis l'origine sans raison. `panel` (volets) : bleu
+pâle, comme le choix de disposition, parce que c'est un choix de lecture et non
+un geste adressé à la salle ; en bleu plein, trois ronds identiques d'affilée ne
+se distinguaient plus.
+
+**Deux tons, un mot pour basculer.** Les couleurs de la salle passent par des
+jetons `--live-*` (`globals.css`) : `.nk-live` est le bleu nuit d'origine,
+`.nk-live-clair` le fond blanc — entête et commandes sur le blanc, scène dans le
+papier (le creux de l'arbitrage 141), tuiles vidéo toujours sombres. **Le
+blanc est retenu** par le propriétaire le jour même, pour la salle de
+l'apprenant **et** pour la console de l'animateur (`TON` dans chacun des deux
+fichiers) ; le bleu nuit reste disponible sous `"sombre"`. Sur le blanc, les
+boutons fantômes (« Quitter », « Couper tous les micros », « Tout rouvrir »)
+passent en contour, et le bandeau d'enregistrement en rouge pâle. Le ton est
+posé sur le cadre de la scène lui-même, sans quoi le plein cadre, rendu par
+portail, le perdrait.
+
+---
+
+## Arbitrage 149 — Sur téléphone, le panneau sous la scène se replie
+
+> 16 septembre 2026, demandé par le propriétaire : « pouvoir replier la seconde
+> section ».
+
+**Le panneau est replié à l'ouverture** (précisé le 17 septembre 2026) : aucun
+bouton de volet n'est enclenché, la scène prend l'écran, et l'on ouvre un volet
+quand on en a besoin — la pastille chiffrée des Demandes et du Salon signale ce
+qui attend. Toucher le volet déjà ouvert (Salon, Participants ou Notes) **replie** le
+panneau ; toucher n'importe quel volet le rouvre sur celui-là. Replié, la scène
+quitte son plafond de `56dvh` et prend toute la hauteur — mesuré à 375 × 812 :
+392 px ouverte, 812 px repliée, la page ne défilant toujours pas. Le libellé
+accessible du bouton ouvert dit ce que fera le geste (« Replier le salon »).
+Pas de bouton dédié : le geste vit sur le bouton qui a ouvert le volet, là où le
+pouce se trouve déjà. À partir de `lg`, le panneau est à côté de la scène et ne
+se replie pas — il ne lui prend aucune place.
+
+**La console de l'animateur suit, le même jour.** Même route plein écran dans la
+coquille, même rangée de boutons — micro, caméra, écran, puis Demandes,
+Participants et Salon, chacun avec son compte —, même repli (454 px ouverte,
+812 px repliée, à 375 × 812). Trois ajustements propres à la console :
+« Couper tous les micros » et « Tout rouvrir » quittent la scène sur téléphone
+pour la tête du volet Participants, où ils rangent un geste sur les
+participants au lieu de manger la hauteur de la vidéo ; l'explication du
+bandeau d'enregistrement ne s'affiche qu'à partir de `lg` ; et le ⓘ des règles
+de la console, qui vivait dans la barre d'onglets, passe dans l'entête.
+
+**Correctif au passage :** depuis l'arbitrage 147, la salle de l'apprenant
+avait perdu sa gouttière sur bureau — la scène touchait le bord gauche de la
+fenêtre. Les deux pages la retrouvent à partir de `lg`, alignée sur le fil
+d'Ariane.
+
+---
+
+## Arbitrage 150 — Sur téléphone, les bandes de la salle et de la console se resserrent
+
+> 17 septembre 2026 : « ces zones prennent un peu trop d'espace ».
+
+Le titre tient sur une ligne, coupé, avec son état collé à droite ; il retrouve
+le droit de passer à la ligne à partir de `sm`. « Quitter » n'est plus qu'une
+icône sur téléphone — son libellé reste lu par les lecteurs d'écran. Les marges
+intérieures de l'entête et de la bande de commandes se réduisent. Mesuré à
+375 × 812 : entête de la console 166 → 113 px, entête de la salle environ
+117 → 67 px, bande de commandes 94 → 84 px. La scène gagne la différence.
+
 ## Recette de l'audit — 5 septembre 2026
 
 Le chantier ouvert par l'audit fonctionnel du 1er septembre 2026 est **clos sur

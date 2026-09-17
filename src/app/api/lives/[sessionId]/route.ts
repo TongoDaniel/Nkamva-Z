@@ -9,7 +9,8 @@ import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-
 import {
   joinLiveSession, leaveLiveSession, startLiveSession, endLiveSession,
   cancelLiveSession, toggleHand, setParticipantMuted, muteEveryone,
-  postLiveMessage, lowerParticipantHand, LIVE_MESSAGE_MAX_LENGTH,
+  postLiveMessage, lowerParticipantHand, requestScreenShare, setParticipantScreen,
+  LIVE_MESSAGE_MAX_LENGTH,
 } from '@/lib/lives'
 
 const ActionSchema = z.discriminatedUnion('action', [
@@ -21,6 +22,12 @@ const ActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('mute'), userId: z.string().uuid(), muted: z.boolean() }),
   z.object({ action: z.literal('mute-all') }),
   z.object({ action: z.literal('lower-hand'), userId: z.string().uuid() }),
+  // Arbitrage 144 — `screen` est le geste du participant (« je voudrais
+  // montrer »), `screen-grant` celui de l'animateur (« montrez »). Deux verbes
+  // et non un seul avec un `userId` facultatif : la garde n'est pas la même, et
+  // un `userId` optionnel aurait laissé un participant viser quelqu'un d'autre.
+  z.object({ action: z.literal('screen'), wanted: z.boolean() }),
+  z.object({ action: z.literal('screen-grant'), userId: z.string().uuid(), allowed: z.boolean() }),
   z.object({ action: z.literal('message'), body: z.string().min(1).max(LIVE_MESSAGE_MAX_LENGTH) }),
 ])
 
@@ -78,6 +85,10 @@ export async function POST(request: Request, { params }: Params) {
         return success(await muteEveryone(sessionId, ctx.user.id))
       case 'lower-hand':
         return success(await lowerParticipantHand(sessionId, input.userId, ctx.user.id))
+      case 'screen':
+        return success(await requestScreenShare(sessionId, ctx.user.id, input.wanted))
+      case 'screen-grant':
+        return success(await setParticipantScreen(sessionId, input.userId, ctx.user.id, input.allowed))
       case 'message':
         return success(await postLiveMessage(sessionId, ctx.user.id, input.body), undefined, 201)
     }

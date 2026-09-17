@@ -32,7 +32,7 @@ export async function listDisputes(filters: {
         id: true, status: true, reason: true, source: true, disputedAmountFcfa: true,
         openedAt: true, lastActivityAt: true, learnerDeadlineAt: true, resolution: true,
         refundStatus: true, updatedAt: true,
-        learner: { select: { id: true, email: true, fullName: true } },
+        learner: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
         purchase: { select: { id: true, course: { select: { title: true } } } },
         messages: { where: { readBySupport: false, authorRole: 'LEARNER' }, select: { id: true } },
       },
@@ -70,7 +70,7 @@ export async function getDisputeForReview(disputeId: string) {
       overrideJustification: true, refundStatus: true, refundProcessedAt: true,
       openedAt: true, lastActivityAt: true, learnerDeadlineAt: true, resolvedAt: true,
       updatedAt: true,
-      learner: { select: { id: true, email: true, fullName: true } },
+      learner: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
       trainerProfile: { select: { id: true, user: { select: { email: true, fullName: true } } } },
       purchase: {
         select: {

@@ -10,7 +10,8 @@ import { prisma, cleanDatabase } from './setup'
 import {
   scheduleLiveSession, cancelLiveSession, startLiveSession, endLiveSession,
   joinLiveSession, leaveLiveSession, toggleHand, setParticipantMuted, muteEveryone,
-  lowerParticipantHand, postLiveMessage, listMyAgenda, listTrainerSessions, listAgenda,
+  lowerParticipantHand, postLiveMessage, requestScreenShare, setParticipantScreen,
+  listMyAgenda, listTrainerSessions, listAgenda,
   listMyReplays, getReplay, hasReplayAccess, markReplayReady,
   purgeExpiredReplays, alertUpcomingReplayPurges, REPLAY_RETENTION_MONTHS,
   LIVE_STAGE_CAPACITY,
@@ -408,6 +409,7 @@ describe('Lives et replays', () => {
         identity: 'u1',
         name: 'Koffi',
         canPublish: false,
+        canShareScreen: false,
         isHost: false,
       })
       const grant = JSON.parse(Buffer.from(token!.split('.')[1], 'base64url').toString('utf8'))
@@ -420,11 +422,123 @@ describe('Lives et replays', () => {
       // La donnée reste ouverte : c'est par elle que passe la main levée, seul
       // recours d'un participant sans micro (arbitrage 41).
       expect(grant.video.canPublishData).toBe(true)
+      // Arbitrage 144 — aucune source publiable : ni caméra, ni micro, ni écran.
+      expect(grant.video.canPublishSources).toEqual([])
+
+      // Le même participant, autorisé à montrer son écran mais toujours muet :
+      // la liste porte l'écran **sans** la caméra ni le micro. C'est ce qui
+      // rend les deux droits indépendants, et non l'un le sous-produit de
+      // l'autre.
+      const ecranSeul = await mintJoinToken({
+        roomName: 'nkamva-test',
+        identity: 'u1',
+        name: 'Koffi',
+        canPublish: false,
+        canShareScreen: true,
+        isHost: false,
+      })
+      const grantEcran = JSON.parse(
+        Buffer.from(ecranSeul!.split('.')[1], 'base64url').toString('utf8'),
+      )
+      expect(grantEcran.video.canPublish).toBe(true)
+      expect(grantEcran.video.canPublishSources).toEqual(['screen_share', 'screen_share_audio'])
     } finally {
       process.env.LIVEKIT_URL = saved.url ?? ''
       process.env.LIVEKIT_API_KEY = saved.key ?? ''
       process.env.LIVEKIT_API_SECRET = saved.secret ?? ''
     }
+  })
+
+  // --- Partage d'écran (arbitrage 144) ---
+
+  it("arbitrage 144 — l'écran se demande, et c'est l'animateur qui l'ouvre", async () => {
+    const { trainer, trainerUser, community, member } = await setup()
+    await subscribe(community.id, member.id)
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+    await joinLiveSession(session.id, member.id)
+
+    // Avant toute demande, le participant n'a rien : la salle le dit, et le
+    // jeton le refuserait.
+    const avant = await joinLiveSession(session.id, member.id)
+    expect(avant.screenAllowed).toBe(false)
+    expect(avant.screenRequestedAt).toBeNull()
+
+    await requestScreenShare(session.id, member.id, true)
+    const demande = await joinLiveSession(session.id, member.id)
+    expect(demande.screenRequestedAt).not.toBeNull()
+    // Demander n'accorde rien : c'est tout l'objet de l'arbitrage.
+    expect(demande.screenAllowed).toBe(false)
+
+    await setParticipantScreen(session.id, member.id, trainerUser.id, true)
+    const apres = await joinLiveSession(session.id, member.id)
+    expect(apres.screenAllowed).toBe(true)
+    // Accorder efface la demande, comme donner la parole baisse la main.
+    expect(apres.screenRequestedAt).toBeNull()
+
+    await setParticipantScreen(session.id, member.id, trainerUser.id, false)
+    expect((await joinLiveSession(session.id, member.id)).screenAllowed).toBe(false)
+  })
+
+  it("arbitrage 144 — l'animateur partage de plein droit et ne se l'accorde pas", async () => {
+    const { trainer, trainerUser, community } = await setup()
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+
+    const salle = await joinLiveSession(session.id, trainerUser.id)
+    expect(salle.screenAllowed).toBe(true)
+
+    await expect(
+      setParticipantScreen(session.id, trainerUser.id, trainerUser.id, true),
+    ).rejects.toThrow('HOST_ALWAYS_SHARES')
+  })
+
+  it("arbitrage 144 — couper le micro ne retire pas l'écran accordé", async () => {
+    const { trainer, trainerUser, community, member } = await setup()
+    await subscribe(community.id, member.id)
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+    await joinLiveSession(session.id, member.id)
+
+    await setParticipantScreen(session.id, member.id, trainerUser.id, true)
+    await setParticipantMuted(session.id, member.id, trainerUser.id, true)
+
+    const salle = await joinLiveSession(session.id, member.id)
+    expect(salle.mutedByHost).toBe(true)
+    // Une salle entièrement coupée où quelqu'un montre son travail est le cas
+    // d'usage, pas l'exception : lier les deux droits l'aurait interdit.
+    expect(salle.screenAllowed).toBe(true)
+
+    await muteEveryone(session.id, trainerUser.id)
+    expect((await joinLiveSession(session.id, member.id)).screenAllowed).toBe(true)
+  })
+
+  it("arbitrage 144 — quitter la salle retire la demande, pas l'autorisation", async () => {
+    const { trainer, trainerUser, community, member } = await setup()
+    await subscribe(community.id, member.id)
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+    await joinLiveSession(session.id, member.id)
+
+    await requestScreenShare(session.id, member.id, true)
+    await leaveLiveSession(session.id, member.id)
+    const retour = await joinLiveSession(session.id, member.id)
+    expect(retour.screenRequestedAt).toBeNull()
+
+    await setParticipantScreen(session.id, member.id, trainerUser.id, true)
+    await leaveLiveSession(session.id, member.id)
+    // Revenir après une coupure ne fait pas redemander.
+    expect((await joinLiveSession(session.id, member.id)).screenAllowed).toBe(true)
+  })
+
+  it('arbitrage 40 — un membre banni ne demande pas à montrer son écran', async () => {
+    const { trainer, trainerUser, community, member } = await setup()
+    await subscribe(community.id, member.id, { status: 'BANNED' })
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+    await joinLiveSession(session.id, member.id)
+
+    await expect(requestScreenShare(session.id, member.id, true)).rejects.toThrow()
   })
 
   // --- Salon (arbitrage 42) ---

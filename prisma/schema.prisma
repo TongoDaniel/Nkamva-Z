@@ -1001,9 +1001,28 @@ model LiveParticipant {
   /// Horodatage et non booléen : c'est lui qui ordonne et numérote la file des
   /// demandes de parole (arbitrage 36).
   handRaisedAt DateTime?
+  /// Arbitrage 144 — la demande de partage d'écran, horodatée comme la main
+  /// levée et pour la même raison : elle se range dans la file de l'animateur,
+  /// de la plus ancienne à la plus récente. Nulle quand personne ne demande.
+  ///
+  /// **Distincte de `handRaisedAt`** : on peut vouloir montrer son écran sans
+  /// demander la parole, et l'inverse. Les fondre priverait l'animateur de la
+  /// seule chose qu'il a besoin de savoir avant d'accorder — quoi.
+  screenRequestedAt DateTime?
+  /// L'autorisation de partager son écran, accordée par l'animateur (arbitrage
+  /// 144). Nulle tant qu'elle n'a pas été donnée, et remise à nul quand elle est
+  /// retirée. Se traduit par `canPublishSources` côté LiveKit : sans elle, le
+  /// serveur refuse la piste, quoi que tente le navigateur.
+  ///
+  /// L'animateur n'en a pas besoin — il partage de plein droit — et cette
+  /// colonne reste donc nulle sur sa ligne.
+  screenAllowedAt DateTime?
 
   @@unique([sessionId, userId])
   @@index([sessionId, handRaisedAt])
+  /// La file des demandes de partage se lit à chaque rafraîchissement de la
+  /// console, au même rythme que celle des mains levées.
+  @@index([sessionId, screenRequestedAt])
   /// Compter les places prises est le geste le plus fréquent de la séance : il
   /// se refait à chaque entrée en salle et à chaque prise de parole accordée.
   @@index([sessionId, onStage])
