@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { userAvatarSrc } from "@/lib/avatars";
 import { redirect } from "next/navigation";
 import { UserCog } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -47,7 +48,7 @@ export default async function AdministrateursPage() {
                   key={admin.id}
                   className="flex flex-wrap items-center gap-4 border-b border-line-2 py-3.5 last:border-b-0"
                 >
-                  <Avatar name={name} size="sm" />
+                  <Avatar name={name} src={userAvatarSrc(admin)} size="sm" />
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-bold">{name}</b>
                     <small className="block truncate text-[13px] text-ink-3">{admin.email}</small>

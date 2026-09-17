@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { userAvatarSrc } from "@/lib/avatars";
 import { AdminShell } from "@/components/layouts/admin-shell";
 import { getAuthContext } from "@/lib/api";
 import { db } from "@/lib/db";
@@ -16,7 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const profile = await db.user.findUnique({
     where: { id: auth.user.id },
-    select: { fullName: true, preferredName: true },
+    select: { id: true, fullName: true, preferredName: true, avatarS3Key: true, avatarUrl: true },
   });
 
   // Le compteur de dossiers à traiter n'a de sens que pour la modération ;
@@ -44,6 +45,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           "Administrateur",
         email: auth.user.email,
         adminRole: auth.user.adminRole,
+        avatarUrl: profile ? userAvatarSrc(profile) : null,
       }}
     >
       {children}

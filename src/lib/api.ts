@@ -219,6 +219,8 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   LIVE_ALREADY_ENDED: { message: 'La séance est terminée', status: 409 },
   LIVE_CANCELED: { message: 'Cette séance a été annulée', status: 409 },
   CANNOT_MUTE_HOST: { message: 'L\'animateur ne se coupe pas lui-même', status: 422 },
+  // Arbitrage 144 — l'animateur partage de plein droit ; il n'a rien à s'accorder.
+  HOST_ALWAYS_SHARES: { message: 'L\'animateur partage son écran sans autorisation', status: 422 },
   STAGE_FULL: {
     message: 'La scène est complète : coupez d\'abord un micro pour libérer une place',
     status: 422,

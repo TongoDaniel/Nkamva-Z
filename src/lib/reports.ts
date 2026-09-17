@@ -80,7 +80,7 @@ export async function listReports(filters: {
   const [items, total] = await Promise.all([
     db.report.findMany({
       where,
-      include: { reporter: { select: { id: true, email: true, fullName: true } } },
+      include: { reporter: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } } },
       // Les plus anciens d'abord : on instruit dans l'ordre d'arrivée, comme
       // les candidatures et les litiges.
       orderBy: { createdAt: 'asc' },
@@ -272,7 +272,7 @@ export async function getReportDetail(reportId: string) {
   const report = await db.report.findUnique({
     where: { id: reportId },
     include: {
-      reporter: { select: { id: true, email: true, fullName: true } },
+      reporter: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
       reviewedBy: { select: { id: true, email: true, fullName: true } },
     },
   })

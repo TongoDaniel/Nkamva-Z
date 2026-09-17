@@ -43,17 +43,28 @@ export default async function ConsolePage({ params }: { params: Params }) {
   if (!room.isHost) redirect(`/mes-lives/live/${sessionId}`);
 
   return (
-    <div className="nk-wrap pb-10 sm:pb-16">
-      <PageHead
-        crumbs={[
-          { label: "Espace formateur", href: "/formateur" },
-          { label: "Mes lives & agenda", href: "/mes-lives" },
-          { label: room.title },
-        ]}
-        title={<span className="sr-only">Animer : {room.title}</span>}
-      />
-
-      <LiveConsole room={room} />
+    /*
+      Arbitrage 147 — comme la salle de l'apprenant : plein écran sur téléphone,
+      sans gouttière ni fil d'Ariane ; page ordinaire à partir de `lg`.
+    */
+    <div className="flex min-h-0 flex-1 flex-col lg:block lg:pb-16">
+      <div className="hidden lg:block">
+        <div className="nk-wrap">
+          <PageHead
+            crumbs={[
+              { label: "Espace formateur", href: "/formateur" },
+              { label: "Mes lives & agenda", href: "/mes-lives" },
+              { label: room.title },
+            ]}
+            title={<span className="sr-only">Animer : {room.title}</span>}
+          />
+        </div>
+      </div>
+      <h1 className="sr-only lg:hidden">Animer : {room.title}</h1>
+      {/* La gouttière de `nk-wrap`, à partir de `lg` seulement. */}
+      <div className="flex min-h-0 flex-1 flex-col lg:mx-auto lg:block lg:w-full lg:max-w-[var(--container-wrap)] lg:px-7">
+        <LiveConsole room={room} />
+      </div>
     </div>
   );
 }

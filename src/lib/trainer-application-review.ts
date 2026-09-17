@@ -48,7 +48,7 @@ export async function listApplications(filters: ListFilters) {
         id: true, status: true, slogan: true, domains: true, experienceYears: true,
         submittedAt: true, reviewedAt: true, approvedAt: true, rejectedAt: true,
         createdAt: true, updatedAt: true,
-        user: { select: { id: true, email: true, fullName: true, countryCode: true } },
+        user: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true, countryCode: true } },
         documents: { where: { isCurrent: true }, select: { type: true, status: true } },
       },
       // Les dossiers soumis les plus anciens d'abord : on traite dans l'ordre

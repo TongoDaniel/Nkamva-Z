@@ -47,7 +47,7 @@ export interface AdminAccount {
 }
 
 const ADMIN_SELECT = {
-  id: true, email: true, fullName: true, adminRole: true, suspendedAt: true, createdAt: true,
+  id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true, adminRole: true, suspendedAt: true, createdAt: true,
 } as const
 
 export async function listAdmins(): Promise<AdminAccount[]> {

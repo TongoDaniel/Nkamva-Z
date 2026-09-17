@@ -143,7 +143,7 @@ export function TrainerDirectory({
                 className="group relative flex min-w-0 flex-col rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm transition duration-200 hover:-translate-y-1 hover:shadow-nk focus-within:-translate-y-1 focus-within:shadow-nk"
               >
                 <div className="mb-4 flex items-center gap-3.5">
-                  <Avatar name={name} size="lg" />
+                  <Avatar name={name} src={trainer.avatarUrl} size="lg" alt={`Photo de ${name}`} />
                   <div className="min-w-0">
                     <h2 className="truncate text-[17px] font-extrabold">
                       {/* Le lien couvre toute la carte : une seule cible cliquable, un seul

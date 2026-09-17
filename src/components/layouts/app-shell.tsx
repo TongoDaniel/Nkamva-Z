@@ -157,7 +157,27 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   // défiler, c'est un poste de travail. Elle occupe exactement ce qui reste
   // entre l'en-tête et la barre d'onglets, et ne défile que dans ses deux
   // volets — la liste d'un côté, les bulles de l'autre.
-  const fullBleed = pathname === "/messagerie" || pathname.startsWith("/messagerie/");
+  const messagerie = pathname === "/messagerie" || pathname.startsWith("/messagerie/");
+
+  /**
+   * La salle d'un direct, sur téléphone (arbitrage 147).
+   *
+   * Même raison que la messagerie, en plus net : une salle qui défile fait
+   * sortir de l'écran les commandes de micro et de caméra dès qu'on lit le
+   * salon — c'est-à-dire au moment précis où l'on veut lever la main. Elle tient
+   * donc dans la fenêtre, et rien n'y défile que la liste des messages.
+   *
+   * **Sous `lg` seulement** : au-dessus, la scène et le panneau sont côte à
+   * côte, l'écran suffit, et une page qui ne défile plus empêcherait de lire un
+   * long salon.
+   *
+   * La console de l'animateur (`/formateur/lives/…/console`) suit la même règle
+   * depuis le 16 septembre 2026 : c'est la même scène, vue de l'autre côté.
+   */
+  const salleLive =
+    pathname.startsWith("/mes-lives/live/") ||
+    (pathname.startsWith("/formateur/lives/") && pathname.endsWith("/console"));
+  const fullBleed = messagerie || salleLive;
 
   // Un fil ouvert sur téléphone réclame l'écran entier : l'en-tête s'efface
   // sous `md`, et seulement là — au-dessus, la liste et le fil sont côte à
@@ -168,7 +188,16 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
   return (
     <ShellChromeProvider value={chrome}>
-      <div className={cn("flex flex-col", fullBleed ? "h-dvh overflow-hidden" : "min-h-dvh")}>
+      <div
+        className={cn(
+          "flex flex-col",
+          messagerie && "h-dvh overflow-hidden",
+          // La salle rend la page au défilement à partir de `lg`, là où elle
+          // redevient un écran comme les autres.
+          salleLive && "h-dvh overflow-hidden lg:h-auto lg:min-h-dvh lg:overflow-visible",
+          !fullBleed && "min-h-dvh",
+        )}
+      >
         <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
           Aller au contenu
         </a>
@@ -177,6 +206,9 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           className={cn(
             "nk-glass sticky top-0 z-50 border-b border-line",
             threadFocus && "hidden md:block",
+            // La salle porte son propre entête — titre, état, « Quitter ». Deux
+            // barres empilées coûtaient 62 px sur 812 pour redire où l'on est.
+            salleLive && "hidden lg:block",
           )}
         >
           <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
@@ -308,15 +340,24 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
         {/* Réserve la hauteur de la barre d'onglets : sans elle, le dernier
             bouton de chaque écran passe dessous. */}
-        <div aria-hidden="true" className="nk-tabbar-gap lg:hidden" />
+        {salleLive ? null : <div aria-hidden="true" className="nk-tabbar-gap lg:hidden" />}
 
-        <TabBar
-          items={tabs}
-          pathname={pathname}
-          labels={false}
-          portraitFor={COMPTE_TAB.href}
-          portrait={<Avatar name={user.name} src={user.avatarUrl} size="xs" />}
-        />
+        {/*
+          Pas de barre d'onglets dans une salle en direct (arbitrage 147). Elle
+          coûtait 78 px de hauteur, mais surtout : en sortir par un onglet quitte
+          la séance **sans la quitter** — la présence reste ouverte côté serveur,
+          et la place sur la scène avec elle. « Quitter », dans l'entête de la
+          salle, fait le geste proprement.
+        */}
+        {salleLive ? null : (
+          <TabBar
+            items={tabs}
+            pathname={pathname}
+            labels={false}
+            portraitFor={COMPTE_TAB.href}
+            portrait={<Avatar name={user.name} src={user.avatarUrl} size="xs" />}
+          />
+        )}
 
       </div>
     </ShellChromeProvider>

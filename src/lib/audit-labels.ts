@@ -287,6 +287,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   LIVE_MUTE_ALL: 'Tous les participants réduits au silence',
   LIVE_PARTICIPANT_MUTED: 'Participant réduit au silence',
   LIVE_PARTICIPANT_UNMUTED: 'Participant réautorisé à parler',
+  LIVE_SCREEN_GRANTED: 'Partage d’écran autorisé',
+  LIVE_SCREEN_REVOKED: 'Partage d’écran retiré',
 
   // --- Tâches planifiées & intégrations ---
   SCHEDULED_JOB_COMPLETED: 'Tâche planifiée terminée',

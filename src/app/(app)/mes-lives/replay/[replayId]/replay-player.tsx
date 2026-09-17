@@ -251,7 +251,7 @@ export function ReplayPlayer({
           ) : null}
 
           <div className="mt-5 flex items-center gap-3.5 border-t border-line-2 pt-5">
-            <Avatar name={replay.host.name} size="lg" />
+            <Avatar name={replay.host.name} src={replay.host.avatarUrl} size="lg" alt={`Photo de ${replay.host.name}`} />
             <div className="min-w-0">
               <b className="block text-[15.5px] font-extrabold">{replay.host.name}</b>
               <small className="block text-[13px] text-ink-2">{replay.host.role}</small>

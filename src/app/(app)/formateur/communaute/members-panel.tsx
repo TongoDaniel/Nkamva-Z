@@ -19,6 +19,7 @@ import { fmtDate } from "@/lib/format";
 export interface MemberRow {
   learnerId: string;
   fullName: string | null;
+  avatarUrl: string | null;
   status: string;
   periodEnd: string;
   bannedReason: string | null;
@@ -280,7 +281,7 @@ export function MembersPanel({
                 // alors même que le nom, lui, était bien coupé.
                 className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-nk border border-line px-3.5 py-3 sm:px-4"
               >
-                <Avatar name={row.fullName ?? "Membre"} size="sm" />
+                <Avatar name={row.fullName ?? "Membre"} src={row.avatarUrl} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[14px] font-semibold text-ink">
                     {/* `min-w-0` avec `truncate` : sans lui, un élément de

@@ -244,7 +244,9 @@ export async function trendingSessions(options: {
             select: {
               ...AGENDA_SELECT.community.select.trainerProfile.select,
               ...COMMUNITY_VISUAL_SELECT.trainerProfile.select,
-              user: { select: { fullName: true, avatarS3Key: true } },
+              // Les colonnes de photo viennent d'`AGENDA_SELECT` ; `id` est ce
+              // dont `userAvatarSrc` a besoin pour composer l'adresse.
+              user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
             },
           },
         },
@@ -269,6 +271,8 @@ export interface TrendingTrainer {
   fullName: string | null
   slogan: string | null
   avatarS3Key: string | null
+  /** L'adresse externe de la photo, quand aucune n'a été déposée. */
+  avatarUrl: string | null
   /** Apprenants réels — voir `countTrainerLearners`. */
   learners: number
   publishedCount: number
@@ -284,7 +288,7 @@ const TRAINER_SELECT = {
   id: true,
   userId: true,
   slogan: true,
-  user: { select: { fullName: true, avatarS3Key: true } },
+  user: { select: { fullName: true, avatarS3Key: true, avatarUrl: true } },
   _count: { select: { courses: { where: { status: 'published' } } } },
 } as const
 
@@ -348,6 +352,7 @@ export async function trendingTrainers(options: {
       fullName: row.user.fullName,
       slogan: row.slogan,
       avatarS3Key: row.user.avatarS3Key,
+      avatarUrl: row.user.avatarUrl,
       learners: learners.get(row.id) ?? 0,
       publishedCount: row._count.courses,
     })),

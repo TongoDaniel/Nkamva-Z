@@ -10,6 +10,7 @@
 // ==========================================================================
 
 import { db } from './db'
+import { userAvatarSrc } from './avatars'
 import { PUBLIC_TRAINER_WHERE, rankPublicTrainers } from './trainers'
 import type { CourseListItem } from './dto'
 import { SEARCH_MIN_LENGTH } from './search-limits'
@@ -28,6 +29,8 @@ export interface SearchResults {
 export interface SearchTrainer {
   id: string
   fullName: string | null
+  /** Sa photo de profil, quand il en a déposé une. */
+  avatarUrl: string | null
   slogan: string | null
   domains: string[]
   publishedCount: number
@@ -89,7 +92,7 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
         where: { AND: [{ id: { in: ids } }, PUBLIC_TRAINER_WHERE] },
         select: {
           id: true, slogan: true, domains: true,
-          user: { select: { fullName: true } },
+          user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
           _count: { select: { courses: { where: { status: 'published' } } } },
         },
       })
@@ -130,6 +133,7 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
     trainers: trainers.map((t) => ({
       id: t.id,
       fullName: t.user.fullName,
+      avatarUrl: userAvatarSrc(t.user),
       slogan: t.slogan,
       domains: t.domains,
       publishedCount: t._count.courses,

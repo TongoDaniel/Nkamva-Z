@@ -33,7 +33,10 @@ export const COMMUNITY_VISUAL_SELECT = {
   coverS3Key: true,
   avatarS3Key: true,
   trainerProfile: {
-    select: { userId: true, user: { select: { fullName: true, avatarS3Key: true } } },
+    select: {
+      userId: true,
+      user: { select: { fullName: true, avatarS3Key: true, avatarUrl: true } },
+    },
   },
 } as const
 
@@ -45,6 +48,7 @@ export interface CommunityVisual {
   trainerUserId: string
   trainerName: string | null
   trainerAvatarS3Key: string | null
+  trainerAvatarUrl: string | null
 }
 
 export function toCommunityVisual(c: {
@@ -52,7 +56,10 @@ export function toCommunityVisual(c: {
   name: string
   coverS3Key: string | null
   avatarS3Key: string | null
-  trainerProfile: { userId: string; user: { fullName: string | null; avatarS3Key: string | null } }
+  trainerProfile: {
+    userId: string
+    user: { fullName: string | null; avatarS3Key: string | null; avatarUrl: string | null }
+  }
 }): CommunityVisual {
   return {
     id: c.id,
@@ -62,6 +69,7 @@ export function toCommunityVisual(c: {
     trainerUserId: c.trainerProfile.userId,
     trainerName: c.trainerProfile.user.fullName,
     trainerAvatarS3Key: c.trainerProfile.user.avatarS3Key,
+    trainerAvatarUrl: c.trainerProfile.user.avatarUrl,
   }
 }
 
@@ -78,6 +86,7 @@ export function visualOfMembership(m: MyCommunity): CommunityVisual {
     trainerUserId: m.community.trainerUserId,
     trainerName: m.community.trainerName,
     trainerAvatarS3Key: m.community.trainerAvatarS3Key,
+    trainerAvatarUrl: m.community.trainerAvatarUrl,
   }
 }
 
@@ -128,6 +137,10 @@ export async function thumbnailOf(visual: CommunityVisual): Promise<Thumbnail> {
     visual.coverS3Key && isS3Configured() ? await presignDownload(visual.coverS3Key) : null
   const portrait =
     communityAvatarSrc({ id: visual.id, avatarS3Key: visual.avatarS3Key }) ??
-    userAvatarSrc({ id: visual.trainerUserId, avatarS3Key: visual.trainerAvatarS3Key })
+    userAvatarSrc({
+      id: visual.trainerUserId,
+      avatarS3Key: visual.trainerAvatarS3Key,
+      avatarUrl: visual.trainerAvatarUrl,
+    })
   return { cover, portrait, name: visual.name }
 }

@@ -15,6 +15,9 @@ import type { Role } from '@prisma/client'
 
 const USER_SELECT = {
   id: true, email: true, fullName: true, preferredName: true, phone: true, countryCode: true,
+  // Les colonnes de photo : l'écran des comptes n'affichait que des initiales,
+  // là où reconnaître un visage aide à instruire un signalement.
+  avatarS3Key: true, avatarUrl: true,
   role: true, adminRole: true, emailVerifiedAt: true,
   suspendedAt: true, suspendedReason: true,
   deletionRequestedAt: true, deletedAt: true,

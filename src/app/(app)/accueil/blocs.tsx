@@ -229,6 +229,7 @@ export async function buildCommunityTiles(memberships: MyCommunity[]): Promise<C
         trainerAvatarUrl: userAvatarSrc({
           id: m.community.trainerUserId,
           avatarS3Key: m.community.trainerAvatarS3Key,
+          avatarUrl: m.community.trainerAvatarUrl,
         }),
       },
       href: `/mes-communautes/${m.community.slug}`,
@@ -406,7 +407,11 @@ export function TrendingTrainersList({
               >
                 <Avatar
                   size="md"
-                  src={userAvatarSrc({ id: trainer.userId, avatarS3Key: trainer.avatarS3Key })}
+                  src={userAvatarSrc({
+                    id: trainer.userId,
+                    avatarS3Key: trainer.avatarS3Key,
+                    avatarUrl: trainer.avatarUrl,
+                  })}
                   name={trainer.fullName}
                 />
                 <span className="min-w-0 flex-1">

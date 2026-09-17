@@ -627,7 +627,7 @@ export async function listSubscriptionCharges(filters: {
         trainerProfile: {
           select: {
             id: true, subscriptionStatus: true, subscriptionPastDueAt: true,
-            user: { select: { id: true, email: true, fullName: true } },
+            user: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
           },
         },
       },

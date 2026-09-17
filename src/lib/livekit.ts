@@ -24,7 +24,7 @@
 // ==========================================================================
 
 import {
-  AccessToken, EgressClient, RoomServiceClient, EgressStatus,
+  AccessToken, EgressClient, RoomServiceClient, EgressStatus, TrackSource,
   EncodedFileOutput, EncodedFileType, EncodingOptions, S3Upload, StreamOutput, StreamProtocol,
   type EgressInfo,
 } from 'livekit-server-sdk'
@@ -36,8 +36,34 @@ export interface LiveKitJoinGrant {
   name: string
   /** Faux pour un participant dont l'animateur a coupé le micro (arbitrage 35). */
   canPublish: boolean
+  /**
+   * Arbitrage 144 — le droit de montrer son écran, accordé par l'animateur et
+   * distinct du droit de parler. L'animateur l'a toujours.
+   */
+  canShareScreen: boolean
   /** Vrai pour l'animateur : lui seul pilote la salle. */
   isHost: boolean
+}
+
+/**
+ * Les sources qu'un participant a le droit de publier (arbitrage 144).
+ *
+ * **`canPublishSources` supersède `canPublish`** côté LiveKit : dès qu'il est
+ * renseigné, seules les sources listées passent. Une liste vide n'autorise
+ * rien — c'est le verrou.
+ *
+ * Les deux droits sont **indépendants**, et c'est tout l'intérêt : un
+ * participant dont l'animateur a coupé le micro peut parfaitement avoir à
+ * montrer son écran, et c'est même le cas courant — une salle entièrement
+ * coupée où quelqu'un vient exposer son travail. Les lier ferait de
+ * « autoriser l'écran » une réouverture de micro déguisée, que personne n'a
+ * demandée.
+ */
+function publishableSources(canSpeak: boolean, canShareScreen: boolean): TrackSource[] {
+  const sources: TrackSource[] = []
+  if (canSpeak) sources.push(TrackSource.CAMERA, TrackSource.MICROPHONE)
+  if (canShareScreen) sources.push(TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO)
+  return sources
 }
 
 /** Durée d'un jeton de session. Au-delà, le client en redemande un. */
@@ -93,10 +119,20 @@ export async function mintJoinToken(grant: LiveKitJoinGrant): Promise<string | n
     ttl: TOKEN_TTL,
   })
 
+  // Arbitrage 144 — le partage d'écran est une source à part, et c'est le
+  // serveur qui l'ouvre. Un client qui appellerait `setScreenShareEnabled` sans
+  // autorisation se voit refuser la piste, sans qu'aucun écran n'ait à deviner
+  // l'état : la règle vit dans le jeton, comme le verrou de micro.
+  const sources = publishableSources(grant.canPublish, grant.canShareScreen)
+
   token.addGrant({
     roomJoin: true,
     room: grant.roomName,
-    canPublish: grant.canPublish,
+    // Qui n'a plus aucune source n'a plus rien à publier. Le garder à `true`
+    // laisserait LiveKit accepter une piste que la liste refuse ensuite, avec
+    // pour seul signe une erreur dans la console du navigateur.
+    canPublish: sources.length > 0,
+    canPublishSources: sources,
     canSubscribe: true,
     // La donnée reste ouverte même micro coupé : c'est par elle que passent la
     // main levée et le salon. Couper la parole ne coupe pas la demande de
@@ -151,12 +187,22 @@ export async function setParticipantCanPublish(
   roomName: string,
   identity: string,
   canPublish: boolean,
+  /**
+   * Arbitrage 144 — l'autorisation de partager son écran, poussée par le même
+   * appel parce que LiveKit remplace **toute** la permission à chaque mise à
+   * jour. L'oublier ici reviendrait à retirer silencieusement un partage en
+   * cours au premier geste de modération sur le micro : elle est donc relue en
+   * base par l'appelant, jamais déduite du verrou.
+   */
+  canShareScreen = false,
 ): Promise<void> {
   const client = rooms()
   if (!client) return
+  const sources = publishableSources(canPublish, canShareScreen)
   try {
     await client.updateParticipant(roomName, identity, undefined, {
-      canPublish,
+      canPublish: sources.length > 0,
+      canPublishSources: sources,
       canSubscribe: true,
       canPublishData: true,
     })

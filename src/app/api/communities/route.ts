@@ -78,6 +78,7 @@ export async function GET(request: Request) {
       trainerAvatarUrl: userAvatarSrc({
         id: c.trainer.userId,
         avatarS3Key: c.trainer.avatarS3Key,
+        avatarUrl: c.trainer.avatarUrl,
       }),
     })),
     { total: result.total, page: result.page, pageSize: result.pageSize },

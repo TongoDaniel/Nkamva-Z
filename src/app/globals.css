@@ -425,6 +425,62 @@
     }
   }
 
+  /* Salle d'un direct — deux tons (arbitrage 148).
+     --------------------------------------------------------------------
+     La scène, ses commandes et ses bandeaux lisent leurs couleurs ici, et
+     nulle part ailleurs : `.nk-live` est le ton sombre historique (bleu nuit),
+     `.nk-live-clair` le fond blanc. Les deux classes se posent **sur l'élément
+     qui les emploie** — le cadre de la scène compris, parce que son plein
+     écran passe par un portail sur `body` et sortirait sinon de leur portée.
+     Les tuiles vidéo gardent un fond sombre dans les deux tons : c'est la
+     couleur des bandes d'une image qui ne remplit pas sa case. */
+  .nk-live {
+    --live-bg: var(--color-navy);
+    --live-bg-2: var(--color-navy-2);
+    --live-tile: var(--color-navy);
+    --live-fg: #ffffff;
+    --live-muted: #b9c9dd;
+    --live-faint: #8fa6c0;
+    --live-line: rgb(255 255 255 / 0.1);
+    --live-soft: rgb(255 255 255 / 0.1);
+    --live-btn: rgb(255 255 255 / 0.15);
+    --live-btn-hover: rgb(255 255 255 / 0.25);
+    --live-btn-line: rgb(255 255 255 / 0.25);
+    --live-btn-off: rgb(255 255 255 / 0.05);
+    --live-btn-off-fg: rgb(255 255 255 / 0.4);
+    --live-btn-off-line: rgb(255 255 255 / 0.15);
+    --live-glass: rgb(0 0 0 / 0.45);
+    --live-glass-fg: rgb(255 255 255 / 0.7);
+    --live-glass-on: rgb(255 255 255 / 0.25);
+    --live-glass-on-fg: #ffffff;
+    --live-alert-bg: rgb(179 64 46 / 0.15);
+    --live-alert-fg: #ffd9d1;
+  }
+  .nk-live-clair {
+    --live-bg: var(--color-card);
+    /* Le papier est le creux de la marque (arbitrage 141) : la scène s'y
+       enfonce, l'entête et les commandes restent sur le blanc. */
+    --live-bg-2: var(--color-paper);
+    --live-tile: var(--color-navy-2);
+    --live-fg: var(--color-ink);
+    --live-muted: var(--color-ink-2);
+    --live-faint: var(--color-ink-3);
+    --live-line: var(--color-line);
+    --live-soft: var(--color-card);
+    --live-btn: var(--color-card);
+    --live-btn-hover: var(--color-paper);
+    --live-btn-line: var(--color-line);
+    --live-btn-off: var(--color-line-2);
+    --live-btn-off-fg: var(--color-ink-3);
+    --live-btn-off-line: var(--color-line-2);
+    --live-glass: rgb(255 255 255 / 0.9);
+    --live-glass-fg: var(--color-ink-2);
+    --live-glass-on: var(--color-brand-tint);
+    --live-glass-on-fg: var(--color-brand);
+    --live-alert-bg: var(--color-danger-tint);
+    --live-alert-fg: var(--color-danger);
+  }
+
   /* Lien d'évitement clavier */
   .nk-skip {
     position: absolute;
