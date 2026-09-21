@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  *
  * Servi par Next sur `/manifest.webmanifest`. Trois choix méritent un mot :
  *
- * - `start_url: "/accueil"` — une personne qui installe NkamVa a un compte ;
+ * - `start_url: "/accueil"` — une personne qui installe NKAMVA a un compte ;
  *   l'ouvrir sur la vitrine publique la ferait repasser par la navigation.
  *   Les visiteurs non connectés sont redirigés vers la connexion par le
  *   middleware, donc l'entrée reste correcte dans les deux cas.
@@ -22,8 +22,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "NkamVa — Prêt à apprendre ou à transmettre ?",
-    short_name: "NkamVa",
+    name: "NKAMVA — Prêt à apprendre ou à transmettre ?",
+    short_name: "NKAMVA",
     description:
       "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire — la ressource reste à vous, à vie.",
     start_url: "/accueil",

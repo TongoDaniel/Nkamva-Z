@@ -416,7 +416,7 @@ export function TrendingTrainersList({
                 />
                 <span className="min-w-0 flex-1">
                   <b className="block truncate text-[15px] font-bold text-ink group-hover:text-brand">
-                    {trainer.fullName ?? "Formateur NkamVa"}
+                    {trainer.fullName ?? "Formateur NKAMVA"}
                   </b>
                   {trainer.slogan ? (
                     <span className="block truncate text-[13px] text-ink-2">{trainer.slogan}</span>

@@ -27,7 +27,7 @@ export function EmailPrefsPanel({ profile }: { profile: ProfileView }) {
       title="Emails d'information"
       hint={
         <Hint label="Ce que ce réglage ne touche pas">
-          Ce que NkamVa vous envoie en plus de vos notifications. Vos reçus d&apos;achat, vos
+          Ce que NKAMVA vous envoie en plus de vos notifications. Vos reçus d&apos;achat, vos
           factures, l&apos;ouverture de vos accès, et tout ce qui touche à un impayé, à un
           litige ou à la sécurité de votre compte ne sont pas concernés : ils partent
           toujours.

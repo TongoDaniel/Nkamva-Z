@@ -1,4 +1,4 @@
-# Registre des activités de traitement — NkamVa
+# Registre des activités de traitement — NKAMVA
 
 > **Brouillon du 13 août 2026.** Ce registre est **dérivé du code**, pas déclaré à
 > partir d'intentions : chaque catégorie de données, chaque durée et chaque

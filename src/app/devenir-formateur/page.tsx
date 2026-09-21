@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Devenir formateur",
   description:
-    "Créez votre compte formateur sur NkamVa : profil, vérification d'identité et choix de la formule.",
+    "Créez votre compte formateur sur NKAMVA : profil, vérification d'identité et choix de la formule.",
 };
 
 /**

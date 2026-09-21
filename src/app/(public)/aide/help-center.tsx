@@ -52,12 +52,12 @@ function buildGroups(subscription: string): HelpGroup[] {
       icon: <Play />,
       items: [
         {
-          q: "Comment créer un compte sur NkamVa ?",
+          q: "Comment créer un compte sur NKAMVA ?",
           a: "Cliquez sur « S'inscrire », renseignez votre email et un mot de passe. Un code à six chiffres vous est envoyé pour vérifier l'adresse. La création d'un compte apprenant est gratuite et immédiate : aucun abonnement plateforme n'est requis.",
         },
         {
-          q: "NkamVa est-il gratuit ?",
-          a: `Oui pour les apprenants : le compte ne coûte rien et vous ne payez que les ressources que vous achetez à l'unité. Côté formateur, NkamVa retient ${COMMISSION_LABEL} sur chaque vente. ${subscription}`,
+          q: "NKAMVA est-il gratuit ?",
+          a: `Oui pour les apprenants : le compte ne coûte rien et vous ne payez que les ressources que vous achetez à l'unité. Côté formateur, NKAMVA retient ${COMMISSION_LABEL} sur chaque vente. ${subscription}`,
         },
         {
           q: "Faut-il un ordinateur pour suivre une ressource ?",
@@ -77,7 +77,7 @@ function buildGroups(subscription: string): HelpGroup[] {
         },
         {
           q: "Le paiement mobile money est-il sécurisé ?",
-          a: "Oui. Les transactions passent par un prestataire de paiement certifié ; NkamVa ne voit ni ne conserve jamais votre code secret mobile money.",
+          a: "Oui. Les transactions passent par un prestataire de paiement certifié ; NKAMVA ne voit ni ne conserve jamais votre code secret mobile money.",
         },
         {
           q: "Mon paiement est « en attente », que faire ?",
@@ -160,7 +160,7 @@ function buildGroups(subscription: string): HelpGroup[] {
           a: "Déposez une candidature depuis « Devenir formateur » : une présentation, une pièce d'identité, un diplôme ou une attestation, et deux minutes de vidéo. Chaque dossier est examiné par notre équipe avant la première publication.",
         },
         {
-          q: "Combien NkamVa retient-il ?",
+          q: "Combien NKAMVA retient-il ?",
           a: `${COMMISSION_LABEL} du prix de vente. Les ${TRAINER_SHARE_LABEL} restants vous reviennent et sont crédités à chaque vente confirmée. Il n'y a pas de frais d'entrée. ${subscription}`,
         },
         {

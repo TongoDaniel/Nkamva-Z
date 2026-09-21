@@ -98,7 +98,7 @@ ont pu expirer ou changer.
 ### A8 — Renouvellement automatique : opt-in, sur le solde retirable
 
 Le renouvellement automatique est **inactif par défaut**. Le formateur l'active
-lui-même. Une fois actif, l'échéance est prélevée sur son **solde NkamVa retirable**
+lui-même. Une fois actif, l'échéance est prélevée sur son **solde NKAMVA retirable**
 — `balance` moins les fonds gelés par des litiges (décision 8), moins un retrait
 déjà demandé.
 

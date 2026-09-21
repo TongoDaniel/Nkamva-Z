@@ -27,7 +27,7 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
   const community = await getPublicCommunity(slug, auth?.user.id)
   if (!community) notFound()
 
-  const trainerName = community.trainer.fullName ?? 'Formateur NkamVa'
+  const trainerName = community.trainer.fullName ?? 'Formateur NKAMVA'
 
   const membership = auth ? await getMembership(community.id, auth.user.id) : null
   // Bannière déposée par le formateur, à défaut le dégradé d'origine. L'URL

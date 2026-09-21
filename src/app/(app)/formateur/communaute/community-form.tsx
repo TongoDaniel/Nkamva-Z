@@ -313,7 +313,7 @@ export function CommunityForm({
             hint={
               mode === "edit"
                 ? undefined
-                : `NkamVa prélève ${COMMISSION_LABEL} sur chaque adhésion ; ${TRAINER_SHARE_LABEL} vous reviennent.`
+                : `NKAMVA prélève ${COMMISSION_LABEL} sur chaque adhésion ; ${TRAINER_SHARE_LABEL} vous reviennent.`
             }
             labelHint={
               mode === "edit" ? (

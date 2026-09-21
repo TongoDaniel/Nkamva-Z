@@ -5,7 +5,7 @@ import { LegalPage, ToProvide } from "../legal-page";
 export const metadata: Metadata = {
   title: "Confidentialité",
   description:
-    "Quelles données NkamVa collecte, pourquoi, combien de temps, et comment les récupérer ou les effacer.",
+    "Quelles données NKAMVA collecte, pourquoi, combien de temps, et comment les récupérer ou les effacer.",
 };
 
 export default function ConfidentialitePage() {
@@ -35,7 +35,7 @@ export default function ConfidentialitePage() {
       <h3>Achats</h3>
       <p>
         Ressource achetée, montant, moyen de paiement, identifiant de transaction chez
-        l&apos;opérateur, statut et date. NkamVa ne reçoit ni ne conserve vos coordonnées
+        l&apos;opérateur, statut et date. NKAMVA ne reçoit ni ne conserve vos coordonnées
         bancaires : elles sont saisies chez l&apos;opérateur de paiement.
       </p>
       <h3>Utilisation</h3>
@@ -137,7 +137,7 @@ export default function ConfidentialitePage() {
 
       <h2>9. Cookies</h2>
       <p>
-        NkamVa n&apos;utilise que les cookies nécessaires au fonctionnement : maintien de votre
+        NKAMVA n&apos;utilise que les cookies nécessaires au fonctionnement : maintien de votre
         session et protection contre la falsification de requêtes. Aucun cookie publicitaire ni de
         mesure d&apos;audience tierce n&apos;est déposé, ce qui explique l&apos;absence de
         bandeau de consentement.

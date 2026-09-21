@@ -416,7 +416,7 @@ export function customerMessage(raw: string): string {
   // pas disponibles. La plage `À-ÿ` couvre les accents du français, ce qui
   // suffit ici — le reste tombe, et c'est préférable à un rejet du fournisseur.
   const cleaned = raw.replace(/[^A-Za-zÀ-ÿ0-9 .-]/g, '').trim()
-  if (cleaned.length < 4) return 'NkamVa'
+  if (cleaned.length < 4) return 'NKAMVA'
   return cleaned.slice(0, 22)
 }
 

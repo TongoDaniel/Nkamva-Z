@@ -31,7 +31,7 @@ import { periodEndFor } from './subscriptions'
 import { fmtNumber } from './format'
 
 /** Libellé porté sur le relevé du payeur. PawaPay le borne à 22 caractères. */
-const PAYMENT_LABEL = 'Abonnement NkamVa'
+const PAYMENT_LABEL = 'Abonnement NKAMVA'
 
 // ==========================================================================
 // Lecture

@@ -110,18 +110,18 @@ export async function applySanction(userId: string, input: SanctionInput) {
             : 'Votre compte est restreint',
       paragraphs:
         input.level === 'NONE'
-          ? ['Votre compte NkamVa retrouve toutes ses possibilités.']
+          ? ['Votre compte NKAMVA retrouve toutes ses possibilités.']
           : [
               input.level === 'BANNED'
-                ? 'Votre compte NkamVa a été fermé et vos accès ont été retirés.'
-                : 'Votre compte NkamVa est restreint : vous conservez l\'accès à vos ressources, mais vous ne pouvez plus publier ni écrire.',
+                ? 'Votre compte NKAMVA a été fermé et vos accès ont été retirés.'
+                : 'Votre compte NKAMVA est restreint : vous conservez l\'accès à vos ressources, mais vous ne pouvez plus publier ni écrire.',
               `Motif : ${reason}`,
             ],
       footnote: 'Si vous pensez qu\'il s\'agit d\'une erreur, répondez à cet e-mail.',
     })
     await sendEmail({
       to: user.email,
-      subject: `NkamVa — ${LABELS[input.level]} de votre compte`,
+      subject: `NKAMVA — ${LABELS[input.level]} de votre compte`,
       html,
       text,
       tags: ['account-sanction'],

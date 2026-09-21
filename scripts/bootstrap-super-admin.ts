@@ -103,7 +103,7 @@ async function main() {
     title: 'Votre accès super-administrateur',
     paragraphs: [
       'Bonjour,',
-      'Le compte super-administrateur de NkamVa vous a été ouvert.',
+      'Le compte super-administrateur de NKAMVA vous a été ouvert.',
       'Pour l’activer, choisissez votre mot de passe depuis « Mot de passe oublié », avec cette adresse e-mail.',
     ],
     cta: { label: 'Choisir mon mot de passe', url: absoluteUrl('/auth/mot-de-passe-oublie') },
@@ -111,7 +111,7 @@ async function main() {
   })
   await sendEmail({
     to: email,
-    subject: 'NkamVa — votre accès super-administrateur',
+    subject: 'NKAMVA — votre accès super-administrateur',
     html, text,
     tags: ['admin-invitation'],
   })

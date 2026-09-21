@@ -95,7 +95,7 @@ export default async function AnalyticsPage() {
           <dl>
             <Row label="Ventes encaissées">{fmtNumber(overview.sales.count)}</Row>
             <Row label="Montant encaissé">{fmtFcfa(overview.sales.grossFcfa)}</Row>
-            <Row label="Part NkamVa">{fmtFcfa(overview.sales.platformShareFcfa)}</Row>
+            <Row label="Part NKAMVA">{fmtFcfa(overview.sales.platformShareFcfa)}</Row>
             <Row label="Sur 30 jours">{fmtFcfa(overview.sales.last30DaysFcfa)}</Row>
           </dl>
           <p className="mt-4 text-[13px] leading-relaxed text-ink-3">

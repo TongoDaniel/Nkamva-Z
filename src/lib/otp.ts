@@ -85,7 +85,7 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
 
   await sendEmail({
     to: email,
-    subject: `NkamVa — votre code de vérification : ${code}`,
+    subject: `NKAMVA — votre code de vérification : ${code}`,
     html,
     text,
     tags: ['otp'],

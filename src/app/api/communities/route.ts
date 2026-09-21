@@ -74,7 +74,7 @@ export async function GET(request: Request) {
       priceFcfa: c.priceFcfa,
       membersCount: c.membersCount,
       visibility: c.visibility,
-      trainerName: c.trainer.fullName ?? 'Formateur NkamVa',
+      trainerName: c.trainer.fullName ?? 'Formateur NKAMVA',
       trainerAvatarUrl: userAvatarSrc({
         id: c.trainer.userId,
         avatarS3Key: c.trainer.avatarS3Key,

@@ -304,7 +304,7 @@ describe('Lot 2 — Arbitrage des litiges', () => {
       note: 'Chargeback opérateur : remboursement imposé.',
       policyOverride: true,
       actorAdminRole: 'SUPER_ADMIN',
-      overrideJustification: 'Contestation portée par la banque, hors fenêtre NkamVa.',
+      overrideJustification: 'Contestation portée par la banque, hors fenêtre NKAMVA.',
     })
 
     const after = await prisma.dispute.findUnique({ where: { id: dispute.id } })

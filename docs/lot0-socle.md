@@ -88,7 +88,7 @@ pour cette adresse. TTL 10 minutes, 5 tentatives maximum (`src/lib/otp.ts`).
 Le design vient de la maquette `Nkamva.zip`, reconstruit en Tailwind + shadcn. Les
 tokens (papier chaud `#f6f3ec`, accent bleu `#1c5ed0`, navy `#022342`, Bricolage
 Grotesque + Instrument Sans) vivent dans `src/app/globals.css` et remappent les tokens
-shadcn : les primitives `ui/` adoptent le style NkamVa sans surcouche. Le vert forêt est
+shadcn : les primitives `ui/` adoptent le style NKAMVA sans surcouche. Le vert forêt est
 réservé à l'admin, via `.nk-admin`.
 
 **66 pages** sur le disque. Celles du périmètre Lot 0 :
@@ -97,7 +97,7 @@ réservé à l'admin, via `.nk-admin`.
 
 | Fichier | État | Contenu réel |
 |---|---|---|
-| `src/app/globals.css` | ✅ | Tokens NkamVa + remappage shadcn, halo de fond, animations `nk-reveal` / `nk-marquee` |
+| `src/app/globals.css` | ✅ | Tokens NKAMVA + remappage shadcn, halo de fond, animations `nk-reveal` / `nk-marquee` |
 | `src/app/layout.tsx` | ✅ | `lang="fr"`, polices Google, `Providers`, `Toaster` de **`sonner`** |
 | `src/app/providers.tsx` | ✅ | SessionProvider NextAuth + QueryClientProvider |
 | `src/components/nk/*` | ✅ | Primitives de la maquette (`Btn`, `Chip`, `Cover`, `ResourceCard`, `EmptyState`, `PageHead`, `Wizard`, `DataTable`…) |

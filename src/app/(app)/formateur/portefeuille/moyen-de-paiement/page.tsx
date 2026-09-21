@@ -40,7 +40,7 @@ export default async function MoyenDePaiementPage() {
           { label: "Moyen de paiement" },
         ]}
         title={active ? "Remplacer votre moyen de paiement" : "Enregistrer un moyen de paiement"}
-        lead="Le compte sur lequel NkamVa vous verse vos revenus."
+        lead="Le compte sur lequel NKAMVA vous verse vos revenus."
       />
 
       <div className="mx-auto max-w-[720px]">

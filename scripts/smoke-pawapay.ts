@@ -153,7 +153,7 @@ async function main() {
     currency: capability.currency,
     // Volontairement plus long que les 22 caractères admis : on vérifie du même
     // coup que `customerMessage()` tronque au lieu de faire rejeter l'appel.
-    customerMessage: 'NkamVa — smoke test de bout en bout',
+    customerMessage: 'NKAMVA — smoke test de bout en bout',
     clientReferenceId: `smoke-${Date.now()}`,
     metadata: { source: 'smoke-pawapay' },
   })
@@ -170,7 +170,7 @@ async function main() {
     provider: PROVIDER,
     amount,
     currency: capability.currency,
-    customerMessage: 'NkamVa test',
+    customerMessage: 'NKAMVA test',
   })
   check(
     'le même depositId rejoué est ignoré',
@@ -187,7 +187,7 @@ async function main() {
     provider: PROVIDER,
     amount,
     currency: capability.currency,
-    customerMessage: 'NkamVa test',
+    customerMessage: 'NKAMVA test',
   })
   const refused = await waitForFinalStatus('dépôt refusé', () => checkDeposit(refusedId))
   check(
@@ -227,7 +227,7 @@ async function main() {
     provider: PROVIDER,
     amount,
     currency: capability.currency,
-    customerMessage: 'NkamVa versement',
+    customerMessage: 'NKAMVA versement',
   })
   check('le versement est accepté', payoutInit.status === 'ACCEPTED', `statut ${payoutInit.status}`)
   const payout = await waitForFinalStatus('versement', () => checkPayout(payoutId))

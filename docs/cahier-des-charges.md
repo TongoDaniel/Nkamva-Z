@@ -1,4 +1,4 @@
-# Cahier des charges — NkamVa
+# Cahier des charges — NKAMVA
 
 > **Nature du document.** Référence produit interne. Il décrit ce que la
 > plateforme **doit** faire, pour qui, sous quelles règles et sous quelles
@@ -54,7 +54,7 @@
 
 ### 1.1 Objet
 
-NkamVa est une plateforme de formation en ligne pour l'Afrique francophone, où
+NKAMVA est une plateforme de formation en ligne pour l'Afrique francophone, où
 des **formateurs** vendent des ressources pédagogiques à l'unité, animent des
 **communautés** payantes par abonnement et y tiennent des **sessions en direct**
 enregistrées. La plateforme encaisse pour le compte des formateurs, prélève une
@@ -97,7 +97,7 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 - **Pour le formateur** : publier, vendre, animer et se faire payer sans monter
   d'infrastructure, contre **15 % de commission** et un abonnement de
   plateforme.
-- **Pour NkamVa** : une commission sur chaque vente, un abonnement formateur à
+- **Pour NKAMVA** : une commission sur chaque vente, un abonnement formateur à
   deux cadences, et la vente d'extensions de stockage.
 
 ### 2.2 Modèle économique
@@ -187,7 +187,7 @@ notifications et préavis · conformité des données personnelles · mobile fir
 | **Multilingue** | Monolingue français ; `next-intl` présent mais non utilisé |
 | **WebSocket** | Temps réel par sondage TanStack Query — 8 s sur un fil, 15 s sur une liste, **pour les deux formes de conversation**. Un groupe ne change pas la cadence mais la charge : le fil se sonde en **incrémental** (`?depuis=`), et tout sondage **cesse quand l'onglet est masqué** (arbitrage 131) |
 | **Optimisation mobile de l'administration** | Arbitrage 109 — les 24 écrans `/admin` héritent du socle, rien de plus |
-| **Contrepartie du parrain** | Arbitrage 76, ajourné ; si elle arrive, financée sur la commission NkamVa (arbitrage 104) |
+| **Contrepartie du parrain** | Arbitrage 76, ajourné ; si elle arrive, financée sur la commission NKAMVA (arbitrage 104) |
 | **Refusion des espaces visiteur / connecté** | Décision assumée : deux arborescences, décrites dans `src/lib/spaces.ts` |
 | **Repli sur des données en dur** | Une base vide produit un état vide, jamais des cartes de démonstration qui mènent à un 404 |
 
@@ -446,7 +446,7 @@ mobile money) → paiement chez le fournisseur → retour → confirmation.
    `providerStatus = PENDING`. Un webhook rejoué ne crédite pas deux fois ; un
    payload malformé est rejeté sans effet de bord.
 3. **Carte** : Stripe Checkout **hébergé** — aucune donnée de carte ne transite
-   par NkamVa. L'identifiant de transaction passe de `cs_…` à `pi_…` en cours de
+   par NKAMVA. L'identifiant de transaction passe de `cs_…` à `pi_…` en cours de
    paiement ; **une session abandonnée ne se reprend pas**, on en ouvre une
    nouvelle.
 4. **Mobile money** : PawaPay. Le numéro est **ressaisi à chaque paiement**
@@ -677,7 +677,7 @@ REJECTED → PAID | FAILED`, avec réouverture réservée au Super-admin.
 4. **Réservation des fonds** : à l'ouverture, la part formateur passe en solde
    **réservé**, exclue du retirable (`FundReservation` `ACTIVE`). Rejet ou
    expiration → `RELEASED` ; remboursement → `DEBITED` ou `PARTIALLY_DEBITED`.
-5. **Remboursement partiel au prorata** : NkamVa rend sa commission
+5. **Remboursement partiel au prorata** : NKAMVA rend sa commission
    proportionnellement, le formateur est débité de 85 % du montant remboursé.
    Pas d'absorption unilatérale (arbitrage 12).
 6. **Aucun double débit** : un litige manuel est refusé si un chargeback est
@@ -960,7 +960,7 @@ et **testé** — un ajout de route qui l'oublie casse la suite.
 
 | Service | Rôle | Contraintes |
 |---|---|---|
-| **Stripe** | Paiement carte, chargebacks, remboursements | Checkout **hébergé** — aucune donnée de carte chez NkamVa. Webhooks signés `charge.dispute.created` / `closed` |
+| **Stripe** | Paiement carte, chargebacks, remboursements | Checkout **hébergé** — aucune donnée de carte chez NKAMVA. Webhooks signés `charge.dispute.created` / `closed` |
 | **PawaPay** | Mobile money : encaissement, reversement, remboursement | **`/v2/active-conf` fait foi** pour les pays, opérateurs et devises — jamais de liste écrite à la main. Attention aux décimales au remboursement. Libellé de relevé borné à 22 caractères |
 | **LiveKit** | Visioconférence et egress d'enregistrement | 9 publieurs vidéo simultanés ; egress direct vers le stockage objet |
 | **Mux** | Adaptateur vidéo **conservé comme option**, pas comme chemin par défaut | Ne pas en faire une dépendance du parcours |
@@ -1118,7 +1118,7 @@ La conformité est donc un **lot de travail**, pas une page de confidentialité.
 En zone CEMAC, fournir des services de paiement suppose un agrément. La réforme
 en cours crée au **1er janvier 2027** une catégorie visant explicitement
 l'**acquisition et l'agrégation de paiement**, avec agrément COBAC et
-**cantonnement des fonds de clients**. Le portefeuille NkamVa — qui encaisse,
+**cantonnement des fonds de clients**. Le portefeuille NKAMVA — qui encaisse,
 retient, débite et reverse — ressemble davantage à un compte de paiement qu'à un
 compte fournisseur. **Il faut que la qualification retenue soit vraie en droit,
 pas seulement dans notre tête** (arbitrage 92).
@@ -1140,7 +1140,7 @@ pas seulement dans notre tête** (arbitrage 92).
   commission diffère entre les deux textes légaux.
 - **Aucune trace d'acceptation des conditions** n'est conservée.
 - **L'âge de 16 ans est purement déclaratif.**
-- **Aucune licence n'est accordée à NkamVa** dans les conditions servies, alors
+- **Aucune licence n'est accordée à NKAMVA** dans les conditions servies, alors
   que la plateforme héberge et diffuse les contenus des formateurs.
 - **« Accès sans limite de durée »** annoncé, contre des purges programmées.
 - **Retenue à la source** sur les versements aux formateurs, conformité de la
@@ -1296,7 +1296,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 |---|---|---|
 | **Qualification du portefeuille** | Réglementaire, structurant | Faire qualifier avant le 1er janvier 2027 (§11.2) |
 | **Transferts hors Cameroun sans autorisation** | Réglementaire, bloquant | Dossier APDP |
-| **Conséquence fiscale de la vente en nom propre** | Fiscal | Si NkamVa vend en son nom, la TVA porte-t-elle sur le prix entier plutôt que sur la commission, et à quel taux ? Seule inconnue pouvant rendre l'arbitrage 92 plus cher que le problème qu'il résout |
+| **Conséquence fiscale de la vente en nom propre** | Fiscal | Si NKAMVA vend en son nom, la TVA porte-t-elle sur le prix entier plutôt que sur la commission, et à quel taux ? Seule inconnue pouvant rendre l'arbitrage 92 plus cher que le problème qu'il résout |
 | **Le change** | Financier | Le même taux encaisse et reverse. **Majorer le taux ne couvre pas le *spread*** : 1 % de *spread* coûte 12 % de la commission. À traiter comme une ligne de coût, pas comme un réglage de taux |
 | **Secrets réels présents dans l'historique du dépôt** | Sécurité | Rotation des clés concernées ; ne jamais laisser un fichier d'environnement entrer dans une fusion |
 | **L'environnement de développement écrit dans le stockage de production** | Sécurité / exploitation | Séparer les seaux avant tout élargissement de l'équipe |
@@ -1306,7 +1306,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **Le formateur dans les groupes qu'il a rejoints** | Produit | Rien ne lui interdit d'y écrire comme apprenant, mais son nom y apparaît sans distinction de rôle |
 | **`Community.messagesPerDay`** | Produit | La colonne existe et n'est lue par personne. Un groupe actif est le premier endroit où un plafond servirait |
 | **Inscription à une séance, distincte de la présence** | Produit | Ajourné — l'absence de jauge a retiré ce qui la rendait nécessaire |
-| **Contrepartie du parrain** | Produit | Ajournée ; financée sur la commission NkamVa si elle arrive |
+| **Contrepartie du parrain** | Produit | Ajournée ; financée sur la commission NKAMVA si elle arrive |
 
 ---
 
@@ -1374,7 +1374,7 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 | **Communauté** | L'espace payant par abonnement d'un formateur |
 | **Groupe** | Le fil collectif d'une communauté, dans la messagerie. Remplace « salon » (arbitrage 127) |
 | **Replay** | L'enregistrement automatique d'une session en direct |
-| **Portefeuille** | Le solde du formateur chez NkamVa : crédité, réservé, immobilisé, retirable |
+| **Portefeuille** | Le solde du formateur chez NKAMVA : crédité, réservé, immobilisé, retirable |
 | **Solde réservé** | La part immobilisée par un litige en cours |
 | **Solde immobilisé** | La part immobilisée par un retrait en vol |
 | **Carence** | Le délai incompressible après ajout ou modification d'un moyen de versement |

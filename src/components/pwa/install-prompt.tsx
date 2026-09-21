@@ -112,7 +112,7 @@ export function InstallPrompt() {
 
         <div className="min-w-0 flex-1">
           <b id="nk-install-title" className="block font-display text-[15px] font-extrabold">
-            Installer NkamVa
+            Installer NKAMVA
           </b>
 
           {deferred ? (

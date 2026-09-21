@@ -80,7 +80,7 @@ export default async function TarifsPage() {
     },
     {
       q: "Comment la commission est-elle calculée ?",
-      a: `NkamVa retient ${COMMISSION_LABEL} du prix de vente ; ${TRAINER_SHARE_LABEL} reviennent au formateur. La commission est prélevée à la vente, il n'y a pas de frais d'entrée. ${subscriptionSentence}`,
+      a: `NKAMVA retient ${COMMISSION_LABEL} du prix de vente ; ${TRAINER_SHARE_LABEL} reviennent au formateur. La commission est prélevée à la vente, il n'y a pas de frais d'entrée. ${subscriptionSentence}`,
     },
     {
       q: "Quels moyens de paiement acceptez-vous ?",

@@ -84,7 +84,7 @@ export function ResourceCard({
   className?: string;
 }) {
   const duration = fmtDuration(course.durationSeconds);
-  const trainerName = course.trainerProfile?.user?.fullName ?? "Formateur NkamVa";
+  const trainerName = course.trainerProfile?.user?.fullName ?? "Formateur NKAMVA";
   const typeLabel = [formatLabel(course.format), duration].filter(Boolean).join(" · ").toUpperCase();
 
   return (

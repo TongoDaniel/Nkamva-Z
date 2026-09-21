@@ -1,7 +1,7 @@
 // ==========================================================================
 // Double authentification par application (TOTP)
 // ==========================================================================
-// Le SMS a été écarté comme second facteur, et c'est un choix motivé : NkamVa
+// Le SMS a été écarté comme second facteur, et c'est un choix motivé : NKAMVA
 // porte des portefeuilles, des moyens de paiement et des retraits, or l'échange
 // de carte SIM est l'attaque qui vise précisément les comptes adossés au mobile
 // money. Le SMS reste le bon canal pour **alerter** (arbitrage 24) ; il est
@@ -35,7 +35,7 @@ import { notify, deliverSideEffects } from './notification'
 export const RECOVERY_CODE_COUNT = 10
 /** Fenêtre de tolérance : ±1 pas de 30 s, pour une horloge de téléphone décalée. */
 const TOTP_WINDOW = 1
-const ISSUER = 'NkamVa'
+const ISSUER = 'NKAMVA'
 
 // --- Chiffrement du secret ---
 

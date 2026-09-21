@@ -1,4 +1,4 @@
-# Décisions produit — NkamVa
+# Décisions produit — NKAMVA
 
 > Ce document ne contient que des décisions **tranchées**. Les propositions de
 > modélisation qui en découlent, non encore validées, vivent dans
@@ -145,7 +145,7 @@ snapshoté sur chaque `Purchase`.
 ## Arbitrages 12-19 — Litiges & chargebacks (Lot 2)
 
 **12. `PARTIAL_REFUND` autorisé** — Le remboursement est réparti au prorata :
-NkamVa rend sa commission proportionnellement, le formateur est débité de 85 % du
+NKAMVA rend sa commission proportionnellement, le formateur est débité de 85 % du
 montant remboursé. Pas d'absorption unilatérale.
 > Statut : ✅ `src/lib/disputes.ts` (`completeRefund`) implémente le prorata :
 > `debitedAmount = 85% × refundAmountFcfa`, `releasedAmount = reservedAmountFcfa -
@@ -629,7 +629,7 @@ vu depuis le formateur.
 
 **49. Un seul abonnement plateforme, deux cadences** *(objet corrigé le 3 août 2026 —
 la première rédaction l'avait attribué à tort aux communautés)* — L'abonnement du
-**formateur à NkamVa** est le seul abonnement de plateforme. Il ne subsiste que deux
+**formateur à NKAMVA** est le seul abonnement de plateforme. Il ne subsiste que deux
 cadences, **mensuelle et annuelle**, aux droits identiques : tout est compris, la seule
 restriction est le stockage (arbitrage 54).
 > Conséquence sur le schéma : `enum TrainerPlan { STARTER, PRO, EXPERT }` **disparaît**.
@@ -641,7 +641,7 @@ restriction est le stockage (arbitrage 54).
 > formateur, ni par formule communautaire.
 > ⚠️ **Ce que cet arbitrage ne dit pas** : la cadence de l'abonnement d'un **apprenant à
 > une communauté** est un autre sujet — c'est le produit du formateur, pas celui de
-> NkamVa. `Community.priceFcfa` (prix unique) reste donc en vigueur par défaut. Voir
+> NKAMVA. `Community.priceFcfa` (prix unique) reste donc en vigueur par défaut. Voir
 > « Points non arbitrés ».
 > ⚠️ **Neutralise l'arbitrage 43**, requalifié par l'arbitrage 55.
 > Statut : 📋 `TrainerPlan` à trois valeurs toujours dans le schéma.
@@ -726,7 +726,7 @@ peut valoir **zéro**, notamment pour les premiers mois après le lancement.
 > qui doit être écrite dans ce sens, pas le schéma.
 > Conséquence économique : la commission de 15 % (arbitrage 11) n'est pas suspendue par
 > la gratuité de l'abonnement. Pendant la période de lancement, c'est **la seule** source
-> de revenu de NkamVa sur un formateur.
+> de revenu de NKAMVA sur un formateur.
 > Conséquence sur le stockage : la gratuité porte sur l'abonnement, **pas sur
 > l'extension de stockage** (arbitrage 54). 40 Go restent 40 Go, y compris gratuitement.
 > ⚠️ La gratuité doit être **datée**, pas un statut acquis : un formateur entré pendant
@@ -753,7 +753,7 @@ ajoutent.
 
 **58. Prix d'une communauté : un prix unique** — L'abonnement d'un apprenant à une
 communauté garde **un seul prix**, celui que porte déjà `Community.priceFcfa`. Les deux
-cadences de l'arbitrage 49 ne concernent que l'abonnement du formateur à NkamVa.
+cadences de l'arbitrage 49 ne concernent que l'abonnement du formateur à NKAMVA.
 > Conséquence : **aucun modèle de formule communautaire à créer**, aucune matrice de
 > droits, aucun choix de cadence dans le tunnel d'adhésion. Le schéma actuel suffit.
 > Statut : ✅ Consommé le 4 août 2026 par le parcours d'adhésion
@@ -916,7 +916,7 @@ accès.
 > ⚠️ **Conséquence assumée, signalée avant la décision** : retirer les ressources du
 > catalogue supprime aussi la commission de 15 %, c'est-à-dire la seule recette qui
 > restait sur ce formateur. La sanction est plus incitative, mais elle coupe la branche
-> sur laquelle NkamVa était assise. Arbitré en connaissance de cause.
+> sur laquelle NKAMVA était assise. Arbitré en connaissance de cause.
 > Ce qui ne change pas : **la lecture n'est jamais coupée**. Les apprenants continuent
 > d'accéder à ce qu'ils ont payé — un défaut de paiement du formateur ne doit pas se
 > transformer en litiges de masse, et chaque litige ouvert réserve des fonds (décision 8).
@@ -983,7 +983,7 @@ applique la cadence en attente, détecte l'impayé et exécute la décision 68.
 > jusque-là par une seule notification, qui pouvait passer inaperçue alors que la
 > sanction, elle, retire les ressources du catalogue.
 > ⚠️ ~~**Rien n'encaisse automatiquement.**~~ **Levé le 12 août 2026.** Le formateur
-> dispose désormais de trois voies de règlement : le **prélèvement sur son solde NkamVa**
+> dispose désormais de trois voies de règlement : le **prélèvement sur son solde NKAMVA**
 > — opt-in, retenté chaque nuit pendant le délai de grâce —, le **paiement par carte ou
 > mobile money** par la même porte que les achats, et le constat manuel de Finances, qui
 > subsiste. Le fournisseur reste absent du modèle : `subscriptionProvider` et
@@ -1038,7 +1038,7 @@ partageable payant. Offrir coûte de l'argent au formateur : la décision lui ap
 L'attribution est conservée (`CommunitySubscription.invitationId`) pour qu'une contrepartie
 puisse s'y greffer plus tard sans reprise de modèle.
 > Ajourné, pas refusé : toute contrepartie ouvre la question de son financement — part du
-> formateur ou commission NkamVa —, donc les invariants financiers.
+> formateur ou commission NKAMVA —, donc les invariants financiers.
 
 **77. L'adhésion offerte ne se reconduit pas** — Au terme, elle se ferme comme une
 résiliation : accès résiduel conservé (arbitrage 48), aucune échéance ouverte, aucun
@@ -1073,7 +1073,7 @@ s'applique. Seule exception, imposée par l'arbitrage 73 : l'adresse discordante
 signalée, masquée (`j••••@exemple.com`).
 
 **83. L'invitation ne crée pas de compte et ne vaut pas vérification d'adresse** — Le cas
-majoritaire d'une invitation nominative est un invité **qui n'est pas encore sur NkamVa**.
+majoritaire d'une invitation nominative est un invité **qui n'est pas encore sur NKAMVA**.
 Il s'inscrit et vérifie son adresse par l'OTP existant, comme tout le monde ; le lien
 d'invitation ne remplace pas cette preuve. Un e-mail se transfère : si le jeton valait
 `emailVerifiedAt`, un tiers pourrait poser un mot de passe sur une adresse qui n'est pas la
@@ -1182,7 +1182,7 @@ confidentialité** — La loi camerounaise n° 2024/017 du 23 décembre 2024 imp
 des traitements, la notification des violations à l'autorité **et** aux personnes
 concernées, et une **autorisation préalable de l'APDP pour tout transfert hors du
 Cameroun**. Sa période de mise en conformité s'est achevée le 23 juin 2026 — elle est donc
-déjà derrière nous. NkamVa transfère hors du pays vers cinq sous-traitants : la base
+déjà derrière nous. NKAMVA transfère hors du pays vers cinq sous-traitants : la base
 (Supabase, Francfort), les fichiers (Cloudflare R2), les courriels (Resend), et les
 paiements (Stripe, PawaPay). L'un d'eux porte des **pièces d'identité** et des coordonnées
 bancaires.
@@ -1208,8 +1208,8 @@ et l'agrégation de paiement**, avec agrément COBAC et cantonnement des fonds d
 place de marché qui encaisse pour le compte de vendeurs tiers y tombe naturellement, et
 notre `Wallet` — qui encaisse, retient (`reservedBalance`), débite et reverse — ressemble
 davantage à un compte de paiement qu'à un compte fournisseur.
-> **Décision : viser la qualification, pas l'agrément.** NkamVa vend **en nom propre** —
-> l'apprenant achète à NkamVa, le formateur est un fournisseur rémunéré sur facture. Le
+> **Décision : viser la qualification, pas l'agrément.** NKAMVA vend **en nom propre** —
+> l'apprenant achète à NKAMVA, le formateur est un fournisseur rémunéré sur facture. Le
 > portefeuille devient un compte de dettes fournisseurs, ce qui n'est pas un service de
 > paiement. `Invoice` et `InvoiceCounter` portent déjà la moitié du chemin.
 > Deux conditions, sans lesquelles la décision ne vaut rien : réécrire les CGU en ce sens, et
@@ -1303,7 +1303,7 @@ offerts sur l'annuel.
 > Statut : 📋 `scripts/tarifs.ts` pose la bascule sur `--abonnement <mensuel> <annuel>` et la
 > refuse sans montant. La notification à 60 jours reste à écrire.
 
-**97. Le change se règle chez le fournisseur, pas dans la colonne des taux** — NkamVa
+**97. Le change se règle chez le fournisseur, pas dans la colonne des taux** — NKAMVA
 demande à PawaPay un **règlement en devise locale** sur les marchés où elle reverse, et
 n'ouvre les reversements hors zone franc que là où cette réponse est acquise.
 > Raison : le même `unitsPerXaf` encaisse et reverse — aucune marge sur le taux ne couvre le
@@ -1403,7 +1403,7 @@ récupérer une copie de plusieurs gigaoctets.
 
 **104. Si le parrainage rapporte un jour, il sera financé par la commission** *(précise
 l'arbitrage 76, qui reste ajourné)* — Une éventuelle contrepartie du parrain se prendra sur
-la part NkamVa, **jamais sur les 85 % du formateur**.
+la part NKAMVA, **jamais sur les 85 % du formateur**.
 > Raison : le formateur n'a pas décidé du parrainage. Lui faire payer une acquisition qu'il
 > n'a pas choisie casserait l'invariant du partage, et rendrait sa marge dépendante des
 > gestes d'un tiers.
@@ -3010,7 +3010,7 @@ tient en cinq lignes, dont trois dépendent d'un tiers.*
 
 **Encore ouverts**
 
-- **Conséquence fiscale de la vente en nom propre** (arbitrage 92) — si NkamVa vend en son
+- **Conséquence fiscale de la vente en nom propre** (arbitrage 92) — si NKAMVA vend en son
   nom, la TVA porte-t-elle sur le prix entier plutôt que sur la commission, et à quel taux ?
   C'est la seule inconnue qui peut rendre l'arbitrage 92 plus cher que le problème qu'il
   résout. À faire instruire avant de réécrire les CGU.
@@ -3042,11 +3042,11 @@ tient en cinq lignes, dont trois dépendent d'un tiers.*
   **arbitrage 103** : J-7 puis J-1 pour toute fin d'accès, J-30 quand prévenir sert à
   télécharger (purge d'un replay, côté formateur — déjà conforme).
 - ~~Contrepartie du parrain~~ — **arbitrage 104** : toujours ajournée, mais si elle arrive
-  elle se finance sur la commission NkamVa, jamais sur la part du formateur.
+  elle se finance sur la commission NKAMVA, jamais sur la part du formateur.
 - ~~Délai de grâce avant suspension~~ — **arbitré le 12 août 2026** (arbitrage 14 de
   `docs/abonnement-formateur.md`) : 14 jours, avec rejeu nocturne du prélèvement.
 - ~~Provider d'abonnement~~ — **tranché le 12 août 2026.** Aucun fournisseur d'abonnement
-  récurrent n'est branché, et il n'en faut pas : le prélèvement porte sur le **solde NkamVa**
+  récurrent n'est branché, et il n'en faut pas : le prélèvement porte sur le **solde NKAMVA**
   du formateur, et le règlement manuel passe par Stripe et PawaPay, la même porte que les
   achats. Le constat de Finances subsiste comme filet. Voir `docs/abonnement-formateur.md`.
 - ~~Retour au catalogue après régularisation~~ — **tranché le 12 août 2026** : le règlement

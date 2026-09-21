@@ -87,8 +87,8 @@ async function announceSettledPurchase(purchaseId: string): Promise<void> {
     },
     {
       subject: estAdhesion
-        ? `NkamVa — bienvenue dans ${intitule}`
-        : `NkamVa — votre achat de « ${intitule} »`,
+        ? `NKAMVA — bienvenue dans ${intitule}`
+        : `NKAMVA — votre achat de « ${intitule} »`,
       title: estAdhesion ? `Bienvenue dans ${intitule}` : 'Votre achat est confirmé',
       paragraphs: estAdhesion
         ? [
@@ -132,8 +132,8 @@ async function announceSettledPurchase(purchaseId: string): Promise<void> {
     },
     {
       subject: estAdhesion
-        ? `NkamVa — nouveau membre dans ${intitule}`
-        : `NkamVa — vous avez vendu « ${intitule} »`,
+        ? `NKAMVA — nouveau membre dans ${intitule}`
+        : `NKAMVA — vous avez vendu « ${intitule} »`,
       title: estAdhesion ? `Nouveau membre dans ${intitule}` : 'Vous avez fait une vente',
       paragraphs: [
         'Bonjour,',

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Aide & FAQ",
   description:
-    "Paiement mobile money, remboursement, compte, communautés, espace formateur : les réponses aux questions courantes sur NkamVa.",
+    "Paiement mobile money, remboursement, compte, communautés, espace formateur : les réponses aux questions courantes sur NKAMVA.",
 };
 
 export default async function AidePage() {

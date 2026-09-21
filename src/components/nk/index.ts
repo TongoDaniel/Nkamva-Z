@@ -1,4 +1,4 @@
-// Socle de composants NkamVa, porté depuis la maquette (assets/nkamva*.css).
+// Socle de composants NKAMVA, porté depuis la maquette (assets/nkamva*.css).
 export { Btn, IconBtn, btnVariants, type BtnProps } from "./button";
 export { BtnLink, type BtnLinkProps } from "./button-link";
 export { NavLink, LinkPending, type NavLinkProps } from "./nav-link";

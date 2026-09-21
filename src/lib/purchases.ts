@@ -79,7 +79,7 @@ export interface MobileMoneyPayer {
 export interface PaymentSubject {
   /** Sert au journal d'audit et aux métadonnées transmises au fournisseur. */
   kind: 'PURCHASE' | 'TRAINER_ACTIVATION' | 'SUBSCRIPTION_CHARGE'
-  /** Identifiant de la ligne à régler, côté NkamVa. */
+  /** Identifiant de la ligne à régler, côté NKAMVA. */
   id: string
   /** Où Stripe ramène le payeur — succès comme abandon. */
   returnUrl: string

@@ -68,7 +68,7 @@ const CHECKS: Check[] = [
   { path: '/mes-lives', as: mail('aminata'), expect: ['migrations'] },
   { path: '/mes-litiges', as: mail('aminata'), expect: ['Kit identité'] },
   { path: '/messagerie', as: mail('aminata'), expect: ['Awa Sarr'] },
-  { path: '/notifications', as: mail('aminata'), expect: ['NkamVa'] },
+  { path: '/notifications', as: mail('aminata'), expect: ['NKAMVA'] },
   { path: '/favoris', as: mail('aminata'), expect: ['Tableaux de bord'] },
   { path: '/profil', as: mail('aminata'), expect: ['Aminata'] },
 

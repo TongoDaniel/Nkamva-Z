@@ -122,7 +122,7 @@ export function PublicFooter() {
       </div>
       <div className="border-t border-line-2">
         <div className="nk-wrap flex flex-wrap items-center justify-between gap-3.5 py-4.5">
-          <p className="text-[13px] text-ink-3">© {new Date().getFullYear()} NkamVa</p>
+          <p className="text-[13px] text-ink-3">© {new Date().getFullYear()} NKAMVA</p>
           <p className="text-[13px] text-ink-3">
             Paiement à l&apos;unité en FCFA · mobile money &amp; carte bancaire
           </p>

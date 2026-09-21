@@ -141,7 +141,7 @@ export const TRAINERS: TrainerSeed[] = [
     legalName: 'Nadège Carine Bidias',
     slogan: 'Design de présentations et supports de formation',
     description:
-      "Graphiste à Douala, elle met en forme les supports des formateurs et des ONG : décks, livrets d'atelier, kits d'animation. Elle a rejoint NkamVa récemment et prépare ses premières publications.",
+      "Graphiste à Douala, elle met en forme les supports des formateurs et des ONG : décks, livrets d'atelier, kits d'animation. Elle a rejoint NKAMVA récemment et prépare ses premières publications.",
     domains: ['Design'],
     experienceYears: 5,
     countryCode: 'CM',

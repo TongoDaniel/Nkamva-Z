@@ -96,7 +96,7 @@ export default async function RecherchePage({
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {results.trainers.map((trainer) => {
-                  const name = trainer.fullName ?? "Formateur NkamVa";
+                  const name = trainer.fullName ?? "Formateur NKAMVA";
                   return (
                     <article
                       key={trainer.id}

@@ -27,7 +27,7 @@ const CLOSED = ["RESOLVED_REFUNDED", "RESOLVED_REJECTED", "RESOLVED_AUTO"];
 
 const AUTHOR_LABEL: Record<string, string> = {
   LEARNER: "Vous",
-  SUPPORT: "Support NkamVa",
+  SUPPORT: "Support NKAMVA",
   SYSTEM: "Message automatique",
 };
 

@@ -54,7 +54,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
 
   const trainer = course.trainerProfile;
   const learners = trainer ? (learnerCounts.get(trainer.id) ?? 0) : 0;
-  const trainerName = trainer?.user?.fullName ?? "Formateur NkamVa";
+  const trainerName = trainer?.user?.fullName ?? "Formateur NKAMVA";
   const bio = trainerBio(trainer);
   const duration = fmtDuration(course.durationSeconds);
   const typeLabel = [formatLabel(course.format), duration].filter(Boolean).join(" · ").toUpperCase();

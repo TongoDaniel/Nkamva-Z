@@ -6,7 +6,7 @@ Dernière mise à jour : 1er juin 2026
 
 ### 1. Objet & acceptation
 
-NkamVa est une plateforme qui met en relation des formateurs indépendants et des apprenants : ressources numériques à l'unité (vidéo, PDF, guides, modèles) et communautés privées par abonnement. En créant un compte ou en utilisant nos services, vous acceptez sans réserve les présentes conditions.
+NKAMVA est une plateforme qui met en relation des formateurs indépendants et des apprenants : ressources numériques à l'unité (vidéo, PDF, guides, modèles) et communautés privées par abonnement. En créant un compte ou en utilisant nos services, vous acceptez sans réserve les présentes conditions.
 
 Ces conditions s'appliquent à tous les visiteurs, apprenants et formateurs. Si vous n'y consentez pas, nous vous invitons à ne pas utiliser la plateforme.
 
@@ -30,7 +30,7 @@ Les abonnements (communauté ou formateur) sont reconduits automatiquement et r�
 
 ### 4. Contenus & propriété intellectuelle
 
-Les formateurs conservent la propriété de leurs contenus et accordent à NkamVa une licence de diffusion. Les ressources achetées sont destinées à votre usage personnel : toute redistribution, revente ou partage est interdit.
+Les formateurs conservent la propriété de leurs contenus et accordent à NKAMVA une licence de diffusion. Les ressources achetées sont destinées à votre usage personnel : toute redistribution, revente ou partage est interdit.
 
 ### 5. Règles de conduite
 
@@ -42,6 +42,6 @@ Voir la politique de confidentialité complète
 
 ### 6. Protection des données
 
-NkamVa collecte les données nécessaires au fonctionnement du service (identité, transactions, activité sur la plateforme) et ne vend jamais vos données personnelles à des tiers. Les traitements, les sous-traitants, les durées de conservation et vos droits (accès, rectification, effacement, portabilité, opposition) sont détaillés dans notre politique de confidentialité, qui fait seule foi.
+NKAMVA collecte les données nécessaires au fonctionnement du service (identité, transactions, activité sur la plateforme) et ne vend jamais vos données personnelles à des tiers. Les traitements, les sous-traitants, les durées de conservation et vos droits (accès, rectification, effacement, portabilité, opposition) sont détaillés dans notre politique de confidentialité, qui fait seule foi.
 
 Consultez la Politique de confidentialité pour le texte complet. Pour exercer vos droits : **privacy@nkamva.com** ou via notre page Contact.

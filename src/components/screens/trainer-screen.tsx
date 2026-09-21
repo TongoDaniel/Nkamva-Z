@@ -20,7 +20,7 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
   const [trainer, auth] = await Promise.all([getPublicTrainer(trainerId), getAuthContext()])
   if (!trainer) notFound()
 
-  const name = trainer.fullName ?? 'Formateur NkamVa'
+  const name = trainer.fullName ?? 'Formateur NKAMVA'
   const isSelf = auth?.user.id === trainer.userId
 
   // Les cartes de ressources sont celles du catalogue : le formateur y est

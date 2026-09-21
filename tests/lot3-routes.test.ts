@@ -86,7 +86,7 @@ describe('Lot 3 — Routes', () => {
   async function withSecondFactor(userId: string) {
     const { secret } = await beginTwoFactorSetup(userId)
     const totp = new OTPAuth.TOTP({
-      issuer: 'NkamVa', algorithm: 'SHA1', digits: 6, period: 30,
+      issuer: 'NKAMVA', algorithm: 'SHA1', digits: 6, period: 30,
       secret: OTPAuth.Secret.fromBase32(secret),
     })
     await enableTwoFactor(userId, totp.generate())
@@ -124,7 +124,7 @@ describe('Lot 3 — Routes', () => {
     const code = await withSecondFactor(trainerUser.id)
 
     const incomplete = await createMethodRoute(jsonRequest({
-      ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
+      ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NKAMVA SARL',
       twoFactorCode: code,
     }))
     expect(incomplete.status).toBe(400)
@@ -133,7 +133,7 @@ describe('Lot 3 — Routes', () => {
     // Une clé S3 inventée ne vaut rien : seule une clé délivrée par la
     // présignature à ce formateur est rattachable (PM0).
     const forged = await createMethodRoute(jsonRequest({
-      ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
+      ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NKAMVA SARL',
       businessDocS3Key: 'docs/rccm.pdf', legalRepProofS3Key: 'docs/rep.pdf',
       twoFactorCode: code,
     }))
@@ -149,7 +149,7 @@ describe('Lot 3 — Routes', () => {
     }
 
     const complete = await createMethodRoute(jsonRequest({
-      ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NkamVa SARL',
+      ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NKAMVA SARL',
       businessDocS3Key: await presign('BUSINESS_DOC'),
       legalRepProofS3Key: await presign('LEGAL_REP_PROOF'),
       twoFactorCode: code,

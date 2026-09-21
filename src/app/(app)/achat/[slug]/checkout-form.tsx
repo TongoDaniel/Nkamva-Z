@@ -179,7 +179,7 @@ export function CheckoutForm({
           ) : (
             <>
               Vous allez être dirigé vers Stripe pour régler par carte. Votre numéro
-              n&apos;est jamais saisi sur NkamVa, et aucun accès n&apos;est ouvert avant
+              n&apos;est jamais saisi sur NKAMVA, et aucun accès n&apos;est ouvert avant
               la confirmation du paiement.
             </>
           )}

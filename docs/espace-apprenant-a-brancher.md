@@ -40,7 +40,7 @@ valider — sont dans `docs/recommandations-modelisation.md`.
 | 46 | **La capacité d'une session** est le nombre d'apprenants de la communauté + le formateur. Pas de plafond de plateforme, pas de jauge par session. |
 | 47 | **Les deux circuits sont exclusifs** : une ressource est incluse dans la communauté **ou** vendue, jamais les deux. |
 | 48 | **La déliaison est possible, l'accès acquis est conservé** : retirer une ressource de la communauté ne la reprend pas à ceux qui l'avaient. |
-| 49 | **Un seul abonnement plateforme** — celui du formateur à NkamVa — à deux cadences, mensuelle et annuelle, aux droits identiques. `TrainerPlan { STARTER, PRO, EXPERT }` disparaît. Aucune matrice de droits à modéliser, nulle part. |
+| 49 | **Un seul abonnement plateforme** — celui du formateur à NKAMVA — à deux cadences, mensuelle et annuelle, aux droits identiques. `TrainerPlan { STARTER, PRO, EXPERT }` disparaît. Aucune matrice de droits à modéliser, nulle part. |
 | 50 | **Les replays ont une durée de conservation limitée.** |
 | 51 | **24 mois après la date du live**, puis purge. |
 | 52 | **Un changement de cadence prend effet à l'échéance.** Aucun prorata, aucune écriture financière au moment du changement. |

@@ -6,7 +6,7 @@ export interface SendEmailParams { to: string; subject: string; html: string; te
 
 export async function sendEmail(params: SendEmailParams): Promise<void> {
   const client = getResend()
-  const from = process.env.EMAIL_FROM || 'NkamVa <noreply@nkamva.com>'
+  const from = process.env.EMAIL_FROM || 'NKAMVA <noreply@nkamva.com>'
   if (!client) { console.log('[EMAIL:DEV]', { from, to: params.to, subject: params.subject }); return }
   const { error } = await client.emails.send({ from, to: params.to, subject: params.subject, html: params.html, text: params.text, tags: params.tags?.map(name => ({ name, value: 'true' })) })
   if (error) { console.error('[EMAIL:ERROR]', { to: params.to, subject: params.subject, error }); throw new Error(`Email send failed: ${error.message}`) }
@@ -86,7 +86,7 @@ export function renderSimpleEmail(params: SimpleEmailParams): { html: string; te
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid ${LINE};border-radius:16px">
         <tr><td style="padding:28px 32px 0">
-          <p style="margin:0;font-size:18px;font-weight:700;letter-spacing:-0.02em;color:${BRAND}">NkamVa</p>
+          <p style="margin:0;font-size:18px;font-weight:700;letter-spacing:-0.02em;color:${BRAND}">NKAMVA</p>
         </td></tr>
         <tr><td style="padding:16px 32px 32px">
           <h1 style="margin:0 0 16px;font-size:21px;line-height:1.3;font-weight:700;color:${INK}">${escapeHtml(params.title)}</h1>
@@ -96,7 +96,7 @@ export function renderSimpleEmail(params: SimpleEmailParams): { html: string; te
         ${footnote}
         </td></tr>
       </table>
-      <p style="margin:20px 0 0;font-size:12px;color:${INK_2}">NkamVa — la plateforme de formation d'Afrique centrale</p>
+      <p style="margin:20px 0 0;font-size:12px;color:${INK_2}">NKAMVA — la plateforme de formation d'Afrique centrale</p>
     </td></tr>
   </table>
 </body>
@@ -110,7 +110,7 @@ export function renderSimpleEmail(params: SimpleEmailParams): { html: string; te
     ...(params.cta ? ['', `${params.cta.label} : ${params.cta.url}`] : []),
     ...(params.footnote ? ['', params.footnote] : []),
     '',
-    '— L\'équipe NkamVa',
+    '— L\'équipe NKAMVA',
   ].join('\n')
 
   return { html, text }

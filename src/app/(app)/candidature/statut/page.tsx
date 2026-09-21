@@ -52,8 +52,8 @@ export default async function StatutCandidaturePage() {
       // espace est ouvert » puis présenter un mur de paiement juste en dessous
       // serait la pire des deux.
       body: activation
-        ? "Bienvenue parmi les formateurs NkamVa. Une dernière étape avant l'ouverture de votre espace : le règlement de votre abonnement."
-        : "Bienvenue parmi les formateurs NkamVa. Votre espace formateur est ouvert : vous pouvez publier votre première ressource.",
+        ? "Bienvenue parmi les formateurs NKAMVA. Une dernière étape avant l'ouverture de votre espace : le règlement de votre abonnement."
+        : "Bienvenue parmi les formateurs NKAMVA. Votre espace formateur est ouvert : vous pouvez publier votre première ressource.",
     },
     REJECTED: {
       icon: <XCircle className="size-8" aria-hidden="true" />,

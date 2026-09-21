@@ -19,7 +19,7 @@ import { hashPassword } from '@/lib/password'
 /** Le code qu'afficherait l'application de l'utilisateur, à cet instant. */
 function currentCode(secret: string): string {
   return new OTPAuth.TOTP({
-    issuer: 'NkamVa', algorithm: 'SHA1', digits: 6, period: 30,
+    issuer: 'NKAMVA', algorithm: 'SHA1', digits: 6, period: 30,
     secret: OTPAuth.Secret.fromBase32(secret),
   }).generate()
 }
