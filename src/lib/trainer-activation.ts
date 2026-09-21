@@ -33,7 +33,7 @@ import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
 
 /** Libellé porté sur le relevé du payeur. PawaPay le borne à 22 caractères. */
-const PAYMENT_LABEL = 'Abonnement NkamVa'
+const PAYMENT_LABEL = 'Abonnement NKAMVA'
 
 // ==========================================================================
 // Lecture — ce que l'écran de suivi doit afficher
@@ -372,7 +372,7 @@ export async function settleActivationPayment(
       if (!user?.email) return
       await sendEmail({
         to: user.email,
-        subject: 'NkamVa — Votre espace formateur est ouvert',
+        subject: 'NKAMVA — Votre espace formateur est ouvert',
         ...renderSimpleEmail({
           title: 'Votre espace formateur est ouvert',
           paragraphs: [

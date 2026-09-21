@@ -696,7 +696,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     attendees: participants.length,
     community: { name: session.community.name, slug: session.community.slug },
     host: {
-      name: session.community.trainerProfile.user.fullName ?? 'Formateur NkamVa',
+      name: session.community.trainerProfile.user.fullName ?? 'Formateur NKAMVA',
       role: session.community.trainerProfile.slogan ?? 'Formateur',
       avatarUrl: userAvatarSrc(session.community.trainerProfile.user),
     },
@@ -1113,7 +1113,7 @@ export function toAgenda(s: {
     durationMinutes: s.durationMinutes,
     community: { id: s.communityId, name: s.community.name, slug: s.community.slug },
     host: {
-      name: s.community.trainerProfile.user.fullName ?? 'Formateur NkamVa',
+      name: s.community.trainerProfile.user.fullName ?? 'Formateur NKAMVA',
       role: s.community.trainerProfile.slogan ?? 'Formateur',
       avatarUrl: userAvatarSrc(s.community.trainerProfile.user),
     },
@@ -1306,7 +1306,7 @@ function toReplay(r: {
     status: r.status,
     community: { name: r.community.name, slug: r.community.slug },
     host: {
-      name: r.community.trainerProfile.user.fullName ?? 'Formateur NkamVa',
+      name: r.community.trainerProfile.user.fullName ?? 'Formateur NKAMVA',
       role: r.community.trainerProfile.slogan ?? 'Formateur',
       avatarUrl: userAvatarSrc(r.community.trainerProfile.user),
     },

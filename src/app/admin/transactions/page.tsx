@@ -74,7 +74,7 @@ export default async function TransactionsPage({
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile tone="brand" value={fmtFcfa(stats.grossFcfa)} label="encaissé, hors remboursés" />
-        <StatTile tone="gold" value={fmtFcfa(stats.platformShareFcfa)} label="part NkamVa" />
+        <StatTile tone="gold" value={fmtFcfa(stats.platformShareFcfa)} label="part NKAMVA" />
         <StatTile tone="blue" value={fmtFcfa(stats.trainerShareFcfa)} label="part formateurs" />
         <StatTile
           tone="clay"
@@ -119,7 +119,7 @@ export default async function TransactionsPage({
                   <th scope="col" className="py-2 pr-4">Acheteur</th>
                   <th scope="col" className="py-2 pr-4">Objet</th>
                   <th scope="col" className="py-2 pr-4 text-right">Montant</th>
-                  <th scope="col" className="py-2 pr-4 text-right">Part NkamVa</th>
+                  <th scope="col" className="py-2 pr-4 text-right">Part NKAMVA</th>
                   <th scope="col" className="py-2">Statut</th>
                 </tr>
               </thead>

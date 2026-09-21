@@ -1,7 +1,7 @@
 {
   "tache": "Genere une image a partir de ce brief. Respecte le format, la composition et les interdits : ce sont des contraintes techniques, pas des preferences. N'ecris aucun texte dans l'image.",
   "fichier_a_produire": "verifier-code.webp",
-  "destination": "public/auth/verifier-code.webp — page /auth/verifier-code du site NkamVa",
+  "destination": "public/auth/verifier-code.webp — page /auth/verifier-code du site NKAMVA",
   "remplace": "un fichier de depannage, copie de la photo d'une autre page",
   "format": {
     "orientation": "portrait",
@@ -25,7 +25,7 @@
   },
   "texte_qui_sera_superpose": {
     "citation": "La double verification protege votre compte a chaque connexion.",
-    "signature": "Securite NkamVa",
+    "signature": "Securite NKAMVA",
     "rendu": "blanc, en bas de l'image, sur un degrade noir remontant",
     "consequence": "Ne pas ecrire ce texte dans l'image. Il est ajoute par le site. En particulier, ne faire apparaitre aucun code a 6 chiffres."
   },

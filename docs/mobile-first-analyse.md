@@ -1,4 +1,4 @@
-# Passer NkamVa en *mobile first* — analyse préalable
+# Passer NKAMVA en *mobile first* — analyse préalable
 
 > État au 14 août 2026, branche `develop` (`dbb0166`). Aucune implémentation :
 > ce document sert à décider **quoi faire, dans quel ordre, et pourquoi**.
@@ -53,7 +53,7 @@ travail de décisions, pas de correctifs.
 Le mot recouvre trois ambitions de coût très différent. Il faut choisir avant
 d'écrire une ligne, parce que le plan n'est pas le même.
 
-| | Lecture | Ce que ça veut dire | Où en est NkamVa |
+| | Lecture | Ce que ça veut dire | Où en est NKAMVA |
 |---|---|---|---|
 | **A** | *CSS mobile first* | On écrit le style de base pour le téléphone, on **ajoute** avec `md:`, `lg:` | Déjà vrai à ~90 % (Tailwind l'impose), sauf 15 usages de `max-*:` qui inversent la logique |
 | **B** | *UX mobile first* | Le téléphone est la maquette de référence ; le bureau s'adapte à lui, et non l'inverse. Ordre du contenu, densité, profondeur de navigation pensés pour un pouce | **Pas fait.** Tout est porté depuis une maquette bureau |
@@ -474,7 +474,7 @@ Sans ce lot, les trois précédents se dégradent en un trimestre — et les rè
 1. **Quelle lecture de « mobile first »** — A, B ou B+C (§2) ?
 2. **L'admin est-il dans le périmètre ?** 24 pages, usage bureau probable.
 3. **L'échelle de points de rupture** : on garde `sm/md/lg/xl` de Tailwind et on
-   y ramène tout, ou on déclare une échelle NkamVa (par ex. 480 / 768 / 1024) ?
+   y ramène tout, ou on déclare une échelle NKAMVA (par ex. 480 / 768 / 1024) ?
 4. **Barre d'onglets basse : quelles destinations ?** 3 à 5 maximum, et elles
    diffèrent entre apprenant et formateur.
 5. **Duplication DOM** : on mutualise (refonte des coquilles) ou on assume et on

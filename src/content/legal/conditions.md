@@ -1,12 +1,12 @@
 Version en vigueur au **1er janvier 2026** — Dernière mise à jour : **14 mai 2026**
 
-En accédant à la plateforme NkamVa ou en créant un compte, vous acceptez sans réserve les présentes Conditions Générales d'Utilisation (CGU). Si vous n'acceptez pas ces conditions, vous ne devez pas utiliser la plateforme.
+En accédant à la plateforme NKAMVA ou en créant un compte, vous acceptez sans réserve les présentes Conditions Générales d'Utilisation (CGU). Si vous n'acceptez pas ces conditions, vous ne devez pas utiliser la plateforme.
 
 ## Article 1 — Présentation de la plateforme
 
-NkamVa est une plateforme de mise en relation entre formateurs indépendants et apprenants, éditée et exploitée par **[NOM DE LA SOCIÉTÉ]**, dont le siège social est situé à **[ADRESSE COMPLÈTE]**, Cameroun, immatriculée sous le numéro **[NUMÉRO RCCM/NIU]** (ci-après « NkamVa », « nous » ou « la plateforme »).
+NKAMVA est une plateforme de mise en relation entre formateurs indépendants et apprenants, éditée et exploitée par **[NOM DE LA SOCIÉTÉ]**, dont le siège social est situé à **[ADRESSE COMPLÈTE]**, Cameroun, immatriculée sous le numéro **[NUMÉRO RCCM/NIU]** (ci-après « NKAMVA », « nous » ou « la plateforme »).
 
-NkamVa met en relation des formateurs indépendants et des apprenants, et propose notamment :
+NKAMVA met en relation des formateurs indépendants et des apprenants, et propose notamment :
 
 - Un catalogue de ressources numériques vendues à l'unité (vidéo, PDF, guides, modèles)
 
@@ -28,7 +28,7 @@ Les présentes CGU sont régies par le droit camerounais, et notamment par :
 
 - Tout texte réglementaire applicable en matière de commerce électronique au Cameroun
 
-Pour les utilisateurs résidant dans l'Union Européenne, NkamVa s'engage à respecter les dispositions du Règlement Général sur la Protection des Données (RGPD — Règlement UE 2016/679).
+Pour les utilisateurs résidant dans l'Union Européenne, NKAMVA s'engage à respecter les dispositions du Règlement Général sur la Protection des Données (RGPD — Règlement UE 2016/679).
 
 ## Article 3 — Inscription et comptes utilisateurs
 
@@ -52,19 +52,19 @@ La plateforme distingue quatre profils :
 
 - **Apprenant** : inscription gratuite, sans abonnement plateforme — achète des ressources à l'unité et/ou s'abonne à des communautés
 
-- **Formateur** : accès aux outils de publication de ressources et de gestion de sa communauté — soumis à validation préalable par NkamVa
+- **Formateur** : accès aux outils de publication de ressources et de gestion de sa communauté — soumis à validation préalable par NKAMVA
 
-- **Administrateur** : réservé à l'équipe interne NkamVa
+- **Administrateur** : réservé à l'équipe interne NKAMVA
 
 ### 3.3 Sécurité du compte
 
-L'utilisateur est seul responsable de la confidentialité de ses identifiants de connexion. Tout accès effectué avec ses identifiants est présumé être de son fait. En cas de suspicion d'utilisation frauduleuse, l'utilisateur doit en informer immédiatement NkamVa à l'adresse **[ADRESSE EMAIL DE SUPPORT]**.
+L'utilisateur est seul responsable de la confidentialité de ses identifiants de connexion. Tout accès effectué avec ses identifiants est présumé être de son fait. En cas de suspicion d'utilisation frauduleuse, l'utilisateur doit en informer immédiatement NKAMVA à l'adresse **[ADRESSE EMAIL DE SUPPORT]**.
 
 ## Article 4 — Statut Formateur
 
 ### 4.1 Processus de validation
 
-Toute candidature au statut de formateur est soumise à une procédure de validation par l'équipe NkamVa. NkamVa se réserve le droit d'accepter ou de refuser toute demande sans être tenue de justifier sa décision.
+Toute candidature au statut de formateur est soumise à une procédure de validation par l'équipe NKAMVA. NKAMVA se réserve le droit d'accepter ou de refuser toute demande sans être tenue de justifier sa décision.
 
 ### 4.2 Obligations du formateur
 
@@ -90,13 +90,13 @@ Annuel12 500 FCFA / moisSoit 150 000 FCFA / an, facturé en une fois
 
 Les tarifs sont exprimés en FCFA et sont susceptibles d'être modifiés avec un préavis de 30 jours. Les abonnements se renouvellent automatiquement sauf résiliation.
 
-### 4.4 Commission NkamVa
+### 4.4 Commission NKAMVA
 
-Sur chaque vente de ressource ou abonnement à une communauté réalisée via la plateforme, NkamVa perçoit une commission de **15 %** du montant hors taxes. Le formateur perçoit donc **85 %** du montant net encaissé. Cette commission est prélevée automatiquement avant le versement au formateur.
+Sur chaque vente de ressource ou abonnement à une communauté réalisée via la plateforme, NKAMVA perçoit une commission de **15 %** du montant hors taxes. Le formateur perçoit donc **85 %** du montant net encaissé. Cette commission est prélevée automatiquement avant le versement au formateur.
 
 ### 4.5 Suspension et résiliation du statut formateur
 
-NkamVa peut suspendre ou révoquer le statut de formateur en cas de :
+NKAMVA peut suspendre ou révoquer le statut de formateur en cas de :
 
 - Violation des présentes CGU
 
@@ -114,7 +114,7 @@ En cas de suspension, les ressources déjà achetées par les apprenants restent
 
 ### 5.1 Processus d'achat
 
-Les achats sur NkamVa sont traités par mobile money (Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa) ou par carte bancaire via **Stripe**. Toute transaction donne lieu à l'émission d'un reçu électronique envoyé à l'adresse e-mail de l'acheteur.
+Les achats sur NKAMVA sont traités par mobile money (Orange Money, MTN MoMo, Wave, Airtel Money, M-Pesa) ou par carte bancaire via **Stripe**. Toute transaction donne lieu à l'émission d'un reçu électronique envoyé à l'adresse e-mail de l'acheteur.
 
 ### 5.2 Types d'achats
 
@@ -136,17 +136,17 @@ Les demandes de remboursement doivent être adressées à **[ADRESSE EMAIL SUPPO
 
 ### 5.4 Défaut de paiement
 
-En cas d'échec de paiement pour un abonnement récurrent, NkamVa tentera un nouveau prélèvement dans les 3 jours suivants. Après 2 tentatives infructueuses, l'accès concerné sera suspendu jusqu'à régularisation.
+En cas d'échec de paiement pour un abonnement récurrent, NKAMVA tentera un nouveau prélèvement dans les 3 jours suivants. Après 2 tentatives infructueuses, l'accès concerné sera suspendu jusqu'à régularisation.
 
 ## Article 6 — Propriété intellectuelle
 
 ### 6.1 Contenu de la plateforme
 
-La plateforme NkamVa, son design, son code source, ses logos, ses marques et l'ensemble de ses éléments constitutifs sont la propriété exclusive de NkamVa et sont protégés par les lois camerounaises et internationales relatives à la propriété intellectuelle. Toute reproduction non autorisée est formellement interdite.
+La plateforme NKAMVA, son design, son code source, ses logos, ses marques et l'ensemble de ses éléments constitutifs sont la propriété exclusive de NKAMVA et sont protégés par les lois camerounaises et internationales relatives à la propriété intellectuelle. Toute reproduction non autorisée est formellement interdite.
 
 ### 6.2 Contenu des formateurs
 
-Le formateur demeure propriétaire des ressources qu'il publie sur la plateforme. En publiant du contenu, il accorde à NkamVa une licence mondiale, non exclusive et gratuite, pour héberger, afficher et distribuer ce contenu dans le cadre du fonctionnement de la plateforme et à des fins promotionnelles non commerciales.
+Le formateur demeure propriétaire des ressources qu'il publie sur la plateforme. En publiant du contenu, il accorde à NKAMVA une licence mondiale, non exclusive et gratuite, pour héberger, afficher et distribuer ce contenu dans le cadre du fonctionnement de la plateforme et à des fins promotionnelles non commerciales.
 
 ### 6.3 Licence accordée aux apprenants
 
@@ -174,33 +174,33 @@ Tout manquement peut entraîner la suppression du contenu concerné et/ou la sus
 
 ## Article 8 — Modération et signalements
 
-NkamVa met à disposition un mécanisme de signalement permettant à tout utilisateur de signaler un contenu ou comportement inapproprié. Chaque signalement est examiné par l'équipe de modération dans les **72 heures ouvrées** suivant sa réception.
+NKAMVA met à disposition un mécanisme de signalement permettant à tout utilisateur de signaler un contenu ou comportement inapproprié. Chaque signalement est examiné par l'équipe de modération dans les **72 heures ouvrées** suivant sa réception.
 
-À la suite d'un signalement, NkamVa peut prendre les mesures suivantes selon la gravité du manquement : avertissement, suppression du contenu incriminé, suspension temporaire (7 à 90 jours), suspension définitive, ou transmission aux autorités compétentes en cas d'infraction pénale.
+À la suite d'un signalement, NKAMVA peut prendre les mesures suivantes selon la gravité du manquement : avertissement, suppression du contenu incriminé, suspension temporaire (7 à 90 jours), suspension définitive, ou transmission aux autorités compétentes en cas d'infraction pénale.
 
 ## Article 9 — Communautés privées
 
-Chaque formateur anime une seule communauté privée. L'accès nécessite une souscription payante, au tarif fixé librement par le formateur. Le formateur, en tant qu'animateur de sa communauté, est responsable du respect des présentes CGU au sein de son espace. NkamVa ne peut être tenu responsable des contenus générés par les membres, mais se réserve le droit d'intervenir en cas de signalement.
+Chaque formateur anime une seule communauté privée. L'accès nécessite une souscription payante, au tarif fixé librement par le formateur. Le formateur, en tant qu'animateur de sa communauté, est responsable du respect des présentes CGU au sein de son espace. NKAMVA ne peut être tenu responsable des contenus générés par les membres, mais se réserve le droit d'intervenir en cas de signalement.
 
 En cas de fermeture d'une communauté, les membres seront prévenus avec un préavis minimum de **30 jours** et les abonnements restants seront remboursés au prorata temporis.
 
 ## Article 10 — Disponibilité et limitation de responsabilité
 
-NkamVa s'efforce d'assurer la disponibilité de la plateforme 24h/24 et 7j/7, sans garantir un niveau de service particulier. NkamVa agit en tant qu'intermédiaire technique entre formateurs et apprenants ; la qualité des ressources et communautés relève de la seule responsabilité des formateurs. Dans les limites permises par la loi, NkamVa décline toute responsabilité pour les dommages indirects et sa responsabilité, si elle venait à être engagée, serait limitée aux sommes perçues par NkamVa auprès de l'utilisateur concerné au cours des 12 derniers mois.
+NKAMVA s'efforce d'assurer la disponibilité de la plateforme 24h/24 et 7j/7, sans garantir un niveau de service particulier. NKAMVA agit en tant qu'intermédiaire technique entre formateurs et apprenants ; la qualité des ressources et communautés relève de la seule responsabilité des formateurs. Dans les limites permises par la loi, NKAMVA décline toute responsabilité pour les dommages indirects et sa responsabilité, si elle venait à être engagée, serait limitée aux sommes perçues par NKAMVA auprès de l'utilisateur concerné au cours des 12 derniers mois.
 
 ## Article 11 — Résiliation du compte
 
-Tout utilisateur peut clôturer son compte à tout moment depuis les paramètres de son profil. La clôture entraîne la suppression des données personnelles dans un délai de 30 jours, à l'exception des données conservées pour des obligations légales. La clôture du compte ne donne pas droit à un remboursement des sommes déjà réglées. NkamVa peut suspendre ou supprimer un compte sans préavis en cas de violation grave des présentes CGU.
+Tout utilisateur peut clôturer son compte à tout moment depuis les paramètres de son profil. La clôture entraîne la suppression des données personnelles dans un délai de 30 jours, à l'exception des données conservées pour des obligations légales. La clôture du compte ne donne pas droit à un remboursement des sommes déjà réglées. NKAMVA peut suspendre ou supprimer un compte sans préavis en cas de violation grave des présentes CGU.
 
 ## Article 12 — Modification des CGU et règlement des litiges
 
-NkamVa se réserve le droit de modifier les présentes CGU à tout moment, avec un préavis minimum de 15 jours avant l'entrée en vigueur des nouvelles conditions. La poursuite de l'utilisation de la plateforme après ce délai vaut acceptation des nouvelles CGU.
+NKAMVA se réserve le droit de modifier les présentes CGU à tout moment, avec un préavis minimum de 15 jours avant l'entrée en vigueur des nouvelles conditions. La poursuite de l'utilisation de la plateforme après ce délai vaut acceptation des nouvelles CGU.
 
 En cas de litige, les parties s'engagent à rechercher une solution amiable dans un délai de 30 jours. À défaut, les litiges seront portés devant les juridictions compétentes du ressort de **Douala, Cameroun**, sauf dispositions légales contraires applicables aux consommateurs résidant dans leur pays.
 
 ### Contact
 
-Pour toute question relative aux présentes CGU, vous pouvez contacter NkamVa à :
+Pour toute question relative aux présentes CGU, vous pouvez contacter NKAMVA à :
 
 Email : **[ADRESSE EMAIL SUPPORT]**
 Adresse : **[ADRESSE POSTALE COMPLÈTE]**, Cameroun

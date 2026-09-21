@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Mentions légales",
-  description: "Éditeur, hébergeur et contacts de la plateforme NkamVa.",
+  description: "Éditeur, hébergeur et contacts de la plateforme NKAMVA.",
 };
 
 export default async function MentionsPage() {
@@ -24,7 +24,7 @@ export default async function MentionsPage() {
     >
       <h2>Éditeur</h2>
       <p>
-        NkamVa, plateforme de diffusion de ressources pédagogiques.
+        NKAMVA, plateforme de diffusion de ressources pédagogiques.
         <br />
         Raison sociale : <ToProvide>dénomination et forme juridique</ToProvide>
         <br />
@@ -66,7 +66,7 @@ export default async function MentionsPage() {
 
       <h2>Propriété intellectuelle</h2>
       <p>
-        La marque NkamVa, le logo et l&apos;interface du site sont la propriété de
+        La marque NKAMVA, le logo et l&apos;interface du site sont la propriété de
         l&apos;éditeur. Les ressources pédagogiques diffusées restent la propriété de leurs
         auteurs : leur achat confère un droit d&apos;accès personnel, non une cession de droits.
         Leur reproduction ou leur rediffusion est interdite sans autorisation de l&apos;auteur.

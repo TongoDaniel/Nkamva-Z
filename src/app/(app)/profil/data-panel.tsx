@@ -85,7 +85,7 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
         title="Vos données personnelles"
         hint={
           <Hint label="Ce que vous pouvez récupérer">
-            Vous pouvez récupérer à tout moment une copie complète des données que NkamVa
+            Vous pouvez récupérer à tout moment une copie complète des données que NKAMVA
             détient sur vous.
           </Hint>
         }

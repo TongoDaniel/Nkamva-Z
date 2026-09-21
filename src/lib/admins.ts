@@ -103,7 +103,7 @@ export async function createAdmin(input: CreateAdminInput): Promise<AdminAccount
     title: 'Un accès administrateur vous a été ouvert',
     paragraphs: [
       'Bonjour,',
-      `Un compte ${ADMIN_ROLE_LABELS[input.adminRole]} vous a été ouvert sur NkamVa.`,
+      `Un compte ${ADMIN_ROLE_LABELS[input.adminRole]} vous a été ouvert sur NKAMVA.`,
       'Pour l’activer, choisissez votre mot de passe depuis « Mot de passe oublié », avec cette adresse e-mail. Vous recevrez un code à saisir avant de le définir.',
     ],
     cta: { label: 'Choisir mon mot de passe', url: absoluteUrl('/auth/mot-de-passe-oublie') },
@@ -112,7 +112,7 @@ export async function createAdmin(input: CreateAdminInput): Promise<AdminAccount
   })
   await sendEmail({
     to: email,
-    subject: 'NkamVa — votre accès administrateur',
+    subject: 'NKAMVA — votre accès administrateur',
     html, text,
     tags: ['admin-invitation'],
   })

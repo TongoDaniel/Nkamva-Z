@@ -331,7 +331,7 @@ export async function initiateMembershipPayment(
       // Même libellé que l'ouverture nominale plus bas : c'est ce que
       // l'apprenant lit sur son téléphone, il ne doit pas changer selon le
       // chemin emprunté.
-      label: 'Adhesion NkamVa',
+      label: 'Adhesion NKAMVA',
       learnerId,
       countryCode: payerCountry?.countryCode ?? null,
       payer,
@@ -475,7 +475,7 @@ export async function initiateMembershipPayment(
       subject: purchaseSubject(purchase.id),
       provider,
       amountFcfa,
-      label: 'Adhesion NkamVa',
+      label: 'Adhesion NKAMVA',
       learnerId,
       countryCode: learner?.countryCode ?? null,
       payer,

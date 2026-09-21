@@ -1,7 +1,7 @@
 {
   "tache": "Genere une image a partir de ce brief. Respecte le format, la composition et les interdits : ce sont des contraintes techniques, pas des preferences. N'ecris aucun texte dans l'image.",
   "fichier_a_produire": "erreur.webp",
-  "destination": "public/auth/erreur.webp — page /auth/erreur du site NkamVa",
+  "destination": "public/auth/erreur.webp — page /auth/erreur du site NKAMVA",
   "remplace": "un fichier de depannage, copie de la photo d'une autre page",
   "format": {
     "orientation": "portrait",
@@ -25,7 +25,7 @@
   },
   "texte_qui_sera_superpose": {
     "citation": "Un souci d'acces ? On le regle vite.",
-    "signature": "Support NkamVa",
+    "signature": "Support NKAMVA",
     "rendu": "blanc, en bas de l'image, sur un degrade noir remontant",
     "consequence": "Ne pas ecrire ce texte dans l'image. Il est ajoute par le site."
   },

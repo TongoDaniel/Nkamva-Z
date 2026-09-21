@@ -407,12 +407,12 @@ export async function approveApplication(applicationId: string, input: ApproveIn
       await notify(application.userId, {
         type: 'TRAINER_APPLICATION_APPROVED',
         title: 'Votre candidature est acceptée',
-        body: 'Vous pouvez désormais publier des ressources sur NkamVa.',
+        body: 'Vous pouvez désormais publier des ressources sur NKAMVA.',
         link: '/formateur',
       })
       await sendEmail({
         to: application.user.email,
-        subject: 'NkamVa — Votre candidature formateur est acceptée',
+        subject: 'NKAMVA — Votre candidature formateur est acceptée',
         ...renderSimpleEmail({
           title: 'Votre candidature est acceptée',
           paragraphs: [
@@ -439,7 +439,7 @@ export async function approveApplication(applicationId: string, input: ApproveIn
     })
     await sendEmail({
       to: application.user.email,
-      subject: 'NkamVa — Votre candidature est acceptée, une dernière étape',
+      subject: 'NKAMVA — Votre candidature est acceptée, une dernière étape',
       ...renderSimpleEmail({
         title: 'Votre candidature est acceptée',
         paragraphs: [
@@ -557,7 +557,7 @@ export async function rejectDocuments(applicationId: string, input: RejectDocume
     })
     await sendEmail({
       to: application.user.email,
-      subject: 'NkamVa — Des pièces de votre candidature doivent être renvoyées',
+      subject: 'NKAMVA — Des pièces de votre candidature doivent être renvoyées',
       ...renderSimpleEmail({
         title: 'Des pièces sont à renvoyer',
         paragraphs: [
@@ -625,7 +625,7 @@ export async function rejectApplicationFinal(applicationId: string, input: Rejec
     })
     await sendEmail({
       to: application.user.email,
-      subject: 'NkamVa — Votre candidature formateur n\'a pas été retenue',
+      subject: 'NKAMVA — Votre candidature formateur n\'a pas été retenue',
       ...renderSimpleEmail({
         title: 'Suite donnée à votre candidature',
         paragraphs: ['Après examen, votre candidature n\'a pas été retenue.', `Motif : ${input.reason}`],

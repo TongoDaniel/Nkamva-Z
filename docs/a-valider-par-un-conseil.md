@@ -78,7 +78,7 @@ Les deux textes divergent sur des points contractuels :
 | Assiette de la commission | 15 % du montant **hors taxes** | 15 % du **prix de vente** (annoncé TTC) |
 | Préavis de changement tarifaire | 30 jours | 60 jours — `lib/notices.ts:45` |
 | Voie de remboursement | e-mail au support | litige en self-service |
-| Licence de diffusion accordée à NkamVa | présente (art. 6.2 et 6.3) | **absente** |
+| Licence de diffusion accordée à NKAMVA | présente (art. 6.2 et 6.3) | **absente** |
 | Abonnements communauté et formateur | encadrés (art. 4.3, 4.4, 7) | **non mentionnés** |
 
 **À demander à JUR :** lequel fait foi ? Si le markdown est le texte négocié, ce
@@ -140,7 +140,7 @@ consentement d'un mineur au traitement de ses données, et une déclaration
 suffit-elle ? Le seuil de 16 ans a-t-il été choisi pour une raison, ou repris du
 RGPD ?
 
-### B.6 — Aucune licence n'est accordée à NkamVa dans les CGU servies
+### B.6 — Aucune licence n'est accordée à NKAMVA dans les CGU servies
 
 L'article 5 fait garantir au formateur qu'il détient les droits, mais ne lui fait
 accorder aucun droit d'héberger, de diffuser ni de promouvoir. La plateforme

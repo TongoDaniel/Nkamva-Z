@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Bouton NkamVa — port de `.btn` / `.btn-p|dark|o|t` / `.btn-sm|lg` de la maquette.
+ * Bouton NKAMVA — port de `.btn` / `.btn-p|dark|o|t` / `.btn-sm|lg` de la maquette.
  * `asChild` permet de rendre un `<Link>` avec l'apparence d'un bouton.
  */
 export const btnVariants = cva(

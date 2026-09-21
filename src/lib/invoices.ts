@@ -132,7 +132,7 @@ export async function issueInvoiceForPurchase(purchaseId: string) {
     ? `Ressource — ${purchase.course.title}`
     : purchase.community
       ? `Adhésion — ${purchase.community.name}`
-      : 'Achat NkamVa'
+      : 'Achat NKAMVA'
 
   return issueInvoice({
     kind: 'PURCHASE',
@@ -162,7 +162,7 @@ export async function issueInvoiceForSubscriptionCharge(chargeId: string) {
   return issueInvoice({
     kind: 'SUBSCRIPTION',
     userId: charge.trainerProfile.userId,
-    label: `Abonnement NkamVa — ${period}${storage}`,
+    label: `Abonnement NKAMVA — ${period}${storage}`,
     amountFcfa: charge.amountDueFcfa,
     subscriptionChargeId: charge.id,
     issuedAt: charge.periodStart,
@@ -273,7 +273,7 @@ export async function renderInvoicePdf(invoiceId: string, userId: string): Promi
     })
   }
 
-  text('NkamVa', { size: 22, font: bold, color: navy })
+  text('NKAMVA', { size: 22, font: bold, color: navy })
   y -= 18
   text('Plateforme de formation', { size: 10, color: ink2 })
 
@@ -326,7 +326,7 @@ export async function renderInvoicePdf(invoiceId: string, userId: string): Promi
     size: 9, color: ink2,
   })
   y -= 13
-  text('Document généré par NkamVa. Sa conservation vaut justificatif de paiement.', {
+  text('Document généré par NKAMVA. Sa conservation vaut justificatif de paiement.', {
     size: 9, color: ink2,
   })
 

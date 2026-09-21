@@ -4,7 +4,7 @@ import { ResetForm } from "./reset-form";
 
 export const metadata: Metadata = {
   title: "Nouveau mot de passe",
-  description: "Choisissez un nouveau mot de passe pour votre compte NkamVa.",
+  description: "Choisissez un nouveau mot de passe pour votre compte NKAMVA.",
 };
 
 export default function NouveauMotDePassePage() {
@@ -15,7 +15,7 @@ export default function NouveauMotDePassePage() {
           photo="/auth/nouveau-mot-de-passe.webp"
           focus="25%"
           quote="Sécurisez votre compte en quelques secondes."
-          author="Sécurité NkamVa"
+          author="Sécurité NKAMVA"
         />
       }
     >

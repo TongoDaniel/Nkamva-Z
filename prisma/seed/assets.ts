@@ -43,7 +43,7 @@ export function buildPdf(title: string, subtitle: string): Buffer {
   const stream =
     `BT /F1 20 Tf 62 720 Td (${escape(title)}) Tj ET\n` +
     `BT /F1 11 Tf 62 694 Td (${escape(subtitle)}) Tj ET\n` +
-    `BT /F1 9 Tf 62 60 Td (NkamVa — document de demonstration) Tj ET\n`
+    `BT /F1 9 Tf 62 60 Td (NKAMVA — document de demonstration) Tj ET\n`
 
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',

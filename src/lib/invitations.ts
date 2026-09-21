@@ -293,7 +293,7 @@ export async function issueNominativeInvitation(params: IssueNominativeParams): 
       to: email, community, grant: params.grant, giftMonths, url, expiresAt,
       trainerName: community.trainerName,
     })
-    // L'invité qui a déjà un compte le voit aussi dans NkamVa : l'e-mail peut
+    // L'invité qui a déjà un compte le voit aussi dans NKAMVA : l'e-mail peut
     // finir en indésirables, la notification non (arbitrage 85).
     if (invitee && !invitee.deletedAt) {
       await notify(invitee.id, {
@@ -613,7 +613,7 @@ export interface InvitationListItem {
 /**
  * La liste du formateur. Elle porte un statut d'**invitation**, jamais un statut
  * de personne : elle ne dit pas si l'adresse invitée correspond à un compte
- * NkamVa, ce qui offrirait une sonde d'énumération (arbitrage 86).
+ * NKAMVA, ce qui offrirait une sonde d'énumération (arbitrage 86).
  */
 export async function listCommunityInvitations(
   communityId: string,
@@ -774,7 +774,7 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
         link: lienMembre,
       },
       {
-        subject: `NkamVa — bienvenue dans ${invitation.community.name}`,
+        subject: `NKAMVA — bienvenue dans ${invitation.community.name}`,
         title: `Bienvenue dans ${invitation.community.name}`,
         paragraphs: [
           'Bonjour,',
@@ -803,7 +803,7 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
         link: lien,
       },
       {
-        subject: `NkamVa — votre invitation à ${invitation.community.name} a été acceptée`,
+        subject: `NKAMVA — votre invitation à ${invitation.community.name} a été acceptée`,
         title: 'Votre invitation a été acceptée',
         paragraphs: ['Bonjour,', qui, `Communauté : ${invitation.community.name}.`],
         cta: { label: 'Voir mes invitations', url: absoluteUrl(lien) },
@@ -920,7 +920,7 @@ export async function consumeInvitationForPurchase(
 
 /**
  * À la création d'un compte, les invitations nominatives en attente adressées à
- * cette adresse deviennent visibles dans NkamVa. C'est une **lecture, pas une
+ * cette adresse deviennent visibles dans NKAMVA. C'est une **lecture, pas une
  * acceptation** : adhérer, même gratuitement, reste un geste de l'invité.
  *
  * Sans cela, l'invité qui ferme son onglet au mauvais moment n'a plus qu'un
@@ -995,7 +995,7 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
 
   const { html, text } = renderSimpleEmail({
     title: `${who} vous invite dans ${params.community.name}`,
-    paragraphs: ['Bonjour,', `${who} vous invite à rejoindre sa communauté ${params.community.name} sur NkamVa.`, offer],
+    paragraphs: ['Bonjour,', `${who} vous invite à rejoindre sa communauté ${params.community.name} sur NKAMVA.`, offer],
     cta: { label: 'Voir l\'invitation', url: params.url },
     footnote:
       `Cette invitation expire le ${deadline}. Vous recevez cet e-mail parce que ${who} a saisi votre adresse : `
@@ -1004,7 +1004,7 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
 
   await sendEmail({
     to: params.to,
-    subject: `${who} vous invite dans ${params.community.name} sur NkamVa`,
+    subject: `${who} vous invite dans ${params.community.name} sur NKAMVA`,
     html,
     text,
     tags: ['invitation'],

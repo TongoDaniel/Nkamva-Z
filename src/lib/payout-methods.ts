@@ -402,7 +402,7 @@ export async function createPayoutMethod(
       })
       await sendEmail({
         to: previous.trainerEmailSnapshot,
-        subject: 'NkamVa — Votre moyen de paiement a été modifié',
+        subject: 'NKAMVA — Votre moyen de paiement a été modifié',
         // Le lien mène au formulaire de contact : c'est le seul canal de
         // signalement qui existe. Les deux URL précédentes — `/formateur/paiements`
         // et `/support/signaler` — n'ont jamais correspondu à une page, dans un
@@ -527,7 +527,7 @@ async function issueMicroDeposits(payoutMethodId: string, input: VerifyPayoutMet
       where: { id: payoutMethodId, updatedAt: new Date(input.expectedUpdatedAt), verificationStatus: 'PENDING_REVIEW' },
       data: {
         verificationMethod: 'MICRO_DEPOSIT',
-        // Montants stockés en clair côté NkamVa : aucun virement bancaire réel
+        // Montants stockés en clair côté NKAMVA : aucun virement bancaire réel
         // n'est déclenché (provider bancaire non arbitré, cf. décision 22c).
         microDepositAmount1: amount1,
         microDepositAmount2: amount2,

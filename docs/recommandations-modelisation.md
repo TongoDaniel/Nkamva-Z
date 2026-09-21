@@ -1,4 +1,4 @@
-# Recommandations de modélisation — NkamVa
+# Recommandations de modélisation — NKAMVA
 
 > **Ce document n'a pas la même autorité que `decisions-nkamva.md`.** Celui-ci recense
 > des arbitrages **tranchés** ; celui-ci propose. Rien ici n'est à implémenter tel quel

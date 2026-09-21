@@ -16,7 +16,7 @@ export default function VerifierCodePage() {
           photo="/auth/verifier-code.webp"
           focus="36%"
           quote="La double vérification protège votre compte à chaque connexion."
-          author="Sécurité NkamVa"
+          author="Sécurité NKAMVA"
         />
       }
     >

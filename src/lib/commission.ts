@@ -19,7 +19,7 @@ function percent(rate: number) {
   return `${Math.round(rate * 100)} %`
 }
 
-/** « 15 % » — part retenue par NkamVa. */
+/** « 15 % » — part retenue par NKAMVA. */
 export const COMMISSION_LABEL = percent(PLATFORM_COMMISSION_RATE)
 /** « 85 % » — part reversée au formateur. */
 export const TRAINER_SHARE_LABEL = percent(TRAINER_SHARE_RATE)

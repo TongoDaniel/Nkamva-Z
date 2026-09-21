@@ -9,21 +9,21 @@ import {
 
 export const metadata: Metadata = {
   title: "Conditions d'utilisation",
-  description: "Les règles d'usage de NkamVa : achats, accès, remboursements, publication.",
+  description: "Les règles d'usage de NKAMVA : achats, accès, remboursements, publication.",
 };
 
 export default function ConditionsPage() {
   return (
     <LegalPage
       title="Conditions d'utilisation"
-      lead="Ce que vous pouvez attendre de NkamVa, et ce que NkamVa attend de vous."
+      lead="Ce que vous pouvez attendre de NKAMVA, et ce que NKAMVA attend de vous."
       updatedAt={LEGAL_TERMS_UPDATED_AT}
     >
       <h2>1. Objet</h2>
       <p>
-        NkamVa est une place de marché de ressources pédagogiques. Des formateurs y publient des
+        NKAMVA est une place de marché de ressources pédagogiques. Des formateurs y publient des
         cours vidéo, guides, kits et modèles ; des apprenants les achètent à l&apos;unité, en
-        FCFA. NkamVa n&apos;est pas l&apos;auteur des ressources : elle en assure la distribution,
+        FCFA. NKAMVA n&apos;est pas l&apos;auteur des ressources : elle en assure la distribution,
         l&apos;encaissement et le service.
       </p>
 
@@ -81,7 +81,7 @@ export default function ConditionsPage() {
       <p>
         {/* Valeurs contractuelles : elles ne suivent pas la configuration, elles
             se modifient avec le document. Voir `lib/legal-terms`. */}
-        NkamVa retient {LEGAL_COMMISSION_LABEL} du prix de vente ; {LEGAL_TRAINER_SHARE_LABEL}{" "}
+        NKAMVA retient {LEGAL_COMMISSION_LABEL} du prix de vente ; {LEGAL_TRAINER_SHARE_LABEL}{" "}
         reviennent au formateur, crédités à chaque vente confirmée. En cas de remboursement, la
         part correspondante est débitée de son solde.
       </p>
@@ -104,7 +104,7 @@ export default function ConditionsPage() {
 
       <h2>8. Responsabilité</h2>
       <p>
-        NkamVa met en œuvre les moyens raisonnables pour assurer la disponibilité du service et
+        NKAMVA met en œuvre les moyens raisonnables pour assurer la disponibilité du service et
         l&apos;accès aux ressources achetées. Elle ne garantit pas que le contenu d&apos;une
         ressource produira un résultat déterminé.
       </p>

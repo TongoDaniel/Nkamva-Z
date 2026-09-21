@@ -372,7 +372,7 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
             link: '/formateur/portefeuille',
           },
           {
-            subject: `NkamVa — ${title}`,
+            subject: `NKAMVA — ${title}`,
             title,
             paragraphs: [current, next],
             cta: { label: 'Voir mon abonnement', url: absoluteUrl('/formateur/portefeuille') },
@@ -927,7 +927,7 @@ export async function endCanceledSubscriptions(now = new Date()): Promise<{
           await notify(p.learnerId, {
             type: 'LIVE_SESSION_CANCELED',
             title: `« ${live.title} » est annulé`,
-            body: "L'animateur a mis fin à son activité sur NkamVa. La session n'aura pas lieu.",
+            body: "L'animateur a mis fin à son activité sur NKAMVA. La session n'aura pas lieu.",
             link: '/mes-lives',
           })
         }

@@ -477,7 +477,7 @@ async function notifyDisputeOpened(
   })
   await sendEmail({
     to: params.trainerEmail,
-    subject: 'NkamVa — Litige ouvert sur une de vos ventes',
+    subject: 'NKAMVA — Litige ouvert sur une de vos ventes',
     // `itemTitle` est un titre de ressource saisi par un formateur : il passe
     // par le gabarit, qui l'échappe, et n'est jamais concaténé dans du balisage.
     ...renderSimpleEmail({
@@ -636,7 +636,7 @@ export async function askLearner(disputeId: string, input: AskLearnerInput) {
     })
     await sendEmail({
       to: dispute.learner.email,
-      subject: 'NkamVa — Le support attend votre réponse',
+      subject: 'NKAMVA — Le support attend votre réponse',
       ...renderSimpleEmail({
         title: 'Le support attend votre réponse',
         paragraphs: [
@@ -869,7 +869,7 @@ async function notifyTrainerResolution(disputeId: string) {
   })
   await sendEmail({
     to: dispute.trainerProfile.user.email,
-    subject: refunded ? 'NkamVa — Remboursement accordé sur une de vos ventes' : 'NkamVa — Litige clos sans remboursement',
+    subject: refunded ? 'NKAMVA — Remboursement accordé sur une de vos ventes' : 'NKAMVA — Litige clos sans remboursement',
     ...renderSimpleEmail({
       title: refunded ? 'Remboursement accordé sur une de vos ventes' : 'Litige clos sans remboursement',
       paragraphs: [

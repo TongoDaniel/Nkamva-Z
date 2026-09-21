@@ -384,7 +384,7 @@ export function TrainerSignupWizard({
   const subtitle = [
     accountPhase === "otp"
       ? "Saisissez le code que nous venons de vous envoyer."
-      : "Créez votre compte formateur sur NkamVa.",
+      : "Créez votre compte formateur sur NKAMVA.",
     "Parlez-nous de votre expertise.",
     "Trois pièces, visibles de la seule équipe de modération.",
     "Choisissez la formule qui vous convient.",

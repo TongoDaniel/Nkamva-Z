@@ -5,7 +5,7 @@ import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
   title: "Créer un compte",
-  description: "Rejoignez la communauté des apprenants NkamVa à travers l'Afrique.",
+  description: "Rejoignez la communauté des apprenants NKAMVA à travers l'Afrique.",
 };
 
 export default function InscriptionPage() {
@@ -15,7 +15,7 @@ export default function InscriptionPage() {
         <AuthIllustration
           photo="/auth/inscription-formatrice.webp"
           focus="10%"
-          quote="NkamVa a structuré ma communauté de 2 000 étudiants."
+          quote="NKAMVA a structuré ma communauté de 2 000 étudiants."
           author="Aissatou Diallo · Formatrice"
         />
       }

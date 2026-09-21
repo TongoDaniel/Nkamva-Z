@@ -298,7 +298,7 @@ export function ActivationPanel({
         ) : (
           <>
             Vous allez être dirigé vers Stripe pour régler par carte. Votre numéro n&apos;est
-            jamais saisi sur NkamVa, et votre espace s&apos;ouvre à la confirmation du paiement.
+            jamais saisi sur NKAMVA, et votre espace s&apos;ouvre à la confirmation du paiement.
           </>
         )}
       </p>

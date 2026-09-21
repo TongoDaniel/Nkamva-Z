@@ -362,7 +362,7 @@ export async function dispatchPayout(payoutId: string): Promise<void> {
       provider: provider.provider,
       amount: converted.amount,
       currency: converted.currency,
-      customerMessage: 'Retrait NkamVa',
+      customerMessage: 'Retrait NKAMVA',
       clientReferenceId: payoutId,
     })
 

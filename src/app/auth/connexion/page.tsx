@@ -5,7 +5,7 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
   title: "Connexion",
-  description: "Connectez-vous pour reprendre votre apprentissage sur NkamVa.",
+  description: "Connectez-vous pour reprendre votre apprentissage sur NKAMVA.",
 };
 
 export default function ConnexionPage() {
@@ -16,7 +16,7 @@ export default function ConnexionPage() {
           photo="/auth/connexion-apprenante.webp"
           focus="11%"
           quote="Une plateforme simple, rapide et efficace."
-          author="Un apprenant NkamVa"
+          author="Un apprenant NKAMVA"
         />
       }
     >

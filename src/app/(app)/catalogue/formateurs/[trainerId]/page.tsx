@@ -13,10 +13,10 @@ export async function generateMetadata({
   const trainer = await getPublicTrainer(trainerId)
   if (!trainer) return { title: 'Formateur introuvable' }
 
-  const name = trainer.fullName ?? 'Formateur NkamVa'
+  const name = trainer.fullName ?? 'Formateur NKAMVA'
   return {
     title: name,
-    description: trainer.slogan ?? trainer.description ?? `Les ressources de ${name} sur NkamVa.`,
+    description: trainer.slogan ?? trainer.description ?? `Les ressources de ${name} sur NKAMVA.`,
     robots: { index: false },
   }
 }

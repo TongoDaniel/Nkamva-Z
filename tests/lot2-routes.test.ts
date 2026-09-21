@@ -403,7 +403,7 @@ async function withContent(courseId: string, durationSeconds = 3600) {
         resolution: 'FULL_REFUND',
         resolutionNote: 'Chargeback opérateur : remboursement imposé.',
         policyOverride: true,
-        overrideJustification: 'Contestation portée par la banque, hors fenêtre NkamVa.',
+        overrideJustification: 'Contestation portée par la banque, hors fenêtre NKAMVA.',
         expectedUpdatedAt: current.updatedAt.toISOString(),
       }),
       { params: Promise.resolve({ disputeId: dispute.id }) },

@@ -1,5 +1,5 @@
 // ==========================================================================
-// NkamVa — Schéma Prisma complet (PostgreSQL) — Lots 0, 1, 2, 3, 4
+// NKAMVA — Schéma Prisma complet (PostgreSQL) — Lots 0, 1, 2, 3, 4
 // ==========================================================================
 
 generator client {

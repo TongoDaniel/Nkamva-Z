@@ -19,14 +19,14 @@ const instrument = Instrument_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "NkamVa — Prêt à apprendre ou à transmettre ?",
-    template: "%s — NkamVa",
+    default: "NKAMVA — Prêt à apprendre ou à transmettre ?",
+    template: "%s — NKAMVA",
   },
   description:
     "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire — la ressource reste à vous, à vie.",
-  keywords: ["NkamVa", "formation en ligne", "cours", "communauté", "formateurs", "FCFA"],
-  authors: [{ name: "NkamVa" }],
-  applicationName: "NkamVa",
+  keywords: ["NKAMVA", "formation en ligne", "cours", "communauté", "formateurs", "FCFA"],
+  authors: [{ name: "NKAMVA" }],
+  applicationName: "NKAMVA",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "NkamVa",
+    title: "NKAMVA",
     // `default` garde la barre d'état lisible sur le papier chaud ; `black`
     // la rendrait illisible et `black-translucent` ferait passer le contenu
     // sous l'encoche.
@@ -47,15 +47,15 @@ export const metadata: Metadata = {
   // cassent la typographie des fiches formateur.
   formatDetection: { telephone: false },
   openGraph: {
-    title: "NkamVa",
+    title: "NKAMVA",
     description: "Plateforme de formation en ligne : cours, communautés et formateurs.",
-    siteName: "NkamVa",
+    siteName: "NKAMVA",
     type: "website",
     locale: "fr_FR",
   },
   twitter: {
     card: "summary_large_image",
-    title: "NkamVa",
+    title: "NKAMVA",
     description: "Plateforme de formation en ligne : cours, communautés et formateurs.",
   },
 };

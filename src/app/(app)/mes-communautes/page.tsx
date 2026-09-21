@@ -171,7 +171,7 @@ export default async function MesCommunautesPage({
               // ne paraît sur aucune surface publique (arbitrage 81). La marque
               // compte au-dessus, où l'on peut être membre d'une privée.
               visibility: c.visibility,
-              trainerName: c.trainer.fullName ?? "Formateur NkamVa",
+              trainerName: c.trainer.fullName ?? "Formateur NKAMVA",
               trainerAvatarUrl: userAvatarSrc({
                 id: c.trainer.userId,
                 avatarS3Key: c.trainer.avatarS3Key,

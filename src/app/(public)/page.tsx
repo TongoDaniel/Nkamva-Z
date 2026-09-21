@@ -63,7 +63,7 @@ const PRODUCT_ROWS = [
     body: "Chaque guide, cours ou modèle s'achète une fois, au prix fixé par son formateur. Pas d'abonnement caché.",
     cta: { href: "/ressources", label: "Parcourir le catalogue" },
     shot: "/shots/catalogue-new.png",
-    alt: "Écran réel du catalogue NkamVa : recherche, catégories et cartes ressources",
+    alt: "Écran réel du catalogue NKAMVA : recherche, catégories et cartes ressources",
     url: "nkamva.com/ressources",
     reversed: false,
   },
@@ -117,7 +117,7 @@ const faqItems = (markets: PayableMarkets) => [
         </p>
         {markets.countries.length ? (
           <p>
-            NkamVa encaisse aujourd&apos;hui au{" "}
+            NKAMVA encaisse aujourd&apos;hui au{" "}
             {markets.countries.map((c) => c.name).join(", ")}.
           </p>
         ) : null}
@@ -137,7 +137,7 @@ const faqItems = (markets: PayableMarkets) => [
     question: "Quelle commission pour les formateurs ?",
     answer: (
       <p>
-        Vous fixez votre prix en FCFA ; NkamVa prélève une commission de {COMMISSION_LABEL} sur
+        Vous fixez votre prix en FCFA ; NKAMVA prélève une commission de {COMMISSION_LABEL} sur
         chaque vente — le formateur est crédité de {TRAINER_SHARE_LABEL} du prix payé. Le solde est
         disponible en retrait mobile money depuis votre espace formateur.
       </p>

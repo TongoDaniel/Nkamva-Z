@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /**
- * Logo NkamVa — port de `.logo`.
+ * Logo NKAMVA — port de `.logo`.
  * La maquette a abandonné la pastille générée au profit du vrai mot-symbole
  * (`assets/img/mark.svg`, navy + éclair azur), servi depuis `public/mark.svg`.
  */
@@ -36,7 +36,7 @@ export function Logo({
         className="block size-9 shrink-0 rounded-[11px]"
       />
       <span className={cn(compact && "sr-only lg:not-sr-only")}>
-        Nkam<em className="not-italic text-brand">Va</em>
+        NKAM<em className="not-italic text-brand">VA</em>
       </span>
     </Link>
   );

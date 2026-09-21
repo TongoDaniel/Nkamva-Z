@@ -27,7 +27,7 @@ export async function TrainersScreen({ space }: { space: Space }) {
       <PageHead
         crumbs={[{ label: "Accueil", href: routes.home }, { label: "Formateurs" }]}
         title="Nos formateurs"
-        lead="Celles et ceux qui publient sur NkamVa. Chaque profil a été examiné avant sa première publication."
+        lead="Celles et ceux qui publient sur NKAMVA. Chaque profil a été examiné avant sa première publication."
         actions={
           <BtnLink href="/devenir-formateur" variant="o">Devenir formateur</BtnLink>
         }

@@ -236,7 +236,7 @@ export async function buildGdprExport(userId: string) {
     meta: {
       generatedAt: new Date().toISOString(),
       format: 'application/json',
-      scope: "Données personnelles détenues par NkamVa pour ce compte.",
+      scope: "Données personnelles détenues par NKAMVA pour ce compte.",
     },
     compte: user,
     achats: purchases,

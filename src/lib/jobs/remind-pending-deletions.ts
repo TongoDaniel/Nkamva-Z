@@ -41,13 +41,13 @@ function reminderCopy(daysLeft: ReminderMilestone, scheduledAt: Date) {
   return {
     subject:
       daysLeft === 1
-        ? 'Votre compte NkamVa sera supprimé demain'
-        : `Votre compte NkamVa sera supprimé dans ${daysLeft} jours`,
+        ? 'Votre compte NKAMVA sera supprimé demain'
+        : `Votre compte NKAMVA sera supprimé dans ${daysLeft} jours`,
     ...renderSimpleEmail({
       title: `Votre compte sera supprimé ${when}`,
       paragraphs: [
         'Bonjour,',
-        `Vous avez demandé la suppression de votre compte NkamVa. L'effacement aura lieu ${when}, le ${fmtDate(scheduledAt)}.`,
+        `Vous avez demandé la suppression de votre compte NKAMVA. L'effacement aura lieu ${when}, le ${fmtDate(scheduledAt)}.`,
         'Passé cette date, vos ressources achetées ne seront plus accessibles et l\'opération sera irréversible.',
       ],
       cta: { label: 'Annuler la suppression', url: cancelUrl() },

@@ -1,6 +1,6 @@
 Version en vigueur au **1er janvier 2026** — Dernière mise à jour : **12 juillet 2026**
 
-NkamVa accorde une importance capitale à la protection de vos données personnelles. Cette politique vous explique quelles données nous collectons, pourquoi, comment nous les utilisons et quels sont vos droits.
+NKAMVA accorde une importance capitale à la protection de vos données personnelles. Cette politique vous explique quelles données nous collectons, pourquoi, comment nous les utilisons et quels sont vos droits.
 
 ## Article 1 — Identité du responsable de traitement
 
@@ -59,7 +59,7 @@ Plan d'abonnement et date de renouvellementGestion de l'abonnement
 
 ### 3.4 Données de paiement
 
-Les paiements sont traités par nos prestataires **PawaPay** (Mobile Money : MTN Mobile Money, Orange Money, Airtel Money, M-Pesa) et **Stripe** (carte bancaire). NkamVa ne stocke jamais votre numéro de carte bancaire ni votre code secret Mobile Money. Nous conservons uniquement : l'identifiant et le statut de la transaction, le moyen de paiement utilisé, le montant et la facture associée.
+Les paiements sont traités par nos prestataires **PawaPay** (Mobile Money : MTN Mobile Money, Orange Money, Airtel Money, M-Pesa) et **Stripe** (carte bancaire). NKAMVA ne stocke jamais votre numéro de carte bancaire ni votre code secret Mobile Money. Nous conservons uniquement : l'identifiant et le statut de la transaction, le moyen de paiement utilisé, le montant et la facture associée.
 
 Pour les formateurs, les coordonnées de versement fournies pour le retrait des revenus (numéro Mobile Money ou coordonnées bancaires, nom du titulaire) sont conservées afin de traiter les demandes de paiement sortant.
 
@@ -103,7 +103,7 @@ LiveKitSessions live (diffusion des flux audio/vidéo)États-Unis
 Cloudflare (R2)Stockage des fichiers (ressources, images)États-Unis (réseau mondial)
 ContaboHébergement des serveurs et de la base de donnéesAllemagne (Union Européenne)
 
-Chaque sous-traitant est lié à NkamVa par un contrat garantissant la confidentialité et la sécurité des données.
+Chaque sous-traitant est lié à NKAMVA par un contrat garantissant la confidentialité et la sécurité des données.
 
 ### 6.2 Formateurs
 
@@ -111,7 +111,7 @@ Lorsqu'un apprenant achète une ressource ou rejoint une communauté, le formate
 
 ### 6.3 Autorités légales
 
-NkamVa peut être amenée à divulguer vos données aux autorités compétentes sur réquisition judiciaire ou en cas d'infraction pénale avérée, conformément à la législation camerounaise en vigueur.
+NKAMVA peut être amenée à divulguer vos données aux autorités compétentes sur réquisition judiciaire ou en cas d'infraction pénale avérée, conformément à la législation camerounaise en vigueur.
 
 ## Article 7 — Transferts internationaux de données
 
@@ -164,7 +164,7 @@ Pour les utilisateurs UE, vous pouvez également saisir la CNIL (France) ou l'au
 
 ## Article 9 — Sécurité des données
 
-NkamVa met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données contre l'accès non autorisé, la divulgation, l'altération ou la destruction :
+NKAMVA met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données contre l'accès non autorisé, la divulgation, l'altération ou la destruction :
 
 - Chiffrement** : les mots de passe sont hachés de manière irréversible (algorithme bcrypt)
 
@@ -182,7 +182,7 @@ En cas de violation de données présentant un risque élevé pour vos droits et
 
 ## Article 10 — Cookies et technologies similaires
 
-NkamVa n'utilise que des cookies strictement nécessaires au fonctionnement de la plateforme :
+NKAMVA n'utilise que des cookies strictement nécessaires au fonctionnement de la plateforme :
 
 #### Cookies essentiels
 

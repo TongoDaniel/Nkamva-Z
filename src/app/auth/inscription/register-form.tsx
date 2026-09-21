@@ -184,7 +184,7 @@ export function RegisterForm() {
       <p className="mt-2.5 text-center text-[13px] text-ink-2">
         Vous êtes formateur ?{" "}
         <Link href="/devenir-formateur" className="font-bold text-brand hover:text-brand-dark">
-          Postulez pour enseigner sur NkamVa →
+          Postulez pour enseigner sur NKAMVA →
         </Link>
       </p>
     </>

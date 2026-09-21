@@ -196,7 +196,7 @@ async function main() {
   }
   check(
     'les paragraphes des cartes ont disparu',
-    !profil.html.includes('Ce que NkamVa vous envoie en plus') &&
+    !profil.html.includes('Ce que NKAMVA vous envoie en plus') &&
       !profil.html.includes('Un nouveau message dans une de vos communautés') &&
       !profil.html.includes('Un code à six chiffres') &&
       !profil.html.includes('Votre nom apparaît sur votre profil public'),

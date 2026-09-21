@@ -325,7 +325,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         {/*
           Pas de pied de page dans l'espace connecté.
 
-          Il en portait un, copié de la vitrine : logo, « © 2026 NkamVa », lien
+          Il en portait un, copié de la vitrine : logo, « © 2026 NKAMVA », lien
           d'aide. Sur la vitrine il a un rôle — c'est le bas d'un site qu'on
           parcourt. Ici il n'en a aucun : on ne quitte pas ses factures par le
           logo, et une mention de copyright sous ses propres réglages ne

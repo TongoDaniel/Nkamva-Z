@@ -48,7 +48,7 @@ export default function AuthErrorPage({
           photo="/auth/erreur.webp"
           focus="15%"
           quote="Un souci d'accès ? On le règle vite."
-          author="Support NkamVa"
+          author="Support NKAMVA"
         />
       }
     >

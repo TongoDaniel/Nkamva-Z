@@ -1,7 +1,7 @@
 /*
- * Service worker NkamVa.
+ * Service worker NKAMVA.
  *
- * Règle de conduite : NkamVa sert des pages authentifiées. Un service worker
+ * Règle de conduite : NKAMVA sert des pages authentifiées. Un service worker
  * qui met en cache des réponses de navigation ferait fuiter l'écran d'un
  * compte vers le suivant sur un téléphone partagé — et le partage d'appareil
  * est courant sur le marché visé. On ne met donc en cache que ce qui est

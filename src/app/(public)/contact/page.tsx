@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Nous contacter",
-  description: "Écrivez au support NkamVa, le délai de réponse est annoncé sur la page.",
+  description: "Écrivez au support NKAMVA, le délai de réponse est annoncé sur la page.",
 };
 
 export default async function ContactPage() {

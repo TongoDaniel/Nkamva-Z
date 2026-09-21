@@ -76,7 +76,7 @@ membre. Offrir des mois coûte de l'argent au formateur : la décision lui appar
 à diffuser et à mesurer. L'attribution est conservée (`CommunitySubscription.invitationId`)
 pour qu'une récompense puisse s'y greffer plus tard sans reprise de modèle.
 > Raison de l'ajournement : toute contrepartie ouvre la question de son financement — part
-> du formateur ou commission NkamVa —, donc les invariants financiers et le portefeuille.
+> du formateur ou commission NKAMVA —, donc les invariants financiers et le portefeuille.
 > C'est un arbitrage à part entière, pas un détail d'invitation.
 
 **77. L'adhésion offerte ne se reconduit pas** — Au terme des mois offerts, elle se ferme
@@ -358,7 +358,7 @@ Page publique `/invitation/[token]`.
 ### 5.3 bis. L'invité qui n'a pas encore de compte
 
 **C'est le cas majoritaire d'une invitation nominative** : on invite quelqu'un qui n'est pas
-sur NkamVa. Il mérite donc mieux qu'une case de tableau.
+sur NKAMVA. Il mérite donc mieux qu'une case de tableau.
 
 #### Ce que la chaîne d'authentification fait aujourd'hui
 
@@ -439,7 +439,7 @@ adhésion — même offerte — reste un geste de l'invité.
 
 La liste d'invitations affiche un statut d'**invitation** (`PENDING`, `ACCEPTED`, …), jamais
 un statut de **personne**. Le formateur n'apprend pas si l'adresse invitée correspond à un
-compte NkamVa existant : ce serait une sonde d'énumération offerte à qui veut tester des
+compte NKAMVA existant : ce serait une sonde d'énumération offerte à qui veut tester des
 adresses une par une.
 
 ### 5.3 ter. Les cas de bordure, et ce qu'on en fait
@@ -538,7 +538,7 @@ ailleurs, et il est revalidé à chaque usage de toute façon.
 survive à l'inscription, à l'OTP et à la connexion d'un invité qui n'avait pas de compte
 (§ 5.3 bis). Un cookie limité à `/adhesion` serait perdu dès `/auth/inscription` — c'est-à-
 dire précisément dans le cas majoritaire du lien de parrainage, qui vise des gens qui ne
-sont pas encore sur NkamVa.
+sont pas encore sur NKAMVA.
 
 ### 5.6 Communauté privée
 
@@ -643,7 +643,7 @@ invitationStatus()            purgeStaleInvitations()   ← job
 `renderInvitationEmail()` dans `src/lib/email.ts`, sur `renderSimpleEmail` (pas de
 `react-email`, toujours non installé) :
 
-> **Objet** — « <Formateur> vous invite à rejoindre <Communauté> sur NkamVa »
+> **Objet** — « <Formateur> vous invite à rejoindre <Communauté> sur NKAMVA »
 >
 > Corps : qui invite, ce que l'invitation ouvre (« 2 mois offerts » ou le tarif), le
 > bouton, la date d'expiration, et la phrase qui manque partout ailleurs : *« Vous recevez

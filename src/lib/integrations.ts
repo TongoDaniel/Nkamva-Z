@@ -295,7 +295,7 @@ async function probeResend(): Promise<Integration> {
   const startedAt = performance.now()
   const key = process.env.RESEND_API_KEY
   const checks: IntegrationCheck[] = []
-  const from = process.env.EMAIL_FROM || 'NkamVa <noreply@nkamva.com>'
+  const from = process.env.EMAIL_FROM || 'NKAMVA <noreply@nkamva.com>'
   const fromDomain = from.match(/@([^\s>]+)/)?.[1]?.toLowerCase() ?? null
 
   if (!key || key === 'undefined') {
