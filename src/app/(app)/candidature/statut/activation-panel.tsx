@@ -6,10 +6,14 @@ import { CreditCard, ShieldCheck, Smartphone } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
-import { operatorsLabel } from "@/app/(app)/achat/[slug]/checkout-form";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
-import { paymentFailureMessage, phoneNumberError, type PayableProvider } from "@/lib/payment-input";
+import {
+  operatorsLabel,
+  paymentFailureMessage,
+  phoneNumberError,
+  type PayableProvider,
+} from "@/lib/payment-input";
 import type { ActivationState } from "@/lib/trainer-activation";
 import type { PaymentProvider } from "@/lib/dto";
 import { cn } from "@/lib/utils";

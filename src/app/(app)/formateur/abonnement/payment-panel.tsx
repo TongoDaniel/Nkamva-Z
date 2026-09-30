@@ -8,7 +8,12 @@ import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
-import { paymentFailureMessage, phoneNumberError, type PayableProvider } from "@/lib/payment-input";
+import {
+  operatorsLabel,
+  paymentFailureMessage,
+  phoneNumberError,
+  type PayableProvider,
+} from "@/lib/payment-input";
 import type { PaymentProvider } from "@/lib/dto";
 import { cn } from "@/lib/utils";
 
@@ -210,9 +215,9 @@ export function PaymentPanel({
                   <Icon className="size-5 text-ink-2" aria-hidden="true" />
                   <span className="min-w-0">
                     <b className="block text-[14px]">{option.label}</b>
-                    {option.detail ? (
-                      <small className="text-[13px] text-ink-3">{option.detail}</small>
-                    ) : null}
+                    <small className="block text-[13px] text-ink-3">
+                      {option.value === "PAWAPAY" ? operatorsLabel(providers) : option.detail}
+                    </small>
                   </span>
                 </label>
               );

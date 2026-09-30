@@ -6,7 +6,7 @@ import { CreditCard, Library, ShieldCheck, Smartphone, Users } from "lucide-reac
 import { Btn } from "@/components/nk/button";
 import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
-import { phoneNumberError, type PayableProvider } from "@/lib/payment-input";
+import { operatorsLabel, phoneNumberError, type PayableProvider } from "@/lib/payment-input";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa, fmtNumber } from "@/lib/format";
 import type { PaymentProvider } from "@/lib/dto";
@@ -26,9 +26,9 @@ const PROVIDERS: Array<{
   {
     value: "PAWAPAY",
     label: "Mobile money",
-    // Wave n'y figure plus : il n'est pas distribué par PawaPay, et le proposer
-    // ouvrirait un tunnel qui ne peut pas aboutir.
-    detail: "MTN MoMo, Orange Money, Airtel Money, M-Pesa",
+    // Remplacé à l'affichage par les opérateurs réels (`operatorsLabel`) : la
+    // liste écrite en dur annonçait les mêmes marques à tout le monde.
+    detail: "",
     icon: Smartphone,
   },
   {
@@ -156,7 +156,9 @@ export function AdhesionForm({
               <Icon className="size-5 shrink-0 text-brand" aria-hidden="true" />
               <span className="min-w-0">
                 <b className="block text-[15px]">{label}</b>
-                <small className="block text-[13px] text-ink-2">{detail}</small>
+                <small className="block text-[13px] text-ink-2">
+                  {value === "PAWAPAY" ? operatorsLabel(providers) : detail}
+                </small>
               </span>
             </label>
           ))}
