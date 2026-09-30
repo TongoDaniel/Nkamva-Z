@@ -6,6 +6,7 @@ import { Field } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
+import { PAYOUT_METHOD_CARENCE_HOURS } from "@/lib/rules";
 
 const MIN = 1;
 const MAX = 99;
@@ -35,7 +36,7 @@ export function MicroDepositForm({
         amount2: a2,
       }),
     {
-      success: "Compte confirmé. Le délai de sécurité de 72 h démarre.",
+      success: `Compte confirmé. Le délai de sécurité de ${PAYOUT_METHOD_CARENCE_HOURS} h démarre.`,
       error: null,
     },
   );

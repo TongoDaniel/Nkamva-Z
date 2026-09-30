@@ -19,10 +19,11 @@
 import type { PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
-import { TRAINER_STORAGE_QUOTA_BYTES, trainerStorageUsedBytes } from './courses'
+import { trainerStorageUsedBytes } from './courses'
+import { STORAGE_TIER_BYTES, TRAINER_STORAGE_QUOTA_BYTES } from './rules'
 
-/** Arbitrage 69 — le pas est tranché : 50 Go. */
-export const STORAGE_TIER_BYTES = 50 * 1024 ** 3
+/** Arbitrage 69 — le pas est tranché : 50 Go. Défini dans `rules.ts`. */
+export { STORAGE_TIER_BYTES }
 
 /** Quota effectif : l'inclus, plus ce qui a été acheté. */
 export function quotaBytesFor(tiers: number): number {

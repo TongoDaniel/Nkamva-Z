@@ -13,10 +13,11 @@ import {
   type UploadProgress,
 } from "@/lib/upload";
 import { cn } from "@/lib/utils";
+import { BUSINESS_DOC_MAX_SIZE_BYTES, sizeLimitLabel } from "@/lib/rules";
 
 /** Miroir de BUSINESS_DOC_ALLOWED_MIMES / BUSINESS_DOC_MAX_SIZE_BYTES. */
 const ALLOWED_MIMES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
-const MAX_BYTES = 10_485_760;
+const MAX_BYTES = BUSINESS_DOC_MAX_SIZE_BYTES;
 
 export type DocumentKind = "BUSINESS_DOC" | "LEGAL_REP_PROOF";
 
@@ -102,7 +103,7 @@ export function DocumentField({
       return;
     }
     if (file.size > MAX_BYTES) {
-      setLocalError("Le document ne doit pas dépasser 10 Mo.");
+      setLocalError(`Le document ne doit pas dépasser ${sizeLimitLabel(MAX_BYTES)}.`);
       return;
     }
     void send.run(file);

@@ -29,7 +29,8 @@ import {
 import { settleAmount } from './fx'
 import type { PrismaTransaction } from './types'
 
-export const PAYOUT_MIN_AMOUNT_FCFA = 10_000
+export { PAYOUT_MIN_AMOUNT_FCFA } from './rules'
+import { PAYOUT_MIN_AMOUNT_FCFA } from './rules'
 
 // Source unique dans `payout-methods.ts` : le même délai servait aux deux
 // familles d'écrans depuis deux constantes distinctes. Il vit désormais en

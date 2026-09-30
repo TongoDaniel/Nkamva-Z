@@ -14,11 +14,18 @@ import {
   type CourseCircuitValue,
 } from './course-rules'
 import type { PrismaTransaction } from './types'
+import {
+  COVER_IMAGE_MAX_BYTES,
+  LARGE_FILE_MAX_BYTES,
+  PDF_MAX_BYTES,
+  STORAGE_TIER_BYTES,
+  TRAINER_STORAGE_QUOTA_BYTES,
+} from './rules'
 
 export const COURSE_UPLOAD_LIMITS = {
-  video: { mimes: ['video/mp4'], maxSize: 2_147_483_648 },
-  pdf: { mimes: ['application/pdf'], maxSize: 10_485_760 },
-  image: { mimes: ['image/png', 'image/jpeg', 'image/webp'], maxSize: 5_242_880 },
+  video: { mimes: ['video/mp4'], maxSize: LARGE_FILE_MAX_BYTES },
+  pdf: { mimes: ['application/pdf'], maxSize: PDF_MAX_BYTES },
+  image: { mimes: ['image/png', 'image/jpeg', 'image/webp'], maxSize: COVER_IMAGE_MAX_BYTES },
   /**
    * Archives — sans elles, `kit`, `notion` et `tableur` (trois des cinq formats
    * proposés à la saisie, tous « téléchargeables ») n'avaient aucun type de
@@ -36,7 +43,7 @@ export const COURSE_UPLOAD_LIMITS = {
       'application/vnd.rar',
       'application/x-rar-compressed',
     ],
-    maxSize: 2_147_483_648,
+    maxSize: LARGE_FILE_MAX_BYTES,
   },
 } as const
 
@@ -85,17 +92,12 @@ const EXT_BY_MIME: Record<string, string> = {
 }
 
 /**
- * Arbitrage 54 — 40 Go inclus par formateur. Le quota porte sur celui qui
- * téléverse, pas sur la communauté ni sur l'apprenant.
+ * Arbitrages 54 et 69 — 40 Go inclus par formateur, puis des tranches de 50 Go.
+ * Le quota porte sur celui qui téléverse, pas sur la communauté ni sur
+ * l'apprenant. Les tailles vivent dans `rules.ts` ; le **prix** d'une tranche,
+ * lui, est administré et vit en base (voir `storage-tiers.ts`).
  */
-export const TRAINER_STORAGE_QUOTA_BYTES = 40 * 1024 ** 3
-
-/**
- * Arbitrage 69 — au-delà des 40 Go, le stockage s'achète par tranches de 50 Go.
- * La constante vit ici parce que le quota se calcule ici ; le **prix**, lui,
- * est administré et vit en base (voir `storage-tiers.ts`).
- */
-export const STORAGE_TIER_BYTES = 50 * 1024 ** 3
+export { TRAINER_STORAGE_QUOTA_BYTES, STORAGE_TIER_BYTES } from './rules'
 
 /**
  * Octets déjà occupés par un formateur. Somme les tailles réellement

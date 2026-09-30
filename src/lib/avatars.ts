@@ -34,11 +34,12 @@ import { auditStandalone } from './audit'
 import { canTrainerWrite } from './subscriptions'
 import { trainerStorage } from './courses'
 import { presignUpload, headObject, validateMagicNumber, deleteObject, isS3Configured } from './s3'
+import { AVATAR_MAX_BYTES } from './rules'
 
-/** Miroir côté client dans `avatar-uploader.tsx`. Les deux doivent rester alignés. */
+/** Le plafond vit dans `rules.ts`, que l'écran de dépôt lit aussi. */
 export const AVATAR_LIMITS = {
   mimes: ['image/png', 'image/jpeg', 'image/webp'],
-  maxSize: 2_097_152,
+  maxSize: AVATAR_MAX_BYTES,
 } as const
 
 /**

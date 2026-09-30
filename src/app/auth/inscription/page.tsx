@@ -15,8 +15,11 @@ export default function InscriptionPage() {
         <AuthIllustration
           photo="/auth/inscription-formatrice.webp"
           focus="10%"
-          quote="NKAMVA a structuré ma communauté de 2 000 étudiants."
-          author="Aissatou Diallo · Formatrice"
+          // Un témoignage nominatif chiffré (« 2 000 étudiants ») ne s'affiche
+          // que s'il est réel et consenti. Même registre que les autres écrans
+          // d'accès : une phrase de la plateforme, signée comme telle.
+          quote="Apprenez à l'unité, ou publiez votre savoir et vivez-en."
+          author="NKAMVA"
         />
       }
     >

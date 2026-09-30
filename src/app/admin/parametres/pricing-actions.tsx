@@ -7,6 +7,9 @@ import { Modal } from "@/components/nk/modal";
 import { Field } from "@/components/nk/input";
 import { actionErrorMessage, useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
+import { STORAGE_TIER_BYTES, sizeLimitLabel } from "@/lib/rules";
+
+const TIER_LABEL = sizeLimitLabel(STORAGE_TIER_BYTES);
 
 /** Demain, au format d'un `<input type="date">`. */
 function tomorrow(): string {
@@ -160,7 +163,7 @@ export function PricingActions() {
             className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
           >
             <option value="SUBSCRIPTION">Abonnement formateur</option>
-            <option value="STORAGE_TIER">Palier de stockage (50 Go)</option>
+            <option value="STORAGE_TIER">Palier de stockage ({TIER_LABEL})</option>
           </select>
           <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
             {storageTier
@@ -193,7 +196,7 @@ export function PricingActions() {
           onChange={(e) => setAmount(e.target.value)}
           hint={
             storageTier
-              ? "Prix d'une tranche de 50 Go, à cette cadence. Zéro rend les paliers gratuits."
+              ? `Prix d'une tranche de ${TIER_LABEL}, à cette cadence. Zéro rend les paliers gratuits.`
               : "Zéro vaut gratuité — c'est ainsi qu'on ouvre une période de lancement."
           }
         />
@@ -208,7 +211,7 @@ export function PricingActions() {
           label="Libellé"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder={storageTier ? "Palier 50 Go" : "Gratuité de lancement"}
+          placeholder={storageTier ? `Palier ${TIER_LABEL}` : "Gratuité de lancement"}
         />
       </Modal>
 

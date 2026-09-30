@@ -15,7 +15,7 @@ export default function MotDePasseOubliePage() {
           photo="/auth/mot-de-passe-oublie-apprenant.webp"
           focus="11%"
           quote="On reprend là où on s'était arrêté, en deux minutes."
-          author="Support NKAMVA · disponible 6j/7"
+          author="Support NKAMVA"
         />
       }
     >

@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage, ToProvide } from "../legal-page";
+import {
+  LEGAL_DELETION_GRACE_DAYS,
+  LEGAL_DOCUMENT_RETENTION_DAYS,
+  LEGAL_OTP_TTL_MINUTES,
+  LEGAL_PRIVACY_UPDATED_AT,
+} from "@/lib/legal-terms";
 
 export const metadata: Metadata = {
   title: "Confidentialité",
@@ -13,7 +19,7 @@ export default function ConfidentialitePage() {
     <LegalPage
       title="Confidentialité"
       lead="Quelles données nous détenons, pourquoi, combien de temps, et ce que vous pouvez en faire."
-      updatedAt="1er août 2026"
+      updatedAt={LEGAL_PRIVACY_UPDATED_AT}
     >
       <h2>1. Responsable du traitement</h2>
       <p>
@@ -67,11 +73,11 @@ export default function ConfidentialitePage() {
       <h2>4. Durées de conservation</h2>
       <ul>
         <li>
-          <b>Compte</b> : jusqu&apos;à votre demande de suppression, puis 30 jours de délai de
+          <b>Compte</b> : jusqu&apos;à votre demande de suppression, puis {LEGAL_DELETION_GRACE_DAYS} jours de délai de
           rétractation avant effacement.
         </li>
         <li>
-          <b>Pièces de candidature formateur</b> : 90 jours après la décision, puis effacement du
+          <b>Pièces de candidature formateur</b> : {LEGAL_DOCUMENT_RETENTION_DAYS} jours après la décision, puis effacement du
           fichier et de sa référence.
         </li>
         <li>
@@ -79,7 +85,7 @@ export default function ConfidentialitePage() {
           compte, pour les besoins comptables et fiscaux.
         </li>
         <li>
-          <b>Codes à usage unique</b> : 10 minutes, puis inutilisables.
+          <b>Codes à usage unique</b> : {LEGAL_OTP_TTL_MINUTES} minutes, puis inutilisables.
         </li>
       </ul>
 
@@ -119,7 +125,7 @@ export default function ConfidentialitePage() {
           téléchargé immédiatement.
         </li>
         <li>
-          <b>Supprimer votre compte</b> : effacement programmé à 30 jours, annulable par vous
+          <b>Supprimer votre compte</b> : effacement programmé à {LEGAL_DELETION_GRACE_DAYS} jours, annulable par vous
           jusqu&apos;au dernier jour.
         </li>
       </ul>

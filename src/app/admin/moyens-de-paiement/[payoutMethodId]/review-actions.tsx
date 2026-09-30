@@ -6,6 +6,7 @@ import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
+import { PAYOUT_METHOD_CARENCE_HOURS } from "@/lib/rules";
 
 type Dialog = "manual" | "reject" | "escalation";
 
@@ -155,7 +156,7 @@ export function ReviewActions({
         open={dialog === "manual"}
         onOpenChange={(open) => setDialog(open ? "manual" : null)}
         title="Vérifier ce moyen de paiement ?"
-        description="À ne faire qu'après avoir constaté la correspondance sur une pièce fournie. Le délai de sécurité de 72 h continue de courir : la vérification ne le raccourcit pas."
+        description={`À ne faire qu'après avoir constaté la correspondance sur une pièce fournie. Le délai de sécurité de ${PAYOUT_METHOD_CARENCE_HOURS} h continue de courir : la vérification ne le raccourcit pas.`}
         footer={
           <>
             <Btn
@@ -283,7 +284,7 @@ export function ReviewActions({
                 {
                   value: "FORCE_VERIFY" as const,
                   label: "Vérifier malgré l'écart",
-                  help: "Le compte est jugé légitime. La carence de 72 h redémarre et le compteur de refus est remis à zéro.",
+                  help: `Le compte est jugé légitime. La carence de ${PAYOUT_METHOD_CARENCE_HOURS} h redémarre et le compteur de refus est remis à zéro.`,
                 },
                 {
                   value: "BLOCK" as const,

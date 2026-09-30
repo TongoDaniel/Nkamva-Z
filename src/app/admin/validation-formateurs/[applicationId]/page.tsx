@@ -10,6 +10,7 @@ import { getApplicationDetail } from "@/lib/trainer-application-review";
 import { cadenceOf, MAX_RESUBMISSIONS } from "@/lib/trainer-applications";
 import { quotePrice } from "@/lib/pricing";
 import { fmtDate, fmtNumber } from "@/lib/format";
+import { DOCUMENT_RETENTION_DAYS } from "@/lib/rules";
 import { APPLICATION_STATUS, DOCUMENT_STATUS, DOCUMENT_LABELS } from "../status";
 import { ReviewActions } from "./review-actions";
 
@@ -181,7 +182,7 @@ export default async function ApplicationDetailPage({
               })}
             </ul>
             <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
-              Chaque ouverture est journalisée. Les pièces sont effacées 90 jours après la
+              Chaque ouverture est journalisée. Les pièces sont effacées {DOCUMENT_RETENTION_DAYS} jours après la
               décision.
             </p>
           </AdminCard>

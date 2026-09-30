@@ -18,6 +18,7 @@ import { listMyPayouts, PAYOUT_MIN_AMOUNT_FCFA, IN_FLIGHT_PAYOUT_STATUSES } from
 import { getMySubscription } from "@/lib/subscriptions";
 import { getTrainerStorage } from "@/lib/storage-tiers";
 import { fmtFcfa, fmtDate } from "@/lib/format";
+import { PAYOUT_METHOD_CARENCE_HOURS } from "@/lib/rules";
 import { walletTileLabel } from "../wallet-label";
 import { KycPanel } from "./kyc-panel";
 import { StoragePanel } from "./storage-panel";
@@ -91,7 +92,7 @@ export default async function PortefeuillePage() {
         : withdrawable.reason === "PAYOUT_METHOD_CARENCE"
           ? {
               title: "Délai de sécurité en cours",
-              body: `Tout compte nouvellement enregistré ou modifié attend 72 h avant de pouvoir recevoir un retrait${active?.carenceUntil ? `, soit jusqu'au ${fmtDate(active.carenceUntil)}` : ""}. Cette attente protège votre solde si votre compte était compromis.`,
+              body: `Tout compte nouvellement enregistré ou modifié attend ${PAYOUT_METHOD_CARENCE_HOURS} h avant de pouvoir recevoir un retrait${active?.carenceUntil ? `, soit jusqu'au ${fmtDate(active.carenceUntil)}` : ""}. Cette attente protège votre solde si votre compte était compromis.`,
               action: null,
             }
           : wallet.withdrawableFcfa < PAYOUT_MIN_AMOUNT_FCFA
@@ -281,7 +282,7 @@ export default async function PortefeuillePage() {
 
                 {active.carenceUntil && new Date(active.carenceUntil) > new Date() ? (
                   <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
-                    Délai de sécurité de 72 h en cours jusqu&apos;au {fmtDate(active.carenceUntil)}.
+                    Délai de sécurité de {PAYOUT_METHOD_CARENCE_HOURS} h en cours jusqu&apos;au {fmtDate(active.carenceUntil)}.
                   </p>
                 ) : null}
 

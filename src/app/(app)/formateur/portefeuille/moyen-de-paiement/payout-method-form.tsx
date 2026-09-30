@@ -10,6 +10,7 @@ import { FormError } from "@/components/layouts/auth-shell";
 import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { cn } from "@/lib/utils";
+import { BUSINESS_DOC_MAX_SIZE_BYTES, sizeLimitLabel } from "@/lib/rules";
 import { OPERATOR_LABELS } from "../payout-status";
 import { DocumentField } from "./document-field";
 
@@ -266,7 +267,7 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
                 <DocumentField
                   kind="BUSINESS_DOC"
                   label="Document d'immatriculation"
-                  hint="RCCM ou équivalent. PDF, PNG, JPEG ou WebP, 10 Mo maximum."
+                  hint={`RCCM ou équivalent. PDF, PNG, JPEG ou WebP, ${sizeLimitLabel(BUSINESS_DOC_MAX_SIZE_BYTES)} maximum.`}
                   value={businessDoc}
                   onChange={(v) => attach("businessDocS3Key", v)}
                   error={fieldErrors.businessDocS3Key}

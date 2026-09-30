@@ -32,7 +32,19 @@ import type { PrismaTransaction } from './types'
 
 // --- Constantes ---
 
-export const LEARNER_RESPONSE_DEADLINE_DAYS = 7
+// Règles annoncées à l'écran : source unique dans `rules.ts`, importable côté client.
+export {
+  LEARNER_RESPONSE_DEADLINE_DAYS,
+  DISPUTE_OPENING_WINDOW_DAYS,
+  CONSUMPTION_THRESHOLD,
+  ATTACHMENT_MAX_SIZE_BYTES,
+} from './rules'
+import {
+  LEARNER_RESPONSE_DEADLINE_DAYS,
+  DISPUTE_OPENING_WINDOW_DAYS,
+  CONSUMPTION_THRESHOLD,
+  ATTACHMENT_MAX_SIZE_BYTES,
+} from './rules'
 // Réexportés depuis `commission.ts` : les écrans publics ont besoin du taux
 // sans embarquer Prisma ni le fournisseur de paiement que ce module importe.
 export { PLATFORM_COMMISSION_RATE, TRAINER_SHARE_RATE }
@@ -41,9 +53,6 @@ export const WALLET_NEGATIVE_ALERT_DAYS = 60
 // le timeout HTTP vit dans `pawapay.ts` (REQUEST_TIMEOUT_MS).
 export const REFUND_REQUEST_TIMEOUT_SECONDS = 30
 export const DISPUTE_MESSAGE_MAX_LENGTH = 5000
-export const DISPUTE_OPENING_WINDOW_DAYS = 14
-export const CONSUMPTION_THRESHOLD = 0.3
-export const ATTACHMENT_MAX_SIZE_BYTES = 5_242_880
 export const ATTACHMENT_ALLOWED_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf']
 export const ATTACHMENT_TTL_HOURS = 24
 

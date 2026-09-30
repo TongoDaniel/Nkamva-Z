@@ -3,7 +3,9 @@ import { db } from './db'
 import { hashPassword, verifyPassword } from './password'
 import { sendEmail, renderSimpleEmail } from './email'
 
-export const OTP_TTL_MS = 10 * 60 * 1000
+import { OTP_TTL_MINUTES } from './rules'
+
+export const OTP_TTL_MS = OTP_TTL_MINUTES * 60 * 1000
 export const OTP_MAX_ATTEMPTS = 5
 
 /**

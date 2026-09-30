@@ -6,7 +6,7 @@ import { BrowserFrame } from "@/components/nk/browser-frame";
 import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
-import { Faq, ToFill } from "@/components/nk/faq";
+import { Faq } from "@/components/nk/faq";
 import { PayBand, PayChips, countriesLabel } from "@/components/nk/pay-band";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { Reveal } from "@/components/nk/reveal";
@@ -15,6 +15,7 @@ import { Kicker, SectionHead } from "@/components/nk/section-head";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { featuredCourses } from "@/lib/featured";
 import { payableMarkets, type PayableMarkets } from "@/lib/markets";
+import { CONSUMPTION_THRESHOLD_LABEL, DISPUTE_OPENING_WINDOW_DAYS } from "@/lib/rules";
 
 // Le catalogue mis en avant reflète l'état réel de la base : rendu à la demande.
 export const dynamic = "force-dynamic";
@@ -147,12 +148,14 @@ const faqItems = (markets: PayableMarkets) => [
     question: "Puis-je être remboursé ?",
     answer: (
       <p>
-        Une demande de remboursement est recevable jusqu&apos;au 14<sup>e</sup> jour suivant
-        l&apos;achat. Pour une vidéo, elle est traitée automatiquement si moins de 30 % du contenu a
-        été consulté ; pour un contenu téléchargeable, elle passe en décision du support. Le détail
-        de la procédure est décrit dans les{" "}
-        <Link href="/legal/conditions">conditions d&apos;utilisation</Link>{" "}
-        <ToFill>[à confirmer : libellé exact publié]</ToFill>.
+        {/* Même règle que Tarifs et Aide. Ce paragraphe disait qu'un contenu
+            téléchargeable « passe en décision du support » : le code le refuse
+            dès qu'il a été téléchargé (`RESOURCE_DOWNLOADED`). */}
+        Une contestation est recevable jusqu&apos;au {DISPUTE_OPENING_WINDOW_DAYS}
+        <sup>e</sup> jour suivant l&apos;achat. Pour une ressource consultée en ligne, il faut en
+        avoir vu moins de {CONSUMPTION_THRESHOLD_LABEL} ; une ressource téléchargeable, une fois
+        téléchargée, ne peut plus être remboursée. Le détail de la procédure est décrit dans les{" "}
+        <Link href="/legal/conditions">conditions d&apos;utilisation</Link>.
       </p>
     ),
   },

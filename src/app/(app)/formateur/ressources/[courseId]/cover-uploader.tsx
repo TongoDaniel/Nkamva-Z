@@ -10,10 +10,11 @@ import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { formatBytes, IMAGE_MAX_WIDTH, shrinkImage } from "@/lib/image";
 import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
+import { COVER_IMAGE_MAX_BYTES, sizeLimitLabel } from "@/lib/rules";
 
 /** Miroir de COURSE_UPLOAD_LIMITS.image dans src/lib/courses.ts. */
 const IMAGE_MIMES = ["image/png", "image/jpeg", "image/webp"];
-const IMAGE_MAX_BYTES = 5_242_880;
+const IMAGE_MAX_BYTES = COVER_IMAGE_MAX_BYTES;
 
 /** Repli de presignUpload() quand R2 n'est pas configuré. */
 const PLACEHOLDER_PREFIX = "data:placeholder-upload/";
@@ -93,7 +94,7 @@ export function CoverUploader({
       return;
     }
     if (file.size > IMAGE_MAX_BYTES) {
-      toast.error("L'image ne doit pas dépasser 5 Mo.");
+      toast.error(`L'image ne doit pas dépasser ${sizeLimitLabel(IMAGE_MAX_BYTES)}.`);
       return;
     }
     void send.run(file);
@@ -128,7 +129,7 @@ export function CoverUploader({
       {/* La contrainte reste à l'air libre — elle évite un envoi refusé —, le
           traitement qui suit passe derrière le ⓘ. */}
       <p className="mt-2 flex items-center gap-1 text-[13px] text-ink-3">
-        PNG, JPEG ou WebP, 5 Mo maximum.
+        PNG, JPEG ou WebP, {sizeLimitLabel(IMAGE_MAX_BYTES)} maximum.
         <Hint label="Ce que devient l'image après l'envoi">
           L&apos;image est réduite à {IMAGE_MAX_WIDTH} px avant l&apos;envoi, ce qui allège aussi
           votre forfait. À défaut, une couverture est générée à partir de la catégorie et du

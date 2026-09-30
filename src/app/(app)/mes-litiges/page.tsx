@@ -7,6 +7,7 @@ import { StPill } from "@/components/nk/status-pill";
 import { getAuthContext } from "@/lib/api";
 import { listMyDisputes } from "@/lib/disputes";
 import { fmtDate, fmtFcfa } from "@/lib/format";
+import { DISPUTE_OPENING_WINDOW_DAYS } from "@/lib/rules";
 import { DISPUTE_STATUS } from "./dispute-status";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ export default async function MesLitigesPage() {
           className="mt-6"
           icon={<ShieldCheck />}
           title="Aucune contestation"
-          description="Si un achat ne correspond pas à ce qui était annoncé, vous pouvez le contester depuis vos achats, dans les 14 jours."
+          description={`Si un achat ne correspond pas à ce qui était annoncé, vous pouvez le contester depuis vos achats, dans les ${DISPUTE_OPENING_WINDOW_DAYS} jours.`}
         />
       ) : (
         <ul className="mt-6 flex flex-col gap-3.5">

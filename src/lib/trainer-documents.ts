@@ -20,7 +20,8 @@ import type { PrismaTransaction } from './types'
 
 export const MAX_RESUBMISSIONS = 3
 export const SIGNED_URL_TTL_SECONDS = 300
-export const DOCUMENT_RETENTION_DAYS = 90
+export { DOCUMENT_RETENTION_DAYS } from './rules'
+import { DOCUMENT_RETENTION_DAYS } from './rules'
 
 export const REQUIRED_DOCUMENT_TYPES: TrainerDocumentType[] = ['ID_CARD', 'DIPLOMA', 'VIDEO']
 

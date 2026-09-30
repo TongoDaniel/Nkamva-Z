@@ -8,6 +8,7 @@ import { Field } from "@/components/nk/input";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
+import { DOCUMENT_RETENTION_DAYS } from "@/lib/rules";
 import { cn } from "@/lib/utils";
 import { DOCUMENT_LABELS } from "../status";
 
@@ -245,7 +246,7 @@ export function ReviewActions({
         open={openDialog === "final"}
         onOpenChange={(open) => setOpenDialog(open ? "final" : null)}
         title="Refuser définitivement ?"
-        description="Le candidat redevient apprenant. Ses pièces seront effacées 90 jours après cette décision."
+        description={`Le candidat redevient apprenant. Ses pièces seront effacées ${DOCUMENT_RETENTION_DAYS} jours après cette décision.`}
         footer={
           <>
             <Btn

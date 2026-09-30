@@ -14,7 +14,28 @@ import { PAYOUT_METHOD_CARENCE_HOURS, PAYOUT_METHOD_MAX_REJECTIONS, BUSINESS_DOC
 import { PAYOUT_MIN_AMOUNT_FCFA } from "@/lib/payouts";
 import { KYC_THRESHOLD_VERIFIED, KYC_THRESHOLD_TO_VERIFY } from "@/lib/kyc";
 import { COMMISSION_LABEL } from "@/lib/commission";
-import { LEGAL_COMMISSION_LABEL, LEGAL_TERMS_UPDATED_AT } from "@/lib/legal-terms";
+import {
+  LEGAL_COMMISSION_LABEL,
+  LEGAL_CONSUMPTION_THRESHOLD_LABEL,
+  LEGAL_DELETION_GRACE_DAYS,
+  LEGAL_DISPUTE_WINDOW_DAYS,
+  LEGAL_DOCUMENT_RETENTION_DAYS,
+  LEGAL_LEARNER_RESPONSE_DAYS,
+  LEGAL_OTP_TTL_MINUTES,
+  LEGAL_PRIVACY_UPDATED_AT,
+  LEGAL_TERMS_UPDATED_AT,
+} from "@/lib/legal-terms";
+import {
+  CONSUMPTION_THRESHOLD_LABEL,
+  DELETION_GRACE_DAYS,
+  DISPUTE_OPENING_WINDOW_DAYS,
+  DOCUMENT_RETENTION_DAYS,
+  LEARNER_RESPONSE_DEADLINE_DAYS,
+  OTP_TTL_MINUTES,
+  TRAINER_STORAGE_QUOTA_BYTES,
+  sizeLimitLabel,
+} from "@/lib/rules";
+import { REPLAY_RETENTION_MONTHS } from "@/lib/lives";
 import { fmtFcfa } from "@/lib/format";
 
 export interface PlatformRule {
@@ -37,6 +58,58 @@ export interface PlatformRule {
  * ailleurs que sur cet écran.
  */
 const LEGAL_MATCHES_APPLIED = LEGAL_COMMISSION_LABEL === COMMISSION_LABEL;
+
+/**
+ * Les autres engagements chiffrés des documents juridiques, confrontés à la
+ * règle que l'application applique. Même logique que la commission, en liste :
+ * une ligne n'apparaît que si le document a divergé — conformes, elles
+ * n'apprendraient rien que les lignes « en vigueur » ne disent déjà.
+ */
+const LEGAL_DIVERGENCES: PlatformRule[] = [
+  {
+    label: "Délai de contestation inscrit aux conditions",
+    legal: `${LEGAL_DISPUTE_WINDOW_DAYS} jours`,
+    applied: `${DISPUTE_OPENING_WINDOW_DAYS} jours`,
+    source: `conditions du ${LEGAL_TERMS_UPDATED_AT}, article 4`,
+  },
+  {
+    label: "Seuil de consultation inscrit aux conditions",
+    legal: LEGAL_CONSUMPTION_THRESHOLD_LABEL,
+    applied: CONSUMPTION_THRESHOLD_LABEL,
+    source: `conditions du ${LEGAL_TERMS_UPDATED_AT}, article 4`,
+  },
+  {
+    label: "Délai de réponse inscrit aux conditions",
+    legal: `${LEGAL_LEARNER_RESPONSE_DAYS} jours`,
+    applied: `${LEARNER_RESPONSE_DEADLINE_DAYS} jours`,
+    source: `conditions du ${LEGAL_TERMS_UPDATED_AT}, article 4`,
+  },
+  {
+    label: "Délai avant effacement d'un compte inscrit aux documents",
+    legal: `${LEGAL_DELETION_GRACE_DAYS} jours`,
+    applied: `${DELETION_GRACE_DAYS} jours`,
+    source: `conditions, article 7, et confidentialité du ${LEGAL_PRIVACY_UPDATED_AT}`,
+  },
+  {
+    label: "Conservation des pièces inscrite à la confidentialité",
+    legal: `${LEGAL_DOCUMENT_RETENTION_DAYS} jours`,
+    applied: `${DOCUMENT_RETENTION_DAYS} jours`,
+    source: `confidentialité du ${LEGAL_PRIVACY_UPDATED_AT}, article 4`,
+  },
+  {
+    label: "Validité d'un code inscrite à la confidentialité",
+    legal: `${LEGAL_OTP_TTL_MINUTES} minutes`,
+    applied: `${OTP_TTL_MINUTES} minutes`,
+    source: `confidentialité du ${LEGAL_PRIVACY_UPDATED_AT}, article 4`,
+  },
+]
+  .filter((rule) => rule.legal !== rule.applied)
+  .map(({ label, legal, applied, source }) => ({
+    label,
+    value: legal,
+    source: `${source} · lib/legal-terms`,
+    alert: `Divergence : l'application applique ${applied}. Le document engage sur ${legal} — mettre à jour le document et informer les utilisateurs, ou corriger la règle appliquée.`,
+  }));
 
 export const PLATFORM_RULES: PlatformRule[] = [
   {
@@ -90,37 +163,38 @@ export const PLATFORM_RULES: PlatformRule[] = [
   },
   {
     label: "Délai d'ouverture d'un litige",
-    value: "14 jours",
-    source: "décisions 2 et 18",
+    value: `${DISPUTE_OPENING_WINDOW_DAYS} jours`,
+    source: "décisions 2 et 18 · lib/rules",
     note: "accès suspendu dès l'ouverture",
   },
   {
     label: "Consommation bloquant le remboursement automatique",
-    value: "30 %",
-    source: "décisions 2 et 14",
+    value: CONSUMPTION_THRESHOLD_LABEL,
+    source: "décisions 2 et 14 · lib/rules",
     note: "formats streamés uniquement",
   },
   {
     label: "Quota de stockage par formateur",
-    value: "40 Go",
-    source: "décision 54",
+    value: sizeLimitLabel(TRAINER_STORAGE_QUOTA_BYTES),
+    source: "décision 54 · lib/rules",
     note: "extension payante ; le blocage ne porte que sur le téléversement",
   },
   {
     label: "Taille maximale d'un document d'entreprise",
-    value: `${Math.round(BUSINESS_DOC_MAX_SIZE_BYTES / 1_048_576)} Mo`,
+    value: sizeLimitLabel(BUSINESS_DOC_MAX_SIZE_BYTES),
     source: "décision 28",
   },
   {
     label: "Conservation d'un replay",
-    value: "24 mois",
+    value: `${REPLAY_RETENTION_MONTHS} mois`,
     source: "décision 51",
     note: "à compter de la date du live",
   },
   {
     label: "Purge des pièces d'identité",
-    value: "90 jours",
-    source: "décision 3",
+    value: `${DOCUMENT_RETENTION_DAYS} jours`,
+    source: "décision 3 · lib/rules",
     note: "après la décision ; la réouverture devient impossible",
   },
+  ...LEGAL_DIVERGENCES,
 ];

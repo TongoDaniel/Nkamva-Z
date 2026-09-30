@@ -129,12 +129,8 @@ export interface InitiatePurchaseResult {
   nextStep: "CONFIRM_ON_PHONE" | "REDIRECT_TO_PROVIDER" | "ALREADY_SETTLED";
 }
 
-/**
- * Délai de grâce avant effacement d'un compte.
- * Vit ici, et non dans lib/profile.ts, pour rester importable côté client sans
- * y entraîner Prisma.
- */
-export const DELETION_GRACE_DAYS = 30;
+/** Délai de grâce avant effacement d'un compte — source unique dans `rules.ts`. */
+export { DELETION_GRACE_DAYS } from "./rules";
 
 /** Formats téléchargeables (le reste est streamé) — miroir de access.ts. */
 export const DOWNLOADABLE_FORMATS = ["pdf", "kit", "notion", "tableur"] as const;
