@@ -135,5 +135,11 @@ export const authOptions: NextAuthOptions = {
       return { ...session, user: { ...session.user, id: token.userId as string, role: token.role as Role, adminRole: token.adminRole as AdminRole | null, trainerId: token.trainerId as string | null } }
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production',
+  // Aucun repli en dur : le secret deviné d'autrefois
+  // ('nkamva-dev-secret-change-in-production', versionné) signait des sessions
+  // forgeables, admin comprises. Sans NEXTAUTH_SECRET, NextAuth refuse de
+  // fonctionner en production (erreur NO_SECRET) — un échec bruyant et fermé,
+  // préférable à une porte ouverte silencieuse. Le middleware applique la même
+  // règle côté edge.
+  secret: process.env.NEXTAUTH_SECRET,
 }

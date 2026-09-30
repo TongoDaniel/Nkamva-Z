@@ -51,7 +51,7 @@ export const PAYMENT_CURRENCY = PLATFORM_CURRENCY
  * l'inverse de ce qu'il faut : une configuration incomplète doit refuser de
  * fonctionner, jamais s'autoriser davantage.
  */
-function simulationAllowed(): boolean {
+export function simulationAllowed(): boolean {
   return process.env.NODE_ENV !== 'production' && process.env.ALLOW_PAYMENT_SIMULATION === '1'
 }
 
