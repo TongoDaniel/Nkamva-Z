@@ -102,8 +102,14 @@ décision annulée.
 e-mail de quelqu'un qui n'a rien demandé et qui n'a peut-être pas de compte. Conséquences
 tenues : rétention **90 jours après l'état terminal** de l'invitation (acceptée, expirée,
 révoquée), purge automatique, aucun usage marketing, aucune réutilisation pour une seconde
-invitation, mention dans `src/content/legal/confidentialite.md`, et inclusion dans
+invitation, mention dans la politique de confidentialité, et inclusion dans
 l'export RGPD de l'émetteur comme de l'invité.
+
+> ⚠️ **Mention manquante (constat du 30 septembre 2026).** Elle était annoncée
+> dans `src/content/legal/confidentialite.md`, un fichier qu'aucune page ne
+> servait et qui ne la contenait pas. Ce fichier est supprimé ; la page servie,
+> `src/app/(public)/legal/confidentialite/page.tsx`, ne mentionne pas non plus
+> les adresses invitées. À écrire, avec la rétention de 90 jours.
 
 **81. La communauté privée sort de toutes les surfaces publiques** — Annuaire
 (`/communautes`), recherche transversale (`src/lib/search.ts`), panneau « Communauté » de
@@ -669,7 +675,7 @@ invitationStatus()            purgeStaleInvitations()   ← job
 | `src/app/auth/verifier-code/verify-form.tsx` | Propage `next` en `callbackUrl` au lieu de `?verified=1` |
 | `src/app/api/auth/register/route.ts` | Rattache les invitations `PENDING` de l'adresse au compte créé (arbitrage 85) |
 | `src/components/layouts/app-shell.tsx` | Entrée « Invitations » côté formateur |
-| `src/content/legal/confidentialite.md` | Traitement des adresses invitées, rétention 90 jours |
+| ~~`src/content/legal/confidentialite.md`~~ | Supprimé le 30 septembre 2026 (jamais servi) ; la mention reste à écrire dans la page servie, voir arbitrage 80 |
 | `docs/lot4-parcours-coeur.md` | Les deux lignes ❌ passent à ✅ |
 
 ⚠️ **Le point le plus délicat de toute la spec** : `provider` nullable sur

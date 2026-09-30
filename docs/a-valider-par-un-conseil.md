@@ -86,6 +86,14 @@ sont les pages servies qui sont fausses ; s'il est obsolète, il doit disparaît
 du dépôt — un document contractuel abandonné dans un répertoire versionné
 s'oppose un jour à celui qui l'a écrit.
 
+> **Tranché le 30 septembre 2026 par le propriétaire : les pages servies font
+> foi.** Les trois markdown ont été supprimés du dépôt ; leur texte reste dans
+> l'historique Git (`git show dc3596a:src/content/legal/conditions.md`). Deux
+> lignes du tableau ci-dessus n'existaient **que** dans le markdown et restent à
+> écrire dans les pages servies, après validation JUR : la licence de diffusion
+> accordée à NKAMVA (ex-art. 6.2 et 6.3) et l'encadrement des abonnements
+> (ex-art. 4.3, 4.4 et 7 — voir aussi B.2).
+
 ### B.2 — Les CGU servies nient les abonnements que la plateforme facture
 
 L'article 3 affirme : « Aucun abonnement n'est requis ». Or la plateforme
