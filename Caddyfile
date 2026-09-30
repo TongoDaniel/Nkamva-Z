@@ -1,6 +1,15 @@
 :81 {
+	# ⚠️ Ce bloc `XTransformPort` proxifie vers `localhost:<port>` arbitraire :
+	# c'est une commodité de prévisualisation LOCALE, jamais destinée à un
+	# déploiement exposé. Sans restriction, toute requête `?XTransformPort=6379`
+	# atteignait n'importe quel service lié à la loopback (base, cache, ports
+	# d'admin) — une SSRF vers l'intérieur du serveur. On exige donc que le
+	# client soit lui-même sur la loopback : une requête externe portant le
+	# paramètre retombe sur le `handle` par défaut (l'app), sans proxy dynamique.
+	# Ce fichier ne doit de toute façon jamais fronter un environnement public.
 	@transform_port_query {
 		query XTransformPort=*
+		remote_ip 127.0.0.1/8 ::1
 	}
 
 	handle @transform_port_query {

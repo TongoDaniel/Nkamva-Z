@@ -16,6 +16,47 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // On ne divulgue pas la pile technique.
+  poweredByHeader: false,
+  // En-têtes de sécurité, absents jusqu'ici sur toutes les réponses. Posés ici
+  // (et non uniquement dans Caddy) pour qu'ils suivent l'app quel que soit le
+  // proxy en tête, y compris en build standalone.
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "form-action 'self'",
+      // 'unsafe-inline'/'unsafe-eval' : Next injecte des scripts/styles en ligne.
+      // À resserrer (nonces) une fois la CSP passée en mode strict.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "media-src 'self' blob: https:",
+      "worker-src 'self' blob:",
+      // LiveKit (wss), R2/S3 et Stripe passent par https/wss vers l'extérieur.
+      "connect-src 'self' https: wss:",
+      "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
+    ].join("; ");
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=(self)" },
+          // CSP en Report-Only d'abord : elle observe sans rien casser (LiveKit,
+          // Stripe, R2, polices). À basculer en `Content-Security-Policy` stricte
+          // une fois les rapports vérifiés.
+          { key: "Content-Security-Policy-Report-Only", value: csp },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
