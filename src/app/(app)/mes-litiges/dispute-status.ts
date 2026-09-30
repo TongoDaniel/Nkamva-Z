@@ -1,6 +1,8 @@
 // Libellés des états d'un litige, côté apprenant.
 // Module neutre : lisible par un composant serveur comme par un client.
 
+import { CONSUMPTION_THRESHOLD_LABEL, DISPUTE_OPENING_WINDOW_DAYS } from "@/lib/rules";
+
 export const DISPUTE_STATUS: Record<
   string,
   { label: string; tone: "ok" | "warn" | "bad" | "info" | "muted"; help: string }
@@ -48,9 +50,9 @@ export const DISPUTE_REASONS = [
 /** Motifs de refus renvoyés par l'API, traduits pour l'apprenant. */
 export const INELIGIBILITY: Record<string, string> = {
   WINDOW_EXPIRED:
-    "Le délai de 14 jours pour contester cet achat est dépassé. Le support reste joignable si votre situation est particulière.",
+    `Le délai de ${DISPUTE_OPENING_WINDOW_DAYS} jours pour contester cet achat est dépassé. Le support reste joignable si votre situation est particulière.`,
   RESOURCE_DOWNLOADED:
     "Cette ressource a été téléchargée : le fichier est chez vous, elle ne peut plus être remboursée.",
   CONSUMPTION_EXCEEDED:
-    "Vous avez consulté plus de 30 % de cette ressource. Au-delà de ce seuil, le remboursement n'est plus automatique.",
+    `Vous avez consulté plus de ${CONSUMPTION_THRESHOLD_LABEL} de cette ressource. Au-delà de ce seuil, le remboursement n'est plus automatique.`,
 };

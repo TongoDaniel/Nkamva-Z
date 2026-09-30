@@ -10,6 +10,7 @@ import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtBytes, fmtDuration } from "@/lib/format";
 import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
+import { LARGE_FILE_MAX_BYTES, PDF_MAX_BYTES, sizeLimitLabel } from "@/lib/rules";
 
 /**
  * Miroir de COURSE_UPLOAD_LIMITS dans src/lib/courses.ts.
@@ -25,29 +26,29 @@ const CONTENT_TYPES = [
     kind: "video",
     mime: "video/mp4",
     exts: [".mp4"],
-    maxBytes: 2_147_483_648,
-    tooBig: "La vidéo ne doit pas dépasser 2 Go.",
+    maxBytes: LARGE_FILE_MAX_BYTES,
+    tooBig: `La vidéo ne doit pas dépasser ${sizeLimitLabel(LARGE_FILE_MAX_BYTES)}.`,
   },
   {
     kind: "pdf",
     mime: "application/pdf",
     exts: [".pdf"],
-    maxBytes: 10_485_760,
-    tooBig: "Le document ne doit pas dépasser 10 Mo.",
+    maxBytes: PDF_MAX_BYTES,
+    tooBig: `Le document ne doit pas dépasser ${sizeLimitLabel(PDF_MAX_BYTES)}.`,
   },
   {
     kind: "archive",
     mime: "application/zip",
     exts: [".zip"],
-    maxBytes: 2_147_483_648,
-    tooBig: "L'archive ne doit pas dépasser 2 Go.",
+    maxBytes: LARGE_FILE_MAX_BYTES,
+    tooBig: `L'archive ne doit pas dépasser ${sizeLimitLabel(LARGE_FILE_MAX_BYTES)}.`,
   },
   {
     kind: "archive",
     mime: "application/vnd.rar",
     exts: [".rar"],
-    maxBytes: 2_147_483_648,
-    tooBig: "L'archive ne doit pas dépasser 2 Go.",
+    maxBytes: LARGE_FILE_MAX_BYTES,
+    tooBig: `L'archive ne doit pas dépasser ${sizeLimitLabel(LARGE_FILE_MAX_BYTES)}.`,
   },
 ] as const;
 

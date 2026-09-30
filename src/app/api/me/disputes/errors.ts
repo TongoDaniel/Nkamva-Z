@@ -1,6 +1,7 @@
 // Traduction des codes de litige en réponses HTTP.
 import { error } from '@/lib/api'
 import { DisputeError } from '@/lib/disputes'
+import { CONSUMPTION_THRESHOLD_LABEL, DISPUTE_OPENING_WINDOW_DAYS } from '@/lib/rules'
 
 const MAPPING: Record<string, { message: string; status: number }> = {
   PURCHASE_NOT_FOUND: { message: 'Achat introuvable.', status: 404 },
@@ -26,7 +27,7 @@ const MAPPING: Record<string, { message: string; status: number }> = {
   },
   // Motifs de non-éligibilité : 422, la demande est comprise mais irrecevable.
   WINDOW_EXPIRED: {
-    message: 'Le délai de 14 jours pour contester cet achat est dépassé.',
+    message: `Le délai de ${DISPUTE_OPENING_WINDOW_DAYS} jours pour contester cet achat est dépassé.`,
     status: 422,
   },
   RESOURCE_DOWNLOADED: {
@@ -34,7 +35,7 @@ const MAPPING: Record<string, { message: string; status: number }> = {
     status: 422,
   },
   CONSUMPTION_EXCEEDED: {
-    message: 'Vous avez consulté plus de 30 % de cette ressource.',
+    message: `Vous avez consulté plus de ${CONSUMPTION_THRESHOLD_LABEL} de cette ressource.`,
     status: 422,
   },
 }

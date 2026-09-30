@@ -17,6 +17,15 @@ import { BtnLink } from "@/components/nk/button-link";
 import { PillInput } from "@/components/nk/input";
 import { EmptyState } from "@/components/nk/empty-state";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
+import { fmtFcfa } from "@/lib/format";
+import {
+  CONSUMPTION_THRESHOLD_LABEL,
+  DELETION_GRACE_DAYS,
+  DISPUTE_OPENING_WINDOW_DAYS,
+  LEARNER_RESPONSE_DEADLINE_DAYS,
+  PAYOUT_METHOD_CARENCE_HOURS,
+  PAYOUT_MIN_AMOUNT_FCFA,
+} from "@/lib/rules";
 import { cn } from "@/lib/utils";
 
 export interface HelpItem {
@@ -89,7 +98,7 @@ function buildGroups(subscription: string): HelpGroup[] {
         },
         {
           q: "Puis-je être remboursé ?",
-          a: "Dans les 14 jours suivant l'achat, si vous avez consulté moins de 30 % de la ressource. Une ressource téléchargeable qui a été téléchargée ne peut plus être remboursée : le fichier est chez vous.",
+          a: `Dans les ${DISPUTE_OPENING_WINDOW_DAYS} jours suivant l'achat, si vous avez consulté moins de ${CONSUMPTION_THRESHOLD_LABEL} de la ressource. Une ressource téléchargeable qui a été téléchargée ne peut plus être remboursée : le fichier est chez vous.`,
         },
         {
           q: "Comment contester un achat ?",
@@ -101,7 +110,7 @@ function buildGroups(subscription: string): HelpGroup[] {
         },
         {
           q: "Combien de temps une contestation prend-elle ?",
-          a: "L'équipe examine les dossiers dans leur ordre d'arrivée. Si une précision vous est demandée, vous disposez de 7 jours pour répondre ; sans réponse, le dossier se clôt et votre accès est rétabli.",
+          a: `L'équipe examine les dossiers dans leur ordre d'arrivée. Si une précision vous est demandée, vous disposez de ${LEARNER_RESPONSE_DEADLINE_DAYS} jours pour répondre ; sans réponse, le dossier se clôt et votre accès est rétabli.`,
         },
       ],
     },
@@ -145,7 +154,7 @@ function buildGroups(subscription: string): HelpGroup[] {
         },
         {
           q: "Comment supprimer mon compte ?",
-          a: "Même onglet. La suppression est différée de 30 jours, pendant lesquels vous pouvez l'annuler vous-même. Vos achats sont ensuite conservés de façon anonymisée : la comptabilité l'impose.",
+          a: `Même onglet. La suppression est différée de ${DELETION_GRACE_DAYS} jours, pendant lesquels vous pouvez l'annuler vous-même. Vos achats sont ensuite conservés de façon anonymisée : la comptabilité l'impose.`,
         },
       ],
     },
@@ -165,7 +174,9 @@ function buildGroups(subscription: string): HelpGroup[] {
         },
         {
           q: "Comment retirer mes revenus ?",
-          a: "Chaque vente confirmée crédite votre solde, consultable depuis votre tableau de bord. Les retraits vers mobile money ouvriront avec le parcours de vérification d'identité, actuellement en construction.",
+          // Le texte annonçait des retraits « en construction » : ils partent
+          // pourtant depuis le portefeuille, et le mobile money est versé seul.
+          a: `Chaque vente confirmée crédite votre solde. Dès ${fmtFcfa(PAYOUT_MIN_AMOUNT_FCFA)} retirables, vous demandez un retrait depuis votre portefeuille, vers le compte mobile money ou bancaire que vous y avez enregistré. Un compte nouvellement enregistré ou modifié attend ${PAYOUT_METHOD_CARENCE_HOURS} h avant son premier retrait.`,
         },
         {
           q: "Un acheteur conteste ma ressource, que puis-je faire ?",

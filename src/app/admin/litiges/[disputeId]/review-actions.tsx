@@ -8,6 +8,7 @@ import { Field } from "@/components/nk/input";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtFcfa } from "@/lib/format";
+import { CONSUMPTION_THRESHOLD_LABEL, DISPUTE_OPENING_WINDOW_DAYS } from "@/lib/rules";
 import { cn } from "@/lib/utils";
 
 type Dialog = "message" | "ask" | "refund" | "reject";
@@ -102,7 +103,7 @@ export function DisputeActions({
         </p>
       ) : overrideNeeded && !isSuperAdmin ? (
         <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-gold-ink">
-          Ce dossier est hors barème (14 jours / 30 %). Seul un super-administrateur peut le
+          Ce dossier est hors barème ({DISPUTE_OPENING_WINDOW_DAYS} jours / {CONSUMPTION_THRESHOLD_LABEL}). Seul un super-administrateur peut le
           rembourser, avec justification.
         </p>
       ) : null}
@@ -255,7 +256,7 @@ export function DisputeActions({
         {overrideNeeded ? (
           <>
             <p className="mb-2 rounded-nk bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
-              Ce dossier sort du barème 14 jours / 30 %. La dérogation sera enregistrée au journal
+              Ce dossier sort du barème {DISPUTE_OPENING_WINDOW_DAYS} jours / {CONSUMPTION_THRESHOLD_LABEL}. La dérogation sera enregistrée au journal
               d&apos;audit avec votre justification.
             </p>
             <label htmlFor="refund-override" className="mb-1.5 block text-[13.5px] font-bold text-ink">

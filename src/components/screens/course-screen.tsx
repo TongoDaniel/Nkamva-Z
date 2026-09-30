@@ -18,6 +18,7 @@ import { initials } from "@/components/nk/avatar";
 import { getPublicCourse, searchCourses } from "@/lib/catalog";
 import { checkCourseAccess } from "@/lib/access";
 import { countTrainerLearners } from "@/lib/trainers";
+import { payableMarkets } from "@/lib/markets";
 import { getAuthContext } from "@/lib/api";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import { routesOf, type Space } from "@/lib/spaces";
@@ -30,12 +31,15 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
   if (!course) notFound();
 
   // Un visiteur connecté qui possède déjà la ressource voit l'accès, pas l'achat.
-  const [auth, learnerCounts] = await Promise.all([
+  const [auth, learnerCounts, markets] = await Promise.all([
     getAuthContext(),
     // Apprenants réels du formateur (arbitrage 143). Comptés ici plutôt que dans
     // `getPublicCourse`, que la page d'achat et l'API partagent sans en avoir
     // l'usage.
     countTrainerLearners(course.trainerProfile ? [course.trainerProfile.id] : []),
+    // Les marques réellement encaissables, comme sur l'accueil : la ligne écrite
+    // en dur annonçait Wave, que PawaPay ne distribue pas.
+    payableMarkets(),
   ]);
   const access = auth ? await checkCourseAccess(course.id, auth.user.id) : null;
   const owned = access?.granted ?? false;
@@ -299,7 +303,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
 
             {isAuthor ? null : (
               <p className="mt-4 text-[13px] font-semibold text-ink-3">
-                Orange Money · MTN MoMo · Wave · Airtel Money · M-Pesa · carte bancaire
+                {[...markets.brands, "carte bancaire"].join(" · ")}
               </p>
             )}
 

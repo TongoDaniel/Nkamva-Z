@@ -4,7 +4,13 @@ import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
-import { fmtNumber } from "@/lib/format";
+import { fmtFcfa, fmtNumber } from "@/lib/format";
+import {
+  CONSUMPTION_THRESHOLD_LABEL,
+  DISPUTE_OPENING_WINDOW_DAYS,
+  PAYOUT_METHOD_CARENCE_HOURS,
+  PAYOUT_MIN_AMOUNT_FCFA,
+} from "@/lib/rules";
 import { publicSubscriptionPlans, subscriptionAnnouncement } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +49,7 @@ export default async function TarifsPage() {
         "Chaque ressource s'achète à l'unité, en FCFA",
         "Accès à vie à ce que vous avez acheté",
         "Paiement mobile money ou carte bancaire",
-        "Contestation possible sous 14 jours",
+        `Contestation possible sous ${DISPUTE_OPENING_WINDOW_DAYS} jours`,
       ],
       cta: { href: "/auth/inscription", label: "Créer mon compte" },
       variant: "o" as const,
@@ -88,11 +94,11 @@ export default async function TarifsPage() {
     },
     {
       q: "Puis-je être remboursé ?",
-      a: "Oui, dans les 14 jours suivant l'achat et si vous avez consulté moins de 30 % de la ressource. Un format téléchargeable, une fois récupéré, ne peut plus être remboursé : le fichier est chez vous.",
+      a: `Oui, dans les ${DISPUTE_OPENING_WINDOW_DAYS} jours suivant l'achat et si vous avez consulté moins de ${CONSUMPTION_THRESHOLD_LABEL} de la ressource. Un format téléchargeable, une fois récupéré, ne peut plus être remboursé : le fichier est chez vous.`,
     },
     {
       q: "Quand un formateur touche-t-il son argent ?",
-      a: "Chaque vente confirmée crédite son solde. Les retraits vers mobile money ouvriront avec le parcours de vérification d'identité, actuellement en construction.",
+      a: `Chaque vente confirmée crédite son solde. Dès ${fmtFcfa(PAYOUT_MIN_AMOUNT_FCFA)} retirables, il demande un retrait depuis son portefeuille, vers le compte mobile money ou bancaire qu'il y a enregistré. Un compte nouvellement enregistré ou modifié attend ${PAYOUT_METHOD_CARENCE_HOURS} h avant son premier retrait.`,
     },
   ];
 

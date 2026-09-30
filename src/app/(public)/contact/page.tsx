@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Clock, LifeBuoy, ShieldQuestion } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { getSettingNumber } from "@/lib/settings";
+import { DISPUTE_OPENING_WINDOW_DAYS } from "@/lib/rules";
 import { ContactForm } from "./contact-form";
 
 // Le délai annoncé vient du réglage `support.response_time_hours` : l'écran ne
@@ -70,7 +71,7 @@ export default async function ContactPage() {
             <h2 className="mb-1.5 text-[15px] font-bold">Contester un achat</h2>
             <p className="text-[13.5px] leading-relaxed text-ink-2">
               Une contestation ne passe pas par ce formulaire : ouvrez-la depuis « Mes achats »
-              pour que le dossier soit suivi et que votre délai de 14 jours soit pris en compte.
+              pour que le dossier soit suivi et que votre délai de {DISPUTE_OPENING_WINDOW_DAYS} jours soit pris en compte.
             </p>
           </section>
         </aside>

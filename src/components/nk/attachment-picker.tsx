@@ -12,6 +12,7 @@ import {
 } from "@/lib/upload";
 import { UploadBar } from "@/components/nk/upload-bar";
 import { cn } from "@/lib/utils";
+import { ATTACHMENT_MAX_SIZE_BYTES, sizeLimitLabel } from "@/lib/rules";
 
 /**
  * Pièces jointes d'un litige — le maillon qui manquait.
@@ -37,7 +38,7 @@ import { cn } from "@/lib/utils";
 
 /** Miroir de `ATTACHMENT_ALLOWED_MIMES` / `ATTACHMENT_MAX_SIZE_BYTES`. */
 const ALLOWED_MIMES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
-const MAX_BYTES = 5_242_880;
+const MAX_BYTES = ATTACHMENT_MAX_SIZE_BYTES;
 /** Miroir du `.max(5)` des deux routes qui consomment les clés. */
 export const MAX_ATTACHMENTS = 5;
 
@@ -94,7 +95,7 @@ export function AttachmentPicker({
         return;
       }
       if (file.size > MAX_BYTES) {
-        setError(`« ${file.name} » dépasse 5 Mo.`);
+        setError(`« ${file.name} » dépasse ${sizeLimitLabel(MAX_BYTES)}.`);
         return;
       }
     }
@@ -214,7 +215,7 @@ export function AttachmentPicker({
       {pending ? <UploadBar progress={progress} label={current || "Envoi…"} /> : null}
 
       <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
-        PNG, JPEG, WebP ou PDF · 5 Mo par fichier · {MAX_ATTACHMENTS} au maximum. Elles ne sont
+        PNG, JPEG, WebP ou PDF · {sizeLimitLabel(MAX_BYTES)} par fichier · {MAX_ATTACHMENTS} au maximum. Elles ne sont
         lues que par le support.
       </p>
       {error ? (

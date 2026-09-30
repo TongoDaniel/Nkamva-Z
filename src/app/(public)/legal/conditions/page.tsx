@@ -3,6 +3,10 @@ import Link from "next/link";
 import { LegalPage, ToProvide } from "../legal-page";
 import {
   LEGAL_COMMISSION_LABEL,
+  LEGAL_CONSUMPTION_THRESHOLD_LABEL,
+  LEGAL_DELETION_GRACE_DAYS,
+  LEGAL_DISPUTE_WINDOW_DAYS,
+  LEGAL_LEARNER_RESPONSE_DAYS,
   LEGAL_TERMS_UPDATED_AT,
   LEGAL_TRAINER_SHARE_LABEL,
 } from "@/lib/legal-terms";
@@ -48,12 +52,13 @@ export default function ConditionsPage() {
       </p>
 
       <h2>4. Remboursement</h2>
+      {/* Valeurs contractuelles, comme celles de l'article 5 : voir `lib/legal-terms`. */}
       <p>Un achat peut être contesté aux conditions cumulatives suivantes :</p>
       <ul>
-        <li>dans les 14 jours suivant l&apos;achat ;</li>
+        <li>dans les {LEGAL_DISPUTE_WINDOW_DAYS} jours suivant l&apos;achat ;</li>
         <li>
-          pour une ressource consultée en ligne, si moins de 30 % en a été consulté au moment de
-          la contestation ;
+          pour une ressource consultée en ligne, si moins de {LEGAL_CONSUMPTION_THRESHOLD_LABEL} en
+          a été consulté au moment de la contestation ;
         </li>
         <li>
           pour une ressource téléchargeable, si elle n&apos;a pas été téléchargée — une fois le
@@ -63,7 +68,7 @@ export default function ConditionsPage() {
       <p>
         Pendant l&apos;examen, l&apos;accès à la ressource est suspendu. Si la contestation
         n&apos;est pas retenue, il est rétabli. Si aucune réponse n&apos;est apportée à une
-        demande de précision dans un délai de 7 jours, le dossier est clos et l&apos;accès
+        demande de précision dans un délai de {LEGAL_LEARNER_RESPONSE_DAYS} jours, le dossier est clos et l&apos;accès
         rétabli.
       </p>
       <p>
@@ -97,7 +102,7 @@ export default function ConditionsPage() {
       <h2>7. Suspension et résiliation</h2>
       <p>
         Vous pouvez supprimer votre compte à tout moment depuis votre profil. La suppression est
-        différée de 30 jours, pendant lesquels vous pouvez l&apos;annuler. Passé ce délai, vos
+        différée de {LEGAL_DELETION_GRACE_DAYS} jours, pendant lesquels vous pouvez l&apos;annuler. Passé ce délai, vos
         données personnelles sont effacées ; vos écritures d&apos;achat sont conservées de façon
         anonymisée pour les besoins comptables.
       </p>

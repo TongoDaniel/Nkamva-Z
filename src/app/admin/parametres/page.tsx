@@ -8,7 +8,8 @@ import { getAuthContext } from "@/lib/api";
 import { getCurrentTariffs, listTariffs, listDiscounts, CADENCE_LABELS } from "@/lib/pricing";
 import { getCurrentStorageTierTariffs, STORAGE_TIER_BYTES } from "@/lib/storage-tiers";
 import { listSettings, SETTING_SPECS, isNumericSettingKey } from "@/lib/settings";
-import { fmtFcfa, fmtDate, fmtBytes } from "@/lib/format";
+import { fmtFcfa, fmtDate } from "@/lib/format";
+import { TRAINER_STORAGE_QUOTA_BYTES, sizeLimitLabel } from "@/lib/rules";
 import { PricingActions } from "./pricing-actions";
 import { EndDiscountButton } from "./end-discount-button";
 import { SettingRow } from "./setting-row";
@@ -145,8 +146,8 @@ export default async function ParametresPage() {
           />
 
           <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
-            Au-delà des 40 Go inclus, le stockage s&apos;achète par tranches de{" "}
-            {fmtBytes(STORAGE_TIER_BYTES)}, depuis le portefeuille du formateur. Le palier{" "}
+            Au-delà des {sizeLimitLabel(TRAINER_STORAGE_QUOTA_BYTES)} inclus, le stockage s&apos;achète par tranches de{" "}
+            {sizeLimitLabel(STORAGE_TIER_BYTES)}, depuis le portefeuille du formateur. Le palier{" "}
             <b className="font-bold text-ink-2">se facture avec l&apos;abonnement</b>, à sa cadence :
             il n&apos;a pas d&apos;échéance propre. Le prix se pose avec le même bouton ci-dessus,
             en choisissant « Palier de stockage ».

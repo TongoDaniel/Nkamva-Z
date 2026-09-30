@@ -27,7 +27,8 @@ import { sendEmail, renderSimpleEmail } from './email'
 import { getSettingNumber } from './settings'
 import type { PrismaTransaction } from './types'
 
-export const PAYOUT_METHOD_CARENCE_HOURS = 72
+export { PAYOUT_METHOD_CARENCE_HOURS, BUSINESS_DOC_MAX_SIZE_BYTES } from './rules'
+import { PAYOUT_METHOD_CARENCE_HOURS, BUSINESS_DOC_MAX_SIZE_BYTES } from './rules'
 export const PAYOUT_METHOD_MAX_REJECTIONS = 3
 export const MICRO_DEPOSIT_MIN = 1
 export const MICRO_DEPOSIT_MAX = 99
@@ -36,7 +37,6 @@ export const MICRO_DEPOSIT_MAX = 99
 // Un RCCM est un document administratif scanné : la limite est plus haute que
 // celle d'une pièce jointe de litige, mais la liste MIME reste la même — pas
 // de format exécutable, pas d'archive.
-export const BUSINESS_DOC_MAX_SIZE_BYTES = 10_485_760
 export const BUSINESS_DOC_ALLOWED_MIMES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp']
 export const BUSINESS_DOC_TTL_HOURS = 24
 /** Scope `PendingAttachment` — distinct de `DISPUTE`, jamais interchangeable. */

@@ -8,6 +8,7 @@ import { Field } from "@/components/nk/input";
 import { AuthHeading, AuthBackLink, FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
 import { EMAIL_ERROR, isValidEmail } from "@/lib/validation";
+import { OTP_TTL_MINUTES } from "@/lib/rules";
 
 export function ForgotForm() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export function ForgotForm() {
           inputMode="email"
           required
           placeholder="vous@exemple.com"
-          hint="Le code est valable 10 minutes."
+          hint={`Le code est valable ${OTP_TTL_MINUTES} minutes.`}
           value={email}
           error={emailError}
           onChange={(e) => {

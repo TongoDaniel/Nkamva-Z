@@ -9,6 +9,7 @@ import { getMyApplication } from "@/lib/trainer-applications";
 import { getActivationState } from "@/lib/trainer-activation";
 import { payableProvidersForUser } from "@/lib/fx";
 import { fmtDate } from "@/lib/format";
+import { DOCUMENT_RETENTION_DAYS } from "@/lib/rules";
 import { DOCUMENT_SLOTS, DOCUMENT_STATUS } from "@/lib/trainer-document-slots";
 import { ActivationPanel } from "./activation-panel";
 
@@ -154,7 +155,7 @@ export default async function StatutCandidaturePage() {
           </ul>
           <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
             Vos pièces ne sont consultables que par l&apos;équipe de modération, et sont effacées
-            90 jours après la décision.
+            {DOCUMENT_RETENTION_DAYS} jours après la décision.
           </p>
         </section>
       </div>

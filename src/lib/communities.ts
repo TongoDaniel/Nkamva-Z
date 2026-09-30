@@ -25,6 +25,7 @@ import { notify, deliverSideEffects } from './notification'
 import { canTrainerWrite } from './subscriptions'
 import { trainerStorage } from './courses'
 import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
+import { COVER_IMAGE_MAX_BYTES } from './rules'
 import type { CommunityVisibility } from '@prisma/client'
 import type { CourseListItem } from './dto'
 import type { PrismaTransaction } from './types'
@@ -633,7 +634,7 @@ export async function countActivePaidMembers(trainerProfileId: string): Promise<
 /** Miroir de `COURSE_UPLOAD_LIMITS.image` : une bannière est une image. */
 export const COMMUNITY_COVER_LIMITS = {
   mimes: ['image/png', 'image/jpeg', 'image/webp'],
-  maxSize: 5_242_880,
+  maxSize: COVER_IMAGE_MAX_BYTES,
 } as const
 
 /** Préfixe des clés R2 d'une bannière, vérifié à la confirmation. */

@@ -12,10 +12,11 @@ import { api, ApiError } from "@/lib/client";
 import { AVATAR_SIZE, formatBytes, shrinkAvatar } from "@/lib/image";
 import { putToPresignedUrl, type UploadProgress } from "@/lib/upload";
 import { cn } from "@/lib/utils";
+import { AVATAR_MAX_BYTES, sizeLimitLabel } from "@/lib/rules";
 
 /** Miroir de `AVATAR_LIMITS` dans src/lib/avatars.ts. Les deux restent alignés. */
 const IMAGE_MIMES = ["image/png", "image/jpeg", "image/webp"];
-const IMAGE_MAX_BYTES = 2_097_152;
+const IMAGE_MAX_BYTES = AVATAR_MAX_BYTES;
 
 /** Repli de `presignUpload()` quand R2 n'est pas configuré. */
 const PLACEHOLDER_PREFIX = "data:placeholder-upload/";
@@ -121,7 +122,7 @@ export function AvatarPanel({
       return;
     }
     if (file.size > IMAGE_MAX_BYTES) {
-      toast.error("La photo ne doit pas dépasser 2 Mo.");
+      toast.error(`La photo ne doit pas dépasser ${sizeLimitLabel(IMAGE_MAX_BYTES)}.`);
       return;
     }
     void send.run(file);
@@ -208,7 +209,7 @@ export function AvatarPanel({
       {send.pending ? <UploadBar progress={progress} label="Envoi de la photo…" /> : null}
 
       <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
-        PNG, JPEG ou WebP, 2 Mo maximum.
+        PNG, JPEG ou WebP, {sizeLimitLabel(IMAGE_MAX_BYTES)} maximum.
       </p>
     </section>
   );

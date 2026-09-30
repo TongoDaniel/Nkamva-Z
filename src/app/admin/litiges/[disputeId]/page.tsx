@@ -7,6 +7,7 @@ import { BtnLink } from "@/components/nk/button-link";
 import { getAuthContext } from "@/lib/api";
 import { getDisputeForReview } from "@/lib/dispute-review";
 import { fmtDate, fmtFcfa } from "@/lib/format";
+import { CONSUMPTION_THRESHOLD_LABEL, DISPUTE_OPENING_WINDOW_DAYS } from "@/lib/rules";
 import { cn } from "@/lib/utils";
 import {
   DISPUTE_STATUS,
@@ -114,7 +115,7 @@ export default async function DisputeReviewPage({
           <span>
             Dossier hors barème :{" "}
             {!withinWindow
-              ? "ouvert plus de 14 jours après l'achat"
+              ? `ouvert plus de ${DISPUTE_OPENING_WINDOW_DAYS} jours après l'achat`
               : snapshot?.downloaded
                 ? "la ressource avait été téléchargée"
                 : `${snapshot?.consumptionPercent} % consultés à l'ouverture`}
@@ -129,7 +130,7 @@ export default async function DisputeReviewPage({
           <span>
             <b className="font-semibold">Document lu en ligne à {partLue} %</b> — page{" "}
             {snapshot?.lastPage} sur {snapshot?.coursePageCount}, sans téléchargement. La règle
-            automatique des 30 % ne s&apos;applique pas à un format téléchargeable : ce dossier
+            automatique des {CONSUMPTION_THRESHOLD_LABEL} ne s&apos;applique pas à un format téléchargeable : ce dossier
             reste dans le barème, et la décision vous revient en connaissance de cette lecture.
           </span>
         </p>
@@ -311,7 +312,7 @@ export default async function DisputeReviewPage({
                   </div>
                 ) : null}
                 <div className="flex justify-between gap-3">
-                  <dt className="text-ink-2">Règle des 30 %</dt>
+                  <dt className="text-ink-2">Règle des {CONSUMPTION_THRESHOLD_LABEL}</dt>
                   <dd className="font-bold">
                     {snapshot.ruleApplies ? "Applicable" : "Sans objet (téléchargeable)"}
                   </dd>
