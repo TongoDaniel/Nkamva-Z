@@ -65,10 +65,17 @@ const AUTH_PAGES = [
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-production',
-  })
+  // Aucun secret de repli. Le repli en dur d'autrefois
+  // ('nkamva-dev-secret-change-in-production', versionné dans le dépôt)
+  // permettait, sur tout déploiement où NEXTAUTH_SECRET manquait, de forger
+  // n'importe quelle session — rôle ADMIN compris — le jeton étant alors signé
+  // avec une valeur publique. Sans secret, on ne tente même pas de lire le
+  // jeton (getToken l'exige) : tout le monde est traité comme anonyme. Les
+  // pages publiques restent servies, les pages protégées renvoient à la
+  // connexion, et aucune session ne peut être forgée. Échec fermé, jamais
+  // ouvert. `auth.ts` applique la même règle côté serveur.
+  const secret = process.env.NEXTAUTH_SECRET
+  const token = secret ? await getToken({ req: request, secret }) : null
 
   // Même règle d'invalidation ciblée que le callback session de `auth.ts` :
   // sur `issuedAt`, figé à la connexion, et non sur `iat` que NextAuth réémet
