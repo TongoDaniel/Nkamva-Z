@@ -19,7 +19,7 @@
  * l'activation suivante.
  */
 
-const VERSION = "nkamva-v1";
+const VERSION = "nkamva-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = "/hors-ligne.html";
 

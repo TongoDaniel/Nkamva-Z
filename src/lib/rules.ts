@@ -37,6 +37,11 @@ export const DELETION_GRACE_DAYS = 30
 export const OTP_TTL_MINUTES = 10
 /** Conservation des pièces d'une candidature formateur après la décision. */
 export const DOCUMENT_RETENTION_DAYS = 90
+/**
+ * Arbitrage 80 — l'adresse d'une personne invitée est vidée ce nombre de jours
+ * après l'état terminal de l'invitation (acceptée, révoquée ou expirée).
+ */
+export const INVITATION_RETENTION_DAYS = 90
 
 // --- Retraits ----------------------------------------------------------------
 

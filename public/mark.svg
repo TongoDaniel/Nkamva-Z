@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32">
-  <rect width="48" height="48" rx="10" fill="#022342"></rect>
-  <g transform="translate(5.5 5.5) scale(0.77)">
-    <path d="M8 42V10h9l14 21V10h9v32h-9L17 21v21H8Z" fill="#fff"></path>
-    <path d="M7 43 36 12" stroke="#2E7CF6" stroke-width="7.5"></path>
-    <path d="M44 4 40.6 16.6 31.4 7.4 44 4Z" fill="#2E7CF6"></path>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<g transform="translate(0,0) scale(1.0)">
+  <rect width="512" height="512" rx="107.52" fill="#022342"/>
+  <g transform="translate(-12,12)"><g fill="#FFFFFF">
+    <rect x="136" y="136" width="58" height="240"/>
+    <rect x="318" y="136" width="58" height="240"/>
+    <polygon points="136,136 194,136 376,376 318,376"/>
   </g>
+  <g fill="#022342"><polygon points="130,407 200,337 200,430 130,430"/><polygon points="312,175 382,105 382,100 312,100"/></g>
+  <polygon fill="#0B7CFF" stroke="#022342" stroke-width="16" stroke-linejoin="miter" paint-order="stroke"
+    points="136.5,399.5 112.5,375.5 378.3,109.6 352.2,86.3 441.3,70.7 425.7,159.8 402.4,133.7"/></g>
+</g>
 </svg>

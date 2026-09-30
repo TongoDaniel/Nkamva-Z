@@ -25,6 +25,7 @@ import { renewDueMemberships, expireOverdueMemberships } from './memberships'
 import { refreshCommunityActivity } from './community-space'
 import { purgeExpiredReplays, alertUpcomingReplayPurges, reconcileProcessingReplays } from './lives'
 import { noticeEndingGiftMemberships, noticeTariffSwitch } from './notices'
+import { purgeStaleInvitations } from './invitations'
 
 export interface ScheduledJob {
   name: string
@@ -62,6 +63,15 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
       const { purged } = await purgeExpiredTrainerDocuments()
       return { purged }
     },
+  },
+  {
+    // Arbitrage 80 — l'adresse d'une personne invitée est vidée 90 jours après
+    // l'état terminal de l'invitation. La fonction existait sans être planifiée :
+    // la politique de confidentialité promettait une purge qui n'avait jamais lieu.
+    // Le nom est celui qu'annonce `docs/registre-des-traitements.md` (T10).
+    name: 'INVITATION_PURGE',
+    schedule: '15 3 * * *',
+    run: async () => ({ ...(await purgeStaleInvitations()) }),
   },
   {
     // Pièces jointes présignées jamais rattachées à un objet métier.

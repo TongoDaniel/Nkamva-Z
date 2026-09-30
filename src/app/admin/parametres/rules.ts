@@ -20,6 +20,7 @@ import {
   LEGAL_DELETION_GRACE_DAYS,
   LEGAL_DISPUTE_WINDOW_DAYS,
   LEGAL_DOCUMENT_RETENTION_DAYS,
+  LEGAL_INVITATION_RETENTION_DAYS,
   LEGAL_LEARNER_RESPONSE_DAYS,
   LEGAL_OTP_TTL_MINUTES,
   LEGAL_PRIVACY_UPDATED_AT,
@@ -30,6 +31,7 @@ import {
   DELETION_GRACE_DAYS,
   DISPUTE_OPENING_WINDOW_DAYS,
   DOCUMENT_RETENTION_DAYS,
+  INVITATION_RETENTION_DAYS,
   LEARNER_RESPONSE_DEADLINE_DAYS,
   OTP_TTL_MINUTES,
   TRAINER_STORAGE_QUOTA_BYTES,
@@ -94,6 +96,12 @@ const LEGAL_DIVERGENCES: PlatformRule[] = [
     label: "Conservation des pièces inscrite à la confidentialité",
     legal: `${LEGAL_DOCUMENT_RETENTION_DAYS} jours`,
     applied: `${DOCUMENT_RETENTION_DAYS} jours`,
+    source: `confidentialité du ${LEGAL_PRIVACY_UPDATED_AT}, article 4`,
+  },
+  {
+    label: "Conservation des adresses invitées inscrite à la confidentialité",
+    legal: `${LEGAL_INVITATION_RETENTION_DAYS} jours`,
+    applied: `${INVITATION_RETENTION_DAYS} jours`,
     source: `confidentialité du ${LEGAL_PRIVACY_UPDATED_AT}, article 4`,
   },
   {

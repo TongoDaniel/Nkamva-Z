@@ -4,6 +4,7 @@ import { LegalPage, ToProvide } from "../legal-page";
 import {
   LEGAL_DELETION_GRACE_DAYS,
   LEGAL_DOCUMENT_RETENTION_DAYS,
+  LEGAL_INVITATION_RETENTION_DAYS,
   LEGAL_OTP_TTL_MINUTES,
   LEGAL_PRIVACY_UPDATED_AT,
 } from "@/lib/legal-terms";
@@ -56,6 +57,24 @@ export default function ConfidentialitePage() {
         ne sont consultables que par l&apos;équipe de modération, chaque consultation étant
         journalisée.
       </p>
+      <h3>Invitations à une communauté</h3>
+      <p>
+        Le formateur qui anime une communauté peut y inviter une personne en saisissant son
+        adresse e-mail, que cette personne ait un compte NKAMVA ou non. Nous conservons alors
+        cette adresse, la communauté concernée, les mois d&apos;adhésion offerts le cas échéant,
+        et les dates d&apos;envoi, d&apos;expiration, d&apos;acceptation ou d&apos;annulation de
+        l&apos;invitation.
+      </p>
+      <p>
+        L&apos;adresse ne sert qu&apos;à envoyer l&apos;invitation et à la rattacher au compte
+        créé avec cette même adresse. Elle n&apos;est utilisée à aucune autre fin, et jamais à des
+        fins commerciales. Si vous avez reçu une invitation sans avoir de compte, vous pouvez
+        nous demander d&apos;en effacer l&apos;adresse sans attendre, via le{" "}
+        <Link href="/contact" className="font-semibold text-brand">
+          formulaire de contact
+        </Link>
+        .
+      </p>
 
       <h2>3. Bases légales</h2>
       <ul>
@@ -66,7 +85,8 @@ export default function ConfidentialitePage() {
           <b>Obligation légale</b> : conservation des écritures comptables.
         </li>
         <li>
-          <b>Intérêt légitime</b> : sécurité des comptes, prévention de la fraude et des abus.
+          <b>Intérêt légitime</b> : sécurité des comptes, prévention de la fraude et des abus ;
+          transmission à une personne de l&apos;invitation qu&apos;un formateur lui adresse.
         </li>
       </ul>
 
@@ -83,6 +103,12 @@ export default function ConfidentialitePage() {
         <li>
           <b>Écritures d&apos;achat</b> : conservées de façon anonymisée après effacement du
           compte, pour les besoins comptables et fiscaux.
+        </li>
+        <li>
+          <b>Adresses des personnes invitées</b> : {LEGAL_INVITATION_RETENTION_DAYS} jours après
+          l&apos;acceptation, l&apos;annulation ou l&apos;expiration de l&apos;invitation, puis
+          effacement de l&apos;adresse. L&apos;invitation elle-même est conservée sans elle,
+          parce qu&apos;elle justifie l&apos;adhésion à laquelle elle a pu mener.
         </li>
         <li>
           <b>Codes à usage unique</b> : {LEGAL_OTP_TTL_MINUTES} minutes, puis inutilisables.
@@ -122,7 +148,8 @@ export default function ConfidentialitePage() {
       <ul>
         <li>
           <b>Récupérer vos données</b> : un fichier JSON complet est produit à la demande et
-          téléchargé immédiatement.
+          téléchargé immédiatement. Il comprend les invitations que vous avez envoyées et celles
+          que vous avez reçues.
         </li>
         <li>
           <b>Supprimer votre compte</b> : effacement programmé à {LEGAL_DELETION_GRACE_DAYS} jours, annulable par vous
