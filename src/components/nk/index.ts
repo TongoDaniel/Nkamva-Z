@@ -23,7 +23,7 @@ export { Modal, ModalRows } from "./modal";
 export { Hint, HintedHeading } from "./hint";
 export { Tabs, type TabItem } from "./tabs";
 export { WizardSteps, WizardCard, type WizardStep } from "./wizard";
-export { Logo } from "./logo";
+export { Logo, Wordmark } from "./logo";
 export { ResourceCard, Price } from "./resource-card";
 export { PageHead } from "./page-head";
 export { Kicker, SectionHead } from "./section-head";

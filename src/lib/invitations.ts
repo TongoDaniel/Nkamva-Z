@@ -62,8 +62,12 @@ export const INVITATION_NOMINATIVE_TTL_DAYS = 14
 export const INVITATION_SHARE_LINK_TTL_DAYS = 90
 /** Arbitré (75). Ce plafond-ci n'est pas une valeur de confort. */
 export const INVITATION_GIFT_MAX_MONTHS = 3
-/** Rétention de l'adresse invitée après l'état terminal (arbitrage 80). */
-export const INVITATION_RETENTION_DAYS = 90
+/**
+ * Rétention de l'adresse invitée après l'état terminal (arbitrage 80). Écrite
+ * dans la politique de confidentialité : source unique dans `rules.ts`.
+ */
+export { INVITATION_RETENTION_DAYS } from './rules'
+import { INVITATION_RETENTION_DAYS } from './rules'
 
 // --- Jeton ------------------------------------------------------------------
 

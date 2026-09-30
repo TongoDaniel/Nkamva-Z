@@ -18,6 +18,11 @@ const instrument = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
+  // Rend absolue l'URL de `opengraph-image.png` ; sans elle, Next la fait
+  // pointer sur localhost et l'aperçu de lien est vide sur WhatsApp et ailleurs.
+  metadataBase: new URL(
+    process.env.WEB_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000",
+  ),
   title: {
     default: "NKAMVA — Prêt à apprendre ou à transmettre ?",
     template: "%s — NKAMVA",

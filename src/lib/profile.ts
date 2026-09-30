@@ -221,6 +221,30 @@ export async function buildGdprExport(userId: string) {
 
   if (!user) return null
 
+  // Arbitrage 80 — une invitation figure dans l'export de l'émetteur comme de
+  // l'invité. Reçue : adressée à son e-mail (stocké en minuscules) ou acceptée
+  // par lui. Le jeton n'en sort jamais, ni en clair ni haché.
+  const invitationFields = {
+    kind: true, grant: true, giftMonths: true, createdAt: true, expiresAt: true,
+    acceptedAt: true, revokedAt: true, anonymizedAt: true,
+    community: { select: { name: true } },
+  } as const
+  const [invitationsIssued, invitationsReceived] = await Promise.all([
+    db.communityInvitation.findMany({
+      where: { issuerId: userId },
+      select: { ...invitationFields, email: true, maxUses: true, usesCount: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+    db.communityInvitation.findMany({
+      where: {
+        kind: 'NOMINATIVE',
+        OR: [{ email: user.email.trim().toLowerCase() }, { acceptedById: userId }],
+      },
+      select: { ...invitationFields, email: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ])
+
   await db.user.update({
     where: { id: userId },
     data: { gdprExportRequestedAt: new Date() },
@@ -242,6 +266,8 @@ export async function buildGdprExport(userId: string) {
     achats: purchases,
     consultations: views,
     abonnementsCommunaute: subscriptions,
+    invitationsEnvoyees: invitationsIssued,
+    invitationsRecues: invitationsReceived,
     notifications,
     journalActivite: activity,
   }

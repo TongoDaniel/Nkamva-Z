@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -10,6 +11,7 @@ import {
   TicketPercent, UserCog, Users, Wallet, X,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
+import { Wordmark } from "@/components/nk/logo";
 import { NavLink } from "@/components/nk/nav-link";
 import { useHistoryLayer } from "@/hooks/use-history-layer";
 import { cn } from "@/lib/utils";
@@ -187,9 +189,9 @@ export function AdminShell({
         >
           <Menu className="size-[19px]" aria-hidden="true" />
         </button>
-        <b className="font-display text-base font-extrabold tracking-[-0.01em]">
-          NKAM<em className="not-italic">VA</em>
-        </b>
+        <Image src="/mark.svg" alt="" width={28} height={28} className="block size-7 shrink-0" />
+        <Wordmark className="h-3 text-navy" />
+        <span className="sr-only">NKAMVA</span>
         <span className="rounded-md bg-paper px-1.5 py-1 text-[13px] font-extrabold tracking-[0.12em] text-ink-3">
           ADMIN
         </span>
@@ -217,15 +219,9 @@ export function AdminShell({
         )}
       >
         <div className="flex items-center gap-2.5 px-5 pb-4 pt-5.5">
-          <span
-            className="grid size-[34px] shrink-0 place-items-center rounded-nk-sm bg-brand shadow-[inset_0_-2px_0_rgba(0,0,0,.2)] font-display text-[17px] font-extrabold text-white"
-            aria-hidden="true"
-          >
-            N
-          </span>
-          <b className="font-display text-[17px] font-extrabold tracking-[-0.01em] text-white">
-            NKAM<em className="not-italic text-[#7fd4b4]">VA</em>
-          </b>
+          <Image src="/mark.svg" alt="" width={34} height={34} className="block size-[34px] shrink-0" />
+          <Wordmark className="h-3.5 text-white" />
+          <span className="sr-only">NKAMVA</span>
           <span className="ml-auto rounded-md bg-white/10 px-1.5 py-1 text-[13px] font-extrabold tracking-[0.13em] text-[#98a49b]">
             ADMIN
           </span>

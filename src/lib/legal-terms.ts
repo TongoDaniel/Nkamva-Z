@@ -39,10 +39,13 @@ export const LEGAL_DELETION_GRACE_DAYS = 30
 // --- Politique de confidentialité, article 4 (durées de conservation) ---------
 
 /** Date de mise à jour de la politique de confidentialité. */
-export const LEGAL_PRIVACY_UPDATED_AT = '1er août 2026'
+export const LEGAL_PRIVACY_UPDATED_AT = '30 septembre 2026'
 
 /** Conservation des pièces de candidature après la décision. */
 export const LEGAL_DOCUMENT_RETENTION_DAYS = 90
 
 /** Validité d'un code à usage unique. */
 export const LEGAL_OTP_TTL_MINUTES = 10
+
+/** Conservation de l'adresse d'une personne invitée, après la fin de l'invitation. */
+export const LEGAL_INVITATION_RETENTION_DAYS = 90
