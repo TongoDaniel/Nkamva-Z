@@ -1131,7 +1131,10 @@ pas seulement dans notre tête** (arbitrage 92).
    documents Markdown de `src/content/legal/` ne sont importés par aucun
    fichier, tandis que les pages servies divergent d'eux sur le seuil de
    consommation, l'assiette de la commission, le préavis tarifaire et la voie de
-   remboursement. Il faut savoir lequel engage.
+   remboursement. Il faut savoir lequel engage. *Tranché le 30 septembre 2026 :
+   les pages servies font foi, les markdown sont supprimés. Reste à y écrire ce
+   que seul le markdown couvrait (licence de diffusion, abonnements) — voir
+   `docs/a-valider-par-un-conseil.md`, B.1.*
 3. **L'autorisation de transfert auprès de l'APDP.**
 
 ### 11.4 Autres écarts à instruire
