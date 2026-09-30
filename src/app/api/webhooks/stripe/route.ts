@@ -5,7 +5,7 @@ import { creditWalletOnPurchase } from '@/lib/wallet'
 import { auditStandalone } from '@/lib/audit'
 import { getStripe } from '@/lib/stripe'
 import { onPurchaseSettled } from '@/lib/purchase-settled'
-import { promoteCheckoutSession } from '@/lib/purchases'
+import { promoteCheckoutSession, simulationAllowed } from '@/lib/purchases'
 import { promoteActivationCheckoutSession, settleActivationPayment } from '@/lib/trainer-activation'
 import { promoteSubscriptionCheckoutSession, settleSubscriptionPayment } from '@/lib/subscription-payment'
 import { openDisputeFromChargeback, closeChargeback } from '@/lib/disputes'
@@ -40,15 +40,23 @@ export async function POST(request: Request) {
     } catch {
       return new Response('Invalid signature', { status: 400 })
     }
-  } else {
-    // Dev sans STRIPE_WEBHOOK_SECRET : la signature ne peut pas être vérifiée.
-    // Ce chemin n'est emprunté que par la simulation dev de initiatePurchase
-    // (jamais par un vrai appel Stripe, qui exige toujours une signature en prod).
+  } else if (simulationAllowed()) {
+    // Corps non signé accepté UNIQUEMENT sous les deux verrous de simulation
+    // (NODE_ENV hors production ET ALLOW_PAYMENT_SIMULATION=1) : c'est le chemin
+    // de la simulation dev de initiatePurchase, jamais un vrai appel Stripe.
     try {
       event = JSON.parse(rawBody)
     } catch {
       return new Response('Invalid payload', { status: 400 })
     }
+  } else {
+    // Échec fermé, comme le webhook Mux — et comme l'écran de diagnostic
+    // (integrations.ts) le décrit déjà. Sans secret dans un environnement réel,
+    // la signature est invérifiable : on refuse au lieu de lire le corps. Se
+    // dégrader en ouvert laissait n'importe quel POST anonyme créditer un
+    // portefeuille via payment_intent.succeeded — un paiement fabriqué sans payer.
+    await auditStandalone({ action: 'STRIPE_WEBHOOK_REJECTED', meta: { reason: 'no_secret' } })
+    return new Response('Webhook signature verification unavailable', { status: 400 })
   }
 
   const object = event.data?.object
