@@ -63,6 +63,18 @@ export interface PayableProvider {
   prefix: string
 }
 
+/**
+ * « MTN, Orange, Airtel » — ou le motif de l'absence, plutôt qu'une ligne vide.
+ *
+ * Dédoublonné par nom commercial : la liste couvre tous les pays encaissables,
+ * et une marque y figure une fois par pays (Orange au Sénégal, au Cameroun, en
+ * Côte d'Ivoire…). Sans cela, le résumé répétait « MTN » six fois.
+ */
+export function operatorsLabel(providers: PayableProvider[]): string {
+  if (!providers.length) return 'Indisponible dans votre pays'
+  return [...new Set(providers.map((p) => p.displayName))].join(', ')
+}
+
 // --- Pays -----------------------------------------------------------------
 // Ici et non dans `markets.ts` : l'écran de paiement en a besoin côté client, et
 // `markets.ts` importe la base de données.

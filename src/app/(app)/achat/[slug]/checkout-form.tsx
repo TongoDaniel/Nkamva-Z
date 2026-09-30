@@ -7,7 +7,7 @@ import { Btn } from "@/components/nk/button";
 import { Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
 import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
-import { phoneNumberError, type PayableProvider } from "@/lib/payment-input";
+import { operatorsLabel, phoneNumberError, type PayableProvider } from "@/lib/payment-input";
 import { api, ApiError } from "@/lib/client";
 import { fmtDuration, fmtFcfa } from "@/lib/format";
 import type { InitiatePurchaseResult, PaymentProvider } from "@/lib/dto";
@@ -35,12 +35,6 @@ const PROVIDERS: Array<{
     icon: CreditCard,
   },
 ];
-
-/** « MTN, Orange, Airtel » — ou le motif de l'absence, plutôt qu'une ligne vide. */
-export function operatorsLabel(providers: PayableProvider[]): string {
-  if (!providers.length) return "Indisponible dans votre pays";
-  return providers.map((p) => p.displayName).join(", ");
-}
 
 export function CheckoutForm({
   courseId,
