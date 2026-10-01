@@ -293,8 +293,14 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
           <LiveControlButton
             kind="toggle"
             active={transport.screenEnabled}
-            disabled={!transport.connected}
-            label={transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran"}
+            // Autorisé par l'animateur, mais encore faut-il que le navigateur
+            // sache capturer un écran — ce que le mobile ne sait pas faire.
+            disabled={!transport.connected || !transport.screenShareSupported}
+            label={
+              !transport.screenShareSupported
+                ? "Partage d'écran indisponible sur ce navigateur — rejoignez depuis un ordinateur"
+                : transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran"
+            }
             onClick={() => void transport.setScreen(!transport.screenEnabled)}
           >
             {transport.screenEnabled ? <MonitorX /> : <MonitorUp />}

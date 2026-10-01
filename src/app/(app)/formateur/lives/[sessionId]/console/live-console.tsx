@@ -387,10 +387,14 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
       <LiveControlButton
         kind="toggle"
         active={transport.screenEnabled}
-        disabled={!transport.connected}
+        // `getDisplayMedia` n'existe pas sur navigateur mobile : on désactive et
+        // on explique, plutôt que d'offrir un bouton qui échouerait à coup sûr.
+        disabled={!transport.connected || !transport.screenShareSupported}
         label={
           controlsReason ??
-          (transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran")
+          (!transport.screenShareSupported
+            ? "Partage d'écran indisponible sur ce navigateur — présentez depuis un ordinateur"
+            : transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran")
         }
         onClick={() => void transport.setScreen(!transport.screenEnabled)}
       >
