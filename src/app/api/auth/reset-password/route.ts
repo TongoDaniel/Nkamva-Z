@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     return error('RATE_LIMITED', `Trop de tentatives. Réessayez dans ${limit.retryAfter} secondes.`, 429)
   }
 
-  const result = await consumeOtp(email, parsed.data.code)
+  const result = await consumeOtp(email, parsed.data.code, 'PASSWORD_RESET')
   if (!result.ok) return otpFailureResponse(result.reason)
 
   const user = await db.user.findUnique({

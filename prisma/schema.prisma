@@ -1437,9 +1437,15 @@ model EmailOtp {
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
   userId     String?
+  // Usage du code : vérification d'adresse ou réinitialisation de mot de passe.
+  // Un code n'est valable que pour SON usage — un code de vérification ne peut
+  // pas servir à réinitialiser un mot de passe, et réciproquement. Par défaut
+  // EMAIL_VERIFICATION, valeur des codes émis avant cette colonne.
+  purpose    String    @default("EMAIL_VERIFICATION")
   user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([email, expiresAt])
+  @@index([email, purpose])
   @@map("email_otps")
 }
 

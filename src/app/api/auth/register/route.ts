@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     throw err
   }
 
-  const code = await issueOtp(normalizedEmail, userId)
+  const code = await issueOtp(normalizedEmail, userId, 'EMAIL_VERIFICATION')
   await sendOtpEmail(normalizedEmail, code)
 
   return success({ userId, email: normalizedEmail, emailVerificationRequired: true }, undefined, 201)
