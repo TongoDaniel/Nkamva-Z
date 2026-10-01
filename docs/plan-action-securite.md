@@ -2,7 +2,12 @@
 
 - **Source** : test d'intrusion de `staging.nkamva.com` (voir `docs/pentest-staging-2026-10-01.md`)
 - **Date** : 1er octobre 2026
-- **État général** : aucune faille critique ni IDOR exploitable. **7 points corrigés (PR #10)** : findings 1, 2, 3, 4, 8, 9, 12. Restants, tous de sévérité faible à moyenne : 6 et 4b (P1), 7 et 11 (P2 — arbitrage/validation), 5, 10, 12b (P3). Les restants demandent une décision (topologie, UX), une infra (Redis, scanner) ou une validation de build.
+- **État général** : aucune faille critique ni IDOR exploitable.
+  - **PR #10** : findings 1, 2, 3, 4, 8, 9, 12, + 6 (documenté) + 4b (partiel, Google Fonts retiré).
+  - **PR #12** : finding 7 (inscription non-énumérable).
+  - **Restants, dépendant de toi** : 11 (valider un vrai `next build`), 5 (lancer gitleaks), 10 (config Caddy staging), 4b-enforce (observer les flux authentifiés après déploiement), 12b (bloqué — voir la note « double-consume » plus bas).
+
+> ⚠️ **Découverte hors pentest — à regarder** : le parcours UI de réinitialisation de mot de passe consomme le code **deux fois** (`verify-otp` puis `reset-password`), et aucun test ne couvre ce chemin. Si la réinitialisation par l'écran fonctionne aujourd'hui, c'est fragile ; si elle ne fonctionne pas, c'est un bug fonctionnel réel. **À vérifier avec la base de test** avant de toucher à l'OTP (finding 12b en dépend).
 
 ---
 
@@ -15,15 +20,15 @@
 | ✅ Fait | 3 · Proxy Caddy `XTransformPort` | Élevée (latente) | — | **PR #10** |
 | ✅ Fait | 4 · En-têtes de sécurité (base) | Moyenne | — | **PR #10** |
 | ✅ Fait | 8 · `X-Powered-By` | Faible | — | **PR #10** |
-| **P1** | 6 · Rate-limit en mémoire | Moyenne | M | À faire |
-| **P1** | 4b · CSP `Report-Only` → stricte | Moyenne | M | À faire |
-| **P2** | 7 · Énumération à l'inscription | Faible/Moy. | S | À arbitrer (UX) |
-| **P2** | 11 · `ignoreBuildErrors: true` | Faible | M→L | À valider (build) |
+| ✅ Doc | 6 · Rate-limit en mémoire | Moyenne | M | **PR #10** (mono-instance documenté ; Redis si multi) |
+| 🟡 Partiel | 4b · CSP `Report-Only` → stricte | Moyenne | M | **PR #10** (Google Fonts retiré) ; enforce après obs. flux auth |
+| ✅ Fait | 7 · Énumération à l'inscription | Faible/Moy. | S | **PR #12** |
+| ⏸ Toi | 11 · `ignoreBuildErrors: true` | Faible | M→L | `tsc` vert ; valider par un vrai `next build` |
 | ✅ Fait | 9 · `/api/health` sans auth | Faible | S | **PR #10** |
-| **P3** | 5 · Scan historique + rotation | Faible/Info | S | À vérifier (scanner) |
-| **P3** | 10 · TRACE actif | Info | S | Config Caddy staging |
+| ⏸ Toi | 5 · Scan historique + rotation | Faible/Info | S | rien trouvé en local ; lancer gitleaks sur l'historique distant |
+| ⏸ Toi | 10 · TRACE actif | Info | S | Config Caddy staging (hors dépôt) |
 | ✅ Fait | 12 · Code mort `isPublicRoute` | Info | S | **PR #10** |
-| **P3** | 12b · OTP sans séparation d'usage | Info | S | À arbitrer (migration) |
+| ⏸ Bloqué | 12b · OTP sans séparation d'usage | Info | S | Besoin base de test + résoudre le double-consume (voir note) |
 
 *Effort : S = < 1 h · M = quelques heures · L = étalé.*
 
