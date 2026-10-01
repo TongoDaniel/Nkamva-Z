@@ -1,3 +1,24 @@
+// ==========================================================================
+// ⚠️ Compteurs EN MÉMOIRE DE PROCESSUS — valable en déploiement MONO-INSTANCE
+// ==========================================================================
+// Les hits vivent dans une `Map` locale à ce processus Node. Conséquences :
+//
+//   · ils repartent de zéro à chaque redémarrage / redéploiement (acceptable) ;
+//   · ils NE SONT PAS PARTAGÉS entre plusieurs instances. Si le service est un
+//     jour répliqué (plusieurs conteneurs derrière le proxy), chaque réplique a
+//     sa propre `Map` : un attaquant réparti sur N répliques obtient N fois les
+//     plafonds (connexion, OTP, présignature, initiation de paiement).
+//
+// Le `Caddyfile` du dépôt ne déclare qu'un seul upstream (`localhost:3000`) :
+// le déploiement est mono-instance, et ce module est alors correct tel quel.
+//
+// 👉 Le jour où l'on passe à plusieurs instances, il FAUT déporter ces compteurs
+//    vers un magasin partagé (Redis / Upstash). L'API publique ci-dessous
+//    (`peekRateLimit` / `recordRateLimitHit` / `clearRateLimit` / `checkRateLimit`)
+//    est conçue pour que seule l'implémentation du stockage change, pas les
+//    appelants.
+// ==========================================================================
+
 const hits = new Map<string, number[]>()
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
