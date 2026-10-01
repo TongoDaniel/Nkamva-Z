@@ -57,6 +57,14 @@ export interface LiveRoomState {
    * rend l'autorisation non négociable depuis la console du navigateur.
    */
   canShareScreen: boolean;
+  /**
+   * Ce **navigateur** sait-il capturer un écran ? `getDisplayMedia` n'existe pas
+   * sur les navigateurs mobiles (iOS Safari, Chrome Android) : aucun jeton ni
+   * aucune autorisation serveur ne peut l'y faire apparaître. L'UI s'en sert
+   * pour expliquer l'indisponibilité plutôt que d'offrir un bouton sans effet.
+   * Distinct de `canShareScreen`, qui est la permission *serveur*.
+   */
+  screenShareSupported: boolean;
   /** Ce navigateur partage-t-il son écran en ce moment ? */
   screenEnabled: boolean;
   setMic: (on: boolean) => Promise<void>;
@@ -137,6 +145,17 @@ export function useLiveRoom(
   const [screenEnabled, setScreenEnabled] = React.useState(false);
   const [canPublish, setCanPublish] = React.useState(false);
   const [canShareScreen, setCanShareScreen] = React.useState(false);
+  // Capacité du navigateur à capturer un écran. Posée dans un effet (et non à
+  // l'initialisation) pour rester identique au rendu serveur — `navigator` n'y
+  // existe pas — et éviter une divergence d'hydratation. Sur mobile, elle reste
+  // `false` : `getDisplayMedia` n'y est jamais exposé.
+  const [screenShareSupported, setScreenShareSupported] = React.useState(false);
+  React.useEffect(() => {
+    setScreenShareSupported(
+      typeof navigator !== 'undefined' &&
+        typeof navigator.mediaDevices?.getDisplayMedia === 'function',
+    );
+  }, []);
 
   // Le jeton n'est lu qu'au moment de se connecter. Déclaré **avant** l'effet de
   // connexion : React exécute les effets dans l'ordre de déclaration, la
@@ -273,30 +292,69 @@ export function useLiveRoom(
   }, []);
 
   /**
-   * Arbitrage 144 — le partage d'écran, une fois le serveur d'accord.
+   * Arbitrage 144 — le partage d'écran, rendu robuste sur tous les navigateurs.
    *
-   * Deux refus se ressemblent et ne se disent pas pareil : le navigateur qui
-   * n'obtient pas la fenêtre (la personne a fermé le sélecteur, ou le système
-   * interdit la capture), et le serveur qui n'a pas ouvert la source. Le second
-   * ne devrait pas se produire — le bouton n'apparaît qu'autorisé — mais s'il
-   * arrive, il vaut mieux le dire que laisser un bouton sans effet.
+   * Trois réalités à absorber pour que « ça marche partout » :
+   *
+   *   1. **Mobile** (iOS Safari, Chrome Android) : `getDisplayMedia` n'existe pas.
+   *      On le dit clairement au lieu de laisser le bouton échouer.
+   *   2. **Firefox / Safari desktop** : la capture vidéo marche, mais l'**audio**
+   *      d'écran n'est pas supporté. Demander `{audio:true}` peut faire échouer
+   *      TOUT le partage. On tente donc avec l'audio, et on **réessaie sans** si
+   *      ça casse : mieux vaut un écran sans son que pas d'écran du tout.
+   *   3. **Chrome / Edge desktop** : tout marche, audio compris — le premier essai
+   *      suffit.
+   *
+   * Les refus se distinguent : fenêtre non choisie / capture bloquée par le
+   * système (`NotAllowedError`), API absente, ou refus serveur (ne devrait pas
+   * arriver, le bouton n'apparaît qu'autorisé).
    */
   const setScreen = React.useCallback(async (on: boolean) => {
     const room = roomRef.current;
     if (!room) return;
+
+    // Arrêter ne dépend d'aucune capacité : on coupe et on sort.
+    if (!on) {
+      try { await room.localParticipant.setScreenShareEnabled(false); } catch { /* déjà coupé */ }
+      setScreenEnabled(room.localParticipant.isScreenShareEnabled);
+      return;
+    }
+
+    if (!screenShareSupported) {
+      setDeviceError(
+        "Le partage d'écran n'est pas disponible depuis ce navigateur. Sur téléphone, aucun navigateur ne le permet : rejoignez le direct depuis un ordinateur pour présenter.",
+      );
+      return;
+    }
+
     try {
-      await room.localParticipant.setScreenShareEnabled(on, { audio: true });
+      // Premier essai, audio compris (Chrome/Edge).
+      await room.localParticipant.setScreenShareEnabled(true, { audio: true });
       setDeviceError(null);
     } catch (err) {
       const nom = err instanceof Error ? err.name : '';
-      setDeviceError(
-        nom === 'NotAllowedError'
-          ? "Le partage d'écran a été refusé, ou la fenêtre n'a pas été choisie."
-          : "L'écran n'a pas pu être partagé. Réessayez.",
-      );
+      // L'utilisateur a fermé le sélecteur ou refusé : inutile de réessayer.
+      if (nom === 'NotAllowedError') {
+        setDeviceError("Le partage d'écran a été refusé, ou la fenêtre n'a pas été choisie.");
+        setScreenEnabled(room.localParticipant.isScreenShareEnabled);
+        return;
+      }
+      // Sinon, l'audio d'écran est le suspect le plus courant (Firefox/Safari) :
+      // on retente sans lui.
+      try {
+        await room.localParticipant.setScreenShareEnabled(true, { audio: false });
+        setDeviceError(null);
+      } catch (err2) {
+        const nom2 = err2 instanceof Error ? err2.name : '';
+        setDeviceError(
+          nom2 === 'NotAllowedError'
+            ? "Le partage d'écran a été refusé, ou la fenêtre n'a pas été choisie."
+            : "L'écran n'a pas pu être partagé sur ce navigateur. Essayez un autre navigateur, ou depuis un ordinateur.",
+        );
+      }
     }
     setScreenEnabled(room.localParticipant.isScreenShareEnabled);
-  }, []);
+  }, [screenShareSupported]);
 
   return {
     connected,
@@ -307,6 +365,7 @@ export function useLiveRoom(
     micEnabled,
     camEnabled,
     screenEnabled,
+    screenShareSupported,
     canPublish,
     canShareScreen,
     setMic,
