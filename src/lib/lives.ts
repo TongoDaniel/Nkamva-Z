@@ -319,23 +319,33 @@ export async function startLiveSession(sessionId: string, userId: string) {
 }
 
 /**
- * Clôt la séance et ouvre le replay. Le replay est créé même quand
+ * Cœur de clôture, partagé par la fin manuelle (l'animateur clique « terminer »)
+ * et la fin **système** (le webhook LiveKit `room_finished`, quand la salle s'est
+ * vidée sans que personne ne clôture). Le replay est créé même quand
  * l'enregistrement a échoué — en `FAILED` : l'arbitrage 38 promet qu'un replay
  * existe systématiquement, et une promesse tenue à moitié se constate mieux
  * qu'elle ne se devine.
+ *
+ * **Idempotent et insensible aux courses.** La transition `LIVE → ENDED` est une
+ * `updateMany` gardée sur `status: 'LIVE'` à l'intérieur de la transaction :
+ * seule celle qui bascule réellement crée le replay. Un second appel — le clic
+ * de l'animateur ET le `room_finished`, ou deux webhooks rejoués — voit `count`
+ * à zéro, ne crée aucun replay (pas de collision sur l'unicité de `sessionId`)
+ * et ne notifie pas deux fois.
  */
-export async function endLiveSession(sessionId: string, userId: string) {
-  const session = await assertIsHost(sessionId, userId)
-  if (session.status !== 'LIVE') throw new Error('LIVE_NOT_STARTED')
-
-  const full = await db.liveSession.findUniqueOrThrow({
+async function finalizeLiveSession(
+  sessionId: string,
+  actor: { id: string | null; role: 'TRAINER' | 'SYSTEM' },
+): Promise<{ ended: boolean; recorded: boolean }> {
+  const full = await db.liveSession.findUnique({
     where: { id: sessionId },
     select: {
-      id: true, communityId: true, trainerId: true, title: true,
+      id: true, status: true, communityId: true, trainerId: true, title: true,
       startedAt: true, egressId: true, audioEgressId: true, roomName: true, muxStreamId: true,
       community: { select: { name: true, slug: true } },
     },
   })
+  if (!full || full.status !== 'LIVE') return { ended: false, recorded: false }
 
   if (full.egressId) await stopRecording(full.egressId)
   if (full.audioEgressId) await stopRecording(full.audioEgressId)
@@ -351,11 +361,15 @@ export async function endLiveSession(sessionId: string, userId: string) {
   const purgeAt = new Date(recordedAt)
   purgeAt.setMonth(purgeAt.getMonth() + REPLAY_RETENTION_MONTHS)
 
-  await db.$transaction(async (tx) => {
-    await tx.liveSession.update({
-      where: { id: sessionId },
+  const outcome = await db.$transaction(async (tx) => {
+    // Garde de course : seule la transaction qui fait réellement passer la
+    // session de LIVE à ENDED a le droit de créer le replay.
+    const transition = await tx.liveSession.updateMany({
+      where: { id: sessionId, status: 'LIVE' },
       data: { status: 'ENDED', endedAt },
     })
+    if (transition.count === 0) return { ended: false }
+
     await tx.liveParticipant.updateMany({
       where: { sessionId, leftAt: null },
       data: { leftAt: endedAt },
@@ -377,14 +391,19 @@ export async function endLiveSession(sessionId: string, userId: string) {
       },
     })
     await audit(tx, {
-      actorId: userId, actorRole: 'TRAINER',
+      actorId: actor.id, actorRole: actor.role,
       action: 'LIVE_SESSION_ENDED', targetType: 'LiveSession', targetId: sessionId,
-      meta: { communityId: full.communityId, recorded: Boolean(full.egressId) },
+      meta: { communityId: full.communityId, recorded: Boolean(full.egressId), by: actor.role },
     })
+    return { ended: true }
   })
 
+  if (!outcome.ended) return { ended: false, recorded: false }
+
   await deliverSideEffects('LIVE_ENDED', { type: 'LiveSession', id: sessionId }, () =>
-    notifyMembers(full.communityId, userId, {
+    // `actor.id ?? ''` : la fin système n'a pas d'acteur à exclure, et l'animateur
+    // n'est de toute façon pas membre de sa propre communauté.
+    notifyMembers(full.communityId, actor.id ?? '', {
       type: 'REPLAY_AVAILABLE',
       title: `Le replay de « ${full.title} » arrive`,
       body: 'La séance est terminée. Son enregistrement sera disponible dans quelques minutes.',
@@ -395,6 +414,29 @@ export async function endLiveSession(sessionId: string, userId: string) {
   )
 
   return { ended: true, recorded: Boolean(full.egressId) }
+}
+
+/**
+ * Clôt la séance à la demande de l'animateur. Lui seul passe par ici : la garde
+ * d'hôte et l'erreur explicite `LIVE_NOT_STARTED` servent son écran.
+ */
+export async function endLiveSession(sessionId: string, userId: string) {
+  const session = await assertIsHost(sessionId, userId)
+  if (session.status !== 'LIVE') throw new Error('LIVE_NOT_STARTED')
+  return finalizeLiveSession(sessionId, { id: userId, role: 'TRAINER' })
+}
+
+/**
+ * Clôt une séance restée `LIVE` alors que sa salle LiveKit s'est fermée — le cas
+ * d'un animateur qui ferme l'onglet, perd la connexion, ou oublie de terminer.
+ * Déclenché par le webhook `room_finished` : sans lui, la session restait `LIVE`
+ * pour toujours et **aucun replay n'était jamais créé**. Aucune garde d'hôte —
+ * l'appelant est le serveur, authentifié par la signature du webhook — et aucun
+ * jet : une salle sans session, ou une session déjà close, n'est pas une erreur.
+ */
+export async function endLiveSessionBySystem(sessionId: string): Promise<{ ended: boolean }> {
+  const { ended } = await finalizeLiveSession(sessionId, { id: null, role: 'SYSTEM' })
+  return { ended }
 }
 
 // --- Participer ---

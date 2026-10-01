@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
 import {
-  scheduleLiveSession, cancelLiveSession, startLiveSession, endLiveSession,
+  scheduleLiveSession, cancelLiveSession, startLiveSession, endLiveSession, endLiveSessionBySystem,
   joinLiveSession, leaveLiveSession, toggleHand, setParticipantMuted, muteEveryone,
   lowerParticipantHand, postLiveMessage, requestScreenShare, setParticipantScreen,
   listMyAgenda, listTrainerSessions, listAgenda,
@@ -154,6 +154,38 @@ describe('Lives et replays', () => {
       (replay.purgeAt.getFullYear() - replay.recordedAt.getFullYear()) * 12 +
       (replay.purgeAt.getMonth() - replay.recordedAt.getMonth())
     expect(months).toBe(REPLAY_RETENTION_MONTHS)
+  })
+
+  it('la clôture système termine une séance restée LIVE et crée le replay (webhook room_finished)', async () => {
+    const { community, trainer, trainerUser } = await setup()
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+
+    // L'animateur n'a jamais cliqué « terminer » ; la salle s'est vidée et le
+    // webhook `room_finished` déclenche la clôture système. Sans ce chemin, la
+    // session restait LIVE pour toujours et aucun replay n'existait.
+    const first = await endLiveSessionBySystem(session.id)
+    expect(first.ended).toBe(true)
+    expect((await prisma.liveSession.findUniqueOrThrow({ where: { id: session.id } })).status).toBe('ENDED')
+    expect(await prisma.replay.count({ where: { sessionId: session.id } })).toBe(1)
+
+    // Idempotent : un `room_finished` rejoué — ou le clic tardif de l'animateur —
+    // ne crée pas de second replay et ne re-clôture pas.
+    const second = await endLiveSessionBySystem(session.id)
+    expect(second.ended).toBe(false)
+    expect(await prisma.replay.count({ where: { sessionId: session.id } })).toBe(1)
+  })
+
+  it('le clic de l\'animateur après une clôture système ne crée pas de doublon', async () => {
+    const { community, trainer, trainerUser } = await setup()
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+    await startLiveSession(session.id, trainerUser.id)
+
+    await endLiveSessionBySystem(session.id)
+    // La session est déjà ENDED : la garde d'hôte lève LIVE_NOT_STARTED, aucun
+    // second replay.
+    await expect(endLiveSession(session.id, trainerUser.id)).rejects.toThrow('LIVE_NOT_STARTED')
+    expect(await prisma.replay.count({ where: { sessionId: session.id } })).toBe(1)
   })
 
   it('seul l\'hôte ouvre, clôt et annule', async () => {
