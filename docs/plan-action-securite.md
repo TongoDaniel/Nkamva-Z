@@ -7,7 +7,7 @@
   - **PR #12** : finding 7 (inscription non-énumérable).
   - **Restants, dépendant de toi** : 11 (valider un vrai `next build`), 5 (lancer gitleaks), 10 (config Caddy staging), 4b-enforce (observer les flux authentifiés après déploiement), 12b (bloqué — voir la note « double-consume » plus bas).
 
-> ⚠️ **Découverte hors pentest — à regarder** : le parcours UI de réinitialisation de mot de passe consomme le code **deux fois** (`verify-otp` puis `reset-password`), et aucun test ne couvre ce chemin. Si la réinitialisation par l'écran fonctionne aujourd'hui, c'est fragile ; si elle ne fonctionne pas, c'est un bug fonctionnel réel. **À vérifier avec la base de test** avant de toucher à l'OTP (finding 12b en dépend).
+> ✅ **Bug réel trouvé ET réparé (PR #13)** : le parcours UI de réinitialisation de mot de passe consommait le code **deux fois** (`verify-otp` puis `reset-password`) → la dernière étape échouait toujours. **Reproduit en direct sur staging** (verify-otp 200, puis reset-password 422 `OTP_INVALID`, mot de passe inchangé). Corrigé par l'option A (`peekOtp` qui valide sans consommer) ; le finding 12b (séparation par usage) est réglé dans la même PR. ⚠️ Nécessite `prisma generate` + `prisma migrate deploy` + rejeu des tests avant merge.
 
 ---
 
@@ -28,7 +28,7 @@
 | ⏸ Toi | 5 · Scan historique + rotation | Faible/Info | S | rien trouvé en local ; lancer gitleaks sur l'historique distant |
 | ⏸ Toi | 10 · TRACE actif | Info | S | Config Caddy staging (hors dépôt) |
 | ✅ Fait | 12 · Code mort `isPublicRoute` | Info | S | **PR #10** |
-| ⏸ Bloqué | 12b · OTP sans séparation d'usage | Info | S | Besoin base de test + résoudre le double-consume (voir note) |
+| ✅ Fait | 12b · OTP par usage | Info | M | **PR #13** (+ répare un vrai bug de reset) |
 
 *Effort : S = < 1 h · M = quelques heures · L = étalé.*
 
