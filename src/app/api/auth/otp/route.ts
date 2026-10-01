@@ -6,6 +6,10 @@ import { issueOtp, sendOtpEmail } from '@/lib/otp'
 
 const schema = z.object({
   email: z.string().email('Adresse email invalide').max(254),
+  // L'usage décide quel code est émis ; un code d'un usage ne vaut pas pour
+  // l'autre. Le front le passe déjà (verifier-code / mot-de-passe-oublié) ;
+  // par défaut, vérification d'adresse.
+  purpose: z.enum(['EMAIL_VERIFICATION', 'PASSWORD_RESET']).default('EMAIL_VERIFICATION'),
 })
 
 /**
@@ -29,7 +33,7 @@ export async function POST(request: Request) {
   })
 
   if (user && !user.deletedAt && !user.suspendedAt) {
-    const code = await issueOtp(email, user.id)
+    const code = await issueOtp(email, user.id, parsed.data.purpose)
     await sendOtpEmail(email, code)
   }
 

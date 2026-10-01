@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
-import { issueOtp, consumeOtp, OTP_MAX_ATTEMPTS } from '@/lib/otp'
+import { issueOtp, consumeOtp, peekOtp, OTP_MAX_ATTEMPTS } from '@/lib/otp'
 import { isSessionRevoked } from '@/lib/session-validity'
 import { hashPassword } from '@/lib/password'
 import { authOptions, authorizeCredentials } from '@/lib/auth'
@@ -33,42 +33,68 @@ describe('Lot 0 — Socle authentification', () => {
 
   describe('OTP', () => {
     it('consomme un code valide une seule fois', async () => {
-      const code = await issueOtp('a@test.com', null)
+      const code = await issueOtp('a@test.com', null, 'EMAIL_VERIFICATION')
 
-      const first = await consumeOtp('a@test.com', code)
+      const first = await consumeOtp('a@test.com', code, 'EMAIL_VERIFICATION')
       expect(first).toEqual({ ok: true, userId: null })
 
-      const second = await consumeOtp('a@test.com', code)
+      const second = await consumeOtp('a@test.com', code, 'EMAIL_VERIFICATION')
       expect(second).toEqual({ ok: false, reason: 'OTP_INVALID' })
     })
 
-    it('émettre un nouveau code invalide le précédent', async () => {
-      const first = await issueOtp('b@test.com', null)
-      const second = await issueOtp('b@test.com', null)
+    it('émettre un nouveau code invalide le précédent (même usage)', async () => {
+      const first = await issueOtp('b@test.com', null, 'EMAIL_VERIFICATION')
+      const second = await issueOtp('b@test.com', null, 'EMAIL_VERIFICATION')
 
-      expect(await consumeOtp('b@test.com', first)).toEqual({ ok: false, reason: 'OTP_INVALID' })
-      expect(await consumeOtp('b@test.com', second)).toEqual({ ok: true, userId: null })
+      expect(await consumeOtp('b@test.com', first, 'EMAIL_VERIFICATION')).toEqual({ ok: false, reason: 'OTP_INVALID' })
+      expect(await consumeOtp('b@test.com', second, 'EMAIL_VERIFICATION')).toEqual({ ok: true, userId: null })
     })
 
     it('bloque le code après OTP_MAX_ATTEMPTS échecs, même avec le bon code ensuite', async () => {
-      const code = await issueOtp('c@test.com', null)
+      const code = await issueOtp('c@test.com', null, 'EMAIL_VERIFICATION')
       const wrong = code === '000000' ? '999999' : '000000'
 
       for (let i = 0; i < OTP_MAX_ATTEMPTS - 1; i++) {
-        expect(await consumeOtp('c@test.com', wrong)).toEqual({ ok: false, reason: 'OTP_INVALID' })
+        expect(await consumeOtp('c@test.com', wrong, 'EMAIL_VERIFICATION')).toEqual({ ok: false, reason: 'OTP_INVALID' })
       }
-      expect(await consumeOtp('c@test.com', wrong)).toEqual({ ok: false, reason: 'OTP_TOO_MANY_ATTEMPTS' })
-      expect(await consumeOtp('c@test.com', code)).toEqual({ ok: false, reason: 'OTP_TOO_MANY_ATTEMPTS' })
+      expect(await consumeOtp('c@test.com', wrong, 'EMAIL_VERIFICATION')).toEqual({ ok: false, reason: 'OTP_TOO_MANY_ATTEMPTS' })
+      expect(await consumeOtp('c@test.com', code, 'EMAIL_VERIFICATION')).toEqual({ ok: false, reason: 'OTP_TOO_MANY_ATTEMPTS' })
     })
 
     it('refuse un code expiré', async () => {
-      const code = await issueOtp('d@test.com', null)
+      const code = await issueOtp('d@test.com', null, 'EMAIL_VERIFICATION')
       await prisma.emailOtp.updateMany({
         where: { email: 'd@test.com' },
         data: { expiresAt: new Date(Date.now() - 1000) },
       })
 
-      expect(await consumeOtp('d@test.com', code)).toEqual({ ok: false, reason: 'OTP_EXPIRED' })
+      expect(await consumeOtp('d@test.com', code, 'EMAIL_VERIFICATION')).toEqual({ ok: false, reason: 'OTP_EXPIRED' })
+    })
+
+    it('peekOtp valide SANS consommer : le parcours reset (verify-otp puis reset-password) aboutit', async () => {
+      const code = await issueOtp('peek@test.com', null, 'PASSWORD_RESET')
+
+      // Écran « saisir le code » : on valide sans consommer.
+      expect(await peekOtp('peek@test.com', code, 'PASSWORD_RESET')).toEqual({ ok: true, userId: null })
+      // Un peek ne brûle pas le code : on peut recommencer.
+      expect(await peekOtp('peek@test.com', code, 'PASSWORD_RESET')).toEqual({ ok: true, userId: null })
+      // Écran « nouveau mot de passe » : la consommation finale aboutit.
+      expect(await consumeOtp('peek@test.com', code, 'PASSWORD_RESET')).toEqual({ ok: true, userId: null })
+      // Et une fois consommé, plus rien.
+      expect(await consumeOtp('peek@test.com', code, 'PASSWORD_RESET')).toEqual({ ok: false, reason: 'OTP_INVALID' })
+    })
+
+    it('un code ne vaut que pour son usage : vérification ≠ réinitialisation', async () => {
+      const verifCode = await issueOtp('iso@test.com', null, 'EMAIL_VERIFICATION')
+      const resetCode = await issueOtp('iso@test.com', null, 'PASSWORD_RESET')
+
+      // Les deux coexistent (émettre l'un n'a pas chassé l'autre).
+      // Un code n'est reconnu que sous son propre usage.
+      expect(await peekOtp('iso@test.com', verifCode, 'PASSWORD_RESET')).toEqual({ ok: false, reason: 'OTP_INVALID' })
+      expect(await consumeOtp('iso@test.com', resetCode, 'EMAIL_VERIFICATION')).toEqual({ ok: false, reason: 'OTP_INVALID' })
+      // Chacun fonctionne sous le sien.
+      expect(await consumeOtp('iso@test.com', verifCode, 'EMAIL_VERIFICATION')).toEqual({ ok: true, userId: null })
+      expect(await consumeOtp('iso@test.com', resetCode, 'PASSWORD_RESET')).toEqual({ ok: true, userId: null })
     })
   })
 
@@ -130,7 +156,7 @@ describe('Lot 0 — Socle authentification', () => {
           sessionsValidAfter: new Date(Date.now() - 86_400_000),
         },
       })
-      const code = await issueOtp('reset@test.com', user.id)
+      const code = await issueOtp('reset@test.com', user.id, 'PASSWORD_RESET')
 
       const response = await resetPasswordHandler(
         jsonRequest('http://localhost/api/auth/reset-password', {
@@ -154,7 +180,7 @@ describe('Lot 0 — Socle authentification', () => {
       const user = await prisma.user.create({
         data: { email: 'reset2@test.com', passwordHash: await hashPassword('AncienMotDePasse1') },
       })
-      const code = await issueOtp('reset2@test.com', user.id)
+      const code = await issueOtp('reset2@test.com', user.id, 'PASSWORD_RESET')
       const wrong = code === '000000' ? '999999' : '000000'
 
       const response = await resetPasswordHandler(

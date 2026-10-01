@@ -9,24 +9,37 @@ export const OTP_TTL_MS = OTP_TTL_MINUTES * 60 * 1000
 export const OTP_MAX_ATTEMPTS = 5
 
 /**
- * `EmailOtp` ne porte pas de colonne « purpose » : un code vaut preuve de contrôle de
- * l'adresse, quel que soit l'usage (vérification d'email ou réinitialisation de mot de
- * passe). Émettre un nouveau code invalide donc le précédent pour cette adresse.
+ * Usage d'un code. Un code n'est valable que pour SON usage : un code de
+ * vérification d'adresse ne peut pas réinitialiser un mot de passe, et
+ * réciproquement. Les valeurs correspondent à celles que le front passe déjà
+ * dans l'URL (`verifier-code?purpose=…`) et dans le corps des requêtes.
  */
-export async function issueOtp(email: string, userId: string | null): Promise<string> {
+export type OtpPurpose = 'EMAIL_VERIFICATION' | 'PASSWORD_RESET'
+
+/**
+ * Émet un code pour un usage donné. N'invalide que les codes **du même usage**
+ * pour cette adresse : une vérification d'adresse en cours et une
+ * réinitialisation en cours peuvent coexister sans se chasser l'une l'autre.
+ */
+export async function issueOtp(
+  email: string,
+  userId: string | null,
+  purpose: OtpPurpose,
+): Promise<string> {
   const normalized = email.toLowerCase()
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
   const codeHash = await hashPassword(code)
 
   await db.$transaction(async tx => {
     await tx.emailOtp.updateMany({
-      where: { email: normalized, consumedAt: null },
+      where: { email: normalized, purpose, consumedAt: null },
       data: { consumedAt: new Date() },
     })
     await tx.emailOtp.create({
       data: {
         email: normalized,
         codeHash,
+        purpose,
         expiresAt: new Date(Date.now() + OTP_TTL_MS),
         userId,
       },
@@ -38,13 +51,21 @@ export async function issueOtp(email: string, userId: string | null): Promise<st
 
 export type OtpFailure = 'OTP_INVALID' | 'OTP_EXPIRED' | 'OTP_TOO_MANY_ATTEMPTS'
 
-export async function consumeOtp(
-  email: string,
-  code: string,
-): Promise<{ ok: true; userId: string | null } | { ok: false; reason: OtpFailure }> {
+type OtpCheck =
+  | { ok: true; id: string; userId: string | null }
+  | { ok: false; reason: OtpFailure }
+
+/**
+ * Cœur commun de `peekOtp` et `consumeOtp` : retrouve le code vivant pour cette
+ * adresse ET cet usage, vérifie expiration, plafond de tentatives et validité.
+ * Un code faux incrémente le compteur de tentatives (il brûle une tentative,
+ * même sans consommer). Ne pose JAMAIS `consumedAt` — c'est au seul appelant qui
+ * consomme de le faire.
+ */
+async function checkOtp(email: string, code: string, purpose: OtpPurpose): Promise<OtpCheck> {
   const normalized = email.toLowerCase()
   const otp = await db.emailOtp.findFirst({
-    where: { email: normalized, consumedAt: null },
+    where: { email: normalized, purpose, consumedAt: null },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -65,15 +86,42 @@ export async function consumeOtp(
     }
   }
 
+  return { ok: true, id: otp.id, userId: otp.userId }
+}
+
+/**
+ * Vérifie un code **sans le consommer**. Sert au parcours de réinitialisation à
+ * deux écrans : l'écran « saisir le code » valide (retour immédiat si faux) sans
+ * brûler le code, que l'écran « nouveau mot de passe » consommera à son tour via
+ * `consumeOtp`. Sans ce « peek », les deux écrans consommaient le même code et
+ * la réinitialisation échouait toujours à la dernière étape.
+ */
+export async function peekOtp(
+  email: string,
+  code: string,
+  purpose: OtpPurpose,
+): Promise<{ ok: true; userId: string | null } | { ok: false; reason: OtpFailure }> {
+  const result = await checkOtp(email, code, purpose)
+  return result.ok ? { ok: true, userId: result.userId } : result
+}
+
+export async function consumeOtp(
+  email: string,
+  code: string,
+  purpose: OtpPurpose,
+): Promise<{ ok: true; userId: string | null } | { ok: false; reason: OtpFailure }> {
+  const result = await checkOtp(email, code, purpose)
+  if (!result.ok) return result
+
   // `updateMany` gardé sur `consumedAt: null` : deux requêtes concurrentes avec le bon
   // code ne peuvent pas consommer le même OTP deux fois.
   const consumed = await db.emailOtp.updateMany({
-    where: { id: otp.id, consumedAt: null },
+    where: { id: result.id, consumedAt: null },
     data: { consumedAt: new Date() },
   })
   if (consumed.count === 0) return { ok: false, reason: 'OTP_INVALID' }
 
-  return { ok: true, userId: otp.userId }
+  return { ok: true, userId: result.userId }
 }
 
 export async function sendOtpEmail(email: string, code: string): Promise<void> {
