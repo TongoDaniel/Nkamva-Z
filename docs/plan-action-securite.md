@@ -2,7 +2,7 @@
 
 - **Source** : test d'intrusion de `staging.nkamva.com` (voir `docs/pentest-staging-2026-10-01.md`)
 - **Date** : 1er octobre 2026
-- **État général** : aucune faille critique ni IDOR exploitable. 5 points déjà corrigés (PR #10). 7 points restants, tous de sévérité faible à moyenne.
+- **État général** : aucune faille critique ni IDOR exploitable. **7 points corrigés (PR #10)** : findings 1, 2, 3, 4, 8, 9, 12. Restants, tous de sévérité faible à moyenne : 6 et 4b (P1), 7 et 11 (P2 — arbitrage/validation), 5, 10, 12b (P3). Les restants demandent une décision (topologie, UX), une infra (Redis, scanner) ou une validation de build.
 
 ---
 
@@ -17,12 +17,13 @@
 | ✅ Fait | 8 · `X-Powered-By` | Faible | — | **PR #10** |
 | **P1** | 6 · Rate-limit en mémoire | Moyenne | M | À faire |
 | **P1** | 4b · CSP `Report-Only` → stricte | Moyenne | M | À faire |
-| **P2** | 7 · Énumération à l'inscription | Faible/Moy. | S | À faire |
-| **P2** | 11 · `ignoreBuildErrors: true` | Faible | M→L | À faire |
-| **P2** | 9 · `/api/health` sans auth | Faible | S | À faire |
-| **P3** | 5 · Scan historique + rotation | Faible/Info | S | À vérifier |
-| **P3** | 10 · TRACE actif | Info | S | À faire |
-| **P3** | 12 · OTP + code mort | Info | S | À faire |
+| **P2** | 7 · Énumération à l'inscription | Faible/Moy. | S | À arbitrer (UX) |
+| **P2** | 11 · `ignoreBuildErrors: true` | Faible | M→L | À valider (build) |
+| ✅ Fait | 9 · `/api/health` sans auth | Faible | S | **PR #10** |
+| **P3** | 5 · Scan historique + rotation | Faible/Info | S | À vérifier (scanner) |
+| **P3** | 10 · TRACE actif | Info | S | Config Caddy staging |
+| ✅ Fait | 12 · Code mort `isPublicRoute` | Info | S | **PR #10** |
+| **P3** | 12b · OTP sans séparation d'usage | Info | S | À arbitrer (migration) |
 
 *Effort : S = < 1 h · M = quelques heures · L = étalé.*
 
