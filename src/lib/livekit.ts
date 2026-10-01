@@ -26,7 +26,8 @@
 import {
   AccessToken, EgressClient, RoomServiceClient, EgressStatus, TrackSource,
   EncodedFileOutput, EncodedFileType, EncodingOptions, S3Upload, StreamOutput, StreamProtocol,
-  type EgressInfo,
+  WebhookReceiver,
+  type EgressInfo, type WebhookEvent,
 } from 'livekit-server-sdk'
 import { storageConfig } from './s3'
 
@@ -97,6 +98,32 @@ function rooms(): RoomServiceClient | null {
 function egress(): EgressClient | null {
   const creds = credentials()
   return creds ? new EgressClient(creds.url, creds.key, creds.secret) : null
+}
+
+let webhookReceiver: WebhookReceiver | null = null
+
+/**
+ * Vérifie et décode un webhook LiveKit (`room_finished`, `egress_ended`…).
+ *
+ * **Aucun repli**, à l'image du callback PawaPay : sans configuration ou sans
+ * en-tête `Authorization` valide, on rend `null` et la route répond 401. Un
+ * webhook non vérifiable vaut un webhook non authentifié — et celui-ci clôt des
+ * séances et publie des replays. `WebhookReceiver` valide le jeton de l'en-tête,
+ * qui porte le hachage du corps signé avec le secret d'API.
+ */
+export async function receiveLiveKitWebhook(
+  rawBody: string,
+  authHeader: string | null,
+): Promise<WebhookEvent | null> {
+  const creds = credentials()
+  if (!creds || !authHeader) return null
+  if (!webhookReceiver) webhookReceiver = new WebhookReceiver(creds.key, creds.secret)
+  try {
+    return await webhookReceiver.receive(rawBody, authHeader)
+  } catch (err) {
+    console.warn('[LIVEKIT:WEBHOOK]', String(err))
+    return null
+  }
 }
 
 // --- Jeton de participation ---
