@@ -48,32 +48,6 @@ export function error(code: string, message: string, status: number, details?: A
   return NextResponse.json({ error: { code, message, ...(details ? { details } : {}) } }, { status })
 }
 
-const PUBLIC_ROUTES: { method: string; prefix: string }[] = [
-  { method: 'POST', prefix: '/api/auth/register' },
-  { method: 'POST', prefix: '/api/auth/otp' },
-  { method: 'POST', prefix: '/api/auth/verify-otp' },
-  { method: 'POST', prefix: '/api/auth/reset-password' },
-  { method: 'GET', prefix: '/api/catalog/' },
-  { method: 'GET', prefix: '/api/courses/' },
-  { method: 'GET', prefix: '/api/trainers' },
-  { method: 'GET', prefix: '/api/communities' },
-  { method: 'GET', prefix: '/api/tarifs' },
-  { method: 'GET', prefix: '/api/legal/' },
-  { method: 'GET', prefix: '/api/contact' },
-  { method: 'POST', prefix: '/api/contact' },
-  { method: 'GET', prefix: '/api/aide' },
-  // Consulter une invitation ne suppose pas d'avoir un compte : c'est
-  // précisément la situation de qui en reçoit une (arbitrage 80). L'accepter,
-  // elle, exige une session — la route POST n'est pas listée ici.
-  { method: 'GET', prefix: '/api/invitations/' },
-  { method: 'POST', prefix: '/api/webhooks/' },
-  { method: 'GET', prefix: '/api/health' },
-]
-
-export function isPublicRoute(method: string, path: string): boolean {
-  return PUBLIC_ROUTES.some(r => method === r.method && (path === r.prefix || path.startsWith(r.prefix)))
-}
-
 export async function getAuthContext(): Promise<AuthContext | null> {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return null
