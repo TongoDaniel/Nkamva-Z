@@ -31,9 +31,12 @@ const nextConfig: NextConfig = {
       // 'unsafe-inline'/'unsafe-eval' : Next injecte des scripts/styles en ligne.
       // À resserrer (nonces) une fois la CSP passée en mode strict.
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      // Polices et styles sont auto-hébergés (next/font → /_next/static/media) :
+      // navigation de staging vérifiée, aucune requête vers Google Fonts. On ne
+      // garde donc pas fonts.googleapis.com / fonts.gstatic.com.
+      "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
-      "font-src 'self' data: https://fonts.gstatic.com",
+      "font-src 'self' data:",
       "media-src 'self' blob: https:",
       "worker-src 'self' blob:",
       // LiveKit (wss), R2/S3 et Stripe passent par https/wss vers l'extérieur.
