@@ -93,3 +93,32 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
     tags: ['otp'],
   })
 }
+
+/**
+ * Envoyé à la place d'un code quand une inscription vise une adresse **déjà
+ * prise** : la route d'inscription répond alors le même succès que pour un
+ * compte neuf (pas d'énumération par le code HTTP), et c'est cet e-mail — reçu
+ * par le seul propriétaire de la boîte — qui dit la vérité et oriente vers la
+ * connexion ou la réinitialisation.
+ */
+export async function sendAccountExistsEmail(email: string): Promise<void> {
+  const { html, text } = renderSimpleEmail({
+    title: 'Vous avez déjà un compte',
+    paragraphs: [
+      'Bonjour,',
+      'Une inscription vient d\'être tentée avec cette adresse, mais un compte existe déjà chez NKAMVA.',
+      'Si c\'était vous : connectez-vous normalement. Mot de passe oublié ? Réinitialisez-le depuis l\'écran de connexion.',
+      'Si ce n\'était pas vous, ignorez cet e-mail : aucune action n\'a été effectuée sur votre compte.',
+    ],
+    footnote:
+      'Vous recevez cet e-mail parce qu\'une création de compte a été tentée avec votre adresse.',
+  })
+
+  await sendEmail({
+    to: email,
+    subject: 'NKAMVA — vous avez déjà un compte',
+    html,
+    text,
+    tags: ['account-exists'],
+  })
+}
