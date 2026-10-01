@@ -97,7 +97,7 @@ describe('Lot 0 — Socle authentification', () => {
       expect(otps[0].consumedAt).toBeNull()
     })
 
-    it('refuse une adresse déjà utilisée sans écrire de second compte', async () => {
+    it('répond un succès uniforme sur une adresse déjà utilisée, sans second compte ni OTP (anti-énumération)', async () => {
       await prisma.user.create({ data: { email: 'deja@test.com', passwordHash: await hashPassword('MotDePasse2026!') } })
 
       const response = await registerHandler(
@@ -108,9 +108,16 @@ describe('Lot 0 — Socle authentification', () => {
         }, nextIp()),
       )
 
-      expect(response.status).toBe(409)
-      expect((await response.json()).error.code).toBe('EMAIL_ALREADY_USED')
+      // Même réponse que pour une vraie inscription : le code HTTP ne doit pas
+      // révéler qu'un compte existe à cette adresse (finding 7 du pentest).
+      expect(response.status).toBe(201)
+      // Aucun second compte, et surtout aucun OTP émis : l'adresse reçoit un
+      // e-mail « compte existant », pas un code de vérification.
       expect(await prisma.user.count({ where: { email: 'deja@test.com' } })).toBe(1)
+      expect(await prisma.emailOtp.count({ where: { email: 'deja@test.com' } })).toBe(0)
+
+      const audits = await prisma.auditLog.findMany({ where: { action: 'REGISTER_EMAIL_IN_USE' } })
+      expect(audits).toHaveLength(1)
     })
   })
 
