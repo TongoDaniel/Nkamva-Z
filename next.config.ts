@@ -51,7 +51,11 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=(self)" },
+          // `display-capture=(self)` est explicite : le partage d'écran des lives
+          // (LiveKit getDisplayMedia) doit rester autorisé sur notre origine. Non
+          // listé, il resterait `self` par défaut, mais l'écrire évite qu'un
+          // resserrement futur ne le ferme par inadvertance.
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(self)" },
           // CSP en Report-Only d'abord : elle observe sans rien casser (LiveKit,
           // Stripe, R2, polices). À basculer en `Content-Security-Policy` stricte
           // une fois les rapports vérifiés.
