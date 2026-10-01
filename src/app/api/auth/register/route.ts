@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { audit } from '@/lib/audit'
+import { audit, auditStandalone } from '@/lib/audit'
 import { success, error, parseBody } from '@/lib/api'
 import { hashPassword } from '@/lib/password'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
-import { issueOtp, sendOtpEmail } from '@/lib/otp'
+import { issueOtp, sendOtpEmail, sendAccountExistsEmail } from '@/lib/otp'
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
 
 const schema = z.object({
@@ -26,8 +26,30 @@ export async function POST(request: Request) {
   const { email, password, fullName, countryCode } = parsed.data
   const normalizedEmail = email.toLowerCase()
 
-  const existing = await db.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } })
-  if (existing) return error('EMAIL_ALREADY_USED', 'Un compte existe déjà avec cette adresse email', 409)
+  // Réponse uniforme, qu'un compte existe déjà ou non (finding 7 du pentest).
+  // Avant, une adresse déjà prise renvoyait 409 : il suffisait d'observer le
+  // code HTTP pour énumérer les comptes existants, y compris ceux d'administration.
+  // Désormais la réponse est identique dans tous les cas ; c'est l'e-mail — reçu
+  // par le seul propriétaire de la boîte — qui distingue les situations.
+  const uniformOk = () =>
+    success({ email: normalizedEmail, emailVerificationRequired: true }, undefined, 201)
+
+  const existing = await db.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true, deletedAt: true },
+  })
+  if (existing && !existing.deletedAt) {
+    // Pas de code émis : on prévient le propriétaire par un e-mail dédié, et on
+    // répond le même succès que pour une vraie inscription.
+    await sendAccountExistsEmail(normalizedEmail)
+    await auditStandalone({
+      action: 'REGISTER_EMAIL_IN_USE',
+      targetType: 'User',
+      targetId: existing.id,
+      meta: { email: normalizedEmail },
+    })
+    return uniformOk()
+  }
 
   const passwordHash = await hashPassword(password)
 
@@ -55,9 +77,12 @@ export async function POST(request: Request) {
       return user.id
     })
   } catch (err) {
-    // Course entre deux inscriptions simultanées : l'index unique sur `email` tranche.
+    // Course entre deux inscriptions simultanées : l'index unique sur `email`
+    // tranche. Même réponse uniforme que ci-dessus — surtout pas un 409 qui
+    // trahirait l'existence de l'adresse.
     if ((err as { code?: string }).code === 'P2002') {
-      return error('EMAIL_ALREADY_USED', 'Un compte existe déjà avec cette adresse email', 409)
+      await sendAccountExistsEmail(normalizedEmail)
+      return uniformOk()
     }
     throw err
   }
@@ -65,5 +90,5 @@ export async function POST(request: Request) {
   const code = await issueOtp(normalizedEmail, userId)
   await sendOtpEmail(normalizedEmail, code)
 
-  return success({ userId, email: normalizedEmail, emailVerificationRequired: true }, undefined, 201)
+  return uniformOk()
 }
