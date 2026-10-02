@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+# Une seule exécution par branche/PR : un nouveau push annule la précédente.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Typage : barrière rapide et verte. `ignoreBuildErrors: true` laisse passer
+  # les erreurs de type au build Next (finding 11) ; ce job les rattrape ici en
+  # attendant qu'on puisse remettre le drapeau à false.
+  # ---------------------------------------------------------------------------
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Installer les dépendances
+        run: bun install --frozen-lockfile
+
+      - name: Générer le client Prisma
+        run: bunx prisma generate
+
+      - name: Vérifier les types
+        run: bunx tsc --noEmit
+
+  # ---------------------------------------------------------------------------
+  # Tests : vitest sur une vraie base Postgres jetable. Les migrations la
+  # construisent entièrement (jamais `db push`). Aucune clé de service n'est
+  # fournie : la suite est hermétique (cf. tests/env-hermetic.test.ts), et le
+  # `.env` de prod n'existe pas dans le runner.
+  #
+  # ⚠️ La suite porte des échecs préexistants (voir la PR) : tant qu'ils ne sont
+  # pas triés, ne pas rendre ce job « requis » en protection de branche — à la
+  # différence de `typecheck` et `gitleaks`, verts dès maintenant.
+  # ---------------------------------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Rôle, base et auth « trust » alignés sur tests/setup.ts et
+          # .env.example (le serveur de dev documenté).
+          POSTGRES_USER: nkamva
+          POSTGRES_DB: nkamva_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nkamva -d nkamva_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # `_test` dans le nom : exigé par le garde-fou tests/env-hermetic.test.ts,
+      # qui refuse de tourner contre autre chose qu'une base de test.
+      DATABASE_URL: postgresql://nkamva@localhost:5432/nkamva_test?schema=public
+      DIRECT_URL: postgresql://nkamva@localhost:5432/nkamva_test?schema=public
+      TEST_DATABASE_URL: postgresql://nkamva@localhost:5432/nkamva_test?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Installer les dépendances
+        run: bun install --frozen-lockfile
+
+      - name: Générer le client Prisma
+        run: bunx prisma generate
+
+      - name: Appliquer les migrations sur la base de test
+        # `migrate deploy` (jamais `dev`/`push`) : il rejoue l'historique complet,
+        # y compris 20261001120000_otp_purpose. Connexion directe (pas de pooler).
+        run: bunx prisma migrate deploy
+
+      - name: Lancer la suite de tests
+        run: bun run test
+
+  # ---------------------------------------------------------------------------
+  # gitleaks : empêche tout secret d'entrer. Sur une PR, il n'examine que les
+  # commits de la PR ; sur un push, ceux du push. L'historique ancien se scanne
+  # à part (voir docs/plan-action-securite.md, finding 5).
+  # ---------------------------------------------------------------------------
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks a besoin de l'historique des commits examinés, pas d'un
+          # checkout superficiel.
+          fetch-depth: 0
+
+      - name: Scanner les secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE n'est requis que pour un compte d'organisation ; sur
+          # un dépôt personnel, l'action est gratuite.
