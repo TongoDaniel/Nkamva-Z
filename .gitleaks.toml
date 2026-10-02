@@ -1,0 +1,23 @@
+# Configuration gitleaks — étend les règles par défaut.
+#
+# But : bloquer les vrais secrets sans crier au loup sur les valeurs de TEST.
+# La suite contient volontairement des jetons factices (`sk_test_cle_acceptee`,
+# `whsec_secret_de_test`, un NEXTAUTH_SECRET déterministe) et `.env.example`
+# documente des noms de variables avec des valeurs d'exemple — rien de réel.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valeurs de test et fichiers d'exemple — jamais des secrets réels"
+# Les fichiers de test et l'exemple d'environnement ne portent pas de secret.
+paths = [
+  '''^tests/''',
+  '''^\.env\.example$''',
+]
+# Filets au cas où ces valeurs apparaîtraient ailleurs (docs, commentaires).
+regexes = [
+  '''sk_test_cle_acceptee''',
+  '''whsec_secret_de_test''',
+  '''nkamva-test-secret-deterministe-0123456789''',
+]
