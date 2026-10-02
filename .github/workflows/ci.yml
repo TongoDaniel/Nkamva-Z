@@ -10,6 +10,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Moindre privilège par défaut ; le job gitleaks élargit ce dont il a besoin.
+permissions:
+  contents: read
+
 jobs:
   # ---------------------------------------------------------------------------
   # Typage : barrière rapide et verte. `ignoreBuildErrors: true` laisse passer
@@ -99,6 +103,13 @@ jobs:
   # ---------------------------------------------------------------------------
   gitleaks:
     runs-on: ubuntu-latest
+    # `pull-requests: read` est indispensable : sur une PR, gitleaks-action liste
+    # les commits via l'API GitHub. Sans cette permission, le GITHUB_TOKEN reçoit
+    # un 403 « Resource not accessible by integration » et le job échoue avant
+    # même de chercher le moindre secret.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
