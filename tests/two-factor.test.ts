@@ -40,7 +40,7 @@ describe('Double authentification', () => {
 
   /** Enrôle complètement, et rend le secret et les codes de secours. */
   async function enroll(userId: string) {
-    const { secret } = await beginTwoFactorSetup(userId)
+    const { secret } = await beginTwoFactorSetup(userId, 'MotDePasse1')
     const { recoveryCodes } = await enableTwoFactor(userId, currentCode(secret))
     return { secret, recoveryCodes }
   }
@@ -49,7 +49,7 @@ describe('Double authentification', () => {
 
   it('un secret sans activation ne protège rien', async () => {
     const u = await user()
-    await beginTwoFactorSetup(u.id)
+    await beginTwoFactorSetup(u.id, 'MotDePasse1')
 
     const status = await getTwoFactorStatus(u.id)
     expect(status.pending).toBe(true)
@@ -58,9 +58,20 @@ describe('Double authentification', () => {
     expect(await verifySecondFactor(u.id, '000000')).toBe(false)
   })
 
+  it('une session seule ne suffit pas à enrôler : le mot de passe courant est exigé', async () => {
+    const u = await user()
+    await expect(beginTwoFactorSetup(u.id, 'mauvais-mot-de-passe')).rejects.toThrow('CURRENT_PASSWORD_INVALID')
+
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: u.id }, select: { twoFactorSecret: true },
+    })
+    // Aucun secret posé : rien que l'attaquant puisse activer ensuite.
+    expect(stored.twoFactorSecret).toBeNull()
+  })
+
   it('l\'activation exige un premier code valide, et rend dix codes de secours', async () => {
     const u = await user()
-    const { secret } = await beginTwoFactorSetup(u.id)
+    const { secret } = await beginTwoFactorSetup(u.id, 'MotDePasse1')
 
     await expect(enableTwoFactor(u.id, '000000')).rejects.toThrow('TWO_FACTOR_INVALID_CODE')
 
@@ -75,7 +86,7 @@ describe('Double authentification', () => {
 
   it('le secret n\'est pas stocké en clair', async () => {
     const u = await user()
-    const { secret } = await beginTwoFactorSetup(u.id)
+    const { secret } = await beginTwoFactorSetup(u.id, 'MotDePasse1')
 
     const stored = await prisma.user.findUniqueOrThrow({
       where: { id: u.id }, select: { twoFactorSecret: true },
