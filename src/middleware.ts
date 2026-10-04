@@ -62,8 +62,44 @@ const AUTH_PAGES = [
   '/auth/nouveau-mot-de-passe',
 ]
 
+/**
+ * Chemins où s'appliquent les gardes de session ci-dessous. Le `matcher` couvre
+ * désormais tout le site (pour le filtre d'octets de contrôle) : cette liste
+ * reprend l'ancien périmètre, et toute page hors de celle-ci sort aussitôt après
+ * le filtre. Un ajout ici vaut un ajout à l'ancien `matcher`.
+ */
+const GUARDED_PREFIXES = [
+  '/mon-compte', '/accueil', '/achat', '/adhesion', '/mes-communautes',
+  '/devenir-formateur', '/catalogue', '/profil', '/candidature', '/mes-achats',
+  '/mes-ressources', '/mes-litiges', '/mes-lives', '/messagerie', '/notifications',
+  '/favoris', '/formateur', '/admin', '/auth',
+]
+
+/**
+ * Octet nul n'importe où dans l'URL, ou caractère de contrôle dans le chemin.
+ * PostgreSQL refuse l'octet nul dans un texte : un slug ou un identifiant qui
+ * en porte un fait lever Prisma avant le `try` de la route, d'où un 500 vide
+ * (rapport de test d'intrusion, § 3.7). Aucune URL légitime n'en contient.
+ */
+const NUL_ANYWHERE = /%00|\u0000/i
+const CONTROL_IN_PATH = /%[01][0-9a-f]|%7f|[\u0000-\u001f\u007f]/i
+
+export function hasForbiddenUrlBytes(pathname: string, search: string): boolean {
+  return NUL_ANYWHERE.test(pathname) || NUL_ANYWHERE.test(search) || CONTROL_IN_PATH.test(pathname)
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
+
+  if (hasForbiddenUrlBytes(pathname, search)) {
+    return pathname.startsWith('/api/')
+      ? NextResponse.json({ error: { code: 'BAD_REQUEST', message: 'Requête invalide' } }, { status: 400 })
+      : new NextResponse('Requête invalide', { status: 400 })
+  }
+
+  if (!GUARDED_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
+    return NextResponse.next()
+  }
 
   // Aucun secret de repli. Le repli en dur d'autrefois
   // ('nkamva-dev-secret-change-in-production', versionné dans le dépôt)
@@ -143,29 +179,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/mon-compte/:path*',
-    '/accueil/:path*',
-    '/achat/:path*',
-    // Ajoutés avec le cloisonnement : sans eux, le middleware ne s'exécute même
-    // pas sur ces chemins et l'exclusion des admins n'y serait jamais évaluée.
-    // `/mes-communautes` y gagne au passage le `callbackUrl` que la garde du
-    // layout ne sait pas construire.
-    '/adhesion/:path*',
-    '/mes-communautes/:path*',
-    '/devenir-formateur/:path*',
-    '/catalogue/:path*',
-    '/profil/:path*',
-    '/candidature/:path*',
-    '/mes-achats/:path*',
-    '/mes-ressources/:path*',
-    '/mes-litiges/:path*',
-    '/mes-lives/:path*',
-    '/messagerie/:path*',
-    '/notifications/:path*',
-    '/favoris/:path*',
-    '/formateur/:path*',
-    '/admin/:path*',
-    '/auth/:path*',
-  ],
+  // Tout le site, sauf les fichiers statiques de Next : le filtre d'octets de
+  // contrôle doit voir les routes d'API et les pages publiques. Les gardes de
+  // session, elles, restent bornées par `GUARDED_PREFIXES`.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

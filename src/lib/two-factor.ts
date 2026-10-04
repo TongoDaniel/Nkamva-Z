@@ -28,6 +28,7 @@
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from 'node:crypto'
 import * as OTPAuth from 'otpauth'
+import { verifyPassword } from './password'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
@@ -99,14 +100,22 @@ export interface TwoFactorSetup {
  * Prépare l'enrôlement : tire un secret, l'enregistre **sans activer**. La
  * protection n'existera qu'une fois un premier code vérifié — sinon quelqu'un
  * qui scanne mal son QR se retrouve verrouillé dehors.
+ *
+ * Le mot de passe courant est exigé : une session volée ne doit pas suffire à
+ * lier l'application de l'attaquant au compte, ce qui enfermerait la victime
+ * dehors à sa prochaine connexion (rapport de test d'intrusion, § 3.5). Le
+ * changement de mot de passe applique déjà la même règle.
  */
-export async function beginTwoFactorSetup(userId: string): Promise<TwoFactorSetup> {
+export async function beginTwoFactorSetup(userId: string, currentPassword: string): Promise<TwoFactorSetup> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { email: true, twoFactorEnabledAt: true },
+    select: { email: true, passwordHash: true, twoFactorEnabledAt: true },
   })
   if (!user) throw new Error('USER_NOT_FOUND')
   if (user.twoFactorEnabledAt) throw new Error('TWO_FACTOR_ALREADY_ENABLED')
+  if (!user.passwordHash || !(await verifyPassword(currentPassword, user.passwordHash))) {
+    throw new Error('CURRENT_PASSWORD_INVALID')
+  }
 
   const secret = new OTPAuth.Secret({ size: 20 })
   const totp = new OTPAuth.TOTP({

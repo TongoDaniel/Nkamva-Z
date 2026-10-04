@@ -120,6 +120,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   ALREADY_PUBLISHED: { message: 'Ressource déjà publiée', status: 409 },
   INVOICE_NOT_FOUND: { message: 'Facture introuvable', status: 404 },
   // --- Double authentification ---
+  CURRENT_PASSWORD_INVALID: { message: 'Mot de passe actuel incorrect.', status: 422 },
   TWO_FACTOR_ALREADY_ENABLED: { message: 'La double authentification est déjà active', status: 409 },
   TWO_FACTOR_NOT_ENABLED: { message: 'La double authentification n\'est pas active', status: 409 },
   TWO_FACTOR_NOT_STARTED: { message: 'Commencez par générer un secret', status: 409 },

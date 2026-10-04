@@ -7,6 +7,7 @@ import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-
 import { consumeOtp } from '@/lib/otp'
 import { otpFailureResponse } from '../otp-errors'
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
+import { isBreachedPassword, BREACHED_PASSWORD_MESSAGE } from '@/lib/breached-password'
 
 const schema = z.object({
   email: z.string().email('Adresse email invalide').max(254),
@@ -23,6 +24,12 @@ export async function POST(request: Request) {
   const limit = checkRateLimit(identifier, 'OTP_VERIFY', RATE_LIMITS.OTP_VERIFY.max, RATE_LIMITS.OTP_VERIFY.windowMs)
   if (!limit.allowed) {
     return error('RATE_LIMITED', `Trop de tentatives. Réessayez dans ${limit.retryAfter} secondes.`, 429)
+  }
+
+  // Avant de consommer le code : un mot de passe refusé ne doit pas obliger à
+  // en redemander un.
+  if (await isBreachedPassword(parsed.data.password)) {
+    return error('PASSWORD_BREACHED', BREACHED_PASSWORD_MESSAGE, 422)
   }
 
   const result = await consumeOtp(email, parsed.data.code, 'PASSWORD_RESET')

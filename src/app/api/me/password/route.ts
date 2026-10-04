@@ -3,6 +3,7 @@ import { success, error, requireAuth, parseBody } from '@/lib/api'
 import { changePassword, type PasswordChangeFailure } from '@/lib/profile'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
+import { isBreachedPassword, BREACHED_PASSWORD_MESSAGE } from '@/lib/breached-password'
 import { z } from 'zod'
 
 // Même plancher qu'à l'inscription : plus bas ici, il suffisait de changer son
@@ -38,6 +39,10 @@ export async function POST(request: Request) {
 
   const parsed = await parseBody(request, ChangeSchema)
   if (parsed instanceof Response) return parsed
+
+  if (await isBreachedPassword(parsed.data.newPassword)) {
+    return error('PASSWORD_BREACHED', BREACHED_PASSWORD_MESSAGE, 422)
+  }
 
   const result = await changePassword(ctx.user.id, parsed.data.currentPassword, parsed.data.newPassword)
   if (!result.ok) {

@@ -21,6 +21,9 @@ interface Status {
 const field =
   "w-full rounded-nk border border-line bg-paper px-3.5 py-2.5 text-[15px] tracking-[0.2em] tabular-nums outline-none focus-visible:border-brand";
 
+const passwordField =
+  "w-full rounded-nk border border-line bg-paper px-3.5 py-2.5 text-[15px] outline-none focus-visible:border-brand";
+
 /** Les codes de secours ne sont montrés qu'une fois : cet écran est le seul. */
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   const [copied, setCopied] = React.useState(false);
@@ -71,6 +74,7 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
   const [setup, setSetup] = React.useState<{ qr: string; secret: string } | null>(null);
   const [codes, setCodes] = React.useState<string[] | null>(null);
   const [code, setCode] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const action = useKeyedAction();
 
   /**
@@ -269,22 +273,45 @@ export function TwoFactorPanel({ initial }: { initial: Status }) {
           </div>
         </div>
       ) : (
-        <Btn
-          loading={action.isRunning("setup")}
-          onClick={() =>
+        // Le mot de passe est redemandé : une session ouverte sur un poste
+        // laissé sans surveillance ne doit pas suffire à lier un autre téléphone.
+        <form
+          className="grid gap-4"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!password) return;
             run(
               "setup",
               () =>
                 api.post<{ qr: string; secret: string; uri: string }>("/api/me/2fa", {
                   action: "setup",
+                  currentPassword: password,
                 }),
-              ({ data }) => setSetup({ qr: data.qr, secret: data.secret }),
-            )
-          }
+              ({ data }) => {
+                setPassword("");
+                setSetup({ qr: data.qr, secret: data.secret });
+              },
+            );
+          }}
         >
-          <ShieldCheck aria-hidden="true" />
-          Activer la double authentification
-        </Btn>
+          <label className="grid max-w-[320px] gap-1.5">
+            <span className="text-[13px] font-bold">Votre mot de passe actuel</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className={passwordField}
+            />
+          </label>
+          <div>
+            <Btn type="submit" loading={action.isRunning("setup")} disabled={!password}>
+              <ShieldCheck aria-hidden="true" />
+              Activer la double authentification
+            </Btn>
+          </div>
+        </form>
       )}
     </section>
   );

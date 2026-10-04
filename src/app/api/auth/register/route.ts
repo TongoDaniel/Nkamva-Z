@@ -6,6 +6,7 @@ import { hashPassword } from '@/lib/password'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { issueOtp, sendOtpEmail, sendAccountExistsEmail } from '@/lib/otp'
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
+import { isBreachedPassword, BREACHED_PASSWORD_MESSAGE } from '@/lib/breached-password'
 
 const schema = z.object({
   email: z.string().email('Adresse email invalide').max(254),
@@ -25,6 +26,12 @@ export async function POST(request: Request) {
   if (parsed instanceof Response) return parsed
   const { email, password, fullName, countryCode } = parsed.data
   const normalizedEmail = email.toLowerCase()
+
+  // Avant toute lecture du compte : le refus ne dépend que du mot de passe
+  // saisi, il ne peut donc rien trahir de l'existence de l'adresse.
+  if (await isBreachedPassword(password)) {
+    return error('PASSWORD_BREACHED', BREACHED_PASSWORD_MESSAGE, 422)
+  }
 
   // Réponse uniforme, qu'un compte existe déjà ou non (finding 7 du pentest).
   // Avant, une adresse déjà prise renvoyait 409 : il suffisait d'observer le
