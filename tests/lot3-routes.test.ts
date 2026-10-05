@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as OTPAuth from 'otpauth'
 import { prisma, cleanDatabase } from './setup'
 import { beginTwoFactorSetup, enableTwoFactor } from '@/lib/two-factor'
+import { hashPassword } from '@/lib/password'
 
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }))
 import { getServerSession } from 'next-auth'
@@ -84,7 +85,9 @@ describe('Lot 3 — Routes', () => {
    * Ces tests enrôlent donc comme le ferait un vrai formateur.
    */
   async function withSecondFactor(userId: string) {
-    const { secret } = await beginTwoFactorSetup(userId)
+    // L'enrôlement redemande le mot de passe courant : on en pose un.
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword('MotDePasse1') } })
+    const { secret } = await beginTwoFactorSetup(userId, 'MotDePasse1')
     const totp = new OTPAuth.TOTP({
       issuer: 'NKAMVA', algorithm: 'SHA1', digits: 6, period: 30,
       secret: OTPAuth.Secret.fromBase32(secret),

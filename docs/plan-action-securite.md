@@ -30,6 +30,27 @@
 
 ---
 
+## Rapport externe du 28 septembre 2026 (trié le 5 octobre)
+
+Second test d'intrusion, mené par un tiers sur le staging **avant** les correctifs du 1er octobre.
+
+| § | Constat | Verdict |
+|---|---|---|
+| 3.1 | Connexion sans limite (25 × 302) | Probable faux positif : `authorizeCredentials` plafonne IP + e-mail (5/min) depuis août, mais NextAuth répond 302 dans tous les cas — le refus est dans `Location: …?error=TOO_MANY_ATTEMPTS`. **À reconfirmer par le testeur en lisant l'en-tête `Location`.** |
+| 3.2 | Énumération à l'inscription | ✅ Déjà corrigé (PR #12) |
+| 3.3 | En-têtes de sécurité absents | ✅ Déjà corrigé, vérifié en ligne le 5 oct. (CSP encore en report-only → 4b) |
+| 3.4 | OTP non invalidé | ✅ Déjà en place : 5 échecs grillent le code (`OTP_MAX_ATTEMPTS`) |
+| 3.5 | Enrôlement 2FA sans mot de passe | ✅ Corrigé sur `fix/securite-rapport-externe` |
+| 3.6 | Communautés publiques | Choix produit (catalogue public) |
+| 3.7 | 500 sur `%00` | ✅ Corrigé sur `fix/securite-rapport-externe` (filtre middleware) |
+| + | Mots de passe fuités | ✅ Ajouté : contrôle HIBP k-anonymat (inscription, reset, changement) |
+
+**Ménage à faire sur le staging** : supprimer `pentest-role-test-1@mailinator.com`, `enum-probe-1234@mailinator.com` et les achats en attente laissés par le test.
+
+**Porte de lancement prod** : le staging est aujourd'hui le seul environnement. La prod devra avoir ses **propres** clés et son **propre** seau (aucune réutilisation de ce qu'utilise le staging).
+
+---
+
 ## 🔴 Portes de déploiement — à ne pas oublier
 
 `develop` contient maintenant une **migration Prisma** et des **comportements auth sensibles**. Avant de pousser vers la prod :

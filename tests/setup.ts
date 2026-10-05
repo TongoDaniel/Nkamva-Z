@@ -53,6 +53,11 @@ for (const key of [
   process.env[key] = ''
 }
 
+// Le contrôle des mots de passe fuités appelle l'API Have I Been Pwned : coupé
+// ici, la suite ne dépend pas du réseau. `tests/mot-de-passe-fuite.test.ts` le
+// rallume avec un `fetch` simulé.
+process.env.PASSWORD_BREACH_CHECK = 'off'
+
 // `NEXTAUTH_SECRET` n'est pas une clé de service externe : elle signe les
 // jetons de session et dérive la clé qui chiffre les secrets TOTP. La
 // neutraliser casserait tout ce qui en dépend. On la **remplace** par une
