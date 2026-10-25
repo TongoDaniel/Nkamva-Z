@@ -5,7 +5,7 @@ import { success, error, parseBody } from '@/lib/api'
 import { hashPassword } from '@/lib/password'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { issueOtp, sendOtpEmail, sendAccountExistsEmail } from '@/lib/otp'
-import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
+import { MIN_PASSWORD_LENGTH, passwordProblem } from '@/lib/validation'
 import { isBreachedPassword, BREACHED_PASSWORD_MESSAGE } from '@/lib/breached-password'
 
 const schema = z.object({
@@ -29,6 +29,9 @@ export async function POST(request: Request) {
 
   // Avant toute lecture du compte : le refus ne dépend que du mot de passe
   // saisi, il ne peut donc rien trahir de l'existence de l'adresse.
+  // Les mêmes règles qu'au changement de mot de passe (m14).
+  const problem = passwordProblem(password, normalizedEmail)
+  if (problem) return error('VALIDATION_ERROR', problem, 400)
   if (await isBreachedPassword(password)) {
     return error('PASSWORD_BREACHED', BREACHED_PASSWORD_MESSAGE, 422)
   }

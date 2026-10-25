@@ -78,6 +78,34 @@ export function passwordIssues(value: string): PasswordRule[] {
 }
 
 /**
+ * Un mot de passe qui reprend l'adresse e-mail, ou sa partie avant l'arobase,
+ * est le premier essayé par quiconque connaît l'adresse — et l'adresse, elle,
+ * n'est pas un secret (campagne du 12 octobre 2026, m14).
+ */
+export function passwordMatchesEmail(password: string, email: string): boolean {
+  const pwd = password.trim().toLowerCase();
+  const address = email.trim().toLowerCase();
+  const local = address.split("@")[0] ?? "";
+  return pwd === address || (local.length >= 3 && pwd === local);
+}
+
+export const PASSWORD_IS_EMAIL_ERROR = "Le mot de passe ne doit pas reprendre votre adresse e-mail.";
+
+/**
+ * Tout ce qu'un mot de passe doit respecter, en un message, ou `null`.
+ * **Source unique** pour les trois routes qui en reçoivent un : l'inscription
+ * et la réinitialisation n'exigeaient que la longueur, le changement exigeait
+ * aussi une majuscule et un chiffre (m14). Les écrans appliquaient déjà les
+ * trois règles : c'est le serveur qui était en retard sur eux.
+ */
+export function passwordProblem(password: string, email?: string | null): string | null {
+  const issue = passwordError(password);
+  if (issue) return issue;
+  if (email && passwordMatchesEmail(password, email)) return PASSWORD_IS_EMAIL_ERROR;
+  return null;
+}
+
+/**
  * Message d'erreur unique listant TOUT ce qui manque.
  * N'annoncer que la première règle non respectée oblige à corriger, resoumettre,
  * découvrir la suivante — autant la donner d'un coup.

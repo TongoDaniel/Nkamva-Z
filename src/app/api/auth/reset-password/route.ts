@@ -6,7 +6,7 @@ import { hashPassword } from '@/lib/password'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { consumeOtp } from '@/lib/otp'
 import { otpFailureResponse } from '../otp-errors'
-import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
+import { MIN_PASSWORD_LENGTH, passwordProblem } from '@/lib/validation'
 import { isBreachedPassword, BREACHED_PASSWORD_MESSAGE } from '@/lib/breached-password'
 
 const schema = z.object({
@@ -27,7 +27,9 @@ export async function POST(request: Request) {
   }
 
   // Avant de consommer le code : un mot de passe refusé ne doit pas obliger à
-  // en redemander un.
+  // en redemander un. Les mêmes règles qu'à l'inscription et au changement (m14).
+  const problem = passwordProblem(parsed.data.password, email)
+  if (problem) return error('VALIDATION_ERROR', problem, 400)
   if (await isBreachedPassword(parsed.data.password)) {
     return error('PASSWORD_BREACHED', BREACHED_PASSWORD_MESSAGE, 422)
   }
