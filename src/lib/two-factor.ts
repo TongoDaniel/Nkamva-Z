@@ -36,6 +36,7 @@ import { notify, deliverSideEffects } from './notification'
 export const RECOVERY_CODE_COUNT = 10
 /** Fenêtre de tolérance : ±1 pas de 30 s, pour une horloge de téléphone décalée. */
 const TOTP_WINDOW = 1
+const TOTP_PERIOD = 30
 const ISSUER = 'NKAMVA'
 
 // --- Chiffrement du secret ---
@@ -154,13 +155,16 @@ export async function enableTwoFactor(userId: string, code: string): Promise<Two
   if (!user.twoFactorSecret) throw new Error('TWO_FACTOR_NOT_STARTED')
 
   const secret = decryptSecret(user.twoFactorSecret)
-  if (!secret || !verifyTotp(secret, code)) throw new Error('TWO_FACTOR_INVALID_CODE')
+  const step = secret ? verifyTotp(secret, code) : null
+  if (step === null) throw new Error('TWO_FACTOR_INVALID_CODE')
 
   const codes = Array.from({ length: RECOVERY_CODE_COUNT }, generateRecoveryCode)
   const now = new Date()
 
   await db.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: userId }, data: { twoFactorEnabledAt: now } })
+    // Le code d'enrôlement compte comme servi : il ne doit pas ouvrir une
+    // session ou valider un moyen de retrait dans les secondes qui suivent.
+    await tx.user.update({ where: { id: userId }, data: { twoFactorEnabledAt: now, twoFactorLastStep: step } })
     // Une réactivation ne doit pas laisser vivre les codes du tour précédent.
     await tx.recoveryCode.deleteMany({ where: { userId } })
     await tx.recoveryCode.createMany({
@@ -206,6 +210,7 @@ export async function disableTwoFactor(userId: string, code: string): Promise<vo
       data: {
         twoFactorSecret: null,
         twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
         // Toute session ouverte tombe : retirer un facteur de sécurité est un
         // événement qui mérite qu'on se reconnecte partout.
         sessionsValidAfter: new Date(),
@@ -230,19 +235,43 @@ export async function disableTwoFactor(userId: string, code: string): Promise<vo
 
 // --- Vérification ---
 
-function verifyTotp(secret: string, code: string): boolean {
+/**
+ * Le pas de temps que porte le code (fenêtres de 30 s depuis l'époque Unix),
+ * ou `null` s'il ne correspond pas au secret.
+ */
+function verifyTotp(secret: string, code: string): number | null {
   const cleaned = code.replace(/\s/g, '')
-  if (!/^\d{6}$/.test(cleaned)) return false
+  if (!/^\d{6}$/.test(cleaned)) return null
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
     algorithm: 'SHA1',
     digits: 6,
-    period: 30,
+    period: TOTP_PERIOD,
     secret: OTPAuth.Secret.fromBase32(secret),
   })
   // `validate` rend le décalage en pas de temps, ou `null`. Une fenêtre de ±1
   // absorbe une horloge de téléphone légèrement dérivée.
-  return totp.validate({ token: cleaned, window: TOTP_WINDOW }) !== null
+  const delta = totp.validate({ token: cleaned, window: TOTP_WINDOW })
+  if (delta === null) return null
+  return Math.floor(Date.now() / 1000 / TOTP_PERIOD) + delta
+}
+
+/**
+ * Accepte le pas d'un code TOTP, une seule fois. L'écriture est conditionnée au
+ * dernier pas accepté : un code déjà servi — ou plus ancien qu'un code servi —
+ * ne passe plus, et deux tentatives simultanées avec le même code n'en
+ * valident qu'une. Sans cela, le code qui venait de créer un moyen de retrait
+ * servait aussitôt à le **remplacer** (campagne du 12 octobre 2026, M8).
+ */
+async function claimTotpStep(userId: string, step: number): Promise<boolean> {
+  const { count } = await db.user.updateMany({
+    where: {
+      id: userId,
+      OR: [{ twoFactorLastStep: null }, { twoFactorLastStep: { lt: step } }],
+    },
+    data: { twoFactorLastStep: step },
+  })
+  return count === 1
 }
 
 /**
@@ -258,7 +287,10 @@ export async function verifySecondFactor(userId: string, code: string): Promise<
   if (!user?.twoFactorEnabledAt || !user.twoFactorSecret) return false
 
   const secret = decryptSecret(user.twoFactorSecret)
-  if (secret && verifyTotp(secret, code)) return true
+  const step = secret ? verifyTotp(secret, code) : null
+  // Un code d'application reconnu mais déjà servi est refusé tel quel : il n'a
+  // pas la forme d'un code de secours, inutile de le chercher parmi eux.
+  if (step !== null) return claimTotpStep(userId, step)
 
   // `updateMany` sur le hachage **et** `usedAt: null` : la consommation et le
   // contrôle sont la même écriture, donc deux tentatives simultanées avec le
