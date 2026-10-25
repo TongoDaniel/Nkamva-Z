@@ -201,7 +201,10 @@ export async function listTrainerSales(
   page: number,
   pageSize: number,
 ): Promise<TrainerSalesPage> {
-  const where = { trainerId }
+  // Une tentative annulée n'est pas une vente : elle apparaissait « Annulée
+  // 20 000 FCFA » dans l'historique de la formatrice après un double clic de
+  // l'acheteur (m9). Le registre de Finances, lui, garde tout.
+  const where = { trainerId, providerStatus: { not: 'CANCELED' as const } }
   const [rows, total] = await Promise.all([
     db.purchase.findMany({
       where,

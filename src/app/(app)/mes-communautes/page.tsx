@@ -110,7 +110,13 @@ export default async function MesCommunautesPage({
           // Court, parce que la carte est étroite : « Prochaine échéance le »
           // prenait trois lignes dans une colonne de 170 px, et la pastille dit
           // déjà de quoi il s'agit quand il y a quelque chose à régler.
-          dueLabel: `${m.canceledAt ? "Jusqu'au " : "Échéance le "}${fmtDate(m.periodEnd)}`,
+          // Une date d'échéance déjà passée (le renouvellement n'est pas encore
+          // passé) se lisait comme une erreur (m19).
+          dueLabel: m.canceledAt
+            ? `Jusqu'au ${fmtDate(m.periodEnd)}`
+            : m.status === "ACTIVE" && m.periodEnd.getTime() < Date.now()
+              ? "Renouvellement en cours"
+              : `Échéance le ${fmtDate(m.periodEnd)}`,
           actionHref:
             m.status === "PAST_DUE"
               ? `/adhesion/${m.community.slug}`

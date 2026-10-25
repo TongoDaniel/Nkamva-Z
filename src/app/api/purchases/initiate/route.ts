@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     if (err.message === 'PAYMENT_IN_PROGRESS') {
       return error(
         'PAYMENT_IN_PROGRESS',
-        "Un paiement est déjà en cours sur ce moyen. Terminez-le, ou attendez qu'il expire avant d'en changer.",
+        "Un paiement est déjà en cours pour cet achat. Terminez-le, ou attendez qu'il expire avant de changer de moyen de paiement.",
         409,
       )
     }

@@ -167,7 +167,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   // aboutir. Le message dit quoi faire, sinon il se lit comme une panne.
   PAYMENT_IN_PROGRESS: {
     message:
-      "Un paiement est déjà en cours sur ce moyen. Terminez-le, ou attendez qu'il expire avant d'en changer.",
+      "Un paiement est déjà en cours pour cet achat. Terminez-le, ou attendez qu'il expire avant de changer de moyen de paiement.",
     status: 409,
   },
   CANNOT_JOIN_OWN_COMMUNITY: { message: 'Vous animez cette communauté', status: 422 },

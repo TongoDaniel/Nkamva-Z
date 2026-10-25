@@ -25,7 +25,7 @@ import type { PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
 import { quotePrice, type PriceQuote } from './pricing'
-import { fmtDate, fmtNumber } from './format'
+import { fmtCount, fmtDate, fmtNumber } from './format'
 import { storageChargeFor } from './storage-tiers'
 import { reviseTrainerObligations } from './course-obligation'
 import { debitWalletForSubscriptionCharge } from './wallet'
@@ -551,7 +551,7 @@ export async function suspendOverdueSubscriptions(now = new Date()): Promise<{
       await notifyAdminSubRole('FINANCES', {
         type: 'SUBSCRIPTION_SUSPENDED',
         title: 'Formateur suspendu pour impayé',
-        body: `${archived} ressource(s) retirée(s) du catalogue.`,
+        body: `${fmtCount(archived, 'ressource retirée', 'ressources retirées')} du catalogue.`,
         link: '/admin/utilisateurs',
       })
     })

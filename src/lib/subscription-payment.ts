@@ -400,7 +400,7 @@ export async function settleSubscriptionPayment(
       body:
         `${fmtNumber(result.amountFcfa)} FCFA encaissés.` +
         (result.republished > 0
-          ? ` Vos ${result.republished} ressource(s) sont de retour au catalogue.`
+          ? ` ${result.republished > 1 ? `Vos ${result.republished} ressources sont de retour` : 'Votre ressource est de retour'} au catalogue.`
           : ''),
       link: '/formateur/abonnement',
     }),
