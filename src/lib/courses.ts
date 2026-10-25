@@ -4,7 +4,7 @@
 
 import { db } from './db'
 import { auditStandalone } from './audit'
-import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
+import { presignUpload, headObject, validateMagicNumber, deleteObject, isS3Configured } from './s3'
 import { readMp4DurationFromStorage } from './mp4-duration'
 import { readPdfPageCountFromStorage } from './pdf-pages'
 import { canTrainerWrite } from './subscriptions'
@@ -431,6 +431,12 @@ export async function publishCourse(courseId: string, trainerId: string, userId:
   // Rien ne l'empêchait de publier une ressource sans contenu, donc de la
   // vendre. L'acheteur ne l'aurait découvert qu'après paiement.
   if (!course.contentS3Key) throw new Error('CONTENT_REQUIRED')
+  // La clé ne suffit pas : elle a pu entrer en base avant que la confirmation
+  // n'exige l'objet (B2, 12 octobre 2026), ou l'objet a disparu depuis. On
+  // relit le stockage au moment où la ressource devient achetable.
+  if (isS3Configured() && !(await headObject(course.contentS3Key))) {
+    throw new Error('CONTENT_REQUIRED')
+  }
 
   const updated = await db.course.update({
     where: { id: courseId },
@@ -593,6 +599,14 @@ export async function confirmCourseUpload(
   // renommé en .mp4 est refusé. Sans identifiants R2, `headObject` renvoie null
   // et la validation est sautée — le mode dev ne dépose rien de réel.
   //
+  // **Avec** R2, en revanche, un `null` veut dire que l'objet n'existe pas, et
+  // c'est un refus. Le `if (head)` seul couvrait les deux cas à la fois : une
+  // clé jamais écrite — voire inventée — passait avec une taille de 0, la
+  // ressource se publiait, se vendait, se facturait, et l'acheteur recevait un
+  // `NoSuchKey` (campagne du 12 octobre 2026, B2). Les pièces de candidature et
+  // les moyens de retrait refusaient déjà ce cas ; c'est l'asymétrie qui était
+  // le défaut.
+  //
   // **Sauf les archives** (arbitrage du 8 août 2026) : l'extension fait foi, le
   // contenu n'est pas inspecté. Un .zip authentique peut de toute façon
   // renfermer n'importe quoi — le contrôle établissait « c'est bien un zip »,
@@ -601,6 +615,7 @@ export async function confirmCourseUpload(
   // gardent, eux : une image ou un PDF sont *rendus* par le navigateur, pas
   // seulement téléchargés, et un contenu déguisé s'y exécute.
   const head = await headObject(params.s3Key)
+  if (!head && isS3Configured()) throw new Error('UPLOAD_NOT_FOUND')
   if (head) {
     if (params.kind !== 'archive') await validateMagicNumber(params.s3Key, params.mimeType)
     // Zéro octet reste refusé pour tout le monde : c'est une vente vide, et le
