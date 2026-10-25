@@ -304,6 +304,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PAWAPAY_CALLBACK_IGNORED: 'Retour PawaPay ignoré',
   PAWAPAY_CALLBACK_REJECTED: 'Retour PawaPay refusé',
   PAWAPAY_CALLBACK_UNAPPLIED: 'Retour PawaPay non appliqué',
+  PROVIDER_RECONCILE_ERROR: 'Rapprochement avec le fournisseur en échec',
   WEBHOOK_DUPLICATE_IGNORED: 'Webhook déjà traité, ignoré',
 }
 
