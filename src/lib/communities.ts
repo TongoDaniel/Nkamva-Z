@@ -896,7 +896,29 @@ export async function banCommunityMember(
   return { banned: true }
 }
 
-/** Rend la parole. La période, elle, n'a jamais été interrompue. */
+/**
+ * Cette personne a-t-elle été bannie de cette communauté, sans que la sanction
+ * ait été levée ? La trace vit sur `bannedAt`, qui **survit à la fin de la
+ * période** : le renouvellement ferme une adhésion bannie en `EXPIRED` sans
+ * effacer la sanction. Ne regarder que les adhésions ouvertes laissait la
+ * personne bannie réadhérer et payer dans la minute qui suivait l'échéance
+ * (campagne du 12 octobre 2026, M4). Seul le formateur rouvre la porte, par
+ * `unbanCommunityMember`.
+ */
+export async function isBannedFromCommunity(communityId: string, learnerId: string): Promise<boolean> {
+  const banned = await db.communitySubscription.count({
+    where: { communityId, learnerId, bannedAt: { not: null } },
+  })
+  return banned > 0
+}
+
+/**
+ * Rend la parole. La période, elle, n'a jamais été interrompue.
+ *
+ * Vaut aussi pour un bannissement dont la période s'est close depuis : la
+ * sanction y reste inscrite (`isBannedFromCommunity`), et c'est elle qui
+ * empêche de réadhérer — le formateur doit donc pouvoir la lever.
+ */
 export async function unbanCommunityMember(
   communityId: string,
   learnerId: string,
@@ -911,21 +933,34 @@ export async function unbanCommunityMember(
   if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
 
   const subscription = await db.communitySubscription.findFirst({
-    where: { communityId, learnerId, status: 'BANNED' },
-    select: { id: true, periodEnd: true, canceledAt: true },
+    // `status: 'BANNED'` aussi : une ligne écrite hors service (seed, script)
+    // peut porter le statut sans la date.
+    where: { communityId, learnerId, OR: [{ status: 'BANNED' }, { bannedAt: { not: null } }] },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, status: true, periodEnd: true, canceledAt: true },
   })
   if (!subscription) throw new Error('MEMBER_NOT_BANNED')
 
   // On ne rend pas `ACTIVE` à quelqu'un dont la période est close ou résiliée :
   // le statut doit refléter la réalité de son adhésion, pas la levée de la
-  // sanction. `EXPIRED` est ce que le job de renouvellement aurait posé.
+  // sanction. `EXPIRED` est ce que le job de renouvellement aurait posé. Une
+  // adhésion déjà close (bannissement d'une période passée) garde son statut :
+  // on n'efface que la sanction.
   const expired = subscription.periodEnd < new Date()
-  const status = subscription.canceledAt || expired ? 'EXPIRED' : 'ACTIVE'
+  const status = subscription.status !== 'BANNED'
+    ? subscription.status
+    : subscription.canceledAt || expired ? 'EXPIRED' : 'ACTIVE'
 
   await db.$transaction(async (tx) => {
     await tx.communitySubscription.update({
       where: { id: subscription.id },
       data: { status, bannedAt: null, bannedReason: null, bannedById: null },
+    })
+    // Une sanction plus ancienne, sur une période close, bloquerait encore la
+    // réadhésion : lever le bannissement les lève toutes.
+    await tx.communitySubscription.updateMany({
+      where: { communityId, learnerId, bannedAt: { not: null } },
+      data: { bannedAt: null, bannedReason: null, bannedById: null },
     })
     // Ici le recompte **change** le nombre, et c'était un défaut : lever la
     // sanction de quelqu'un dont la période est close ou résiliée pose

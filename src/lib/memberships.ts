@@ -44,7 +44,7 @@ import {
   resumableAsIs, isCheckoutSession,
   type MobileMoneyPayer, type OpenPaymentResult,
 } from './purchases'
-import { recountCommunityMembers } from './communities'
+import { isBannedFromCommunity, recountCommunityMembers } from './communities'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -359,6 +359,13 @@ export async function initiateMembershipPayment(
     select: { id: true, status: true, periodStart: true, periodEnd: true },
   })
   if (open && open.status !== 'PAST_DUE') throw new Error('ALREADY_MEMBER')
+
+  // Le bannissement survit à la fin de la période (M4) : sans ce contrôle, la
+  // personne bannie, fermée en `EXPIRED` par le renouvellement, réadhérait et
+  // payait dans la minute. Seul le formateur lève la sanction.
+  if (!open && (await isBannedFromCommunity(communityId, learnerId))) {
+    throw new Error('MEMBERSHIP_BANNED')
+  }
 
   const now = new Date()
   // Une adhésion en impayé règle **le mois déjà entamé**, celui qui court
