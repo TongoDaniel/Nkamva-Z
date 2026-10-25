@@ -23,7 +23,7 @@ import {
 } from './subscriptions'
 import { renewDueMemberships, expireOverdueMemberships } from './memberships'
 import { refreshCommunityActivity } from './community-space'
-import { purgeExpiredReplays, alertUpcomingReplayPurges, reconcileProcessingReplays } from './lives'
+import { purgeExpiredReplays, alertUpcomingReplayPurges, reconcileProcessingReplays, closeNeverStartedSessions } from './lives'
 import { noticeEndingGiftMemberships, noticeTariffSwitch } from './notices'
 import { purgeStaleInvitations } from './invitations'
 
@@ -205,6 +205,13 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'REPLAY_RECONCILE',
     schedule: '*/10 * * * *',
     run: async () => ({ ...(await reconcileProcessingReplays()) }),
+  },
+  {
+    // m12 (campagne du 12 octobre 2026) — une séance jamais lancée cesse
+    // d'être « programmée » un jour après sa fin prévue.
+    name: 'LIVE_NEVER_STARTED_CLOSE',
+    schedule: '15 4 * * *',
+    run: async () => ({ ...(await closeNeverStartedSessions()) }),
   },
   {
     // Arbitrages 77 et 103 — les mois offerts se terminent à J-7 puis J-1. Le

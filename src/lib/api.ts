@@ -311,6 +311,9 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   REPORT_NOT_FOUND: { message: 'Signalement introuvable', status: 404 },
   REPORT_NOT_OPEN: { message: 'Signalement déjà tranché', status: 409 },
   REPORT_ALREADY_OPEN: { message: 'Vous avez déjà signalé cet élément', status: 409 },
+  LIVE_START_IN_PAST: { message: 'Choisissez une date à venir', status: 422 },
+  LIVE_START_TOO_FAR: { message: 'Une séance se programme au plus un an à l\'avance', status: 422 },
+  LIVE_OVERLAP: { message: 'Vous animez déjà une séance à ce moment-là', status: 409 },
   TARGET_NOT_HIDEABLE: { message: 'Seule une ressource peut être retirée du catalogue', status: 422 },
   STALE_REPORT: { message: 'Le signalement a été modifié entre-temps', status: 409 },
   // --- Abonnement formateur (décision 68) ---
