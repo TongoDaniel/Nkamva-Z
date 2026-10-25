@@ -1,5 +1,5 @@
 // Lot 4 — Achat : initier un paiement
-import { success, error, requireLearner, parseBody, errorFromException } from '@/lib/api'
+import { success, error, requireLearner, requireVerifiedEmail, parseBody, errorFromException } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiatePurchase } from '@/lib/purchases'
 import { MobileMoneyPayerSchema } from '@/lib/payment-input'
@@ -21,6 +21,9 @@ export async function POST(request: Request) {
   // de gouvernance n'a pas à consommer un quota anti-abus.
   const ctx = await requireLearner()
   if (ctx instanceof Response) return ctx
+  // M6 — on ne paie pas avec une adresse qu'on n'a pas prouvé contrôler.
+  const unverified = await requireVerifiedEmail(ctx.user.id)
+  if (unverified) return unverified
 
   // Le plafond est large — abandonner un paiement puis le reprendre est normal —
   // mais il existe : sans lui, une boucle côté client fabrique des dizaines
