@@ -4,11 +4,14 @@
 import { z } from 'zod'
 import { success, requireAdminSubRole, parseBody, errorFromException } from '@/lib/api'
 import { approveApplication } from '@/lib/trainer-applications'
+import { wordsField } from '@/lib/text-input'
 
 const ApproveSchema = z.object({
   // Nom légal relevé sur la pièce d'identité : il devient la référence pour la
   // vérification du RIB au Lot 3.
-  verifiedLegalName: z.string().min(2).max(200),
+  // Nettoyé avant d'être mesuré : deux espaces passaient `min(2)`, et ce vide
+  // était recopié sur le moyen de paiement (m1).
+  verifiedLegalName: wordsField(2, 200),
   expectedUpdatedAt: z.string(),
 })
 

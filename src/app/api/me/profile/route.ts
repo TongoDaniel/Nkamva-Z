@@ -2,10 +2,13 @@
 import { success, error, requireAuth, parseBody } from '@/lib/api'
 import { getProfile, updateProfile } from '@/lib/profile'
 import { z } from 'zod'
+import { countryCodeField, textField, wordsField } from '@/lib/text-input'
 
 const UpdateSchema = z.object({
-  fullName: z.string().trim().min(2, 'Nom trop court').max(120).optional(),
-  preferredName: z.string().trim().max(80).nullable().optional(),
+  // Nettoyés avant d'être mesurés : ni caractères invisibles, ni inversion du
+  // sens d'affichage (m15).
+  fullName: wordsField(2, 120).optional(),
+  preferredName: textField(0, 80).nullable().optional(),
   // Format international, seul commun aux opérateurs mobile money visés.
   phone: z
     .string()
@@ -14,7 +17,7 @@ const UpdateSchema = z.object({
     .nullable()
     .optional()
     .or(z.literal('')),
-  countryCode: z.string().trim().length(2, 'Code pays sur 2 lettres').toUpperCase().nullable().optional().or(z.literal('')),
+  countryCode: countryCodeField().nullable().optional().or(z.literal('')),
   bio: z.string().trim().max(1000, 'Bio trop longue').nullable().optional(),
   // Préférence d'envoi, pas une donnée de profil : elle passe par la même route
   // parce qu'elle vit sur le même enregistrement et suit le même audit.

@@ -6,13 +6,15 @@ import { hashPassword } from '@/lib/password'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { issueOtp, sendOtpEmail, sendAccountExistsEmail } from '@/lib/otp'
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
+import { countryCodeField, wordsField } from '@/lib/text-input'
 import { isBreachedPassword, BREACHED_PASSWORD_MESSAGE } from '@/lib/breached-password'
 
 const schema = z.object({
   email: z.string().email('Adresse email invalide').max(254),
   password: z.string().min(MIN_PASSWORD_LENGTH, `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères`).max(128),
-  fullName: z.string().trim().min(2, 'Nom complet requis').max(120),
-  countryCode: z.string().trim().length(2).optional(),
+  // Nettoyé avant d'être mesuré : des caractères invisibles ne font pas un nom (m15).
+  fullName: wordsField(2, 120),
+  countryCode: countryCodeField().optional(),
 })
 
 export async function POST(request: Request) {
