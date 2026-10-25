@@ -67,6 +67,19 @@ export function checkRateLimit(identifier: string, action: string, max: number, 
   return { ...result, remaining: result.remaining - 1 }
 }
 
+/**
+ * Le délai d'attente dit en clair : « dans 5 h », « dans 12 min ». « Réessayez
+ * plus tard » sur un plafond de 24 h laissait croire à une panne passagère, et
+ * le formateur recliquait — ce qui, avant M7, prolongeait le blocage.
+ */
+export function retryAfterLabel(seconds: number | null): string {
+  if (!seconds || seconds <= 0) return 'dans un instant'
+  if (seconds < 60) return `dans ${seconds} s`
+  const minutes = Math.ceil(seconds / 60)
+  if (minutes < 60) return `dans ${minutes} min`
+  return `dans ${Math.ceil(minutes / 60)} h`
+}
+
 function firstForwardedFor(value: string | null | undefined): string | null {
   return value?.split(',')[0]?.trim() || null
 }
