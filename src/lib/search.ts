@@ -10,6 +10,7 @@
 // ==========================================================================
 
 import { db } from './db'
+import { searchAnyOf } from './search-text'
 import { userAvatarSrc } from './avatars'
 import { PUBLIC_TRAINER_WHERE, rankPublicTrainers } from './trainers'
 import type { CourseListItem } from './dto'
@@ -51,13 +52,15 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
     return { query, courses: [], trainers: [], communities: [], total: 0 }
   }
 
-  const contains = { contains: query, mode: 'insensitive' as const }
+  // Jokers échappés, et la forme sans accents cherchée aussi (m6).
+  const anyOf = <T,>(fields: (contains: { contains: string; mode: 'insensitive' }) => T[]) =>
+    searchAnyOf(query, fields)
 
   const [courses, trainers, communities] = await Promise.all([
     db.course.findMany({
       where: {
         status: 'published',
-        OR: [{ title: contains }, { blurb: contains }, { category: contains }],
+        OR: anyOf((contains) => [{ title: contains }, { blurb: contains }, { category: contains }]),
       },
       select: {
         id: true, slug: true, title: true, blurb: true, category: true, format: true,
@@ -80,8 +83,7 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
     rankPublicTrainers({
       filter: {
         OR: [
-          { user: { fullName: contains } },
-          { slogan: contains },
+          ...anyOf((contains) => [{ user: { fullName: contains } }, { slogan: contains }]),
           { domains: { has: query } },
         ],
       },
@@ -107,7 +109,7 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
         // Une communauté privée qui remonterait ici serait fermée de nom
         // seulement.
         visibility: 'PUBLIC',
-        OR: [{ name: contains }, { description: contains }],
+        OR: anyOf((contains) => [{ name: contains }, { description: contains }]),
       },
       select: {
         id: true, slug: true, name: true, description: true, priceFcfa: true, membersCount: true,

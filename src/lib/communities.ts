@@ -19,6 +19,7 @@
 // ==========================================================================
 
 import { db } from './db'
+import { searchAnyOf } from './search-text'
 import { audit, auditStandalone } from './audit'
 import { userAvatarSrc } from './avatars'
 import { notify, deliverSideEffects } from './notification'
@@ -185,10 +186,8 @@ export async function listPublicCommunities(
       : {}),
     ...(search
       ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { description: { contains: search, mode: 'insensitive' as const } },
-          ],
+          // Jokers échappés, et la forme sans accents cherchée aussi (m6).
+          OR: searchAnyOf(search, (contains) => [{ name: contains }, { description: contains }]),
         }
       : {}),
   }
