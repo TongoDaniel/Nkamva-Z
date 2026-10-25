@@ -171,6 +171,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
     status: 409,
   },
   CANNOT_JOIN_OWN_COMMUNITY: { message: 'Vous animez cette communauté', status: 422 },
+  COMMUNITY_CLOSED_TO_NEW_MEMBERS: { message: 'Cette communauté n\'accueille pas de nouveaux membres pour le moment', status: 409 },
   // Pendant de la règle ci-dessus, côté vente à l'unité : on ne se paie pas sa
   // propre ressource, sans quoi la commission serait prélevée sur son propre
   // argent et la vente compterait dans ses propres statistiques.

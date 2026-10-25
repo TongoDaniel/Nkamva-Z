@@ -35,11 +35,14 @@ export function MembershipPanel({
   isOwner,
   membership,
   inCommunity = false,
+  acceptsMembers = true,
 }: {
   slug: string;
   priceFcfa: number;
   isOwner: boolean;
   membership: MembershipState | null;
+  /** Faux quand le formateur est suspendu : on n'y entre plus (M3). */
+  acceptsMembers?: boolean;
   /**
    * Rendu depuis le salon de la communauté : « Entrer dans la communauté »
    * disparaît, puisque c'est la page sur laquelle on se trouve.
@@ -59,6 +62,14 @@ export function MembershipPanel({
     return (
       <p className="mt-4 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
         Vous animez cette communauté : elle vous appartient, vous n&apos;y adhérez pas.
+      </p>
+    );
+  }
+
+  if (!membership && !acceptsMembers) {
+    return (
+      <p className="mt-4 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+        Cette communauté n&apos;accueille pas de nouveaux membres pour le moment.
       </p>
     );
   }

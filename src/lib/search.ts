@@ -11,7 +11,7 @@
 
 import { db } from './db'
 import { userAvatarSrc } from './avatars'
-import { PUBLIC_TRAINER_WHERE, rankPublicTrainers } from './trainers'
+import { PUBLIC_TRAINER_WHERE, TRAINER_ACCEPTS_MEMBERS_WHERE, rankPublicTrainers } from './trainers'
 import type { CourseListItem } from './dto'
 import { SEARCH_MIN_LENGTH } from './search-limits'
 
@@ -107,6 +107,8 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
         // Une communauté privée qui remonterait ici serait fermée de nom
         // seulement.
         visibility: 'PUBLIC',
+        // M3 : la communauté d'un formateur suspendu ne s'annonce plus.
+        trainerProfile: TRAINER_ACCEPTS_MEMBERS_WHERE,
         OR: [{ name: contains }, { description: contains }],
       },
       select: {

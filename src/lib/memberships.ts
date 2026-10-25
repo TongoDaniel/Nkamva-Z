@@ -45,6 +45,7 @@ import {
   type MobileMoneyPayer, type OpenPaymentResult,
 } from './purchases'
 import { recountCommunityMembers } from './communities'
+import { trainerAcceptsMembers } from './trainers'
 import type { PrismaTransaction } from './types'
 
 /**
@@ -259,7 +260,7 @@ export async function initiateMembershipPayment(
     where: { id: communityId, status: 'active' },
     select: {
       id: true, priceFcfa: true, commissionRate: true, trainerId: true,
-      trainerProfile: { select: { userId: true } },
+      trainerProfile: { select: { userId: true, subscriptionStatus: true, suspendedAt: true } },
     },
   })
   if (!community) throw new Error('COMMUNITY_NOT_FOUND')
@@ -359,6 +360,13 @@ export async function initiateMembershipPayment(
     select: { id: true, status: true, periodStart: true, periodEnd: true },
   })
   if (open && open.status !== 'PAST_DUE') throw new Error('ALREADY_MEMBER')
+
+  // Un formateur suspendu n'accueille plus personne (M3, `trainerAcceptsMembers`).
+  // Seule l'entrée est fermée : le membre en impayé règle toujours son mois, il
+  // ne fait que garder ce qu'il a déjà.
+  if (!open && !trainerAcceptsMembers(community.trainerProfile)) {
+    throw new Error('COMMUNITY_CLOSED_TO_NEW_MEMBERS')
+  }
 
   const now = new Date()
   // Une adhésion en impayé règle **le mois déjà entamé**, celui qui court
