@@ -26,6 +26,7 @@
 import type { InvoiceKind } from '@prisma/client'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { db } from './db'
+import { fmtCount } from './format'
 import { auditStandalone } from './audit'
 import type { PrismaTransaction } from './types'
 
@@ -155,9 +156,13 @@ export async function issueInvoiceForSubscriptionCharge(chargeId: string) {
     },
   })
   if (!charge) throw new Error('SUBSCRIPTION_CHARGE_NOT_FOUND')
+  // Un mois offert n'est pas une créance : une facture à 0 FCFA émise chaque
+  // mois de gratuité encombrait l'espace du formateur et le registre
+  // (campagne du 12 octobre 2026, m20).
+  if (charge.amountDueFcfa === 0) return null
 
   const period = `${charge.periodStart.toLocaleDateString('fr-FR')} – ${charge.periodEnd.toLocaleDateString('fr-FR')}`
-  const storage = charge.storageTiers > 0 ? ` · ${charge.storageTiers} palier(s) de stockage` : ''
+  const storage = charge.storageTiers > 0 ? ` · ${fmtCount(charge.storageTiers, 'palier de stockage', 'paliers de stockage')}` : ''
 
   return issueInvoice({
     kind: 'SUBSCRIPTION',
