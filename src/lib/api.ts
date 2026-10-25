@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
 import { canActAsLearner } from './roles'
+import { db } from './db'
 import type { Role, AdminRole } from '@prisma/client'
 
 /**
@@ -100,6 +101,29 @@ export async function requireLearner(): Promise<AuthContext | NextResponse> {
     return error('ADMIN_CANNOT_ACT_AS_LEARNER', ADMIN_ACT_MESSAGE, 403)
   }
   return ctx
+}
+
+/**
+ * Une adresse jamais vérifiée ne paie pas et ne candidate pas.
+ *
+ * La connexion n'exige pas la vérification (`auth.ts`) : on peut s'inscrire,
+ * abandonner sur l'écran du code et revenir par mot de passe. Seules les
+ * invitations la demandaient ; un tel compte pouvait donc acheter, candidater
+ * et devenir formateur avec une adresse qu'il ne contrôle pas — là où partent
+ * les factures, les reçus et les alertes de sécurité (campagne du 12 octobre
+ * 2026, M6). Naviguer, lire et chercher restent ouverts.
+ *
+ * ⚠️ Choix par défaut, non arbitré : le périmètre (payer, candidater) est le
+ * plus étroit qui ferme le défaut constaté.
+ */
+export async function requireVerifiedEmail(userId: string): Promise<NextResponse | null> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { emailVerifiedAt: true } })
+  if (user?.emailVerifiedAt) return null
+  return error(
+    'EMAIL_NOT_VERIFIED',
+    'Confirmez votre adresse e-mail avant de continuer : depuis « Profil & paramètres », recevez un code et saisissez-le.',
+    403,
+  )
 }
 
 // Mapping mutualisé des erreurs métier levées par les services (`throw new
