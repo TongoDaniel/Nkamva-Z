@@ -42,6 +42,32 @@ import type { PrismaTransaction } from './types'
  */
 export const SUBSCRIPTION_GRACE_DAYS = 14
 
+/**
+ * La période qui reprend quand un règlement lève une suspension.
+ *
+ * Pendant la suspension, le renouvellement est à l'arrêt : la fin de période
+ * reste celle de l'échéance impayée, désormais passée. Un règlement tardif
+ * remettait le formateur `ACTIVE` sur cette date ; la nuit même, le
+ * renouvellement ouvrait la période **où il était suspendu** et la facturait,
+ * puis la suspension retombait aussitôt, le délai de grâce courant depuis le
+ * début de cette période déjà ancienne. 5 000 FCFA pour seize heures
+ * d'activité, et deux notifications contradictoires (campagne du 12 octobre
+ * 2026, M2).
+ *
+ * La période suivante commence donc au jour du règlement : les mois de
+ * suspension ne sont pas facturés, et le délai de grâce de la prochaine
+ * échéance part d'aujourd'hui. ⚠️ Choix par défaut, non arbitré : l'autre
+ * lecture ferait commencer au règlement la période **payée** elle-même.
+ */
+export function periodRestartAfterSuspension(
+  profile: { subscriptionStatus: string; subscriptionCurrentPeriodEnd: Date | null },
+  at: Date,
+): { subscriptionCurrentPeriodEnd?: Date } {
+  if (profile.subscriptionStatus !== 'SUSPENDED') return {}
+  if (profile.subscriptionCurrentPeriodEnd && profile.subscriptionCurrentPeriodEnd > at) return {}
+  return { subscriptionCurrentPeriodEnd: at }
+}
+
 /** Fin de période à partir d'un début, selon la cadence. */
 export function periodEndFor(start: Date, cadence: PlanCadence): Date {
   const end = new Date(start)
@@ -590,10 +616,17 @@ export async function settleSubscriptionCharge(
     // prélèvement ou le paiement en ligne.
     const republished = stillDue === 0 ? await restoreSuspendedCatalog(tx, charge.trainerId) : 0
 
+    const profile = await tx.trainerProfile.findUniqueOrThrow({
+      where: { id: charge.trainerId },
+      select: { subscriptionStatus: true, subscriptionCurrentPeriodEnd: true },
+    })
     await tx.trainerProfile.update({
       where: { id: charge.trainerId },
       data: stillDue === 0
-        ? { subscriptionStatus: 'ACTIVE', subscriptionPastDueAt: null, suspendedReason: null }
+        ? {
+            subscriptionStatus: 'ACTIVE', subscriptionPastDueAt: null, suspendedReason: null,
+            ...periodRestartAfterSuspension(profile, new Date()),
+          }
         : {},
     })
 
