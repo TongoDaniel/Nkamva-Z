@@ -50,6 +50,24 @@ export const PAYOUT_METHOD_CARENCE_HOURS = 72
 export const PAYOUT_MIN_AMOUNT_FCFA = 10_000
 export const BUSINESS_DOC_MAX_SIZE_BYTES = 10 * MO
 
+// --- Lives -------------------------------------------------------------------
+
+/**
+ * Jusqu'où à l'avance une séance se programme. La campagne du 12 octobre 2026
+ * en a programmé une en l'an 9999 (m12). ⚠️ Valeur provisoire, non arbitrée.
+ */
+export const LIVE_SCHEDULE_HORIZON_DAYS = 365
+/**
+ * Une séance « commence dans le passé » au-delà de ce délai : il laisse le
+ * temps de remplir le formulaire, pas celui de programmer après coup.
+ */
+export const LIVE_SCHEDULE_PAST_TOLERANCE_MINUTES = 5
+/**
+ * Une séance jamais lancée cesse d'être « programmée » ce délai après sa fin
+ * prévue. Deux séances de septembre l'étaient encore en mars.
+ */
+export const LIVE_NEVER_STARTED_CLOSE_HOURS = 24
+
 // --- Fichiers déposés --------------------------------------------------------
 
 export const AVATAR_MAX_BYTES = 2 * MO
