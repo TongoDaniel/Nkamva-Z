@@ -17,6 +17,10 @@
  * PawaPay de production. Les courriels sont coupés.
  */
 
+// Les imports sont dynamiques (voir plus bas) : sans cet export, le fichier
+// n'est pas un module, et `tsc` refuse ses `await` de premier niveau.
+export {}
+
 // Avant tout import du code : `email.ts` lit la clé à l'envoi, mais rien ne
 // doit partir d'un smoke test.
 process.env.RESEND_API_KEY = ''
