@@ -278,6 +278,11 @@ model User {
   /// cours d'enrôlement, qui ne protège rien encore.
   twoFactorSecret            String?
   twoFactorEnabledAt         DateTime?
+  /// Dernier pas de temps TOTP (fenêtres de 30 s depuis l'époque Unix) accepté
+  /// pour ce compte. Un code n'est valable que s'il porte un pas **plus récent** :
+  /// sans cela, le même code servait deux fois dans sa fenêtre — et c'est ce
+  /// code qui protège l'adresse des versements (campagne du 12 octobre, M8).
+  twoFactorLastStep          Int?
   recoveryCodes              RecoveryCode[]
   /// Emails d'information sur l'abonnement formateur : annonce d'un changement
   /// de grille tarifaire, et rappel à l'échéance qui l'applique. Désactivable

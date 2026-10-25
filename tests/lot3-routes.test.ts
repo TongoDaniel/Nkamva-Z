@@ -93,7 +93,14 @@ describe('Lot 3 — Routes', () => {
       secret: OTPAuth.Secret.fromBase32(secret),
     })
     await enableTwoFactor(userId, totp.generate())
-    return totp.generate()
+    // Un code ne sert qu'une fois (M8), et la route le vérifie avant de lire
+    // le formulaire : chaque requête consomme le sien. On rend donc de quoi en
+    // obtenir un neuf à chaque appel, comme un formateur qui attend que son
+    // application affiche le suivant.
+    return async () => {
+      await prisma.user.update({ where: { id: userId }, data: { twoFactorLastStep: null } })
+      return totp.generate()
+    }
   }
 
   it('POST /api/trainer/payout-methods — 401 sans session, 201 avec, 409 sans nom légal', async () => {
@@ -104,7 +111,7 @@ describe('Lot 3 — Routes', () => {
     const noName = await setupActors({ legalName: null })
     signInAs({ id: noName.trainerUser.id, role: 'TRAINER', trainerId: noName.profile.id })
     const noNameCode = await withSecondFactor(noName.trainerUser.id)
-    const blocked = await createMethodRoute(jsonRequest({ ...IBAN_BODY, twoFactorCode: noNameCode }))
+    const blocked = await createMethodRoute(jsonRequest({ ...IBAN_BODY, twoFactorCode: await noNameCode() }))
     expect(blocked.status).toBe(409)
     expect((await blocked.json()).error.code).toBe('IDENTITY_NAME_MISSING')
 
@@ -115,7 +122,7 @@ describe('Lot 3 — Routes', () => {
     expect((await createMethodRoute(jsonRequest(IBAN_BODY))).status).toBe(403)
 
     const code = await withSecondFactor(trainerUser.id)
-    const created = await createMethodRoute(jsonRequest({ ...IBAN_BODY, twoFactorCode: code }))
+    const created = await createMethodRoute(jsonRequest({ ...IBAN_BODY, twoFactorCode: await code() }))
     expect(created.status).toBe(201)
     expect((await created.json()).data.verificationStatus).toBe('PENDING_REVIEW')
   })
@@ -128,7 +135,7 @@ describe('Lot 3 — Routes', () => {
 
     const incomplete = await createMethodRoute(jsonRequest({
       ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NKAMVA SARL',
-      twoFactorCode: code,
+      twoFactorCode: await code(),
     }))
     expect(incomplete.status).toBe(400)
     expect((await incomplete.json()).error.code).toBe('BUSINESS_DOC_REQUIRED')
@@ -138,7 +145,7 @@ describe('Lot 3 — Routes', () => {
     const forged = await createMethodRoute(jsonRequest({
       ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NKAMVA SARL',
       businessDocS3Key: 'docs/rccm.pdf', legalRepProofS3Key: 'docs/rep.pdf',
-      twoFactorCode: code,
+      twoFactorCode: await code(),
     }))
     expect(forged.status).toBe(400)
     expect((await forged.json()).error.code).toBe('ATTACHMENT_INVALID')
@@ -155,7 +162,7 @@ describe('Lot 3 — Routes', () => {
       ...IBAN_BODY, accountNature: 'BUSINESS', businessName: 'NKAMVA SARL',
       businessDocS3Key: await presign('BUSINESS_DOC'),
       legalRepProofS3Key: await presign('LEGAL_REP_PROOF'),
-      twoFactorCode: code,
+      twoFactorCode: await code(),
     }))
     expect(complete.status).toBe(201)
   })
