@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
-import { PenLine } from "lucide-react";
+import { Lock, PenLine } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { EmptyState } from "@/components/nk/empty-state";
 import { PageHead } from "@/components/nk/page-head";
@@ -72,6 +72,34 @@ export default async function AdhesionPage({
           action={
             <BtnLink href="/formateur/communaute" size="lg">
               Gérer ma communauté
+            </BtnLink>
+          }
+        />
+      </div>
+    );
+  }
+
+  // Formateur suspendu (M3) : on n'entre plus, mais un membre en impayé règle
+  // toujours son mois. Même règle que `initiateMembershipPayment`, dite avant le
+  // formulaire plutôt qu'après le clic sur « Payer ».
+  if (!membership && !community.acceptsMembers) {
+    return (
+      <div className="nk-wrap pb-10 sm:pb-16">
+        <PageHead
+          crumbs={[
+            { label: "Communautés", href: routes.communities },
+            { label: community.name, href: routes.community(slug) },
+            { label: "Adhésion" },
+          ]}
+          title="Adhésions fermées"
+        />
+        <EmptyState
+          icon={<Lock />}
+          title="Cette communauté n'accueille pas de nouveaux membres"
+          description="Les adhésions sont fermées pour le moment. Revenez plus tard, ou découvrez d'autres communautés."
+          action={
+            <BtnLink href={routes.communities} size="lg">
+              Voir les communautés
             </BtnLink>
           }
         />
