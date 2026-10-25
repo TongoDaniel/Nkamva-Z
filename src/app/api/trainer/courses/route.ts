@@ -2,6 +2,8 @@
 import { success, requireTrainer, parseBody, errorFromException } from '@/lib/api'
 import { createCourse, listTrainerCourses, updateCourse } from '@/lib/courses'
 import { z } from 'zod'
+import { textField, wordsField } from '@/lib/text-input'
+import { COURSE_FORMAT_VALUES, MAX_COURSE_PRICE_FCFA } from '@/lib/course-rules'
 
 /**
  * Voir la route de détail : la durée se mesure, le nombre de sessions n'est
@@ -14,12 +16,14 @@ import { z } from 'zod'
  * même que la règle soit consultée. Le refus `PRICE_TOO_LOW` vient du service.
  */
 const CreateSchema = z.object({
-  title: z.string().min(3).max(200),
-  blurb: z.string().min(10).max(500),
-  description: z.string().min(10).max(5000),
-  category: z.string().min(1),
-  format: z.string().min(1),
-  priceFcfa: z.number().int().min(0),
+  // Nettoyés avant d'être mesurés : des espaces ne font ni un titre ni une
+  // description (m4), une catégorie doit contenir une lettre (m5).
+  title: wordsField(3, 200),
+  blurb: textField(10, 500),
+  description: textField(10, 5000),
+  category: wordsField(2, 60),
+  format: z.enum(COURSE_FORMAT_VALUES),
+  priceFcfa: z.number().int().min(0).max(MAX_COURSE_PRICE_FCFA),
   level: z.string().optional(),
   learnPoints: z.array(z.string()).optional(),
   includes: z.array(z.string()).optional(),

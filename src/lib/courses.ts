@@ -669,8 +669,13 @@ async function generateSlug(title: string, excludeId?: string): Promise<string> 
     .trim()
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
 
-  let slug = base
+  // Un titre sans lettre latine (emojis, écriture arabe) donnait un slug vide,
+  // puis « -1 », « -2 » (campagne du 12 octobre 2026, m4) : une adresse
+  // publique sans mot. On repart d'un mot neutre.
+  const root = base || 'ressource'
+  let slug = root
   let counter = 1
   while (true) {
     const existing = await db.course.findFirst({
@@ -678,7 +683,7 @@ async function generateSlug(title: string, excludeId?: string): Promise<string> 
       select: { id: true },
     })
     if (!existing) break
-    slug = `${base}-${counter++}`
+    slug = `${root}-${counter++}`
   }
   return slug
 }
