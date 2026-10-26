@@ -8,6 +8,7 @@ import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
 import { ReportButton } from "@/components/nk/report-button";
 import { useThreadFocus } from "@/components/layouts/shell-chrome";
+import { useHistoryLayer } from "@/hooks/use-history-layer";
 import { api, ApiError } from "@/lib/client";
 import { fmtListStamp } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -113,24 +114,57 @@ function peerName(conversation: PaneConversation): string {
   return conversation.title;
 }
 
+/**
+ * Vrai sous `md` (768 px), là où la liste et le fil ne tiennent pas côte à côte
+ * et s'affichent l'un après l'autre. Faux au premier rendu, côté serveur comme
+ * au navigateur, pour que l'hydratation retrouve le même arbre.
+ */
+function useSinglePane(): boolean {
+  const [single, setSingle] = React.useState(false);
+  React.useEffect(() => {
+    const wide = window.matchMedia("(min-width: 48rem)");
+    const sync = () => setSingle(!wide.matches);
+    sync();
+    wide.addEventListener("change", sync);
+    return () => wide.removeEventListener("change", sync);
+  }, []);
+  return single;
+}
+
 export function ConversationPane({
   conversations,
   initialThread,
+  openThread = false,
 }: {
   conversations: PaneConversation[];
   initialThread: PaneThread | null;
+  /**
+   * Le fil a été demandé par l'adresse (`?fil=` d'une notification) : sur
+   * téléphone, on l'ouvre directement au lieu de montrer la liste — la
+   * personne a touché un message, pas « la messagerie ».
+   */
+  openThread?: boolean;
 }) {
   const [thread, setThread] = React.useState<PaneThread | null>(initialThread);
   const [loading, setLoading] = React.useState(false);
   const [text, setText] = React.useState("");
   const [sending, setSending] = React.useState(false);
-  const [mobileThread, setMobileThread] = React.useState(false);
+  const [mobileThread, setMobileThread] = React.useState(openThread && initialThread !== null);
+  const singlePane = useSinglePane();
 
   // Un fil ouvert sur téléphone prend l'écran entier : la coquille retire son
   // en-tête sous `md` (voir `shell-chrome.tsx`). L'en-tête du fil, avec le nom
   // de l'autre et la flèche de retour, dit déjà où l'on est et comment en
   // sortir ; empiler les deux coûtait 63 px sur 812 pour rien.
   useThreadFocus(mobileThread);
+
+  // Sur téléphone, le fil ouvert est une couche : le retour d'Android — bouton
+  // ou geste de bord — ramène à la liste au lieu de quitter la messagerie. Sur
+  // grand écran, liste et fil sont côte à côte, il n'y a rien à refermer.
+  useHistoryLayer(
+    mobileThread && singlePane,
+    React.useCallback(() => setMobileThread(false), []),
+  );
   const [filter, setFilter] = React.useState<Filter>("all");
   const [query, setQuery] = React.useState("");
   const [announcing, setAnnouncing] = React.useState(false);
@@ -585,7 +619,7 @@ export function ConversationPane({
                 type="button"
                 onClick={() => setMobileThread(false)}
                 aria-label="Retour aux conversations"
-                className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full border border-line text-ink-2 md:hidden"
+                className="nk-tap grid size-9 shrink-0 cursor-pointer place-items-center rounded-full border border-line text-ink-2 md:hidden"
               >
                 <ArrowLeft className="size-4" aria-hidden="true" />
               </button>
