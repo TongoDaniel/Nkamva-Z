@@ -633,6 +633,13 @@ export interface LiveRoomView {
   screenAllowed: boolean
   /** Sa demande de partage en attente, s'il en a une. */
   screenRequestedAt: Date | null
+  /**
+   * Personnes réellement connectées en ce moment, mesurées chez LiveKit. Pour
+   * l'animateur seulement, pendant le direct ; `null` sinon, ou si LiveKit ne
+   * répond pas. `participants` liste qui est entré et n'est pas reparti selon
+   * la base — un départ n'y est noté que si le webhook LiveKit le signale.
+   */
+  connectedNow: number | null
   participants: Array<{
     userId: string
     name: string | null
@@ -801,6 +808,8 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       avatarUrl: userAvatarSrc(session.community.trainerProfile.user),
     },
     live: session.status === 'LIVE',
+    connectedNow:
+      viewer.isTrainer && session.status === 'LIVE' ? await countConnected(session.roomName) : null,
     isHost: viewer.isTrainer,
     canSpeak: muted === null,
     mutedReason: muted,
@@ -1848,12 +1857,3 @@ async function notifyMembers(
   for (const member of members) await notify(member.learnerId, params)
 }
 
-/** Utilisé par la console formateur pour afficher la présence réelle. */
-export async function connectedCount(sessionId: string): Promise<number> {
-  const session = await db.liveSession.findUnique({
-    where: { id: sessionId },
-    select: { roomName: true, status: true },
-  })
-  if (!session || session.status !== 'LIVE') return 0
-  return countConnected(session.roomName)
-}
