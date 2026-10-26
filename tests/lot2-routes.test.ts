@@ -28,6 +28,28 @@ import { POST as cancelRefundTaskRoute } from '@/app/api/admin/manual-refund-tas
 import { GET as listTrainerDisputesRoute } from '@/app/api/trainer/disputes/route'
 import { POST as contestRoute } from '@/app/api/trainer/disputes/[disputeId]/contest/route'
 
+/**
+ * Un Stripe qui accepte les remboursements, allumé par les tests qui mènent un
+ * litige jusqu'à l'argent rendu. Sans client Stripe, `processRefund` ouvre une
+ * tâche manuelle (MANUAL_PENDING) au lieu de déclarer un remboursement que
+ * personne n'a fait : ces tests datent d'avant ce refus, et supposaient le
+ * remboursement acquis. Éteint, l'achat se règle par la simulation de paiement.
+ */
+const stripeRefunds = vi.hoisted(() => ({ enabled: false }))
+vi.mock('@/lib/stripe', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/stripe')>()
+  const fake = {
+    refunds: { create: async () => ({ id: `re_test_${crypto.randomUUID()}` }) },
+    disputes: { update: async (id: string) => ({ id }) },
+  }
+  return {
+    ...real,
+    getStripe: () => stripeRefunds.enabled
+      ? (fake as unknown as ReturnType<typeof real.getStripe>)
+      : real.getStripe(),
+  }
+})
+
 type SessionUser = {
   id: string
   email?: string
@@ -75,7 +97,11 @@ async function withContent(courseId: string, durationSeconds = 3600) {
   })
 }
   beforeEach(async () => { await cleanDatabase() })
-  afterEach(async () => { await cleanDatabase(); vi.clearAllMocks() })
+  afterEach(async () => {
+    stripeRefunds.enabled = false
+    await cleanDatabase()
+    vi.clearAllMocks()
+  })
 
   async function setupScenario() {
     const trainerUser = await prisma.user.create({ data: { email: 'trainer@test.com', role: 'TRAINER' } })
@@ -382,6 +408,8 @@ async function withContent(courseId: string, durationSeconds = 3600) {
 
   it('POST /resolve — un super-administrateur mène la dérogation jusqu\'au bout', async () => {
     const { learner, purchase, profile } = await setupScenario()
+
+    stripeRefunds.enabled = true // Stripe accepte le remboursement
     const superAdmin = await prisma.user.create({
       data: { email: 'super@test.com', role: 'ADMIN', adminRole: 'SUPER_ADMIN' },
     })
