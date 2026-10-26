@@ -262,7 +262,7 @@ confirmation rapide.
 | **L3-10** | Les 4 lecteurs profitent du déverrouillage | — | ✅ par L3-9 |
 | **L3-11** | Mes ressources, mes communautés, mes achats, factures, litiges, favoris, notifications | ~10 pages sous `(app)/` | L |
 | **L3-12** | Messagerie : passage deux volets → un volet sur mobile, avec retour | `messagerie/{page,conversation-pane}.tsx` | M |
-| **L3-13** | Agenda des lives (`grid-cols-7` figé dès 375 px) | `mes-lives/agenda-pane.tsx` | S |
+| **L3-13** | Agenda des lives (`grid-cols-7` figé dès 375 px) | `mes-lives/agenda-pane.tsx` | ✅ 26 oct. 2026 — la grille tenait (cases 39 × 42) ; le défaut était sa place, sous la liste. Calendrier replié au-dessus de la liste sous `lg` |
 
 ### 3.4 — Espace formateur — 14 écrans
 
