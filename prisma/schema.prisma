@@ -2046,3 +2046,48 @@ model SubscriptionCharge {
   @@index([status, periodEnd])
   @@map("subscription_charges")
 }
+
+// --- Aide & FAQ ---
+// Le centre d'aide et la FAQ de l'accueil étaient écrits en dur dans le code.
+// L'administration (Super-admin et Modération) les rédige désormais. Les
+// chiffres ne s'écrivent pas à la main : une réponse cite `{commission}` ou
+// `{retrait_minimum}`, et le rendu y substitue la valeur réelle
+// (`src/lib/help-content.ts`) — un taux qui change met à jour toutes les
+// réponses. `updatedById` reste en texte nu, comme `Setting`.
+model HelpCategory {
+  id          String        @id @default(uuid())
+  /// Ancre de la rubrique dans `/aide` (`/aide#paiements`).
+  slug        String        @unique
+  title       String
+  hint        String
+  /// Clé d'une icône de la liste fermée `HELP_ICONS`.
+  icon        String
+  position    Int
+  updatedById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  articles    HelpArticle[]
+
+  @@index([position])
+  @@map("help_categories")
+}
+
+model HelpArticle {
+  id          String       @id @default(uuid())
+  categoryId  String
+  category    HelpCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  question    String
+  /// Texte brut : marqueurs `{cle}` et liens `[texte](/chemin)`, rien d'autre.
+  answer      String
+  position    Int
+  /// Faux = brouillon : masquée du site, conservée ici.
+  published   Boolean      @default(true)
+  /// Reprise dans la FAQ de la page d'accueil, dans l'ordre de l'aide.
+  onHomepage  Boolean      @default(false)
+  updatedById String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([categoryId, position])
+  @@map("help_articles")
+}

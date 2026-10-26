@@ -95,6 +95,7 @@ export async function cleanDatabase() {
       "disputes", "support_tickets", "manual_refund_tasks",
       "reports", "platform_tariffs", "platform_discounts",
       "subscription_payments", "subscription_charges",
+      "help_articles", "help_categories",
       "users"
     CASCADE
   `)
