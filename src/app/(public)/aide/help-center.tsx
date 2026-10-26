@@ -260,7 +260,7 @@ export function HelpCenter({
                 key={tag}
                 type="button"
                 onClick={() => setQuery(tag)}
-                className="cursor-pointer rounded-full border border-line bg-card px-3.5 py-1.5 text-[13px] font-semibold text-ink-2 transition hover:border-brand hover:text-brand"
+                className="nk-tap cursor-pointer rounded-full border border-line bg-card px-3.5 py-1.5 text-[13px] font-semibold text-ink-2 transition hover:border-brand hover:text-brand"
               >
                 {tag}
               </button>

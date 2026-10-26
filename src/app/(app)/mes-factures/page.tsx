@@ -99,7 +99,7 @@ export default async function MesFacturesPage() {
       cell: (row) => (
         <a
           href={`/api/me/invoices/${row.id}?pdf=1`}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline"
+          className="nk-tap inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline"
         >
           <Download className="size-3.5 shrink-0" aria-hidden="true" />
           PDF
