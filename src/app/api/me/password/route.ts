@@ -2,7 +2,7 @@
 import { success, error, requireAuth, parseBody } from '@/lib/api'
 import { changePassword, type PasswordChangeFailure } from '@/lib/profile'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
-import { MIN_PASSWORD_LENGTH } from '@/lib/validation'
+import { MIN_PASSWORD_LENGTH, passwordProblem } from '@/lib/validation'
 import { isBreachedPassword, BREACHED_PASSWORD_MESSAGE } from '@/lib/breached-password'
 import { z } from 'zod'
 
@@ -40,6 +40,9 @@ export async function POST(request: Request) {
   const parsed = await parseBody(request, ChangeSchema)
   if (parsed instanceof Response) return parsed
 
+  // Le schéma tient déjà les trois règles ; reste l'adresse e-mail (m14).
+  const problem = passwordProblem(parsed.data.newPassword, ctx.user.email)
+  if (problem) return error('VALIDATION_ERROR', problem, 400)
   if (await isBreachedPassword(parsed.data.newPassword)) {
     return error('PASSWORD_BREACHED', BREACHED_PASSWORD_MESSAGE, 422)
   }
