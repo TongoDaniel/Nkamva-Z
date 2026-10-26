@@ -25,6 +25,9 @@ const SORTS = [
 interface CatalogNav {
   push: (patch: Record<string, string | null>) => void;
   pending: boolean;
+  /** Tiroir de filtres ouvert (sous `lg`) — partagé entre le bouton et le panneau. */
+  drawerOpen: boolean;
+  setDrawerOpen: (open: boolean) => void;
   search: string;
   category: string;
   format: string;
@@ -48,6 +51,7 @@ export function CatalogNavProvider({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const params = useSearchParams();
   const [pending, startTransition] = React.useTransition();
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const push = React.useCallback(
     (patch: Record<string, string | null>) => {
@@ -68,12 +72,14 @@ export function CatalogNavProvider({ children }: { children: React.ReactNode }) 
     () => ({
       push,
       pending,
+      drawerOpen,
+      setDrawerOpen,
       search: params.get("search") ?? "",
       category: params.get("category") ?? "",
       format: params.get("format") ?? "",
       sort: params.get("sort") ?? "newest",
     }),
-    [push, pending, params],
+    [push, pending, drawerOpen, params],
   );
 
   return <CatalogNavContext.Provider value={value}>{children}</CatalogNavContext.Provider>;
@@ -149,15 +155,62 @@ function FiltersPanel({
   );
 }
 
-/** Colonne de filtres, visible à partir de 900px. */
+/**
+ * Les filtres, en **un seul arbre** : colonne collante à partir de `lg`, tiroir
+ * en dessous, ouvert par le bouton « Filtres » de la barre d'outils.
+ *
+ * Il y avait deux `FiltersPanel` — la colonne et le tiroir — toujours rendus
+ * tous les deux, l'un masqué par le CSS selon la largeur : chaque case existait
+ * en double dans la page, et deux régions « Filtres du catalogue » se
+ * disputaient le même nom. Ce panneau change de forme, il ne change pas
+ * d'arbre.
+ */
 export function CatalogFilters(props: { categories: Facet[]; formats: Facet[] }) {
+  const { drawerOpen, setDrawerOpen } = useCatalogParams();
+  const close = React.useCallback(() => setDrawerOpen(false), [setDrawerOpen]);
+
+  // Le retour d'Android referme le tiroir de filtres au lieu de quitter le catalogue.
+  useHistoryLayer(drawerOpen, close);
+
+  React.useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen, close]);
+
   return (
-    <aside
-      aria-label="Filtres du catalogue"
-      className="sticky top-[88px] hidden flex-col lg:flex"
-    >
-      <FiltersPanel {...props} />
-    </aside>
+    <>
+      {drawerOpen ? (
+        <div className="fixed inset-0 z-[135] bg-black/40 lg:hidden" onClick={close} aria-hidden="true" />
+      ) : null}
+      <aside
+        id="catalog-filters-drawer"
+        aria-label="Filtres du catalogue"
+        className={cn(
+          // Tiroir : la forme de base, écrite pour le téléphone.
+          "fixed inset-y-0 left-0 z-[140] w-[min(320px,86vw)] flex-col overflow-y-auto border-r border-line bg-card px-5 py-5 shadow-nk-lg",
+          drawerOpen ? "flex" : "hidden",
+          // Colonne : ce que `lg` ajoute — toujours affichée, dans le flux.
+          "lg:sticky lg:inset-auto lg:top-[88px] lg:z-auto lg:flex lg:w-auto lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none",
+        )}
+      >
+        <div className="mb-3 flex justify-end lg:hidden">
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Fermer les filtres"
+            className="nk-tap grid size-9 cursor-pointer place-items-center rounded-full border border-line bg-card"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        <FiltersPanel {...props} />
+        <Btn variant="dark" block className="mt-4 lg:hidden" onClick={close}>
+          Voir les résultats
+        </Btn>
+      </aside>
+    </>
   );
 }
 
@@ -171,11 +224,7 @@ export function CatalogToolbar({
   formats: Facet[];
   total: number;
 }) {
-  const { push, pending, search, category, format, sort } = useCatalogParams();
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
-
-  // Le retour d'Android referme le tiroir de filtres au lieu de quitter le catalogue.
-  useHistoryLayer(drawerOpen, React.useCallback(() => setDrawerOpen(false), []));
+  const { push, pending, search, category, format, sort, drawerOpen, setDrawerOpen } = useCatalogParams();
   const [searchDraft, setSearchDraft] = React.useState(search);
 
   React.useEffect(() => setSearchDraft(search), [search]);
@@ -186,13 +235,6 @@ export function CatalogToolbar({
     const id = setTimeout(() => push({ search: searchDraft.trim() || null }), 300);
     return () => clearTimeout(id);
   }, [searchDraft, search, push]);
-
-  React.useEffect(() => {
-    if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawerOpen(false);
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [drawerOpen]);
 
   const activeFilters = [
     category ? { key: "category", value: category, label: category } : null,
@@ -292,35 +334,6 @@ export function CatalogToolbar({
           </button>
         </div>
       ) : null}
-
-      {drawerOpen ? (
-        <div
-          className="fixed inset-0 z-[135] bg-black/40 lg:hidden"
-          onClick={() => setDrawerOpen(false)}
-          aria-hidden="true"
-        />
-      ) : null}
-      <aside
-        id="catalog-filters-drawer"
-        aria-label="Filtres du catalogue"
-        hidden={!drawerOpen}
-        className="fixed inset-y-0 left-0 z-[140] w-[min(320px,86vw)] overflow-y-auto border-r border-line bg-card px-5 py-5 shadow-nk-lg lg:hidden"
-      >
-        <div className="mb-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Fermer les filtres"
-            className="grid size-9 cursor-pointer place-items-center rounded-full border border-line bg-card"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-        <FiltersPanel categories={categories} formats={formats} />
-        <Btn variant="dark" block className="mt-4" onClick={() => setDrawerOpen(false)}>
-          Voir les résultats
-        </Btn>
-      </aside>
     </>
   );
 }
