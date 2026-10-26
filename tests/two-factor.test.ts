@@ -24,6 +24,18 @@ function currentCode(secret: string): string {
   }).generate()
 }
 
+/**
+ * Le code de la fenêtre suivante. Un code ne sert qu'une fois (M8) : celui de
+ * l'enrôlement est consommé, l'usage qui suit demande le suivant — exactement
+ * ce que ferait l'utilisateur en attendant que son application change.
+ */
+function nextCode(secret: string): string {
+  return new OTPAuth.TOTP({
+    issuer: 'NKAMVA', algorithm: 'SHA1', digits: 6, period: 30,
+    secret: OTPAuth.Secret.fromBase32(secret),
+  }).generate({ timestamp: Date.now() + 30_000 })
+}
+
 describe('Double authentification', () => {
   beforeEach(async () => {
     await cleanDatabase()
@@ -103,9 +115,44 @@ describe('Double authentification', () => {
     const u = await user()
     const { secret } = await enroll(u.id)
 
-    expect(await verifySecondFactor(u.id, currentCode(secret))).toBe(true)
+    expect(await verifySecondFactor(u.id, nextCode(secret))).toBe(true)
     expect(await verifySecondFactor(u.id, '000000')).toBe(false)
     expect(await verifySecondFactor(u.id, 'pas-un-code')).toBe(false)
+  })
+
+  // --- M8, campagne du 12 octobre 2026 : un code d'application ne sert qu'une fois ---
+
+  it('un code d\'application déjà servi est refusé', async () => {
+    const u = await user()
+    const { secret } = await enroll(u.id)
+    const code = nextCode(secret)
+
+    expect(await verifySecondFactor(u.id, code)).toBe(true)
+    // Le même code, quelques secondes plus tard : c'est ce rejeu qui laissait
+    // remplacer un moyen de retrait avec le code qui venait de le créer.
+    expect(await verifySecondFactor(u.id, code)).toBe(false)
+  })
+
+  it('deux usages simultanés du même code d\'application n\'en valident qu\'un', async () => {
+    const u = await user()
+    const { secret } = await enroll(u.id)
+    const code = nextCode(secret)
+
+    const results = await Promise.all([
+      verifySecondFactor(u.id, code),
+      verifySecondFactor(u.id, code),
+    ])
+    expect(results.filter(Boolean)).toHaveLength(1)
+  })
+
+  it('le code de l\'enrôlement ne sert pas une seconde fois', async () => {
+    const u = await user()
+    const { secret } = await beginTwoFactorSetup(u.id, 'MotDePasse1')
+    const code = currentCode(secret)
+    await enableTwoFactor(u.id, code)
+
+    expect(await verifySecondFactor(u.id, code)).toBe(false)
+    await expect(assertSecondFactorForPayout(u.id, code)).rejects.toThrow('TWO_FACTOR_INVALID_CODE')
   })
 
   it('un code de secours ne sert qu\'une fois', async () => {
@@ -150,7 +197,7 @@ describe('Double authentification', () => {
     await expect(disableTwoFactor(u.id, '000000')).rejects.toThrow('TWO_FACTOR_INVALID_CODE')
     expect((await getTwoFactorStatus(u.id)).enabled).toBe(true)
 
-    await disableTwoFactor(u.id, currentCode(secret))
+    await disableTwoFactor(u.id, nextCode(secret))
     const status = await getTwoFactorStatus(u.id)
     expect(status.enabled).toBe(false)
     expect(status.remainingRecoveryCodes).toBe(0)
@@ -162,7 +209,7 @@ describe('Double authentification', () => {
     const u = await user()
     const { secret, recoveryCodes } = await enroll(u.id)
 
-    const fresh = await regenerateRecoveryCodes(u.id, currentCode(secret))
+    const fresh = await regenerateRecoveryCodes(u.id, nextCode(secret))
     expect(fresh).toHaveLength(RECOVERY_CODE_COUNT)
     expect(await verifySecondFactor(u.id, recoveryCodes[0])).toBe(false)
     expect(await verifySecondFactor(u.id, fresh[0])).toBe(true)
@@ -183,7 +230,7 @@ describe('Double authentification', () => {
       .rejects.toThrow('TWO_FACTOR_INVALID')
 
     // Les deux : la session peut naître.
-    const session = await authorizeCredentials({ ...creds, totp: currentCode(secret) })
+    const session = await authorizeCredentials({ ...creds, totp: nextCode(secret) })
     expect(session).toMatchObject({ id: u.id, email: 'login@test.com' })
   })
 
@@ -217,7 +264,7 @@ describe('Double authentification', () => {
     await expect(assertSecondFactorForPayout(u.id, '000000'))
       .rejects.toThrow('TWO_FACTOR_INVALID_CODE')
 
-    await expect(assertSecondFactorForPayout(u.id, currentCode(secret))).resolves.toBeUndefined()
+    await expect(assertSecondFactorForPayout(u.id, nextCode(secret))).resolves.toBeUndefined()
   })
 
   it('sans double authentification, aucun moyen de paiement ne s\'enregistre', async () => {
