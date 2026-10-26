@@ -54,7 +54,7 @@ function CheckRow({ check }: { check: IntegrationCheck }) {
       </dt>
       <dd className="min-w-0 flex-1">
         <StPill tone={STATE_TONES[check.state]}>{STATE_LABELS[check.state]}</StPill>
-        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{check.detail}</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2 [overflow-wrap:anywhere]">{check.detail}</p>
       </dd>
     </div>
   );
@@ -176,7 +176,7 @@ export default async function IntegrationsPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
         {report.integrations.map((integration) => (
           <IntegrationCard key={integration.key} integration={integration} />
         ))}
