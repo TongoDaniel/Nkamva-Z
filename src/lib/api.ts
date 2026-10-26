@@ -196,6 +196,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   },
   CANNOT_JOIN_OWN_COMMUNITY: { message: 'Vous animez cette communauté', status: 422 },
   COMMUNITY_CLOSED_TO_NEW_MEMBERS: { message: 'Cette communauté n\'accueille pas de nouveaux membres pour le moment', status: 409 },
+  INVITEE_NOT_ELIGIBLE: { message: 'Cette adresse ne peut pas recevoir d\'invitation', status: 422 },
   // Pendant de la règle ci-dessus, côté vente à l'unité : on ne se paie pas sa
   // propre ressource, sans quoi la commission serait prélevée sur son propre
   // argent et la vente compterait dans ses propres statistiques.
@@ -337,6 +338,8 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   REPORT_NOT_FOUND: { message: 'Signalement introuvable', status: 404 },
   REPORT_NOT_OPEN: { message: 'Signalement déjà tranché', status: 409 },
   REPORT_ALREADY_OPEN: { message: 'Vous avez déjà signalé cet élément', status: 409 },
+  REPORT_TARGET_NOT_FOUND: { message: 'Élément introuvable', status: 404 },
+  CANNOT_REPORT_SELF: { message: 'Vous ne pouvez pas signaler ce que vous avez vous-même publié', status: 422 },
   TARGET_NOT_HIDEABLE: { message: 'Seule une ressource peut être retirée du catalogue', status: 422 },
   STALE_REPORT: { message: 'Le signalement a été modifié entre-temps', status: 409 },
   // --- Abonnement formateur (décision 68) ---

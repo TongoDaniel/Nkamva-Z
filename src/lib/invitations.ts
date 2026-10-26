@@ -42,7 +42,7 @@ import { audit, auditStandalone } from './audit'
 import { notify, notifyWithEmail, deliverSideEffects, absoluteUrl, TRANSACTIONAL } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
-import { assertCanActAsLearner } from './roles'
+import { assertCanActAsLearner, canActAsLearner } from './roles'
 import { getSettingNumber } from './settings'
 import { isBannedFromCommunity, recountCommunityMembers } from './communities'
 import type { PrismaTransaction } from './types'
@@ -217,10 +217,16 @@ export async function issueNominativeInvitation(params: IssueNominativeParams): 
   // `initiateMembershipPayment`, appliquée à l'adresse visée cette fois.
   const invitee = await db.user.findUnique({
     where: { email },
-    select: { id: true, deletedAt: true },
+    select: { id: true, deletedAt: true, role: true },
   })
   if (invitee && !invitee.deletedAt) {
     if (invitee.id === community.trainerUserId) throw new Error('CANNOT_JOIN_OWN_COMMUNITY')
+    // Un compte d'administration n'adhère à rien (`assertCanActAsLearner`) :
+    // l'invitation partait, consommait le quota de gratuité, et ne pouvait
+    // jamais servir (campagne du 12 octobre 2026, m8). Le refus reste
+    // générique : dire « c'est un administrateur » permettrait de dresser la
+    // liste des adresses de l'administration en essayant des invitations.
+    if (!canActAsLearner(invitee.role)) throw new Error('INVITEE_NOT_ELIGIBLE')
     const open = await db.communitySubscription.count({
       where: { communityId: community.id, learnerId: invitee.id, status: { in: [...OPEN_STATUSES] } },
     })
