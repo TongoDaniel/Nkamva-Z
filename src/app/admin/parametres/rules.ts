@@ -116,7 +116,7 @@ const LEGAL_DIVERGENCES: PlatformRule[] = [
     label,
     value: legal,
     source: `${source} · lib/legal-terms`,
-    alert: `Divergence : l'application applique ${applied}. Le document engage sur ${legal} — mettre à jour le document et informer les utilisateurs, ou corriger la règle appliquée.`,
+    alert: `Divergence : l'application applique ${applied}. Le document engage sur ${legal} : mettre à jour le document et informer les utilisateurs, ou corriger la règle appliquée.`,
   }));
 
 export const PLATFORM_RULES: PlatformRule[] = [
@@ -135,7 +135,7 @@ export const PLATFORM_RULES: PlatformRule[] = [
       : undefined,
     alert: LEGAL_MATCHES_APPLIED
       ? undefined
-      : `Divergence : l'application prélève ${COMMISSION_LABEL}. Le contrat engage sur ${LEGAL_COMMISSION_LABEL} — mettre à jour les conditions et informer les formateurs, ou corriger le taux appliqué.`,
+      : `Divergence : l'application prélève ${COMMISSION_LABEL}. Le contrat engage sur ${LEGAL_COMMISSION_LABEL} : mettre à jour les conditions et informer les formateurs, ou corriger le taux appliqué.`,
   },
   {
     label: "Retrait minimum",
@@ -159,13 +159,13 @@ export const PLATFORM_RULES: PlatformRule[] = [
     note: "compteur porté par le formateur, pas par le moyen",
   },
   {
-    label: "Score de confiance — seuil « vérifié »",
+    label: "Score de confiance : seuil « vérifié »",
     value: `${KYC_THRESHOLD_VERIFIED} / 100`,
     source: "décision 1",
     note: "auto-approbation, sauf premier retrait",
   },
   {
-    label: "Score de confiance — seuil « à vérifier »",
+    label: "Score de confiance : seuil « à vérifier »",
     value: `${KYC_THRESHOLD_TO_VERIFY} / 100`,
     source: "décision 1",
   },

@@ -164,7 +164,7 @@ export function CommunityBrowser({
       ? "Recherche…"
       : data.total === 0
         ? searching
-          ? `Aucune communauté ne correspond à « ${trimmed} » — essayez un autre mot.`
+          ? `Aucune communauté ne correspond à « ${trimmed} ». Essayez un autre mot.`
           : ""
         : `${data.total} communauté${data.total > 1 ? "s" : ""}${searching ? ` pour « ${trimmed} »` : ""}` +
           (lastPage > 1 ? ` · page ${data.page} sur ${lastPage}` : "");

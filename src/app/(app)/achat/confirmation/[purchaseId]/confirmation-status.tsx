@@ -221,7 +221,7 @@ export function ConfirmationStatus({
             <p className="mb-6 max-w-[52ch] text-ink-2">
               L&apos;opérateur n&apos;a pas encore confirmé la transaction. C&apos;est fréquent en
               mobile money. Dès qu&apos;elle est confirmée, la ressource apparaît dans votre
-              espace — rien n&apos;est perdu.
+              espace : rien n&apos;est perdu.
             </p>
             <div className="flex flex-wrap gap-3">
               <BtnLink href="/mes-achats" size="lg">Suivre dans mes achats</BtnLink>
@@ -243,7 +243,7 @@ export function ConfirmationStatus({
                 l'apprenant attend un écran qui ne viendra jamais. */}
             <p className="max-w-[52ch] text-ink-2">
               {provider === "PAWAPAY"
-                ? "Une demande de paiement vient d’être envoyée sur votre numéro. Saisissez votre code secret pour la valider — cette page se met à jour toute seule."
+                ? "Une demande de paiement vient d’être envoyée sur votre numéro. Saisissez votre code secret pour la valider. Cette page se met à jour toute seule."
                 : "Nous attendons la confirmation de l’opérateur. Vous pouvez laisser cette page ouverte : elle se met à jour toute seule."}
             </p>
           </>

@@ -201,7 +201,7 @@ function MonthGrid({
               type="button"
               onClick={() => onPick(key, mark)}
               aria-pressed={isSelected}
-              aria-label={`${day} ${monthLabel} — ${parts.join(", ")}`}
+              aria-label={`${day} ${monthLabel} : ${parts.join(", ")}`}
               className={cn(
                 "nk-tap relative grid min-h-[42px] cursor-pointer place-items-center rounded-nk-sm text-[13px] font-bold transition",
                 isSelected

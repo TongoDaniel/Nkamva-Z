@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     select: { title: true },
   });
   return {
-    title: session ? `Animer — ${session.title}` : "Session introuvable",
+    title: session ? `Animer · ${session.title}` : "Session introuvable",
     robots: { index: false },
   };
 }

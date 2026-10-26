@@ -64,7 +64,7 @@ export default async function MoyenDePaiementPage() {
           <ul className="grid gap-3 text-[13.5px] leading-relaxed text-ink-2">
             <li>
               <b className="font-bold text-ink">Le compte doit être le vôtre.</b> Aucun compte
-              de tiers n&apos;est accepté, quel que soit le lien de parenté ou le motif — ni
+              de tiers n&apos;est accepté, quel que soit le lien de parenté ou le motif : ni
               celui d&apos;un proche, ni celui d&apos;un associé à titre personnel.
             </li>
             <li>

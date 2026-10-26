@@ -119,7 +119,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
       </div>
 
       <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
-        <b className="font-extrabold text-ink">Sans lui</b> — {integration.whenAbsent}
+        <b className="font-extrabold text-ink">Sans lui :</b> {integration.whenAbsent}
       </p>
     </AdminCard>
   );
@@ -140,7 +140,7 @@ export default async function IntegrationsPage() {
     <>
       <AdminHead
         title="Intégrations"
-        lead="« La variable est posée » ne veut pas dire « ça marche ». Chaque ligne ci-dessous vient d'un appel réel au fournisseur, fait à l'instant — jamais d'une simple lecture de la configuration."
+        lead="« La variable est posée » ne veut pas dire « ça marche ». Chaque ligne ci-dessous vient d'un appel réel au fournisseur, fait à l'instant, jamais d'une simple lecture de la configuration."
         actions={<RefreshButton />}
       />
 
@@ -171,7 +171,7 @@ export default async function IntegrationsPage() {
               : "mb-6 rounded-nk-lg bg-gold-tint px-5 py-4 text-[13px] leading-relaxed text-gold-ink"
           }
         >
-          <b className="font-extrabold">Simulation de paiement</b> —{" "}
+          <b className="font-extrabold">Simulation de paiement :</b>{" "}
           {report.paymentSimulation.detail}
         </p>
       ) : null}
@@ -185,11 +185,11 @@ export default async function IntegrationsPage() {
       <p className="mt-5 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
         <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         Aucune sonde n&apos;écrit ni ne facture : elles lisent un solde, une
-        configuration, une liste. Aucune valeur de secret ne traverse cet écran — la
+        configuration, une liste. Aucune valeur de secret ne traverse cet écran : la
         présence d&apos;une variable est rendue, jamais son contenu, et les messages
         d&apos;erreur du fournisseur sont expurgés avant affichage. Les sondes qui
-        écrivent — dont le droit de créer un direct chez Mux, qui ne se vérifie
-        qu&apos;en ouvrant un flux facturable — restent dans{" "}
+        écrivent (dont le droit de créer un direct chez Mux, qui ne se vérifie
+        qu&apos;en ouvrant un flux facturable) restent dans{" "}
         <code className="font-mono text-[13px]">scripts/probe-integrations.ts</code>,
         lancé à la main.
       </p>

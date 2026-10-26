@@ -75,7 +75,7 @@ function ListField({
             <input
               value={value}
               placeholder={placeholder}
-              aria-label={`${legend} — ligne ${i + 1}`}
+              aria-label={`${legend}, ligne ${i + 1}`}
               onChange={(e) => {
                 const next = [...values];
                 next[i] = e.target.value;
@@ -274,7 +274,7 @@ export function CourseForm({
           label="Titre"
           required
           maxLength={200}
-          placeholder="Architecture logicielle — masterclass Patterns & DDD"
+          placeholder="Architecture logicielle : masterclass Patterns & DDD"
           value={values.title}
           onChange={(e) => set("title", e.target.value)}
           error={fieldErrors.title}
@@ -342,7 +342,7 @@ export function CourseForm({
           <p className="mb-4 text-[13px] leading-relaxed text-ink-3">
             {circuitLocked
               ? "Elle ne change plus : cette ressource est publiée ou déjà achetée."
-              : "Vendue au catalogue, ou incluse dans votre communauté — jamais les deux."}
+              : "Vendue au catalogue, ou incluse dans votre communauté, jamais les deux."}
           </p>
 
           <fieldset className="grid gap-2.5" disabled={circuitLocked}>

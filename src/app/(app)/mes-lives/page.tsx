@@ -90,7 +90,7 @@ export default async function MesLivesPage({
               Chaque live que vous animez est enregistré automatiquement : vous n&apos;avez rien à
               déclencher, et le replay porte la date de la séance, pas celle de sa mise en ligne.
               Tout membre de la communauté peut le télécharger. Chaque enregistrement est
-              conservé {REPLAY_RETENTION_MONTHS} mois, puis supprimé — vous serez prévenu un
+              conservé {REPLAY_RETENTION_MONTHS} mois, puis supprimé. Vous serez prévenu un
               mois avant, et l&apos;espace vous sera rendu.
             </Hint>
           ) : null

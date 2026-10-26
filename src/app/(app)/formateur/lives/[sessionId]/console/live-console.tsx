@@ -236,7 +236,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
       Vous pouvez couper un micro et ouvrir un écran, pas retirer quelqu&apos;un de la
       session : exclure relève du bannissement de la communauté. Le partage d&apos;écran
       d&apos;un participant passe toujours par vous, et se retire du même geste ; le vôtre
-      ne demande rien. Le salon, lui, est conservé et rattaché au replay — ce qui
+      ne demande rien. Le salon, lui, est conservé et rattaché au replay, ce qui
       s&apos;y écrit reste lisible après la session.
     </>
   );
@@ -320,7 +320,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
         )}
       >
         {lockedCount === 0
-          ? "Aucun micro coupé — chacun parle librement."
+          ? "Aucun micro coupé : chacun parle librement."
           : `${lockedCount} micro${lockedCount > 1 ? "s" : ""} coupé${lockedCount > 1 ? "s" : ""} par vous.`}
         {/* Arbitrage 93 — l'occupation de la scène, pas une jauge de places
             dans la salle : personne n'est refusé à l'entrée. */}
@@ -331,7 +331,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           )}
         >
           Scène : {room.stage.taken} sur {room.stage.capacity} à l&apos;antenne
-          {room.stage.full ? " — complète, coupez un micro pour libérer une place." : "."}
+          {room.stage.full ? " : complète, coupez un micro pour libérer une place." : "."}
         </span>
       </p>
       <Btn
@@ -393,7 +393,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
         label={
           controlsReason ??
           (!transport.screenShareSupported
-            ? "Partage d'écran indisponible sur ce navigateur — présentez depuis un ordinateur"
+            ? "Partage d'écran indisponible sur ce navigateur : présentez depuis un ordinateur"
             : transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran")
         }
         onClick={() => void transport.setScreen(!transport.screenEnabled)}
@@ -498,7 +498,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
             {/* L'explication tient une ligne de plus sur téléphone : elle y
                 est redite par le ⓘ de l'entête. */}
             <span className="hidden font-medium text-[var(--live-muted)] lg:inline">
-              — automatique pour tout live, le replay sera daté du jour de la session.
+              (automatique pour tout live) : le replay sera daté du jour de la session.
             </span>
           </p>
         ) : null}
@@ -641,7 +641,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                                   doublon, un lecteur d'écran lit la file à plat. */}
                               <span className="sr-only">
                                 {" "}
-                                — position {index + 1} dans la file des demandes
+                                , position {index + 1} dans la file des demandes
                               </span>
                             </b>
                             <small className="block text-[13px] text-ink-3">
@@ -681,7 +681,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                                 act(
                                   `floor:${p.userId}`,
                                   { action: "mute", userId: p.userId, muted: false },
-                                  `${nom} a la parole — sa main est baissée, son micro lui est rendu.`,
+                                  `${nom} a la parole : sa main est baissée, son micro lui est rendu.`,
                                 )
                               }
                             >

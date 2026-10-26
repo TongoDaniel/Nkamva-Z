@@ -78,7 +78,7 @@ export function MembershipPanel({
     return (
       <>
         <BtnLink href={`/adhesion/${slug}`} size="lg" block className="mt-4">
-          Rejoindre — {fmtFcfa(priceFcfa)} / mois
+          Rejoindre · {fmtFcfa(priceFcfa)} / mois
         </BtnLink>
         <p className="mt-2 text-center text-[13px] text-ink-3">
           Sans engagement. Le premier mois court à la confirmation du paiement.

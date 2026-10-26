@@ -233,7 +233,7 @@ async function probeStripe(): Promise<Integration> {
         state: res.ok ? 'ok' : 'down',
         detail: res.ok
           ? `Jeton accepté, compte en mode ${key.startsWith('sk_live') ? 'RÉEL (sk_live)' : 'test (sk_test)'}.`
-          : `Refus HTTP ${res.status} — la clé est posée mais Stripe ne la reconnaît pas.`,
+          : `Refus HTTP ${res.status} : la clé est posée mais Stripe ne la reconnaît pas.`,
       })
     } catch (err) {
       checks.push({ label: 'Solde lisible', state: 'down', detail: detailFrom(err) })
@@ -337,13 +337,13 @@ async function probeResend(): Promise<Integration> {
         checks.push({
           label: 'Clé d\'API',
           state: 'warn',
-          detail: 'Clé restreinte à l\'envoi : valide, mais elle ne permet pas de lister les domaines — le domaine d\'expédition n\'est donc pas vérifiable d\'ici.',
+          detail: 'Clé restreinte à l\'envoi : valide, mais elle ne permet pas de lister les domaines, donc le domaine d\'expédition n\'est pas vérifiable d\'ici.',
         })
       } else {
         checks.push({
           label: 'Clé d\'API',
           state: 'down',
-          detail: `Refus HTTP ${res.status} — la clé est posée mais Resend ne la reconnaît pas.`,
+          detail: `Refus HTTP ${res.status} : la clé est posée mais Resend ne la reconnaît pas.`,
         })
       }
     } catch (err) {
@@ -358,7 +358,7 @@ async function probeResend(): Promise<Integration> {
       purpose:
         'Tout l\'email transactionnel : codes de vérification, notifications d\'achat, relances d\'abonnement.',
       whenAbsent:
-        'sendEmail() ne lève pas — elle journalise `[EMAIL:DEV]` et rend la main. Les écrans annoncent donc « email envoyé » alors que personne ne reçoit rien, y compris les codes de connexion.',
+        'sendEmail() ne lève pas : elle journalise `[EMAIL:DEV]` et rend la main. Les écrans annoncent donc « email envoyé » alors que personne ne reçoit rien, y compris les codes de connexion.',
       env: [
         { name: 'RESEND_API_KEY', present: present('RESEND_API_KEY'), requirement: 'required' },
         {
@@ -407,7 +407,7 @@ async function probePawaPay(): Promise<Integration> {
         state: signedCallbacks ? 'ok' : 'down',
         detail: signedCallbacks
           ? 'Activés côté PawaPay : la signature des callbacks est vérifiable.'
-          : 'DÉSACTIVÉS côté PawaPay. Nos webhooks refusent tout callback non signé — donc aucun achat mobile money ne sera crédité. À activer dans le tableau de bord PawaPay.',
+          : 'DÉSACTIVÉS côté PawaPay. Nos webhooks refusent tout callback non signé, donc aucun achat mobile money ne sera crédité. À activer dans le tableau de bord PawaPay.',
       })
     } catch (err) {
       checks.push({ label: 'Configuration active', state: 'down', detail: detailFrom(err) })
@@ -421,7 +421,7 @@ async function probePawaPay(): Promise<Integration> {
       label: 'Environnement',
       state: sandbox && isProduction() ? 'down' : 'ok',
       detail: sandbox
-        ? `Bac à sable (${config.baseUrl})${isProduction() ? ' — EN PRODUCTION : les paiements aboutissent sans mouvement d\'argent réel.' : '.'}`
+        ? `Bac à sable (${config.baseUrl})${isProduction() ? '. EN PRODUCTION : les paiements aboutissent sans mouvement d\'argent réel.' : '.'}`
         : `Production (${config.baseUrl}).`,
     })
   }
@@ -506,7 +506,7 @@ async function probeStorage(): Promise<Integration> {
       purpose:
         'Toutes les pièces déposées : documents KYC, contenus de cours, pièces jointes, et les replays quand Mux est absent.',
       whenAbsent:
-        'Le repli est silencieux — une URL `data:placeholder-…` remplace l\'URL présignée, sans erreur. Un dépôt paraît réussir alors que le fichier n\'existe nulle part. C\'est ce défaut, resté invisible parce que le code lisait `R2_*` quand l\'environnement fournissait `AWS_*`, qui a fait naître cet écran.',
+        'Le repli est silencieux : une URL `data:placeholder-…` remplace l\'URL présignée, sans erreur. Un dépôt paraît réussir alors que le fichier n\'existe nulle part. C\'est ce défaut, resté invisible parce que le code lisait `R2_*` quand l\'environnement fournissait `AWS_*`, qui a fait naître cet écran.',
       env: [
         { name: 'AWS_ENDPOINT_URL', present: present('AWS_ENDPOINT_URL'), requirement: 'required' },
         { name: 'AWS_ACCESS_KEY_ID', present: present('AWS_ACCESS_KEY_ID'), requirement: 'required' },
@@ -551,7 +551,7 @@ async function probeMux(): Promise<Integration> {
         state: res.ok ? 'ok' : 'down',
         detail: res.ok
           ? 'Jeton accepté en lecture.'
-          : `Refus HTTP ${res.status} — le jeton est posé mais Mux ne l'accepte pas.`,
+          : `Refus HTTP ${res.status} : le jeton est posé mais Mux ne l'accepte pas.`,
       })
     } catch (err) {
       checks.push({ label: 'API vidéo', state: 'down', detail: detailFrom(err) })
@@ -576,7 +576,7 @@ async function probeMux(): Promise<Integration> {
       name: 'Mux',
       purpose: 'Enregistrement, encodage et rediffusion des replays de sessions live.',
       whenAbsent:
-        'createLiveStream() rend null et startRecording() retombe sur l\'egress fichier vers le stockage objet. La séance a bien lieu et le replay existe, mais il est hébergé chez nous — il consomme alors le quota du formateur (arbitrage 54).',
+        'createLiveStream() rend null et startRecording() retombe sur l\'egress fichier vers le stockage objet. La séance a bien lieu et le replay existe, mais il est hébergé chez nous : il consomme alors le quota du formateur (arbitrage 54).',
       env: [
         { name: 'MUX_TOKEN_ID', present: present('MUX_TOKEN_ID'), requirement: 'required' },
         { name: 'MUX_TOKEN_SECRET', present: present('MUX_TOKEN_SECRET'), requirement: 'required' },
@@ -621,7 +621,7 @@ async function probeLiveKit(): Promise<Integration> {
       checks.push({
         label: 'Salles listables',
         state: 'ok',
-        detail: `Identifiants acceptés sur ${LIVEKIT_URL} — ${rooms.length} salle(s) ouverte(s).`,
+        detail: `Identifiants acceptés sur ${LIVEKIT_URL} · ${rooms.length} salle(s) ouverte(s).`,
       })
     } catch (err) {
       const asConfigured = detailFrom(err)
@@ -699,7 +699,7 @@ export async function probeIntegrations(): Promise<IntegrationsReport> {
       detail: active
         ? 'ALLOW_PAYMENT_SIMULATION=1 et NODE_ENV hors production : un achat dont le fournisseur est absent est crédité SANS paiement, et journalisé en PAYMENT_SIMULATED.'
         : declared
-          ? 'ALLOW_PAYMENT_SIMULATION=1 est posée mais NODE_ENV vaut production : le raccourci reste fermé. À retirer de cet environnement — elle n\'y a rien à faire.'
+          ? 'ALLOW_PAYMENT_SIMULATION=1 est posée mais NODE_ENV vaut production : le raccourci reste fermé. À retirer de cet environnement : elle n\'y a rien à faire.'
           : 'Le raccourci est fermé : un fournisseur absent refuse l\'achat au lieu de le créditer.',
     },
   }

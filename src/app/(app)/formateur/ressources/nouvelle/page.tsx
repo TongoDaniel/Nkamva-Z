@@ -27,7 +27,7 @@ export default async function NouvelleRessourcePage() {
           { label: "Nouvelle ressource" },
         ]}
         title="Nouvelle ressource"
-        lead="Décrivez ce que vous vendez. Vous pourrez tout modifier tant que la ressource n'est pas publiée — et même après."
+        lead="Décrivez ce que vous vendez. Vous pourrez tout modifier tant que la ressource n'est pas publiée, et même après."
       />
       <CourseForm
         mode="create"

@@ -135,7 +135,7 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
 
   await sendEmail({
     to: email,
-    subject: `NKAMVA — votre code de vérification : ${code}`,
+    subject: `NKAMVA · votre code de vérification : ${code}`,
     html,
     text,
     tags: ['otp'],
@@ -164,7 +164,7 @@ export async function sendAccountExistsEmail(email: string): Promise<void> {
 
   await sendEmail({
     to: email,
-    subject: 'NKAMVA — vous avez déjà un compte',
+    subject: 'NKAMVA · vous avez déjà un compte',
     html,
     text,
     tags: ['account-exists'],

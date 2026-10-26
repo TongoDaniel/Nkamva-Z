@@ -245,7 +245,7 @@ export async function scheduleLiveSession(
     notifyMembers(community.id, userId, {
       type: 'LIVE_SCHEDULED',
       title: `Nouvelle session dans ${community.name}`,
-      body: `${title} — le ${input.scheduledStartAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })}.`,
+      body: `${title}, le ${input.scheduledStartAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })}.`,
       link: '/mes-lives',
     }),
   )
