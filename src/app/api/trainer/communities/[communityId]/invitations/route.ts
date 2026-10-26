@@ -122,6 +122,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
       GIFT_MONTHS_OUT_OF_RANGE: [`Entre 1 et ${INVITATION_GIFT_MAX_MONTHS} mois offerts.`, 400],
       ALREADY_MEMBER: ['Cette personne est déjà membre de votre salon.', 409],
       CANNOT_JOIN_OWN_COMMUNITY: ['Vous animez ce salon : vous ne pouvez pas y adhérer.', 400],
+      // Générique à dessein : voir `issueNominativeInvitation` (m8).
+      INVITEE_NOT_ELIGIBLE: ['Cette adresse ne peut pas recevoir d’invitation.', 422],
       INVITATION_QUOTA_EXCEEDED: ['Quota de gratuités atteint pour ce mois.', 429],
       INVITE_LINK_FORBIDDEN_ON_PRIVATE: [
         'Un salon fermé ne s’entre que sur invitation nominative : le lien de parrainage y est interdit.',
