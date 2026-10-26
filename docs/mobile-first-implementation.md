@@ -285,7 +285,7 @@ confirmation rapide.
 
 | # | Tâche | Fichiers | Taille |
 |---|---|---|---|
-| **L3-21** | Re-hiérarchiser la page d'accueil : 7 864 px sur un écran de 812 px, soit ≈ 9,7 écrans. Travail de design, pas de CSS | `(public)/page.tsx` (516 lignes) | L |
+| **L3-21** | Re-hiérarchiser la page d'accueil : 7 864 px sur un écran de 812 px, soit ≈ 9,7 écrans. Travail de design, pas de CSS | `(public)/page.tsx` (516 lignes) | ✅ 26 oct. 2026 — 7 087 → 5 463 px à 375 (6,7 écrans) : onglets apprendre / former, piste des écrans produit, photo et CTA resserrées ; grand écran identique. Pied de page à part |
 | **L3-22** | Tarifs, aide, contact, formateurs, communautés, légal | ~10 pages sous `(public)/` | M |
 
 ### 3.7 — Admin — ~~24 écrans~~ **retiré du périmètre**
