@@ -44,7 +44,7 @@ import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
 import { assertCanActAsLearner } from './roles'
 import { getSettingNumber } from './settings'
-import { recountCommunityMembers } from './communities'
+import { isBannedFromCommunity, recountCommunityMembers } from './communities'
 import type { PrismaTransaction } from './types'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts doivent rester alignées. */
@@ -592,6 +592,9 @@ async function blockerFor(
   })
   if (subscription?.status === 'BANNED') return 'MEMBERSHIP_BANNED'
   if (subscription) return 'ALREADY_MEMBER'
+  // Une sanction survit à la fin de la période (M4) : une invitation n'est pas
+  // une façon de revenir par une autre porte.
+  if (await isBannedFromCommunity(invitation.communityId, viewerId)) return 'MEMBERSHIP_BANNED'
 
   return null
 }
