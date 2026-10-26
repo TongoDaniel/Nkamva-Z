@@ -368,7 +368,18 @@ async function main() {
     const profileId = profil.id
     await db.payout.deleteMany({ where: { trainerId: profileId } })
     await db.payoutMethod.deleteMany({ where: { trainerId: profileId } })
-    await db.invoice.deleteMany({ where: { purchase: { trainerId: profileId } } })
+    // Une facture tient à un achat **ou** à une échéance d'abonnement (depuis
+    // que l'abonnement payant est facturé), et retient aussi son destinataire :
+    // les trois liens sont `Restrict`, il faut les défaire avant le reste.
+    await db.invoice.deleteMany({
+      where: {
+        OR: [
+          { purchase: { trainerId: profileId } },
+          { subscriptionCharge: { trainerId: profileId } },
+          { userId: { in: cree.users } },
+        ],
+      },
+    })
     await db.walletDebit.deleteMany({ where: { wallet: { trainerId: profileId } } })
     await db.courseView.deleteMany({ where: { course: { trainerId: profileId } } })
     await db.purchase.deleteMany({ where: { trainerId: profileId } })
