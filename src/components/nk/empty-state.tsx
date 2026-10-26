@@ -55,6 +55,6 @@ export function EmptyState({
 /** État vide compact pour l'intérieur d'une carte admin (`.adm-empty`). */
 export function EmptyRow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-5 py-10 text-center text-[13.5px] font-semibold text-ink-3">{children}</p>
+    <p className="px-5 py-8 text-center text-[13.5px] font-semibold text-ink-3 sm:py-10">{children}</p>
   );
 }
