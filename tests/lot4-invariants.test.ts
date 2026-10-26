@@ -2,7 +2,7 @@
 // Lot 4 — Tests du parcours cœur (catalogue, achat, accès)
 // ==========================================================================
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
 import { searchCourses, getPublicCourse } from '@/lib/catalog'
 import { createCourse, publishCourse } from '@/lib/courses'
@@ -10,6 +10,54 @@ import { initiatePurchase, reconcilePurchase } from '@/lib/purchases'
 import { checkCourseAccess, updateWatchProgress, markCourseDownloaded, getConsumptionPercent } from '@/lib/access'
 import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
 import { POST as pawapayDepositHandler } from '@/app/api/webhooks/pawapay/deposits/route'
+
+/**
+ * Un Stripe Checkout simulé, qu'un test allume quand il veut le vrai parcours
+ * par carte : une session `cs_…` ouverte, un achat qui reste en attente, puis
+ * une session payée dont le PaymentIntent `pi_…` remplace le `cs_…`. Éteint, le
+ * client réel reste absent et la simulation de paiement règle sur-le-champ.
+ *
+ * Ces tests posaient autrefois une fausse clé dans l'environnement : depuis le
+ * passage à Checkout, le client réel partait chez Stripe et revenait en
+ * « Invalid API Key ».
+ */
+const stripeCheckout = vi.hoisted(() => ({ enabled: false }))
+vi.mock('@/lib/stripe', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/stripe')>()
+  const fake = {
+    checkout: {
+      sessions: {
+        create: async () => {
+          const id = `cs_test_${crypto.randomUUID()}`
+          return { id, url: `https://checkout.stripe.test/${id}` }
+        },
+        retrieve: async (id: string) => ({
+          id,
+          payment_status: 'paid',
+          payment_intent: `pi_${id.slice('cs_test_'.length)}`,
+        }),
+      },
+    },
+  }
+  return {
+    ...real,
+    getStripe: () => stripeCheckout.enabled
+      ? (fake as unknown as ReturnType<typeof real.getStripe>)
+      : real.getStripe(),
+  }
+})
+
+/** Ce que Stripe envoie quand une session Checkout est payée. */
+function checkoutCompletedRequest(sessionId: string) {
+  return new Request('http://localhost/api/webhooks/stripe', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      type: 'checkout.session.completed',
+      data: { object: { id: sessionId, payment_status: 'paid' } },
+    }),
+  })
+}
 
 function stripeSucceededRequest(providerTransactionId: string) {
   return new Request('http://localhost/api/webhooks/stripe', {
@@ -47,7 +95,10 @@ async function withContent(courseId: string, durationSeconds = 14400) {
   })
 }
   beforeEach(async () => { await cleanDatabase() })
-  afterEach(async () => { await cleanDatabase() })
+  afterEach(async () => {
+    stripeCheckout.enabled = false
+    await cleanDatabase()
+  })
 
   // Helper : setup formateur + cours publié
   async function setupTrainerWithCourse(opts: { price?: number; format?: string; duration?: number } = {}) {
@@ -109,12 +160,15 @@ async function withContent(courseId: string, durationSeconds = 14400) {
     const { profile, course } = await setupTrainerWithCourse({ price: 15000 })
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
 
-    // Initier l'achat : en dev (pas de STRIPE_SECRET_KEY), initiatePurchase
-    // simule la réception du webhook en appelant réellement la route
-    // POST /api/webhooks/stripe (voir simulateStripeWebhook dans purchases.ts).
+    // Initier l'achat : sans client Stripe, la simulation de paiement
+    // (ALLOW_PAYMENT_SIMULATION, posée par tests/setup) règle sur-le-champ, sans
+    // passer par aucun webhook — voir settleWithoutProvider dans purchases.ts.
+    // L'identifiant est opaque : ce n'est pas un objet Stripe, et il ne doit
+    // pas en avoir l'air.
     const result = await initiatePurchase(course.id, learner.id, 'STRIPE')
     expect(result.provider).toBe('STRIPE')
-    expect(result.providerTransactionId).toMatch(/^pi_/)
+    expect(result.nextStep).toBe('ALREADY_SETTLED')
+    expect(result.providerTransactionId).not.toMatch(/^(cs|pi)_/)
 
     // Vérifier que la Purchase est SUCCEEDED et le wallet crédité
     const purchase = await prisma.purchase.findUnique({ where: { id: result.purchaseId } })
@@ -160,8 +214,12 @@ async function withContent(courseId: string, durationSeconds = 14400) {
     )
     expect(res.status).toBeGreaterThanOrEqual(400)
 
-    const rejected = await prisma.auditLog.count({ where: { action: 'PAWAPAY_CALLBACK_REJECTED' } })
-    expect(rejected).toBe(1)
+    // Le rejet est journalisé sans être attendu (pawapay-callbacks.ts) : la
+    // réponse peut partir avant l'écriture. On attend donc qu'elle arrive.
+    await vi.waitFor(async () => {
+      const rejected = await prisma.auditLog.count({ where: { action: 'PAWAPAY_CALLBACK_REJECTED' } })
+      expect(rejected).toBe(1)
+    })
   })
 
   // -------------------------------------------------------------------------
@@ -169,16 +227,12 @@ async function withContent(courseId: string, durationSeconds = 14400) {
     const { profile, course } = await setupTrainerWithCourse({ price: 10000 })
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
 
-    // Clé Stripe "présente" → initiatePurchase ne simule plus rien, la Purchase
-    // reste PENDING tant que le vrai webhook n'a pas confirmé le paiement.
-    const originalKey = process.env.STRIPE_SECRET_KEY
-    process.env.STRIPE_SECRET_KEY = 'sk_test_fake_present'
-    let result: Awaited<ReturnType<typeof initiatePurchase>>
-    try {
-      result = await initiatePurchase(course.id, learner.id, 'STRIPE')
-    } finally {
-      process.env.STRIPE_SECRET_KEY = originalKey
-    }
+    // Client Stripe présent → initiatePurchase ne simule plus rien, la Purchase
+    // reste PENDING tant que le webhook n'a pas confirmé le paiement.
+    stripeCheckout.enabled = true
+    const result = await initiatePurchase(course.id, learner.id, 'STRIPE')
+    expect(result.nextStep).toBe('REDIRECT_TO_PROVIDER')
+    expect(result.providerTransactionId).toMatch(/^cs_/)
 
     const purchase = await prisma.purchase.findUnique({ where: { id: result.purchaseId } })
     expect(purchase?.providerStatus).toBe('PENDING')
@@ -186,9 +240,14 @@ async function withContent(courseId: string, durationSeconds = 14400) {
     const walletBefore = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
     expect(walletBefore?.balance).toBe(0)
 
-    // Le webhook confirme enfin le paiement → c'est seulement là que le wallet est crédité
-    const res = await stripeWebhookHandler(stripeSucceededRequest(result.providerTransactionId))
+    // Le webhook confirme enfin le paiement → c'est seulement là que le wallet est crédité,
+    // et l'achat prend l'identifiant `pi_…` sur lequel litiges et remboursements s'indexent.
+    const res = await stripeWebhookHandler(checkoutCompletedRequest(result.providerTransactionId))
     expect(res.status).toBe(200)
+
+    const settled = await prisma.purchase.findUnique({ where: { id: result.purchaseId } })
+    expect(settled?.providerStatus).toBe('SUCCEEDED')
+    expect(settled?.providerTransactionId).toMatch(/^pi_/)
 
     const walletAfter = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
     expect(walletAfter?.balance).toBe(8500) // 85% de 10000
@@ -199,28 +258,28 @@ async function withContent(courseId: string, durationSeconds = 14400) {
     const { profile, course } = await setupTrainerWithCourse({ price: 10000 })
     const learner = await prisma.user.create({ data: { email: 'learner@test.com', role: 'LEARNER' } })
 
-    const originalKey = process.env.STRIPE_SECRET_KEY
-    process.env.STRIPE_SECRET_KEY = 'sk_test_fake_present'
-    let result: Awaited<ReturnType<typeof initiatePurchase>>
-    try {
-      result = await initiatePurchase(course.id, learner.id, 'STRIPE')
-    } finally {
-      process.env.STRIPE_SECRET_KEY = originalKey
-    }
+    stripeCheckout.enabled = true
+    const result = await initiatePurchase(course.id, learner.id, 'STRIPE')
+    expect(result.nextStep).toBe('REDIRECT_TO_PROVIDER')
+    expect(result.providerTransactionId).toMatch(/^cs_/)
 
-    // Le même événement webhook est livré deux fois (cas réel : retry provider)
-    await stripeWebhookHandler(stripeSucceededRequest(result.providerTransactionId))
-    await stripeWebhookHandler(stripeSucceededRequest(result.providerTransactionId))
+    // Le même événement webhook est livré deux fois (cas réel : retry provider),
+    // puis l'événement du PaymentIntent arrive à son tour sur l'achat promu.
+    await stripeWebhookHandler(checkoutCompletedRequest(result.providerTransactionId))
+    await stripeWebhookHandler(checkoutCompletedRequest(result.providerTransactionId))
+    const promoted = await prisma.purchase.findUniqueOrThrow({ where: { id: result.purchaseId } })
+    await stripeWebhookHandler(stripeSucceededRequest(promoted.providerTransactionId!))
 
     // Le wallet ne doit pas avoir été crédité deux fois
     const wallet = await prisma.wallet.findUnique({ where: { trainerId: profile.id } })
     expect(wallet?.balance).toBe(8500) // toujours 8500, pas 17000
 
-    // Vérifier qu'un audit WEBHOOK_DUPLICATE_IGNORED a été écrit (une seule fois)
+    // Un audit WEBHOOK_DUPLICATE_IGNORED par livraison en trop : la session
+    // rejouée, puis l'événement du PaymentIntent sur un achat déjà crédité.
     const auditCount = await prisma.auditLog.count({
       where: { action: 'WEBHOOK_DUPLICATE_IGNORED' },
     })
-    expect(auditCount).toBe(1)
+    expect(auditCount).toBe(2)
   })
 
   // -------------------------------------------------------------------------
@@ -316,21 +375,32 @@ async function withContent(courseId: string, durationSeconds = 14400) {
     const { course, profile } = await setupTrainerWithCourse({ price: 15000 })
     const learner = await prisma.user.create({ data: { email: 'double@test.com', role: 'LEARNER' } })
 
+    // Le parcours carte réel : chaque appel ouvrirait une session et laisserait
+    // un achat en attente. Sous la simulation, le premier réglait sur-le-champ
+    // et le second tombait, à bon droit, sur ALREADY_PURCHASED.
+    stripeCheckout.enabled = true
     const results = await Promise.allSettled([
       initiatePurchase(course.id, learner.id, 'STRIPE'),
       initiatePurchase(course.id, learner.id, 'STRIPE'),
     ])
 
-    // Les deux appels aboutissent : le perdant de la course retombe sur l'achat
-    // du gagnant plutôt que de renvoyer une erreur à un apprenant qui n'a rien
-    // fait de mal.
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(2)
-    const ids = results.map((r) => (r.status === 'fulfilled' ? r.value.purchaseId : null))
-    expect(ids[0]).toBe(ids[1])
+    // Au moins un appel aboutit. Le perdant, s'il arrive pendant que le gagnant
+    // ouvre sa session, est refusé en PAYMENT_IN_PROGRESS : la page Checkout
+    // appartient à l'onglet gagnant, lui en ouvrir une autre l'expirerait (voir
+    // initiatePurchase). S'il arrive après, la reprise lui rend le même achat.
+    // Jamais d'autre erreur, et jamais deux achats.
+    const fulfilled = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+    expect(fulfilled.length).toBeGreaterThanOrEqual(1)
+    expect(new Set(fulfilled.map((r) => r.purchaseId)).size).toBe(1)
+    for (const r of results) {
+      if (r.status === 'rejected') expect((r.reason as Error).message).toBe('PAYMENT_IN_PROGRESS')
+    }
 
     expect(await prisma.purchase.count({ where: { learnerId: learner.id, courseId: course.id } })).toBe(1)
 
-    // Et le formateur n'est crédité qu'une fois.
+    // Et le formateur n'est crédité qu'une fois, quand la session aboutit.
+    const purchase = await prisma.purchase.findFirstOrThrow({ where: { learnerId: learner.id, courseId: course.id } })
+    await stripeWebhookHandler(checkoutCompletedRequest(purchase.providerTransactionId!))
     const wallet = await prisma.wallet.findFirstOrThrow({ where: { trainerId: profile.id } })
     expect(wallet.balance).toBe(Math.round(15000 * 0.85))
   })
