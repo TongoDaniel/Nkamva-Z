@@ -313,8 +313,9 @@ export async function trendingTrainers(options: {
       // Visible ne veut pas dire « à mettre en avant » : un formateur suspendu
       // pour impayé, dont plus rien n'est en vente, apparaissait parmi les
       // « Formateurs à découvrir » (campagne du 12 octobre 2026, m17). Sa fiche
-      // reste atteignable, l'accueil ne la pousse plus.
-      { subscriptionStatus: { notIn: ['SUSPENDED', 'CANCELED'] } },
+      // reste atteignable, l'accueil ne la pousse plus. Même règle que la
+      // fermeture de sa communauté aux nouveaux membres (M3) : source unique.
+      TRAINER_ACCEPTS_MEMBERS_WHERE,
       ...(options.viewerTrainerId ? [{ id: { not: options.viewerTrainerId } }] : []),
     ],
   }
