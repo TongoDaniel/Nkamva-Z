@@ -23,7 +23,46 @@ export interface CreateReportInput {
   detail?: string | null
 }
 
+/**
+ * À qui appartient l'objet signalé, ou `null` s'il n'existe pas sous ce type.
+ * Un identifiant de ressource passé comme `USER` ne correspond à aucun compte :
+ * le type incohérent tombe donc avec l'objet inexistant.
+ */
+async function reportTargetOwner(type: ReportTargetType, id: string): Promise<string | null | undefined> {
+  switch (type) {
+    case 'COURSE':
+      return (await db.course.findUnique({ where: { id }, select: { trainerProfile: { select: { userId: true } } } }))
+        ?.trainerProfile.userId
+    case 'USER':
+      return (await db.user.findFirst({ where: { id, deletedAt: null }, select: { id: true } }))?.id
+    case 'COMMUNITY':
+      return (await db.community.findUnique({ where: { id }, select: { trainerProfile: { select: { userId: true } } } }))
+        ?.trainerProfile.userId
+    case 'COMMUNITY_POST':
+      return (await db.communityPost.findUnique({ where: { id }, select: { authorId: true } }))?.authorId
+    case 'COMMUNITY_POST_REPLY':
+      return (await db.communityPostReply.findUnique({ where: { id }, select: { authorId: true } }))?.authorId
+    case 'MESSAGE':
+      return (await db.message.findUnique({ where: { id }, select: { senderId: true } }))?.senderId
+    case 'LIVE_MESSAGE':
+      return (await db.liveMessage.findUnique({ where: { id }, select: { authorId: true } }))?.authorId
+    case 'DISPUTE_MESSAGE': {
+      const message = await db.disputeMessage.findUnique({ where: { id }, select: { authorId: true } })
+      // Un message système (sans auteur) existe, mais n'appartient à personne.
+      return message ? message.authorId : undefined
+    }
+  }
+}
+
 export async function createReport(reporterId: string, input: CreateReportInput) {
+  // La file de Modération se remplissait de cibles fantômes : signalements
+  // contre soi-même, contre un identifiant qui n'existe pas, ou d'un type qui
+  // ne correspond pas à l'objet (`USER` + id de ressource) — campagne du
+  // 12 octobre 2026, m7. Chacun coûte un examen pour rien.
+  const owner = await reportTargetOwner(input.targetType, input.targetId)
+  if (owner === undefined) throw new Error('REPORT_TARGET_NOT_FOUND')
+  if (owner === reporterId) throw new Error('CANNOT_REPORT_SELF')
+
   // Un même compte ne signale pas deux fois le même objet : la Modération
   // instruirait deux fois la même chose, et le compteur mentirait sur
   // l'ampleur réelle.

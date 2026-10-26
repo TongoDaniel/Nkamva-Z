@@ -310,6 +310,11 @@ export async function trendingTrainers(options: {
   const visible: Prisma.TrainerProfileWhereInput = {
     AND: [
       PUBLIC_TRAINER_WHERE,
+      // Visible ne veut pas dire « à mettre en avant » : un formateur suspendu
+      // pour impayé, dont plus rien n'est en vente, apparaissait parmi les
+      // « Formateurs à découvrir » (campagne du 12 octobre 2026, m17). Sa fiche
+      // reste atteignable, l'accueil ne la pousse plus.
+      { subscriptionStatus: { notIn: ['SUSPENDED', 'CANCELED'] } },
       ...(options.viewerTrainerId ? [{ id: { not: options.viewerTrainerId } }] : []),
     ],
   }
