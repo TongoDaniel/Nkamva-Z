@@ -35,6 +35,7 @@ import type {
   PaymentProvider,
 } from '@prisma/client'
 import { db } from './db'
+import { fmtFcfa } from './format'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
 import { consumeInvitationForPurchase } from './invitations'
@@ -902,7 +903,7 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
       notify(sub.learnerId, {
         type: 'MEMBERSHIP_PAYMENT_DUE',
         title: `Votre adhésion à ${sub.community.name} est à régler`,
-        body: `${amountFcfa} FCFA pour le mois en cours. Sans règlement sous ${MEMBERSHIP_GRACE_DAYS} jours, votre adhésion prendra fin.`,
+        body: `${fmtFcfa(amountFcfa)} pour le mois en cours. Sans règlement sous ${MEMBERSHIP_GRACE_DAYS} jours, votre adhésion prendra fin.`,
         link: `/communautes/${sub.community.slug}`,
       }),
     )

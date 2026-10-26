@@ -8,7 +8,7 @@ import { FormError } from "@/components/layouts/auth-shell";
 import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile-money-fields";
 import { operatorsLabel, phoneNumberError, type PayableProvider } from "@/lib/payment-input";
 import { api, ApiError } from "@/lib/client";
-import { fmtFcfa, fmtNumber } from "@/lib/format";
+import { fmtCount, fmtFcfa, fmtNumber } from "@/lib/format";
 import type { PaymentProvider } from "@/lib/dto";
 import { cn } from "@/lib/utils";
 import { routesOf } from "@/lib/spaces";
@@ -193,7 +193,7 @@ export function AdhesionForm({
         <ul className="mt-4 grid gap-2 text-[13.5px] text-ink-2">
           <li className="flex items-center gap-2">
             <Users className="size-3.5 shrink-0 text-ink-3" aria-hidden="true" />
-            {fmtNumber(membersCount)} membres
+            {fmtCount(membersCount, "membre")}
           </li>
           {includedCount > 0 ? (
             <li className="flex items-center gap-2">

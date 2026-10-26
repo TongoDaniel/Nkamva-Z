@@ -817,9 +817,15 @@ export async function providerSaysSettled(
 // --- Lister les achats d'un apprenant ---
 
 export async function listMyPurchases(learnerId: string, page: number, pageSize: number) {
+  // Une tentative annulée par NKAMVA elle-même — le second clic d'un double
+  // clic, un changement de moyen — n'a rien encaissé : l'afficher « Annulé
+  // 20 000 FCFA » faisait croire à un paiement perdu (campagne du 12 octobre
+  // 2026, m9). Un refus de l'opérateur, lui, reste visible : l'apprenant en a
+  // besoin pour comprendre.
+  const where = { learnerId, providerStatus: { not: 'CANCELED' as const } }
   const [items, total] = await Promise.all([
     db.purchase.findMany({
-      where: { learnerId },
+      where,
       include: {
         course: {
           select: { id: true, title: true, slug: true, format: true, coverS3Key: true, durationSeconds: true },
@@ -829,7 +835,7 @@ export async function listMyPurchases(learnerId: string, page: number, pageSize:
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    db.purchase.count({ where: { learnerId } }),
+    db.purchase.count({ where }),
   ])
 
   return { items, total, page, pageSize }
