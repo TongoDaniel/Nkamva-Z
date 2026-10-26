@@ -23,6 +23,7 @@
 
 import type { PlanCadence } from '@prisma/client'
 import { db } from './db'
+import { addMonthsUtc } from './months'
 import { audit, auditStandalone } from './audit'
 import { quotePrice, type PriceQuote } from './pricing'
 import { fmtCount, fmtDate, fmtNumber } from './format'
@@ -70,10 +71,8 @@ export function periodRestartAfterSuspension(
 
 /** Fin de période à partir d'un début, selon la cadence. */
 export function periodEndFor(start: Date, cadence: PlanCadence): Date {
-  const end = new Date(start)
-  if (cadence === 'YEARLY') end.setFullYear(end.getFullYear() + 1)
-  else end.setMonth(end.getMonth() + 1)
-  return end
+  // En UTC et sans débordement (m18) : voir `addMonthsUtc`.
+  return addMonthsUtc(start, cadence === 'YEARLY' ? 12 : 1)
 }
 
 /**

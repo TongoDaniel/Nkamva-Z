@@ -36,6 +36,7 @@ import type {
 } from '@prisma/client'
 import { db } from './db'
 import { fmtFcfa } from './format'
+import { addMonthsUtc } from './months'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
 import { consumeInvitationForPurchase } from './invitations'
@@ -77,9 +78,8 @@ export const RENEWAL_SOURCE = 'RENEWAL'
 
 /** L'adhésion est mensuelle et ne connaît pas d'autre cadence (arbitrage 58). */
 export function periodEndFor(start: Date): Date {
-  const end = new Date(start)
-  end.setMonth(end.getMonth() + 1)
-  return end
+  // En UTC et sans débordement (m18) : voir `addMonthsUtc`.
+  return addMonthsUtc(start, 1)
 }
 
 // --- Lecture ---
