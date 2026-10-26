@@ -38,6 +38,7 @@ import type {
   CommunityInvitation, CommunityVisibility, InvitationGrant, InvitationKind,
 } from '@prisma/client'
 import { db } from './db'
+import { addMonthsUtc } from './months'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyWithEmail, deliverSideEffects, absoluteUrl, TRANSACTIONAL } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
@@ -718,8 +719,8 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
 
   const giftMonths = invitation.giftMonths ?? 1
   const periodStart = new Date()
-  const periodEnd = new Date(periodStart)
-  periodEnd.setMonth(periodEnd.getMonth() + giftMonths)
+  // En UTC et sans débordement, comme les périodes payées (m18).
+  const periodEnd = addMonthsUtc(periodStart, giftMonths)
 
   const result = await db.$transaction(async (tx) => {
     const consumed = await tx.communityInvitation.updateMany({

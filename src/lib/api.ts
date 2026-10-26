@@ -340,6 +340,9 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   REPORT_ALREADY_OPEN: { message: 'Vous avez déjà signalé cet élément', status: 409 },
   REPORT_TARGET_NOT_FOUND: { message: 'Élément introuvable', status: 404 },
   CANNOT_REPORT_SELF: { message: 'Vous ne pouvez pas signaler ce que vous avez vous-même publié', status: 422 },
+  LIVE_START_IN_PAST: { message: 'Choisissez une date à venir', status: 422 },
+  LIVE_START_TOO_FAR: { message: 'Une séance se programme au plus un an à l\'avance', status: 422 },
+  LIVE_OVERLAP: { message: 'Vous animez déjà une séance à ce moment-là', status: 409 },
   TARGET_NOT_HIDEABLE: { message: 'Seule une ressource peut être retirée du catalogue', status: 422 },
   STALE_REPORT: { message: 'Le signalement a été modifié entre-temps', status: 409 },
   // --- Abonnement formateur (décision 68) ---
