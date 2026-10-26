@@ -65,6 +65,14 @@ export const MEMBERSHIP_GRACE_DAYS = 14
 
 const DAY_MS = 86_400_000
 
+/**
+ * Marque l'échéance ouverte par `renewDueMemberships` sur `Purchase.acquisitionSource`.
+ * C'est elle qui permet à `initiateMembershipPayment` de distinguer une échéance
+ * jamais tentée — à ouvrir — d'une ouverture en vol, qui appartient à l'onglet
+ * qui l'a créée. Les deux n'ont pas encore de transaction.
+ */
+export const RENEWAL_SOURCE = 'RENEWAL'
+
 /** L'adhésion est mensuelle et ne connaît pas d'autre cadence (arbitrage 58). */
 export function periodEndFor(start: Date): Date {
   const end = new Date(start)
@@ -285,9 +293,65 @@ export async function initiateMembershipPayment(
     where: { learnerId, communityId, providerStatus: 'PENDING' },
     select: {
       id: true, providerTransactionId: true, provider: true, amountFcfa: true,
-      periodStart: true, periodEnd: true,
+      periodStart: true, periodEnd: true, acquisitionSource: true, updatedAt: true,
     },
   })
+
+  // L'échéance ouverte par le renouvellement, que personne n'a encore tenté de
+  // régler : elle porte le montant figé (décision 57) mais aucune transaction.
+  // On l'ouvre chez le fournisseur choisi, sur cette même ligne.
+  //
+  // Deux onglets peuvent cliquer ensemble : la ligne se réclame d'abord, par une
+  // écriture conditionnée à l'état lu. Le perdant attend la transaction du
+  // gagnant, comme au double clic de l'adhésion. Il ne doit surtout pas
+  // retomber sur la création plus bas : si le gagnant est déjà réglé, l'index
+  // unique — partiel, sur `PENDING` — ne l'arrête plus, et le même mois se
+  // paierait deux fois.
+  // Une ligne sans transaction qui n'est pas une échéance est, elle, une
+  // ouverture en vol : elle appartient à l'onglet qui l'a créée.
+  if (
+    pending && !pending.providerTransactionId && pending.acquisitionSource === RENEWAL_SOURCE
+    && pending.periodStart && pending.periodEnd
+  ) {
+    const claimed = await db.purchase.updateMany({
+      where: {
+        id: pending.id, providerStatus: 'PENDING', providerTransactionId: null,
+        updatedAt: pending.updatedAt,
+      },
+      data: { provider, updatedAt: new Date() },
+    })
+    if (claimed.count === 1) {
+      const payerCountry = await db.user.findUnique({
+        where: { id: learnerId },
+        select: { countryCode: true },
+      })
+      // Un échec d'ouverture (opérateur refusé, numéro manquant) laisse
+      // l'échéance intacte et sans transaction : le clic suivant la réclame à
+      // nouveau. L'annuler, comme le fait l'ouverture nominale, effacerait le
+      // montant dû que l'espace membre affiche.
+      const opened = await openProviderPayment({
+        subject: purchaseSubject(pending.id),
+        provider,
+        amountFcfa: pending.amountFcfa,
+        label: 'Adhesion NKAMVA',
+        learnerId,
+        countryCode: payerCountry?.countryCode ?? null,
+        payer,
+      })
+      return {
+        purchaseId: pending.id,
+        providerTransactionId: opened.providerTransactionId,
+        redirectUrl: opened.redirectUrl,
+        provider,
+        nextStep: opened.nextStep,
+        amountFcfa: pending.amountFcfa,
+        periodStart: pending.periodStart,
+        periodEnd: pending.periodEnd,
+        kind: 'DUE',
+      }
+    }
+    return followWinningAttempt(learnerId, communityId, 'DUE')
+  }
   if (pending?.providerTransactionId && pending.periodStart && pending.periodEnd) {
     if (pending.provider === provider && resumableAsIs(provider)) {
       return {
@@ -395,66 +459,7 @@ export async function initiateMembershipPayment(
     // paiement du gagnant plutôt que d'en ouvrir un second.
     if ((err as { code?: string })?.code !== 'P2002') throw err
 
-    // Sans filtre de statut, à dessein. L'index unique est **partiel** : il ne
-    // couvre que `PENDING`, donc il tranche au moment du conflit — mais le
-    // gagnant peut avoir été réglé dans l'intervalle, et il l'est
-    // systématiquement quand le règlement est immédiat (simulation, mobile
-    // money instantané). Chercher `providerStatus: 'PENDING'` ne rendait alors
-    // rien, et le perdant recevait une erreur là où l'accès venait justement de
-    // s'ouvrir pour lui. `initiatePurchase` prenait déjà les deux statuts sur le
-    // chemin des ressources ; c'est ici que la règle manquait.
-    // Le gagnant peut exister **sans encore porter son identifiant de
-    // transaction** : il est écrit après l'aller-retour chez le fournisseur, et
-    // la fenêtre entre les deux est exactement celle où le perdant arrive ici.
-    // Une lecture unique y trouvait une ligne inexploitable et relançait
-    // l'erreur Prisma brute — un 500 pour un double clic.
-    //
-    // On laisse donc au gagnant le temps d'écrire, brièvement et un nombre borné
-    // de fois. Attendre indéfiniment transformerait un double clic en requête
-    // suspendue ; ne pas attendre du tout rend le rattrapage inutile la moitié
-    // du temps.
-    let winner = null as Awaited<ReturnType<typeof db.purchase.findFirst>>
-    for (let essai = 0; essai < 10; essai++) {
-      winner = await db.purchase.findFirst({
-        where: { learnerId, communityId, providerStatus: { in: ['PENDING', 'SUCCEEDED'] } },
-        orderBy: { createdAt: 'desc' },
-      })
-      if (winner?.providerTransactionId) break
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
-    // Toujours rien après une seconde : le gagnant a probablement échoué chez le
-    // fournisseur. Le dire plutôt que de laisser filer une erreur de base.
-    if (!winner?.providerTransactionId) throw new Error('PAYMENT_IN_PROGRESS')
-
-    // Déjà payé pendant que ce second onglet cliquait : il n'y a rien à
-    // reprendre, l'adhésion existe. On le dit plutôt que de rouvrir un tunnel.
-    if (winner.providerStatus === 'SUCCEEDED') {
-      return {
-        purchaseId: winner.id,
-        providerTransactionId: winner.providerTransactionId,
-        provider: winner.provider,
-        nextStep: 'ALREADY_SETTLED',
-        amountFcfa: winner.amountFcfa,
-        periodStart: winner.periodStart!,
-        periodEnd: winner.periodEnd!,
-        kind: open ? 'DUE' : 'JOIN',
-      }
-    }
-    // L'URL de la session appartient à l'onglet gagnant, peut-être déjà parti
-    // chez Stripe. Même règle que dans `initiatePurchase`.
-    if (isCheckoutSession(winner.providerTransactionId)) {
-      throw new Error('PAYMENT_IN_PROGRESS')
-    }
-    return {
-      purchaseId: winner.id,
-      providerTransactionId: winner.providerTransactionId,
-      provider: winner.provider,
-      nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'ALREADY_SETTLED',
-      amountFcfa: winner.amountFcfa,
-      periodStart: winner.periodStart!,
-      periodEnd: winner.periodEnd!,
-      kind: open ? 'DUE' : 'JOIN',
-    }
+    return followWinningAttempt(learnerId, communityId, open ? 'DUE' : 'JOIN')
   }
 
   await auditStandalone({
@@ -498,6 +503,79 @@ export async function initiateMembershipPayment(
     periodStart,
     periodEnd,
     kind: open ? 'DUE' : 'JOIN',
+  }
+}
+
+/**
+ * Le perdant d'une course entre deux clics rejoint le paiement du gagnant
+ * plutôt que d'en ouvrir un second. Deux chemins y mènent : l'index unique qui
+ * refuse une seconde ligne en attente, et l'échéance de renouvellement déjà
+ * réclamée par l'autre onglet.
+ */
+async function followWinningAttempt(
+  learnerId: string,
+  communityId: string,
+  kind: 'JOIN' | 'DUE',
+): Promise<MembershipPaymentIntent> {
+  // Sans filtre de statut, à dessein. L'index unique est **partiel** : il ne
+  // couvre que `PENDING`, donc il tranche au moment du conflit — mais le
+  // gagnant peut avoir été réglé dans l'intervalle, et il l'est
+  // systématiquement quand le règlement est immédiat (simulation, mobile
+  // money instantané). Chercher `providerStatus: 'PENDING'` ne rendait alors
+  // rien, et le perdant recevait une erreur là où l'accès venait justement de
+  // s'ouvrir pour lui. `initiatePurchase` prenait déjà les deux statuts sur le
+  // chemin des ressources ; c'est ici que la règle manquait.
+  // Le gagnant peut exister **sans encore porter son identifiant de
+  // transaction** : il est écrit après l'aller-retour chez le fournisseur, et
+  // la fenêtre entre les deux est exactement celle où le perdant arrive ici.
+  // Une lecture unique y trouvait une ligne inexploitable et relançait
+  // l'erreur Prisma brute — un 500 pour un double clic.
+  //
+  // On laisse donc au gagnant le temps d'écrire, brièvement et un nombre borné
+  // de fois. Attendre indéfiniment transformerait un double clic en requête
+  // suspendue ; ne pas attendre du tout rend le rattrapage inutile la moitié
+  // du temps.
+  let winner = null as Awaited<ReturnType<typeof db.purchase.findFirst>>
+  for (let essai = 0; essai < 10; essai++) {
+    winner = await db.purchase.findFirst({
+      where: { learnerId, communityId, providerStatus: { in: ['PENDING', 'SUCCEEDED'] } },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (winner?.providerTransactionId) break
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  // Toujours rien après une seconde : le gagnant a probablement échoué chez le
+  // fournisseur. Le dire plutôt que de laisser filer une erreur de base.
+  if (!winner?.providerTransactionId) throw new Error('PAYMENT_IN_PROGRESS')
+
+  // Déjà payé pendant que ce second onglet cliquait : il n'y a rien à
+  // reprendre, l'adhésion existe. On le dit plutôt que de rouvrir un tunnel.
+  if (winner.providerStatus === 'SUCCEEDED') {
+    return {
+      purchaseId: winner.id,
+      providerTransactionId: winner.providerTransactionId,
+      provider: winner.provider,
+      nextStep: 'ALREADY_SETTLED',
+      amountFcfa: winner.amountFcfa,
+      periodStart: winner.periodStart!,
+      periodEnd: winner.periodEnd!,
+      kind,
+    }
+  }
+  // L'URL de la session appartient à l'onglet gagnant, peut-être déjà parti
+  // chez Stripe. Même règle que dans `initiatePurchase`.
+  if (isCheckoutSession(winner.providerTransactionId)) {
+    throw new Error('PAYMENT_IN_PROGRESS')
+  }
+  return {
+    purchaseId: winner.id,
+    providerTransactionId: winner.providerTransactionId,
+    provider: winner.provider,
+    nextStep: winner.provider === 'PAWAPAY' ? 'CONFIRM_ON_PHONE' : 'ALREADY_SETTLED',
+    amountFcfa: winner.amountFcfa,
+    periodStart: winner.periodStart!,
+    periodEnd: winner.periodEnd!,
+    kind,
   }
 }
 
@@ -761,9 +839,18 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
             commissionRate: sub.community.commissionRate,
             trainerShareFcfa,
             platformShareFcfa: amountFcfa - trainerShareFcfa,
+            // Le moyen de la période précédente, à titre indicatif : l'apprenant
+            // choisit le sien au règlement, et `initiateMembershipPayment` le
+            // réécrit.
             provider,
-            providerTransactionId: `${provider === 'STRIPE' ? 'pi' : 'cp'}_${crypto.randomUUID()}`,
+            // Aucun identifiant de transaction : rien n'a été envoyé au
+            // fournisseur, et rien ne doit le prétendre. Un `cp_<uuid>` inventé
+            // ici passait pour un paiement en attente « reprenable tel quel » —
+            // l'apprenant cliquait « Régler », rien n'arrivait sur son
+            // téléphone, et l'adhésion expirait impayée (campagne du
+            // 12 octobre 2026, B1). La transaction naît au clic, sur cette ligne.
             providerStatus: 'PENDING',
+            acquisitionSource: RENEWAL_SOURCE,
             periodStart,
             periodEnd,
           },
