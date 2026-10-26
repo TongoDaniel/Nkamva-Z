@@ -9,7 +9,7 @@ import { PasswordChecklist } from "@/components/nk/password-checklist";
 import { AuthHeading, FormError } from "@/components/layouts/auth-shell";
 import { api, ApiError } from "@/lib/client";
 import { withCallbackUrl } from "@/lib/callback-url";
-import { EMAIL_ERROR, isValidEmail, passwordError } from "@/lib/validation";
+import { EMAIL_ERROR, isValidEmail, passwordProblem } from "@/lib/validation";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -48,7 +48,8 @@ export function RegisterForm() {
     else if (!isValidEmail(email)) issues.email = EMAIL_ERROR;
     if (!password) issues.password = "Choisissez un mot de passe.";
     else {
-      const pwdIssue = passwordError(password);
+      // Mêmes règles que le serveur, adresse e-mail comprise (m14).
+      const pwdIssue = passwordProblem(password, email);
       if (pwdIssue) issues.password = pwdIssue;
     }
 

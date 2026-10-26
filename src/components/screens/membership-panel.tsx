@@ -35,11 +35,14 @@ export function MembershipPanel({
   isOwner,
   membership,
   inCommunity = false,
+  acceptsMembers = true,
 }: {
   slug: string;
   priceFcfa: number;
   isOwner: boolean;
   membership: MembershipState | null;
+  /** Faux quand le formateur est suspendu : on n'y entre plus (M3). */
+  acceptsMembers?: boolean;
   /**
    * Rendu depuis le salon de la communauté : « Entrer dans la communauté »
    * disparaît, puisque c'est la page sur laquelle on se trouve.
@@ -59,6 +62,14 @@ export function MembershipPanel({
     return (
       <p className="mt-4 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
         Vous animez cette communauté : elle vous appartient, vous n&apos;y adhérez pas.
+      </p>
+    );
+  }
+
+  if (!membership && !acceptsMembers) {
+    return (
+      <p className="mt-4 rounded-nk-sm border border-line-2 bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+        Cette communauté n&apos;accueille pas de nouveaux membres pour le moment.
       </p>
     );
   }
@@ -140,8 +151,18 @@ export function MembershipPanel({
           <>
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
             <span>
-              <b className="text-ink">Vous êtes membre.</b> Prochaine échéance le{" "}
-              {fmtDate(membership.periodEnd)}.
+              <b className="text-ink">Vous êtes membre.</b>{" "}
+              {/* Entre la fin du mois et le passage du renouvellement, la date
+                  est déjà passée : « Prochaine échéance le 4 octobre » le
+                  6 octobre se lisait comme une erreur (m19). */}
+              {new Date(membership.periodEnd).getTime() < Date.now() ? (
+                <>
+                  Votre mois s&apos;est terminé le {fmtDate(membership.periodEnd)} ; son
+                  renouvellement est en cours.
+                </>
+              ) : (
+                <>Prochaine échéance le {fmtDate(membership.periodEnd)}.</>
+              )}
             </span>
           </>
         )}

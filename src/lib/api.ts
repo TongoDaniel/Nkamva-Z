@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
 import { canActAsLearner } from './roles'
+import { db } from './db'
 import type { Role, AdminRole } from '@prisma/client'
 
 /**
@@ -102,6 +103,29 @@ export async function requireLearner(): Promise<AuthContext | NextResponse> {
   return ctx
 }
 
+/**
+ * Une adresse jamais vérifiée ne paie pas et ne candidate pas.
+ *
+ * La connexion n'exige pas la vérification (`auth.ts`) : on peut s'inscrire,
+ * abandonner sur l'écran du code et revenir par mot de passe. Seules les
+ * invitations la demandaient ; un tel compte pouvait donc acheter, candidater
+ * et devenir formateur avec une adresse qu'il ne contrôle pas — là où partent
+ * les factures, les reçus et les alertes de sécurité (campagne du 12 octobre
+ * 2026, M6). Naviguer, lire et chercher restent ouverts.
+ *
+ * ⚠️ Choix par défaut, non arbitré : le périmètre (payer, candidater) est le
+ * plus étroit qui ferme le défaut constaté.
+ */
+export async function requireVerifiedEmail(userId: string): Promise<NextResponse | null> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { emailVerifiedAt: true } })
+  if (user?.emailVerifiedAt) return null
+  return error(
+    'EMAIL_NOT_VERIFIED',
+    'Confirmez votre adresse e-mail avant de continuer : depuis « Profil & paramètres », recevez un code et saisissez-le.',
+    403,
+  )
+}
+
 // Mapping mutualisé des erreurs métier levées par les services (`throw new
 // Error('CODE')`) vers l'enveloppe HTTP. Les routes n'ont plus qu'à relayer.
 const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
@@ -167,10 +191,12 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   // aboutir. Le message dit quoi faire, sinon il se lit comme une panne.
   PAYMENT_IN_PROGRESS: {
     message:
-      "Un paiement est déjà en cours sur ce moyen. Terminez-le, ou attendez qu'il expire avant d'en changer.",
+      "Un paiement est déjà en cours pour cet achat. Terminez-le, ou attendez qu'il expire avant de changer de moyen de paiement.",
     status: 409,
   },
   CANNOT_JOIN_OWN_COMMUNITY: { message: 'Vous animez cette communauté', status: 422 },
+  COMMUNITY_CLOSED_TO_NEW_MEMBERS: { message: 'Cette communauté n\'accueille pas de nouveaux membres pour le moment', status: 409 },
+  INVITEE_NOT_ELIGIBLE: { message: 'Cette adresse ne peut pas recevoir d\'invitation', status: 422 },
   // Pendant de la règle ci-dessus, côté vente à l'unité : on ne se paie pas sa
   // propre ressource, sans quoi la commission serait prélevée sur son propre
   // argent et la vente compterait dans ses propres statistiques.
@@ -183,6 +209,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   // --- Espace membre : annonces et fil de discussion ---
   ACCOUNT_BANNED: { message: 'Votre compte est fermé', status: 403 },
   MEMBER_BANNED: { message: 'Vous ne pouvez plus prendre la parole dans cette communauté', status: 403 },
+  MEMBERSHIP_BANNED: { message: 'Vous avez été banni de cette communauté', status: 403 },
   ANNOUNCEMENT_FORBIDDEN: { message: 'Seul l\'animateur de la communauté publie des annonces', status: 403 },
   SALON_DISABLED: { message: 'Ce salon n\'est pas ouvert dans cette communauté', status: 422 },
   BODY_REQUIRED: { message: 'Écrivez un message', status: 400 },
@@ -311,6 +338,11 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   REPORT_NOT_FOUND: { message: 'Signalement introuvable', status: 404 },
   REPORT_NOT_OPEN: { message: 'Signalement déjà tranché', status: 409 },
   REPORT_ALREADY_OPEN: { message: 'Vous avez déjà signalé cet élément', status: 409 },
+  REPORT_TARGET_NOT_FOUND: { message: 'Élément introuvable', status: 404 },
+  CANNOT_REPORT_SELF: { message: 'Vous ne pouvez pas signaler ce que vous avez vous-même publié', status: 422 },
+  LIVE_START_IN_PAST: { message: 'Choisissez une date à venir', status: 422 },
+  LIVE_START_TOO_FAR: { message: 'Une séance se programme au plus un an à l\'avance', status: 422 },
+  LIVE_OVERLAP: { message: 'Vous animez déjà une séance à ce moment-là', status: 409 },
   TARGET_NOT_HIDEABLE: { message: 'Seule une ressource peut être retirée du catalogue', status: 422 },
   STALE_REPORT: { message: 'Le signalement a été modifié entre-temps', status: 409 },
   // --- Abonnement formateur (décision 68) ---

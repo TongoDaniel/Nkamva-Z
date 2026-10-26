@@ -126,10 +126,11 @@ describe('Factures', () => {
       },
     })
 
-    const invoice = await issueInvoiceForSubscriptionCharge(charge.id)
+    const invoice = (await issueInvoiceForSubscriptionCharge(charge.id))!
     expect(invoice.userId).toBe(trainerUser.id)
     expect(invoice.amountFcfa).toBe(13000)
-    expect(invoice.label).toContain('2 palier(s) de stockage')
+    // Accordé (m11), avec l'espace insécable de `fmtNumber`.
+    expect(invoice.label).toMatch(/2\s+paliers de stockage/)
     // Arbitrage 69 — une seule ligne : le stockage n'a pas sa propre facture.
     expect(await prisma.invoice.count()).toBe(1)
   })

@@ -6,13 +6,38 @@
 // aucune ne doit disparaître sans laisser derrière elle l'accès qu'elle a
 // ouvert.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+/**
+ * Un Stripe Checkout simulé, activable test par test. Sans lui, la suite règle
+ * tout paiement sur-le-champ (`ALLOW_PAYMENT_SIMULATION`) : la frontière
+ * « payé / pas encore payé » n'existe plus, et les tests qui la tiennent ne
+ * peuvent que mentir. Stripe, lui, rend une page à ouvrir et laisse l'achat en
+ * attente — c'est ce que ce faux fait.
+ */
+const stripeCheckout = vi.hoisted(() => ({ enabled: false }))
+vi.mock('@/lib/stripe', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/stripe')>()
+  return {
+    ...real,
+    getStripe: () => stripeCheckout.enabled
+      ? ({
+          checkout: {
+            sessions: {
+              create: async () => ({ id: `cs_test_${crypto.randomUUID()}`, url: 'https://checkout.stripe.test/session' }),
+            },
+          },
+        } as unknown as ReturnType<typeof real.getStripe>)
+      : real.getStripe(),
+  }
+})
+
 import { prisma, cleanDatabase } from './setup'
 import {
   initiateMembershipPayment, activateMembershipForPurchase, getMembership,
   cancelMembership, resumeMembership, listMyMemberships, isMember,
   renewDueMemberships, expireOverdueMemberships, periodEndFor,
-  MEMBERSHIP_GRACE_DAYS,
+  MEMBERSHIP_GRACE_DAYS, RENEWAL_SOURCE,
 } from '@/lib/memberships'
 import { linkCourseToCommunity, hasCommunityAccess } from '@/lib/communities'
 
@@ -20,7 +45,7 @@ const DAY = 86_400_000
 
 describe('Adhésion aux communautés', () => {
   beforeEach(async () => { await cleanDatabase() })
-  afterEach(async () => { await cleanDatabase() })
+  afterEach(async () => { stripeCheckout.enabled = false; await cleanDatabase() })
 
   async function setup() {
     const trainerUser = await prisma.user.create({
@@ -41,8 +66,8 @@ describe('Adhésion aux communautés', () => {
   }
 
   /** Le parcours complet : paiement ouvert, puis confirmé comme le fait le webhook. */
-  async function join(communityId: string, learnerId: string) {
-    const intent = await initiateMembershipPayment(communityId, learnerId, 'STRIPE')
+  async function join(communityId: string, learnerId: string, provider: 'STRIPE' | 'PAWAPAY' = 'STRIPE') {
+    const intent = await initiateMembershipPayment(communityId, learnerId, provider)
     await prisma.$transaction(async (tx) => {
       await tx.purchase.update({
         where: { id: intent.purchaseId },
@@ -54,6 +79,8 @@ describe('Adhésion aux communautés', () => {
   }
 
   it('rien n\'est ouvert avant que le paiement soit confirmé', async () => {
+    // Un vrai tunnel Stripe : la page s'ouvre, le paiement reste en attente.
+    stripeCheckout.enabled = true
     const { community, learner } = await setup()
 
     const intent = await initiateMembershipPayment(community.id, learner.id, 'STRIPE')
@@ -178,6 +205,9 @@ describe('Adhésion aux communautés', () => {
     const { community, learner } = await setup()
     await join(community.id, learner.id)
     const before = await prisma.communitySubscription.findFirstOrThrow({ where: { learnerId: learner.id } })
+    // Le solde se mesure en écart : l'adhésion elle-même a déjà crédité la
+    // formatrice, c'est le renouvellement qui ne doit rien lui ajouter.
+    const balanceBefore = (await prisma.wallet.findFirstOrThrow({ where: { trainerId: community.trainerId } })).balance
 
     const result = await renewDueMemberships(new Date(Date.now() + 32 * DAY))
     expect(result.due).toBe(1)
@@ -196,7 +226,7 @@ describe('Adhésion aux communautés', () => {
     expect(due.amountFcfa).toBe(5000)
     expect(due.periodStart!.getTime()).toBe(before.periodEnd.getTime())
     expect(due.periodEnd!.getTime()).toBe(periodEndFor(before.periodEnd).getTime())
-    expect((await prisma.wallet.findFirstOrThrow({ where: { trainerId: community.trainerId } })).balance).toBe(0)
+    expect((await prisma.wallet.findFirstOrThrow({ where: { trainerId: community.trainerId } })).balance).toBe(balanceBefore)
 
     // L'accès n'est pas coupé pendant le délai de grâce.
     expect(await isMember(community.id, learner.id)).toBe(true)
@@ -245,6 +275,73 @@ describe('Adhésion aux communautés', () => {
     expect(settled.periodEnd.getTime()).toBe(periodEndFor(before.periodEnd).getTime())
     // Toujours un seul membre : un renouvellement n'en ajoute pas un.
     expect((await prisma.community.findUniqueOrThrow({ where: { id: community.id } })).membersCount).toBe(1)
+  })
+
+  // --- B1, campagne du 12 octobre 2026 ---
+  // Le renouvellement inventait un `cp_<uuid>` jamais envoyé à PawaPay. La
+  // reprise le rendait « tel quel » : rien n'arrivait sur le téléphone, et
+  // l'adhésion expirait impayée. Aucun membre mobile money ne pouvait renouveler.
+
+  it('l\'échéance ouverte par le renouvellement ne prétend aucune transaction', async () => {
+    const { community, learner } = await setup()
+    await join(community.id, learner.id)
+    await renewDueMemberships(new Date(Date.now() + 32 * DAY))
+
+    const due = await prisma.purchase.findFirstOrThrow({
+      where: { learnerId: learner.id, providerStatus: 'PENDING' },
+    })
+    expect(due.providerTransactionId).toBeNull()
+    expect(due.acquisitionSource).toBe(RENEWAL_SOURCE)
+  })
+
+  it('régler l\'échéance par mobile money ouvre une vraie transaction, sur la même ligne', async () => {
+    const { community, learner } = await setup()
+    // Adhésion réglée par mobile money : l'échéance hérite de PawaPay, et c'est
+    // ce cas que la reprise « telle quelle » rendait impayable.
+    await join(community.id, learner.id, 'PAWAPAY')
+    await renewDueMemberships(new Date(Date.now() + 32 * DAY))
+    const due = await prisma.purchase.findFirstOrThrow({
+      where: { learnerId: learner.id, providerStatus: 'PENDING' },
+    })
+
+    // Sans PawaPay configuré, la suite règle par simulation : le paiement
+    // aboutit sur-le-champ. Avant le correctif, ce même appel rendait le
+    // `cp_…` inventé avec `CONFIRM_ON_PHONE`, et rien n'aboutissait jamais.
+    const intent = await initiateMembershipPayment(community.id, learner.id, 'PAWAPAY')
+    expect(intent.kind).toBe('DUE')
+    expect(intent.purchaseId).toBe(due.id)
+    expect(intent.providerTransactionId).not.toMatch(/^cp_/)
+
+    const settled = await prisma.purchase.findUniqueOrThrow({ where: { id: due.id } })
+    expect(settled.provider).toBe('PAWAPAY')
+    expect(settled.providerTransactionId).toBe(intent.providerTransactionId)
+    expect(settled.providerStatus).toBe('SUCCEEDED')
+    expect(settled.amountFcfa).toBe(5000)
+
+    const sub = await prisma.communitySubscription.findFirstOrThrow({ where: { learnerId: learner.id } })
+    expect(sub.status).toBe('ACTIVE')
+  })
+
+  it('deux clics simultanés sur l\'échéance ne la règlent qu\'une fois', async () => {
+    const { community, learner } = await setup()
+    await join(community.id, learner.id, 'PAWAPAY')
+    await renewDueMemberships(new Date(Date.now() + 32 * DAY))
+
+    await Promise.allSettled([
+      initiateMembershipPayment(community.id, learner.id, 'PAWAPAY'),
+      initiateMembershipPayment(community.id, learner.id, 'PAWAPAY'),
+    ])
+
+    // L'adhésion et l'échéance : jamais une troisième ligne, jamais deux
+    // règlements pour le même mois.
+    expect(await prisma.purchase.count({ where: { learnerId: learner.id } })).toBe(2)
+    expect(await prisma.purchase.count({
+      where: { learnerId: learner.id, providerStatus: 'SUCCEEDED' },
+    })).toBe(2)
+    // 4 250 FCFA par mois réglé, deux mois : le formateur n'est crédité qu'une
+    // fois de l'échéance.
+    expect((await prisma.wallet.findFirstOrThrow({ where: { trainerId: community.trainerId } })).balance)
+      .toBe(8500)
   })
 
   it('l\'impayé met fin à l\'adhésion au terme du délai, pas avant', async () => {

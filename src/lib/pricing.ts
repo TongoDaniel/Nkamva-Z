@@ -117,15 +117,63 @@ export async function publicSubscriptionPlans(at = new Date()): Promise<PublicPl
  * montants.
  */
 export function subscriptionAnnouncement(plans: PublicPlan[]): string {
-  const monthly = plans.find((p) => p.cadence === 'MONTHLY')
-  const yearly = plans.find((p) => p.cadence === 'YEARLY')
-  if (!monthly || !yearly || (monthly.free && yearly.free)) {
-    return "Aucun abonnement à régler pour publier."
+  const prices = paidPrices(plans)
+  if (prices.length === 0) return "Aucun abonnement à régler pour publier."
+  return `Abonnement formateur : ${prices.join(' ou ')}, réglé après validation de votre candidature.`
+}
+
+/**
+ * Les cadences réellement payantes, dites en clair. Une cadence à zéro n'est
+ * pas annoncée : la page affichait « 9 000 FCFA/mois » et « 0 FCFA/an », une
+ * paire incohérente pour qui la lit (recette du 5 septembre 2026, M9).
+ */
+function paidPrices(plans: PublicPlan[]): string[] {
+  return (['MONTHLY', 'YEARLY'] as const).flatMap((cadence) => {
+    const plan = plans.find((p) => p.cadence === cadence)
+    if (!plan || plan.free) return []
+    return [`${fmtNumber(plan.amountFcfa)} FCFA/${cadence === 'MONTHLY' ? 'mois' : 'an'}`]
+  })
+}
+
+export interface PublicPricingCopy {
+  /** Le chapeau de `/tarifs`. */
+  lead: string
+  /** Le prix en tête de la carte « Formateur ». */
+  trainerPrice: string
+  /** La ligne sous ce prix. */
+  trainerNote: string
+}
+
+/**
+ * Tout ce que `/tarifs` dit de l'abonnement formateur, dérivé des montants en
+ * vigueur.
+ *
+ * La page se contredisait dès que la grille devenait payante : son chapeau,
+ * écrit à la main, affirmait « Pas d'abonnement obligatoire, ni pour apprendre,
+ * ni pour publier » juste au-dessus de « Formateur 5 000 FCFA/mois » ; et
+ * l'intitulé administratif du tarif (« Fin de la gratuité ») remplaçait la
+ * phrase « Rien à payer d'avance » (campagne du 12 octobre 2026, M9). Les
+ * intitulés de grille sont des repères de back-office : ils ne s'affichent plus
+ * au public.
+ */
+export function publicPricingCopy(plans: PublicPlan[], commissionLabel: string): PublicPricingCopy {
+  const prices = paidPrices(plans)
+  if (prices.length === 0) {
+    return {
+      lead: "Payez en FCFA, par mobile money. Pas d'abonnement obligatoire, ni pour apprendre, ni pour publier.",
+      trainerPrice: `${commissionLabel} de commission`,
+      trainerNote: "Prélevés sur chaque vente. Rien à payer d'avance.",
+    }
   }
-  return (
-    `Abonnement formateur : ${fmtNumber(monthly.amountFcfa)} FCFA/mois ou ` +
-    `${fmtNumber(yearly.amountFcfa)} FCFA/an, réglé après validation de votre candidature.`
-  )
+  const yearly = plans.find((p) => p.cadence === 'YEARLY')
+  const saving = prices.length === 2 && yearly?.savingPercent ? ` (−${yearly.savingPercent} %)` : ''
+  return {
+    lead: "Payez en FCFA, par mobile money. Apprendre ne demande aucun abonnement ; publier demande l'abonnement formateur.",
+    trainerPrice: prices[0],
+    trainerNote: prices.length === 2
+      ? `Ou ${prices[1]}${saving}, plus ${commissionLabel} de commission sur chaque vente.`
+      : `Plus ${commissionLabel} de commission sur chaque vente.`,
+  }
 }
 
 /**

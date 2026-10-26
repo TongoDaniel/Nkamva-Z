@@ -12,6 +12,7 @@ import { db } from '../db'
 import { audit } from '../audit'
 import { DELETION_GRACE_DAYS } from '../dto'
 import { deleteObject } from '../s3'
+import { recountCommunityMembers } from '../communities'
 
 /** Domaine réservé par la RFC 2606 : une adresse en .invalid ne peut pas router. */
 const ANONYMIZED_EMAIL_DOMAIN = 'nkamva.invalid'
@@ -82,6 +83,37 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
       tx.favorite.deleteMany({ where: { userId } }),
     ])
 
+    // Les adhésions encore ouvertes se ferment avec le compte. Le renouvellement
+    // ignore les comptes effacés, et rien d'autre ne les fermait : une adhésion
+    // payée la veille d'une suppression restait `ACTIVE` pour toujours — « 1
+    // membres » sur la fiche publique, un membre sans nom chez la formatrice, et
+    // un obstacle si elle voulait un jour fermer son propre compte (campagne du
+    // 12 octobre 2026, M5). Une sanction éventuelle reste inscrite.
+    const memberships = await tx.communitySubscription.findMany({
+      where: { learnerId: userId, status: { in: ['ACTIVE', 'PAST_DUE', 'BANNED'] } },
+      select: { id: true, communityId: true },
+    })
+    if (memberships.length > 0) {
+      const closedAt = new Date()
+      await tx.communitySubscription.updateMany({
+        where: { id: { in: memberships.map((m) => m.id) }, canceledAt: null },
+        data: { canceledAt: closedAt },
+      })
+      await tx.communitySubscription.updateMany({
+        where: { id: { in: memberships.map((m) => m.id) } },
+        data: { status: 'CANCELED' },
+      })
+      // Une échéance encore ouverte ne doit plus pouvoir être réglée : elle
+      // rouvrirait une adhésion au nom de personne.
+      await tx.purchase.updateMany({
+        where: { learnerId: userId, communityId: { not: null }, providerStatus: 'PENDING' },
+        data: { providerStatus: 'CANCELED' },
+      })
+      for (const communityId of new Set(memberships.map((m) => m.communityId))) {
+        await recountCommunityMembers(tx, communityId)
+      }
+    }
+
     // Un profil formateur porte des informations publiques nominatives.
     const trainer = await tx.trainerProfile.findUnique({
       where: { userId },
@@ -106,6 +138,7 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
         notificationsDeleted: notifications.count,
         emailOtpsDeleted: otps.count,
         trainerProfileAnonymized: Boolean(trainer),
+        membershipsClosed: memberships.length,
       },
     })
 

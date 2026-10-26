@@ -18,6 +18,28 @@ import {
 } from '@/lib/disputes'
 import { POST as stripeWebhookHandler } from '@/app/api/webhooks/stripe/route'
 
+/**
+ * Un Stripe qui accepte les remboursements, allumé par les tests qui mènent un
+ * litige jusqu'à l'argent rendu. Sans client Stripe, `processRefund` ouvre une
+ * tâche manuelle (MANUAL_PENDING) au lieu de déclarer un remboursement que
+ * personne n'a fait : ces tests datent d'avant ce refus, et supposaient le
+ * remboursement acquis. Éteint, l'achat se règle par la simulation de paiement.
+ */
+const stripeRefunds = vi.hoisted(() => ({ enabled: false }))
+vi.mock('@/lib/stripe', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/stripe')>()
+  const fake = {
+    refunds: { create: async () => ({ id: `re_test_${crypto.randomUUID()}` }) },
+    disputes: { update: async (id: string) => ({ id }) },
+  }
+  return {
+    ...real,
+    getStripe: () => stripeRefunds.enabled
+      ? (fake as unknown as ReturnType<typeof real.getStripe>)
+      : real.getStripe(),
+  }
+})
+
 function chargebackCreatedRequest(providerDisputeId: string, paymentIntentId: string) {
   return new Request('http://localhost/api/webhooks/stripe', {
     method: 'POST',
@@ -65,7 +87,10 @@ async function withContent(courseId: string, durationSeconds = 3600) {
   })
 }
   beforeEach(async () => { await cleanDatabase() })
-  afterEach(async () => { await cleanDatabase() })
+  afterEach(async () => {
+    stripeRefunds.enabled = false
+    await cleanDatabase()
+  })
 
   // Formateur + cours publié + apprenant + achat confirmé (wallet crédité à 85 %).
   async function setupPurchase(opts: { price?: number; format?: string; duration?: number } = {}) {
@@ -182,6 +207,8 @@ async function withContent(courseId: string, durationSeconds = 3600) {
   it('T6 — FULL_REFUND : FundReservation DEBITED, wallet débité, Purchase.refundedAt', async () => {
     const { profile, learner, purchase, admin } = await setupPurchase({ price: 15000 })
 
+    stripeRefunds.enabled = true // Stripe accepte le remboursement
+
     const dispute = await openDispute(learner.id, { purchaseId: purchase.purchaseId, reason: 'CONTENT_MISMATCH' })
     await resolveWithFreshVersion(dispute.id, admin, {
       resolution: 'FULL_REFUND',
@@ -212,6 +239,8 @@ async function withContent(courseId: string, durationSeconds = 3600) {
   // -------------------------------------------------------------------------
   it('PARTIAL_REFUND : prorata 85 % débité, le reste libéré (décision 12)', async () => {
     const { profile, learner, purchase, admin } = await setupPurchase({ price: 15000 })
+
+    stripeRefunds.enabled = true // Stripe accepte le remboursement
 
     const dispute = await openDispute(learner.id, { purchaseId: purchase.purchaseId, reason: 'OTHER' })
     await resolveWithFreshVersion(dispute.id, admin, {
@@ -337,6 +366,8 @@ async function withContent(courseId: string, durationSeconds = 3600) {
   // -------------------------------------------------------------------------
   it('décision 17 — chargeback sur une vente déjà remboursée : aucun double débit', async () => {
     const { profile, learner, purchase, admin } = await setupPurchase({ price: 15000 })
+
+    stripeRefunds.enabled = true // Stripe accepte le remboursement
 
     // Remboursement complet accordé et encaissé
     const dispute = await openDispute(learner.id, { purchaseId: purchase.purchaseId, reason: 'CONTENT_MISMATCH' })

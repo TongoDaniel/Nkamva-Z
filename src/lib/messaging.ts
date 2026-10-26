@@ -37,6 +37,7 @@ import type { ConversationKind } from '@prisma/client'
 
 import { db } from './db'
 import { audit } from './audit'
+import { cleanText } from './text-input'
 import { notifyWithEmail, deliverSideEffects, absoluteUrl } from './notification'
 import { userAvatarSrc, communityAvatarSrc } from './avatars'
 
@@ -675,7 +676,9 @@ export async function sendMessage(
   trainerProfileId: string | null,
   input: { body: string; announcement?: boolean; clientKey?: string },
 ): Promise<{ id: string }> {
-  const body = input.body.trim()
+  // `cleanText` et non `trim` : un message fait d'un seul caractère de largeur
+  // nulle passait, là où un message d'espaces était refusé (m21).
+  const body = cleanText(input.body)
   if (!body) throw new Error('BODY_REQUIRED')
   if (body.length > MESSAGE_MAX_LENGTH) throw new Error('MESSAGE_TOO_LONG')
 

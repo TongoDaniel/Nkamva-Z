@@ -8,7 +8,7 @@
 // Les codes d'erreur suivent donc ceux du service vivant.
 // ==========================================================================
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { prisma, cleanDatabase } from './setup'
 import {
   openDispute,
@@ -20,6 +20,28 @@ import {
 import { completeManualRefundTask, cancelManualRefundTask } from '@/lib/manual-refund-tasks'
 import { listManualRefundTasks, getDisputeStats } from '@/lib/dispute-review'
 
+/**
+ * Un Stripe qui accepte les remboursements, allumé par les tests qui mènent un
+ * litige jusqu'à l'argent rendu. Sans client Stripe, `processRefund` ouvre une
+ * tâche manuelle (MANUAL_PENDING) au lieu de déclarer un remboursement que
+ * personne n'a fait : ces tests datent d'avant ce refus, et supposaient le
+ * remboursement acquis. Éteint, l'achat se règle par la simulation de paiement.
+ */
+const stripeRefunds = vi.hoisted(() => ({ enabled: false }))
+vi.mock('@/lib/stripe', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/stripe')>()
+  const fake = {
+    refunds: { create: async () => ({ id: `re_test_${crypto.randomUUID()}` }) },
+    disputes: { update: async (id: string) => ({ id }) },
+  }
+  return {
+    ...real,
+    getStripe: () => stripeRefunds.enabled
+      ? (fake as unknown as ReturnType<typeof real.getStripe>)
+      : real.getStripe(),
+  }
+})
+
 const DAY = 86_400_000
 const AMOUNT = 20_000
 const RESERVED = Math.round(AMOUNT * TRAINER_SHARE_RATE) // 17 000
@@ -30,7 +52,10 @@ async function expectFailure(promise: Promise<unknown>, code: string) {
 
 describe('Lot 2 — Arbitrage des litiges', () => {
   beforeEach(async () => { await cleanDatabase() })
-  afterEach(async () => { await cleanDatabase() })
+  afterEach(async () => {
+    stripeRefunds.enabled = false
+    await cleanDatabase()
+  })
 
   async function setup(opts: { provider?: 'STRIPE' | 'PAWAPAY'; purchasedDaysAgo?: number; watchedSeconds?: number } = {}) {
     const trainerUser = await prisma.user.create({ data: { email: `t-${crypto.randomUUID()}@test.com`, role: 'TRAINER' } })
@@ -186,6 +211,8 @@ describe('Lot 2 — Arbitrage des litiges', () => {
   it('T6/FR3 — le remboursement intégral débite le solde et lève la réserve', async () => {
     const { admin, dispute, purchase, wallet: w } = await setup()
 
+    stripeRefunds.enabled = true // Stripe accepte le remboursement
+
     const result = await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),
       resolution: 'FULL_REFUND',
@@ -201,6 +228,8 @@ describe('Lot 2 — Arbitrage des litiges', () => {
 
   it('T6/FR4 — le remboursement partiel ne débite que sa part', async () => {
     const { admin, dispute, wallet: w } = await setup()
+
+    stripeRefunds.enabled = true // Stripe accepte le remboursement
 
     await refund(dispute.id, admin.id, {
       expectedUpdatedAt: dispute.updatedAt.toISOString(),

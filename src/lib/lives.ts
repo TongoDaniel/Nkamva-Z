@@ -29,6 +29,7 @@
 
 import type { LiveSessionStatus } from '@prisma/client'
 import { db } from './db'
+import { addMonthsUtc } from './months'
 import { audit, auditStandalone } from './audit'
 import { notify, deliverSideEffects } from './notification'
 import { presignDownload, deleteObject } from './s3'
@@ -42,6 +43,7 @@ import {
   isMuxConfigured, createLiveStream, disableLiveStream, playbackUrl, downloadUrl,
 } from './mux'
 import { userAvatarSrc } from './avatars'
+import { LIVE_NEVER_STARTED_CLOSE_HOURS, LIVE_SCHEDULE_HORIZON_DAYS, LIVE_SCHEDULE_PAST_TOLERANCE_MINUTES } from './rules'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts restent alignées. */
 const OPEN_STATUSES = ['ACTIVE', 'PAST_DUE', 'BANNED'] as const
@@ -174,6 +176,30 @@ export async function scheduleLiveSession(
   const title = input.title.trim()
   if (!title) throw new Error('TITLE_REQUIRED')
 
+  // La campagne du 12 octobre 2026 a programmé des séances dans le passé, en
+  // l'an 9999, et deux qui se chevauchaient pour le même animateur (m12).
+  const start = input.scheduledStartAt.getTime()
+  const now = Date.now()
+  if (Number.isNaN(start) || start < now - LIVE_SCHEDULE_PAST_TOLERANCE_MINUTES * 60_000) {
+    throw new Error('LIVE_START_IN_PAST')
+  }
+  if (start > now + LIVE_SCHEDULE_HORIZON_DAYS * 86_400_000) throw new Error('LIVE_START_TOO_FAR')
+
+  const durationMinutes = input.durationMinutes ?? 60
+  const end = start + durationMinutes * 60_000
+  // Une séance dure au plus huit heures (schéma de la route) : celles qui
+  // pourraient chevaucher commencent moins de huit heures avant celle-ci.
+  const neighbours = await db.liveSession.findMany({
+    where: {
+      trainerId: trainerProfileId,
+      status: { in: ['SCHEDULED', 'LIVE'] },
+      scheduledStartAt: { gte: new Date(start - 8 * 3_600_000), lt: new Date(end) },
+    },
+    select: { scheduledStartAt: true, durationMinutes: true },
+  })
+  const overlaps = neighbours.some((s) => s.scheduledStartAt.getTime() + s.durationMinutes * 60_000 > start)
+  if (overlaps) throw new Error('LIVE_OVERLAP')
+
   // Un fuseau invalide est **ignoré**, pas refusé : il ne décide de rien —
   // l'heure est en UTC — et faire échouer la programmation d'une séance parce
   // qu'un navigateur exotique annonce un identifiant inconnu serait perdre le
@@ -202,7 +228,7 @@ export async function scheduleLiveSession(
         description: input.description?.trim() || null,
         scheduledStartAt: input.scheduledStartAt,
         timeZone,
-        durationMinutes: input.durationMinutes ?? 60,
+        durationMinutes,
         roomName,
       },
       select: { id: true },
@@ -225,6 +251,38 @@ export async function scheduleLiveSession(
   )
 
   return session
+}
+
+/**
+ * Ferme les séances jamais lancées, une fois leur fin prévue dépassée de
+ * `LIVE_NEVER_STARTED_CLOSE_HOURS`. Deux séances de septembre étaient encore
+ * « programmées » en mars, dans l'agenda des membres comme dans celui de
+ * l'animateur (campagne du 12 octobre 2026, m12).
+ *
+ * Silencieuse : personne n'est prévenu d'une séance qui n'a pas eu lieu, ce
+ * serait annoncer après coup ce que chacun a constaté. La trace reste au
+ * journal.
+ */
+export async function closeNeverStartedSessions(now = new Date()): Promise<{ closed: number }> {
+  const stale = await db.liveSession.findMany({
+    where: { status: 'SCHEDULED', scheduledStartAt: { lt: now } },
+    select: { id: true, scheduledStartAt: true, durationMinutes: true },
+  })
+  const graceMs = LIVE_NEVER_STARTED_CLOSE_HOURS * 3_600_000
+  const ids = stale
+    .filter((s) => s.scheduledStartAt.getTime() + s.durationMinutes * 60_000 + graceMs < now.getTime())
+    .map((s) => s.id)
+  if (ids.length === 0) return { closed: 0 }
+
+  const { count } = await db.liveSession.updateMany({
+    where: { id: { in: ids }, status: 'SCHEDULED' },
+    data: { status: 'CANCELED' },
+  })
+  await auditStandalone({
+    actorId: null, actorRole: 'SYSTEM',
+    action: 'LIVE_SESSION_NEVER_STARTED', meta: { sessionIds: ids, closed: count },
+  })
+  return { closed: count }
 }
 
 export async function cancelLiveSession(sessionId: string, userId: string): Promise<void> {
@@ -358,8 +416,8 @@ async function finalizeLiveSession(
   // Arbitrage 34 — c'est la date du live qui fait foi. On date le replay du
   // **début** de la séance, pas de la fin de son encodage.
   const recordedAt = full.startedAt ?? endedAt
-  const purgeAt = new Date(recordedAt)
-  purgeAt.setMonth(purgeAt.getMonth() + REPLAY_RETENTION_MONTHS)
+  // En UTC et sans débordement (m18).
+  const purgeAt = addMonthsUtc(recordedAt, REPLAY_RETENTION_MONTHS)
 
   const outcome = await db.$transaction(async (tx) => {
     // Garde de course : seule la transaction qui fait réellement passer la
