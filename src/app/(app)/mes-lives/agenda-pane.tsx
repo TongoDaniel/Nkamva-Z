@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, PlayCircle, Radio, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, PlayCircle, Radio, X } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { EmptyState } from "@/components/nk/empty-state";
 import { LiveSessionRow, ReplayRow } from "@/components/nk/live-row";
@@ -266,6 +266,8 @@ export function AgendaPane({
   const [tab, setTab] = React.useState<Tab>(initialTab);
   const [origin, setOrigin] = React.useState<Origin>("all");
   const [day, setDay] = React.useState<string | null>(null);
+  // Sous `lg`, le calendrier se replie au-dessus de la liste (voir le rendu).
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
 
   // Le calendrier range des séances de plusieurs animateurs : il n'a pas de
   // fuseau d'animateur unique où se lire. Jusqu'à l'hydratation il prend donc
@@ -320,6 +322,10 @@ export function AgendaPane({
   );
 
   const pickDay = (key: string, mark: DayMark) => {
+    // Sur téléphone, le jour choisi referme le calendrier : la liste filtrée
+    // se lit juste en dessous, sans défiler. Sans effet au-dessus de `lg`, où
+    // le calendrier reste affiché dans sa colonne.
+    setCalendarOpen(false);
     if (activeDay === key) return setDay(null);
     setDay(key);
     // Bascule vers l'onglet qui a quelque chose à montrer ce jour-là : rester
@@ -335,6 +341,12 @@ export function AgendaPane({
     return longDay(y, m, d);
   }, [activeDay]);
 
+  // Sous `lg`, la colonne de droite se dissout (`contents`) dans la grille
+  // principale : le calendrier remonte au-dessus de la liste, replié derrière
+  // un bouton, et l'encart de rappel reste en fin de page. Le calendrier venait
+  // jusqu'ici **après** toute la liste — plusieurs écrans plus bas dans un
+  // agenda chargé — et un jour touché filtrait une liste hors de vue.
+  // Au-dessus de `lg`, rien ne change : deux colonnes, calendrier toujours ouvert.
   return (
     <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0">
@@ -426,14 +438,34 @@ export function AgendaPane({
         </div>
       </div>
 
-      <div className="grid gap-4">
-        <MonthGrid
-          marks={marks}
-          selected={activeDay}
-          onPick={pickDay}
-          showOrigins={isTrainer}
-          timeZone={timeZone}
-        />
+      <div className="contents lg:grid lg:gap-4">
+        <div className="order-first lg:order-none">
+          <button
+            type="button"
+            onClick={() => setCalendarOpen((open) => !open)}
+            aria-expanded={calendarOpen}
+            aria-controls="agenda-calendrier"
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-nk-lg border border-line bg-card px-4 py-3 text-left text-[14px] font-bold shadow-nk-sm lg:hidden"
+          >
+            <CalendarDays className="size-4.5 shrink-0 text-brand" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">
+              {calendarOpen ? "Masquer le calendrier" : dayLabel ? `Calendrier · ${dayLabel}` : "Choisir un jour"}
+            </span>
+            <ChevronDown
+              className={cn("size-4 shrink-0 text-ink-3 transition-transform", calendarOpen && "rotate-180")}
+              aria-hidden="true"
+            />
+          </button>
+          <div id="agenda-calendrier" className={cn(calendarOpen ? "mt-3" : "hidden", "lg:mt-0 lg:block")}>
+            <MonthGrid
+              marks={marks}
+              selected={activeDay}
+              onPick={pickDay}
+              showOrigins={isTrainer}
+              timeZone={timeZone}
+            />
+          </div>
+        </div>
         <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
           <span
             className="mb-3 grid size-10 place-items-center rounded-xl bg-gold-tint text-gold-ink"
