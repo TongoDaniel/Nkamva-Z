@@ -3,6 +3,7 @@
 // ==========================================================================
 
 import { db } from './db'
+import { searchAnyOf } from './search-text'
 
 export interface CatalogQuery {
   search?: string
@@ -43,12 +44,11 @@ export async function searchCourses(params: CatalogQuery) {
     circuit: 'MARKETPLACE',
   }
 
-  if (params.search) {
-    where.OR = [
-      { title: { contains: params.search, mode: 'insensitive' } },
-      { blurb: { contains: params.search, mode: 'insensitive' } },
-      { description: { contains: params.search, mode: 'insensitive' } },
-    ]
+  if (params.search?.trim()) {
+    // Jokers échappés, et la forme sans accents cherchée aussi (m6).
+    where.OR = searchAnyOf(params.search, (contains) => [
+      { title: contains }, { blurb: contains }, { description: contains },
+    ])
   }
   if (params.category) where.category = params.category
   if (params.format) where.format = params.format
