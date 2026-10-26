@@ -26,6 +26,7 @@ import { refreshCommunityActivity } from './community-space'
 import { purgeExpiredReplays, alertUpcomingReplayPurges, reconcileProcessingReplays } from './lives'
 import { noticeEndingGiftMemberships, noticeTariffSwitch } from './notices'
 import { purgeStaleInvitations } from './invitations'
+import { reconcileProviderStates } from './provider-reconciliation'
 
 export interface ScheduledJob {
   name: string
@@ -205,6 +206,15 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'REPLAY_RECONCILE',
     schedule: '*/10 * * * *',
     run: async () => ({ ...(await reconcileProcessingReplays()) }),
+  },
+  {
+    // M1 (campagne du 12 octobre 2026) — retraits, remboursements, règlements
+    // d'abonnement et achats dont le rappel du fournisseur s'est perdu. Sans ce
+    // job, ils restaient en attente pour toujours. Le quart d'heure est le
+    // délai laissé au rappel avant de s'en passer (`RECONCILE_AFTER_MS`).
+    name: 'PROVIDER_RECONCILE',
+    schedule: '*/15 * * * *',
+    run: async () => ({ ...(await reconcileProviderStates()) }),
   },
   {
     // Arbitrages 77 et 103 — les mois offerts se terminent à J-7 puis J-1. Le
