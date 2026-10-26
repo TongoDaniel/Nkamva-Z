@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push origin develop*)",
+      "Bash(git push origin main*)",
+      "Bash(gh pr merge*)",
+      "Bash(npx prisma migrate deploy*)",
+      "Bash(bunx prisma migrate deploy*)",
+      "Bash(npx prisma db push*)",
+      "Bash(bunx prisma db push*)",
+      "Bash(npx prisma migrate reset*)",
+      "Bash(npm run db:push*)",
+      "Bash(bun run db:push*)",
+      "Bash(npm run db:reset*)",
+      "Bash(bun run db:reset*)",
+      "Bash(npm run db:seed*)",
+      "Bash(bun run db:seed*)",
+      "Bash(bun prisma/seed.ts*)",
+      "Bash(git stash)",
+      "Bash(git stash push*)",
+      "Bash(git stash save*)",
+      "Bash(git stash pop*)",
+      "Bash(git stash apply*)",
+      "Bash(git stash drop*)",
+      "Bash(git stash clear*)",
+      "PowerShell(git push origin develop*)",
+      "PowerShell(git push origin main*)",
+      "PowerShell(gh pr merge*)",
+      "PowerShell(npx prisma migrate deploy*)",
+      "PowerShell(npx prisma db push*)",
+      "PowerShell(git stash)",
+      "PowerShell(git stash pop*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/garde-fous.mjs\"",
+            "shell": "bash",
+            "timeout": 15,
+            "onFailure": "block",
+            "statusMessage": "Garde-fous NKAMVA"
+          }
+        ]
+      }
+    ]
+  }
+}
