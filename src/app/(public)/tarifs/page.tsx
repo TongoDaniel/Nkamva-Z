@@ -4,14 +4,14 @@ import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
-import { fmtFcfa, fmtNumber } from "@/lib/format";
+import { fmtFcfa } from "@/lib/format";
 import {
   CONSUMPTION_THRESHOLD_LABEL,
   DISPUTE_OPENING_WINDOW_DAYS,
   PAYOUT_METHOD_CARENCE_HOURS,
   PAYOUT_MIN_AMOUNT_FCFA,
 } from "@/lib/rules";
-import { publicSubscriptionPlans, subscriptionAnnouncement } from "@/lib/pricing";
+import { publicPricingCopy, publicSubscriptionPlans, subscriptionAnnouncement } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 // La grille d'abonnement est datée et modifiable depuis l'administration : la
@@ -32,10 +32,9 @@ export const metadata: Metadata = {
  */
 export default async function TarifsPage() {
   const plans = await publicSubscriptionPlans();
-  const [monthly, yearly] = plans;
-  // Tant que la grille est à zéro — la gratuité de lancement en fait partie —
-  // publier ne coûte rien, et la page doit le dire dans ces termes-là.
-  const publishingIsFree = monthly.free && yearly.free;
+  // Chapeau, prix et note sont dérivés des montants en vigueur : la page ne
+  // peut plus dire « pas d'abonnement pour publier » au-dessus d'un tarif (M9).
+  const copy = publicPricingCopy(plans, COMMISSION_LABEL);
   const subscriptionSentence = subscriptionAnnouncement(plans);
 
   const PLANS = [
@@ -58,14 +57,8 @@ export default async function TarifsPage() {
     {
       name: "Formateur",
       description: "Pour publier votre savoir et en vivre.",
-      price: publishingIsFree
-        ? `${COMMISSION_LABEL} de commission`
-        : `${fmtNumber(monthly.amountFcfa)} FCFA/mois`,
-      note: publishingIsFree
-        ? `Prélevés sur chaque vente. ${monthly.tariffLabel ?? "Rien à payer d'avance."}`
-        : `Ou ${fmtNumber(yearly.amountFcfa)} FCFA/an${
-            yearly.savingPercent ? ` (−${yearly.savingPercent} %)` : ""
-          }, plus ${COMMISSION_LABEL} de commission sur chaque vente.`,
+      price: copy.trainerPrice,
+      note: copy.trainerNote,
       features: [
         "Publication de ressources illimitée",
         "Vous fixez librement vos prix, en FCFA",
@@ -107,7 +100,7 @@ export default async function TarifsPage() {
       <PageHead
         crumbs={[{ label: "Accueil", href: "/" }, { label: "Tarifs" }]}
         title="Des tarifs pensés pour l'Afrique"
-        lead="Payez en FCFA, par mobile money. Pas d'abonnement obligatoire, ni pour apprendre, ni pour publier."
+        lead={copy.lead}
       />
 
       <div className="mx-auto mt-6 grid max-w-[860px] gap-5 md:grid-cols-2">
