@@ -27,6 +27,7 @@ import { trainerStorage } from './courses'
 import { presignUpload, headObject, validateMagicNumber, deleteObject } from './s3'
 import { COVER_IMAGE_MAX_BYTES } from './rules'
 import type { CommunityVisibility } from '@prisma/client'
+import { TRAINER_ACCEPTS_MEMBERS_WHERE, trainerAcceptsMembers } from './trainers'
 import type { CourseListItem } from './dto'
 import type { PrismaTransaction } from './types'
 import { COMMUNITIES_PAGE_SIZE } from './search-limits'
@@ -83,6 +84,11 @@ export async function recountCommunityMembers(
 
 export interface PublicCommunity {
   id: string
+  /**
+   * Faux quand le formateur est suspendu (`trainerAcceptsMembers`) : la fiche
+   * reste lisible, mais on n'y adhère plus.
+   */
+  acceptsMembers: boolean
   slug: string
   name: string
   description: string | null
@@ -180,6 +186,10 @@ export async function listPublicCommunities(
     // publiques. `status` dit qu'elle vit, `visibility` dit qu'on peut la
     // trouver — les deux sont nécessaires.
     visibility: 'PUBLIC' as const,
+    // Décision 68, étendue à la communauté (M3) : ce qu'on ne peut plus
+    // rejoindre ne s'annonce plus dans l'annuaire. Ses membres la retrouvent
+    // dans « Mes communautés ».
+    trainerProfile: TRAINER_ACCEPTS_MEMBERS_WHERE,
     ...(options.excludeIds && options.excludeIds.length > 0
       ? { id: { notIn: [...options.excludeIds] } }
       : {}),
@@ -241,7 +251,7 @@ export async function getPublicCommunity(
       // ci-dessous, et n'a rien à faire dans la fiche publique.
       trainerProfile: {
         select: {
-          id: true, slogan: true, userId: true,
+          id: true, slogan: true, userId: true, subscriptionStatus: true, suspendedAt: true,
           user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
         },
       },
@@ -1141,6 +1151,8 @@ const SELECT_PUBLIC = {
       id: true,
       slogan: true,
       userId: true,
+      subscriptionStatus: true,
+      suspendedAt: true,
       user: { select: { fullName: true, avatarS3Key: true, avatarUrl: true } },
     },
   },
@@ -1163,6 +1175,7 @@ const COURSE_CARD = {
 function toPublic(c: any): PublicCommunity {
   return {
     id: c.id, slug: c.slug, name: c.name, description: c.description,
+    acceptsMembers: trainerAcceptsMembers(c.trainerProfile),
     priceFcfa: c.priceFcfa, membersCount: c.membersCount, visibility: c.visibility,
     coverS3Key: c.coverS3Key,
     forumEnabled: c.forumEnabled, eventsEnabled: c.eventsEnabled,

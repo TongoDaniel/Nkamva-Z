@@ -182,6 +182,7 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
               slug={slug}
               priceFcfa={community.priceFcfa}
               isOwner={isOwner}
+              acceptsMembers={community.acceptsMembers}
               membership={
                 membership
                   ? {
