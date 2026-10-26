@@ -175,7 +175,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
     minute: "2-digit",
     timeZone,
   }).format(room.startsAt);
-  const host = hostLabel(room.startsAt);
+  const hostTime = hostLabel(room.startsAt);
 
   const queue = room.participants.filter((p) => p.handPosition !== null);
   const host = room.participants.find((p) => p.isHost) ?? null;
@@ -456,7 +456,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                   un téléphone. Elle reste là où la place ne manque pas. */}
               <span className="hidden lg:inline"> · {dateLabel}</span>
             </p>
-            {host ? <p className="mt-0.5 truncate text-[13px] text-[#b9c9dd]">soit {host}</p> : null}
+            {hostTime ? <p className="mt-0.5 truncate text-[13px] text-[#b9c9dd]">soit {hostTime}</p> : null}
           </div>
           <Btn
             variant={TON === "clair" ? "o" : "gh"}
