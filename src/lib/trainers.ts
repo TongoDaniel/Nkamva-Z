@@ -35,6 +35,33 @@ export const PUBLIC_TRAINER_WHERE = {
 } satisfies Prisma.TrainerProfileWhereInput
 
 /**
+ * Un formateur suspendu — impayé d'abonnement, résiliation, ou sanction —
+ * n'accueille plus de nouveaux membres dans sa communauté. **Source unique** :
+ * l'annuaire, la recherche, la tendance, la fiche et le paiement la lisent ici.
+ *
+ * Décision 68 : les ressources d'un formateur suspendu sortent de la vente. Sa
+ * communauté, elle, restait à vendre : un apprenant a adhéré, payé et crédité le
+ * portefeuille d'une formatrice suspendue, alors que le message de suspension
+ * annonçait « Vos ressources ne sont plus en vente » (campagne du 12 octobre
+ * 2026, M3). Les membres déjà là gardent leur accès, comme un acheteur garde sa
+ * ressource : la lecture n'est jamais coupée.
+ */
+const TRAINER_CLOSED_STATUSES = ['SUSPENDED', 'CANCELED'] as const
+
+export const TRAINER_ACCEPTS_MEMBERS_WHERE = {
+  subscriptionStatus: { notIn: [...TRAINER_CLOSED_STATUSES] },
+  suspendedAt: null,
+} satisfies Prisma.TrainerProfileWhereInput
+
+export function trainerAcceptsMembers(trainer: {
+  subscriptionStatus: string
+  suspendedAt: Date | null
+}): boolean {
+  return !(TRAINER_CLOSED_STATUSES as readonly string[]).includes(trainer.subscriptionStatus)
+    && trainer.suspendedAt === null
+}
+
+/**
  * Le nombre **réel** d'apprenants de chaque formateur.
  * ==========================================================================
  * `TrainerProfile.studentsCount` n'était écrit que par le seed de démonstration :

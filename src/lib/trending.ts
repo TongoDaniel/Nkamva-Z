@@ -27,7 +27,7 @@ import type { Prisma } from '@prisma/client'
 import { db } from './db'
 import { COURSE_LIST_SELECT } from './catalog'
 import { AGENDA_SELECT, toAgenda, type AgendaSession } from './lives'
-import { countTrainerLearners, PUBLIC_TRAINER_WHERE } from './trainers'
+import { countTrainerLearners, PUBLIC_TRAINER_WHERE, TRAINER_ACCEPTS_MEMBERS_WHERE } from './trainers'
 import {
   COMMUNITY_VISUAL_SELECT,
   toCommunityVisual,
@@ -193,7 +193,8 @@ export async function trendingSessions(options: {
     status: 'active',
     visibility: 'PUBLIC',
     eventsEnabled: true,
-    trainerProfile: { userId: { not: options.viewerId } },
+    // M3 : on ne pousse pas vers une communauté où l'on ne peut plus entrer.
+    trainerProfile: { userId: { not: options.viewerId }, ...TRAINER_ACCEPTS_MEMBERS_WHERE },
     subscriptions: {
       none: { learnerId: options.viewerId, status: { in: [...OPEN_STATUSES] } },
     },
