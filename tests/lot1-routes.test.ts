@@ -49,7 +49,10 @@ describe('Lot 1 — Routes', () => {
   afterEach(async () => { await cleanDatabase(); vi.clearAllMocks() })
 
   async function setupActors() {
-    const candidate = await prisma.user.create({ data: { email: 'candidat@test.com', role: 'LEARNER' } })
+    // Adresse vérifiée : candidater l'exige (M6).
+    const candidate = await prisma.user.create({
+      data: { email: 'candidat@test.com', role: 'LEARNER', emailVerifiedAt: new Date() },
+    })
     const moderator = await prisma.user.create({
       data: { email: 'moderation@test.com', role: 'ADMIN', adminRole: 'MODERATION' },
     })

@@ -12,7 +12,7 @@ import { getPublicCommunity } from '@/lib/communities'
 import { getMembership } from '@/lib/memberships'
 import { presignDownload } from '@/lib/s3'
 import { getAuthContext } from '@/lib/api'
-import { fmtNumber } from '@/lib/format'
+import { fmtCount, fmtNumber } from '@/lib/format'
 import { routesOf, type Space } from '@/lib/spaces'
 import { MembershipPanel } from './membership-panel'
 
@@ -182,6 +182,7 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
               slug={slug}
               priceFcfa={community.priceFcfa}
               isOwner={isOwner}
+              acceptsMembers={community.acceptsMembers}
               membership={
                 membership
                   ? {
@@ -198,7 +199,7 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
             <ul className="mt-4 grid gap-2 border-t border-line-2 pt-4 text-[13.5px] text-ink-2">
               <li className="flex items-center gap-2">
                 <Users className="size-3.5 shrink-0 text-ink-3" aria-hidden="true" />
-                {fmtNumber(community.membersCount)} membres
+                {fmtCount(community.membersCount, "membre")}
               </li>
               {community.includedCount > 0 ? (
                 <li className="flex items-center gap-2">

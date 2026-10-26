@@ -103,15 +103,33 @@ describe("Cloisonnement de l'administration", () => {
     const { user: formateur, community } = await unFormateur('c')
     const admin = await unAdmin()
 
-    const { token } = await issueNominativeInvitation({
+    // Première porte, depuis m8 (campagne du 12 octobre 2026) : l'invitation
+    // n'est même plus émise vers un compte d'administration — elle partait,
+    // consommait le quota de gratuité, et ne pouvait jamais servir.
+    await expect(issueNominativeInvitation({
       communityId: community.id,
       issuerId: formateur.id,
       email: admin.email,
       grant: 'GIFT',
       giftMonths: 1,
-    })
+    })).rejects.toThrow('INVITEE_NOT_ELIGIBLE')
+    expect(await prisma.communityInvitation.count({ where: { communityId: community.id } })).toBe(0)
 
-    await expect(acceptGiftInvitation(token, admin.id))
+    // Seconde porte, toujours tenue : une invitation émise **avant** que la
+    // personne ne passe à l'administration ne s'accepte pas pour autant.
+    const futur = await prisma.user.create({
+      data: { email: 'futur-admin@test.com', role: 'LEARNER', emailVerifiedAt: new Date() },
+    })
+    const { token } = await issueNominativeInvitation({
+      communityId: community.id,
+      issuerId: formateur.id,
+      email: futur.email,
+      grant: 'GIFT',
+      giftMonths: 1,
+    })
+    await prisma.user.update({ where: { id: futur.id }, data: { role: 'ADMIN', adminRole: 'MODERATION' } })
+
+    await expect(acceptGiftInvitation(token, futur.id))
       .rejects.toThrow(ADMIN_CANNOT_ACT_AS_LEARNER)
 
     // L'invitation n'a pas été consommée : elle reste utilisable par quelqu'un

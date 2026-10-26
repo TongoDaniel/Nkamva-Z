@@ -4,7 +4,7 @@
 // d'où part le geste, et l'identifiant interne n'a pas à traverser le front.
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { success, error, requireAuth, requireLearner, parseBody, errorFromException } from '@/lib/api'
+import { success, error, requireAuth, requireLearner, requireVerifiedEmail, parseBody, errorFromException } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initiateMembershipPayment, cancelMembership, getMembership } from '@/lib/memberships'
 import { hashToken, resolveInvitationForTunnel } from '@/lib/invitations'
@@ -54,6 +54,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // ne peut pas adhérer n'a de toute façon aucune adhésion à lire ou résilier.
   const ctx = await requireLearner()
   if (ctx instanceof Response) return ctx
+  // M6 — on ne paie pas avec une adresse qu'on n'a pas prouvé contrôler.
+  const unverified = await requireVerifiedEmail(ctx.user.id)
+  if (unverified) return unverified
 
   const limit = checkRateLimit(
     getRateLimitIdentifier(ctx.user, request), 'membership-join',

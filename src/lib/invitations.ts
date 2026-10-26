@@ -38,13 +38,14 @@ import type {
   CommunityInvitation, CommunityVisibility, InvitationGrant, InvitationKind,
 } from '@prisma/client'
 import { db } from './db'
+import { addMonthsUtc } from './months'
 import { audit, auditStandalone } from './audit'
 import { notify, notifyWithEmail, deliverSideEffects, absoluteUrl, TRANSACTIONAL } from './notification'
 import { sendEmail, renderSimpleEmail } from './email'
 import { fmtFcfa } from './format'
-import { assertCanActAsLearner } from './roles'
+import { assertCanActAsLearner, canActAsLearner } from './roles'
 import { getSettingNumber } from './settings'
-import { recountCommunityMembers } from './communities'
+import { isBannedFromCommunity, recountCommunityMembers } from './communities'
 import type { PrismaTransaction } from './types'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts doivent rester alignées. */
@@ -217,10 +218,16 @@ export async function issueNominativeInvitation(params: IssueNominativeParams): 
   // `initiateMembershipPayment`, appliquée à l'adresse visée cette fois.
   const invitee = await db.user.findUnique({
     where: { email },
-    select: { id: true, deletedAt: true },
+    select: { id: true, deletedAt: true, role: true },
   })
   if (invitee && !invitee.deletedAt) {
     if (invitee.id === community.trainerUserId) throw new Error('CANNOT_JOIN_OWN_COMMUNITY')
+    // Un compte d'administration n'adhère à rien (`assertCanActAsLearner`) :
+    // l'invitation partait, consommait le quota de gratuité, et ne pouvait
+    // jamais servir (campagne du 12 octobre 2026, m8). Le refus reste
+    // générique : dire « c'est un administrateur » permettrait de dresser la
+    // liste des adresses de l'administration en essayant des invitations.
+    if (!canActAsLearner(invitee.role)) throw new Error('INVITEE_NOT_ELIGIBLE')
     const open = await db.communitySubscription.count({
       where: { communityId: community.id, learnerId: invitee.id, status: { in: [...OPEN_STATUSES] } },
     })
@@ -592,6 +599,9 @@ async function blockerFor(
   })
   if (subscription?.status === 'BANNED') return 'MEMBERSHIP_BANNED'
   if (subscription) return 'ALREADY_MEMBER'
+  // Une sanction survit à la fin de la période (M4) : une invitation n'est pas
+  // une façon de revenir par une autre porte.
+  if (await isBannedFromCommunity(invitation.communityId, viewerId)) return 'MEMBERSHIP_BANNED'
 
   return null
 }
@@ -709,8 +719,8 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
 
   const giftMonths = invitation.giftMonths ?? 1
   const periodStart = new Date()
-  const periodEnd = new Date(periodStart)
-  periodEnd.setMonth(periodEnd.getMonth() + giftMonths)
+  // En UTC et sans débordement, comme les périodes payées (m18).
+  const periodEnd = addMonthsUtc(periodStart, giftMonths)
 
   const result = await db.$transaction(async (tx) => {
     const consumed = await tx.communityInvitation.updateMany({

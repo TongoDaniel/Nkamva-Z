@@ -27,7 +27,7 @@ import { deliverSideEffects, notify } from './notification'
 import { restoreSuspendedCatalog } from './catalog-suspension'
 import { quotePrice } from './pricing'
 import { storageChargeFor } from './storage-tiers'
-import { periodEndFor } from './subscriptions'
+import { periodEndFor, periodRestartAfterSuspension } from './subscriptions'
 import { fmtNumber } from './format'
 
 /** Libellé porté sur le relevé du payeur. PawaPay le borne à 22 caractères. */
@@ -285,7 +285,7 @@ export async function settleSubscriptionPayment(
       select: {
         id: true, trainerId: true, providerStatus: true,
         amountFcfa: true, chargeIds: true,
-        trainerProfile: { select: { userId: true, subscriptionStatus: true } },
+        trainerProfile: { select: { userId: true, subscriptionStatus: true, subscriptionCurrentPeriodEnd: true } },
       },
     })
     if (!payment || payment.providerStatus !== 'PENDING') {
@@ -364,6 +364,8 @@ export async function settleSubscriptionPayment(
             subscriptionStatus: 'ACTIVE',
             subscriptionPastDueAt: null,
             suspendedReason: null,
+            // M2 — sortir d'une suspension ne facture pas les mois suspendus.
+            ...periodRestartAfterSuspension(payment.trainerProfile, paidAt),
           },
         })
       }
@@ -400,7 +402,7 @@ export async function settleSubscriptionPayment(
       body:
         `${fmtNumber(result.amountFcfa)} FCFA encaissés.` +
         (result.republished > 0
-          ? ` Vos ${result.republished} ressource(s) sont de retour au catalogue.`
+          ? ` ${result.republished > 1 ? `Vos ${result.republished} ressources sont de retour` : 'Votre ressource est de retour'} au catalogue.`
           : ''),
       link: '/formateur/abonnement',
     }),

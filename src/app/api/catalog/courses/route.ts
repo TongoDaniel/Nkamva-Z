@@ -1,6 +1,7 @@
 // Lot 4 — Catalogue public : liste des cours
 import { success, parsePagination } from '@/lib/api'
 import { searchCourses } from '@/lib/catalog'
+import { intParam } from '@/lib/search-text'
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
@@ -10,8 +11,10 @@ export async function GET(request: Request) {
     category: url.searchParams.get('category') || undefined,
     format: url.searchParams.get('format') || undefined,
     level: url.searchParams.get('level') || undefined,
-    minPrice: url.searchParams.get('minPrice') ? parseInt(url.searchParams.get('minPrice')!) : undefined,
-    maxPrice: url.searchParams.get('maxPrice') ? parseInt(url.searchParams.get('maxPrice')!) : undefined,
+    // Un prix illisible est ignoré : `parseInt('abc')` donnait NaN, et la
+    // requête rendait une erreur 500 (m6).
+    minPrice: intParam(url.searchParams.get('minPrice')),
+    maxPrice: intParam(url.searchParams.get('maxPrice')),
     sort: (url.searchParams.get('sort') || 'newest') as any,
     page,
     pageSize,

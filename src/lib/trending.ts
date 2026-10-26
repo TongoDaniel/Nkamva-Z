@@ -27,7 +27,7 @@ import type { Prisma } from '@prisma/client'
 import { db } from './db'
 import { COURSE_LIST_SELECT } from './catalog'
 import { AGENDA_SELECT, toAgenda, type AgendaSession } from './lives'
-import { countTrainerLearners, PUBLIC_TRAINER_WHERE } from './trainers'
+import { countTrainerLearners, PUBLIC_TRAINER_WHERE, TRAINER_ACCEPTS_MEMBERS_WHERE } from './trainers'
 import {
   COMMUNITY_VISUAL_SELECT,
   toCommunityVisual,
@@ -193,7 +193,8 @@ export async function trendingSessions(options: {
     status: 'active',
     visibility: 'PUBLIC',
     eventsEnabled: true,
-    trainerProfile: { userId: { not: options.viewerId } },
+    // M3 : on ne pousse pas vers une communauté où l'on ne peut plus entrer.
+    trainerProfile: { userId: { not: options.viewerId }, ...TRAINER_ACCEPTS_MEMBERS_WHERE },
     subscriptions: {
       none: { learnerId: options.viewerId, status: { in: [...OPEN_STATUSES] } },
     },
@@ -309,6 +310,12 @@ export async function trendingTrainers(options: {
   const visible: Prisma.TrainerProfileWhereInput = {
     AND: [
       PUBLIC_TRAINER_WHERE,
+      // Visible ne veut pas dire « à mettre en avant » : un formateur suspendu
+      // pour impayé, dont plus rien n'est en vente, apparaissait parmi les
+      // « Formateurs à découvrir » (campagne du 12 octobre 2026, m17). Sa fiche
+      // reste atteignable, l'accueil ne la pousse plus. Même règle que la
+      // fermeture de sa communauté aux nouveaux membres (M3) : source unique.
+      TRAINER_ACCEPTS_MEMBERS_WHERE,
       ...(options.viewerTrainerId ? [{ id: { not: options.viewerTrainerId } }] : []),
     ],
   }
