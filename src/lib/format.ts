@@ -7,6 +7,16 @@ export function fmtNumber(value: number): string {
   return new Intl.NumberFormat("fr-FR").format(value);
 }
 
+/**
+ * Un nombre et son nom, accordé : « 1 membre », « 3 membres », « 0 membre ».
+ * En français, zéro et un prennent le singulier. Remplace les « membres »
+ * accolés à 1 et les « ressource(s) » des notifications (campagne du
+ * 12 octobre 2026, m11).
+ */
+export function fmtCount(value: number, singular: string, pluralForm = `${singular}s`): string {
+  return `${fmtNumber(value)}${NBSP}${Math.abs(value) >= 2 ? pluralForm : singular}`;
+}
+
 /** Montant en FCFA. Les montants sont des entiers côté schéma (jamais de Float). */
 export function fmtFcfa(amountFcfa: number): string {
   return `${fmtNumber(amountFcfa)}${NBSP}FCFA`;

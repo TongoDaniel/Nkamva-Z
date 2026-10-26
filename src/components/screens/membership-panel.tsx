@@ -151,8 +151,18 @@ export function MembershipPanel({
           <>
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
             <span>
-              <b className="text-ink">Vous êtes membre.</b> Prochaine échéance le{" "}
-              {fmtDate(membership.periodEnd)}.
+              <b className="text-ink">Vous êtes membre.</b>{" "}
+              {/* Entre la fin du mois et le passage du renouvellement, la date
+                  est déjà passée : « Prochaine échéance le 4 octobre » le
+                  6 octobre se lisait comme une erreur (m19). */}
+              {new Date(membership.periodEnd).getTime() < Date.now() ? (
+                <>
+                  Votre mois s&apos;est terminé le {fmtDate(membership.periodEnd)} ; son
+                  renouvellement est en cours.
+                </>
+              ) : (
+                <>Prochaine échéance le {fmtDate(membership.periodEnd)}.</>
+              )}
             </span>
           </>
         )}
