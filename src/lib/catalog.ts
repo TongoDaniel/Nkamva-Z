@@ -4,6 +4,7 @@
 
 import { db } from './db'
 import { searchAnyOf } from './search-text'
+import { courseIdsMatching, idsBranch } from './search-unaccent'
 
 export interface CatalogQuery {
   search?: string
@@ -45,10 +46,14 @@ export async function searchCourses(params: CatalogQuery) {
   }
 
   if (params.search?.trim()) {
-    // Jokers échappés, et la forme sans accents cherchée aussi (m6).
-    where.OR = searchAnyOf(params.search, (contains) => [
-      { title: contains }, { blurb: contains }, { description: contains },
-    ])
+    // Jokers échappés, la forme sans accents cherchée aussi, et le texte stocké
+    // comparé sans ses accents : « robe » trouve « rôbe » (m6).
+    where.OR = [
+      ...searchAnyOf(params.search, (contains) => [
+        { title: contains }, { blurb: contains }, { description: contains },
+      ]),
+      ...idsBranch(await courseIdsMatching(params.search, ['title', 'blurb', 'description'])),
+    ]
   }
   if (params.category) where.category = params.category
   if (params.format) where.format = params.format
