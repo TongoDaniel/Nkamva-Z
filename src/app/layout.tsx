@@ -86,8 +86,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body className={`${bricolage.variable} ${instrument.variable}`}>
+    // Les variables de police vont sur `<html>`, pas sur `<body>`. Le bloc
+    // `@theme` de globals.css publie `--font-sans` et `--font-display` sur
+    // `:root` ; posées sur `<body>`, `--font-instrument` et `--font-bricolage`
+    // n'y existaient pas encore, la valeur devenait invalide, et tout le site
+    // s'affichait dans la police système, titres compris, sans qu'aucune
+    // erreur ne le signale.
+    <html lang="fr" className={`${bricolage.variable} ${instrument.variable}`} suppressHydrationWarning>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>
