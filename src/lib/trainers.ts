@@ -14,6 +14,7 @@
 
 import type { Prisma } from '@prisma/client'
 import { db } from './db'
+import { searchAnyOf } from './search-text'
 import { userAvatarSrc } from './avatars'
 
 /**
@@ -176,8 +177,8 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
     filter: search
       ? {
           OR: [
-            { user: { fullName: { contains: search, mode: 'insensitive' as const } } },
-            { slogan: { contains: search, mode: 'insensitive' as const } },
+            // Jokers échappés, et la forme sans accents cherchée aussi (m6).
+            ...searchAnyOf(search, (contains) => [{ user: { fullName: contains } }, { slogan: contains }]),
             { domains: { has: search } },
           ],
         }
