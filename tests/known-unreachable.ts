@@ -26,6 +26,19 @@ export interface KnownUnreachable {
 }
 
 export const KNOWN_UNREACHABLE: KnownUnreachable[] = [
+  // ── 0. Appelées, mais pas d'une façon que le balayeur sait lire ────────
+  // Ajoutées le 26 octobre 2026. Ce ne sont pas des dettes : la première est
+  // appelée de l'extérieur de l'application, la seconde par une adresse
+  // composée que le balayeur textuel ne reconstitue pas.
+  {
+    path: '/api/health',
+    reason: 'Sonde de supervision : appelée par le moniteur et le déploiement, jamais par l\'application.',
+  },
+  {
+    path: '/api/me/avatar/confirm',
+    reason: 'Appelée par AvatarPanel via `${endpoint}/confirm` : une adresse composée, que le balayeur ne lit pas.',
+  },
+
   // ── 1. Doublons de lecture ────────────────────────────────────────────
   // L'écran est un composant serveur : il appelle la fonction de `src/lib`
   // directement, sans passer par HTTP. La route rend la même chose pour un
