@@ -103,7 +103,7 @@ export function ReconcileButton({
         onOpenChange={setOpen}
         size="lg"
         title="Corriger un écart de solde"
-        description={`${trainerName} — ${FIELD_LABELS[field] ?? field}`}
+        description={`${trainerName} · ${FIELD_LABELS[field] ?? field}`}
       >
         <form onSubmit={submit}>
           <dl className="mb-5 flex flex-col gap-2.5 rounded-[14px] bg-paper px-4 py-3.5 text-[13.5px]">

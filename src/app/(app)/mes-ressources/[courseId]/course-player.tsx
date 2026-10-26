@@ -272,7 +272,7 @@ export function CoursePlayer({
             <h2 className="mb-2 text-lg font-extrabold">Ressource à télécharger</h2>
             <p className="mx-auto mb-6 max-w-[52ch] text-[14.5px] leading-relaxed text-ink-2">
               Ce format ne se lit pas dans le navigateur. Téléchargez-le, puis marquez-le comme
-              terminé quand vous en aurez fait le tour — c&apos;est vous qui posez ce repère, rien
+              terminé quand vous en aurez fait le tour. C&apos;est vous qui posez ce repère, rien
               ne peut le deviner à votre place.
             </p>
             <div className="flex flex-wrap justify-center gap-3">

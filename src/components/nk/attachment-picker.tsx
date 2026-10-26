@@ -91,7 +91,7 @@ export function AttachmentPicker({
     }
     for (const file of files) {
       if (!ALLOWED_MIMES.includes(file.type)) {
-        setError(`« ${file.name} » : formats acceptés — PNG, JPEG, WebP ou PDF.`);
+        setError(`« ${file.name} » : formats acceptés : PNG, JPEG, WebP ou PDF.`);
         return;
       }
       if (file.size > MAX_BYTES) {

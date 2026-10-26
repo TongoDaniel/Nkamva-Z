@@ -68,7 +68,7 @@ export function AvatarPanel({
       const { file, changed, originalBytes } = await shrinkAvatar(original);
       if (changed) {
         toast.info(
-          `Photo recadrée à ${AVATAR_SIZE} px — ${formatBytes(originalBytes)} → ${formatBytes(file.size)}.`,
+          `Photo recadrée à ${AVATAR_SIZE} px : ${formatBytes(originalBytes)} ramenés à ${formatBytes(file.size)}.`,
         );
       }
 

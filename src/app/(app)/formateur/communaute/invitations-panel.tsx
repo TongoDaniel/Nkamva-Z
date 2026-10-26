@@ -201,7 +201,7 @@ export function InvitationsPanel({
         await copy(
           data.url,
           data.emailed
-            ? "Invitation envoyée, et son lien copié — il ne sera plus affiché."
+            ? "Invitation envoyée, et son lien copié. Il ne sera plus affiché."
             : "Invitation créée, lien copié. L'e-mail n'est pas parti : transmettez-le vous-même.",
         );
         return fetchRows();

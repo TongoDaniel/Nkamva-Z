@@ -92,7 +92,7 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
             ) : (
               <>
                 À partir de {KYC_THRESHOLD_VERIFIED} points, vos retraits sont approuvés
-                automatiquement — hors délai de sécurité en cours sur un moyen de paiement
+                automatiquement, sauf délai de sécurité en cours sur un moyen de paiement
                 récent.
               </>
             )}

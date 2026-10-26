@@ -22,10 +22,10 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "NKAMVA — Prêt à apprendre ou à transmettre ?",
+    name: "NKAMVA · Prêt à apprendre ou à transmettre ?",
     short_name: "NKAMVA",
     description:
-      "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire — la ressource reste à vous, à vie.",
+      "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire : la ressource reste à vous, à vie.",
     start_url: "/accueil",
     scope: "/",
     display: "standalone",

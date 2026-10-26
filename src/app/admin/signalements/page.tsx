@@ -63,7 +63,7 @@ export default async function SignalementsPage({
     <>
       <AdminHead
         title="Signalements"
-        lead="Les plus anciens en premier. Retenir un signalement peut retirer la cible — une ressource sort du catalogue en gardant ses acheteurs, un message sort du fil en gardant sa ligne."
+        lead="Les plus anciens en premier. Retenir un signalement peut retirer la cible : une ressource sort du catalogue en gardant ses acheteurs, un message sort du fil en gardant sa ligne."
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -122,7 +122,7 @@ export default async function SignalementsPage({
                     </b>
                     <small className="block truncate text-[13px] text-ink-3">
                       Signalé par {name}
-                      {report.detail ? ` — ${report.detail}` : ""}
+                      {report.detail ? ` · ${report.detail}` : ""}
                     </small>
                   </div>
                   <StPill tone={state.tone}>{state.label}</StPill>

@@ -372,7 +372,7 @@ export async function settleActivationPayment(
       if (!user?.email) return
       await sendEmail({
         to: user.email,
-        subject: 'NKAMVA — Votre espace formateur est ouvert',
+        subject: 'NKAMVA · Votre espace formateur est ouvert',
         ...renderSimpleEmail({
           title: 'Votre espace formateur est ouvert',
           paragraphs: [
@@ -499,5 +499,5 @@ export async function promoteActivationCheckoutSession(sessionId: string): Promi
 
 /** Message affichable d'un montant d'activation, pour les écrans et les mails. */
 export function activationSummary(state: ActivationState): string {
-  return `${state.cadenceLabel} — ${fmtFcfa(state.amountFcfa)}`
+  return `${state.cadenceLabel} · ${fmtFcfa(state.amountFcfa)}`
 }

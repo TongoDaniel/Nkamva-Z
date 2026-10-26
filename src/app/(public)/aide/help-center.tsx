@@ -146,7 +146,7 @@ function buildGroups(subscription: string): HelpGroup[] {
         },
         {
           q: "J'ai oublié mon mot de passe, comment faire ?",
-          a: "Depuis l'écran de connexion, « Mot de passe oublié ». Un lien de réinitialisation vous est envoyé par email ; si l'adresse n'existe pas chez nous, l'écran affiche le même message — nous ne révélons pas quels emails ont un compte.",
+          a: "Depuis l'écran de connexion, « Mot de passe oublié ». Un lien de réinitialisation vous est envoyé par email ; si l'adresse n'existe pas chez nous, l'écran affiche le même message : nous ne révélons pas quels emails ont un compte.",
         },
         {
           q: "Comment récupérer mes données ?",

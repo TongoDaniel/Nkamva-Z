@@ -116,7 +116,7 @@ function audit(): Report {
       seen.add(key);
       report.ciblesPetites.push({
         quoi: (el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 24) || describe(el),
-        detail: `${Math.round(w)}×${Math.round(h)} — ${describe(el)}`,
+        detail: `${Math.round(w)}×${Math.round(h)} · ${describe(el)}`,
       });
     });
   report.ciblesPetites = report.ciblesPetites.slice(0, 10);
@@ -174,7 +174,7 @@ export function MobileAudit() {
             {ok ? "✓" : total}
           </span>
           <b className="flex-1 text-[13px]">
-            {report.page} — {report.largeur}px
+            {report.page} · {report.largeur}px
             <span className="block font-normal text-ink-2">
               {ok ? "aucun défaut" : `${total} point(s) à voir`}
             </span>
@@ -200,7 +200,7 @@ export function MobileAudit() {
               onClick={copier}
               className="min-h-11 rounded-full bg-ink px-4 text-[13px] font-semibold text-paper"
             >
-              {copie ? "Copié — collez-le dans la conversation" : "Copier le rapport"}
+              {copie ? "Copié, collez-le dans la conversation" : "Copier le rapport"}
             </button>
           </div>
         ) : null}

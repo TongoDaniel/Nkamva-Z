@@ -121,7 +121,7 @@ export async function applySanction(userId: string, input: SanctionInput) {
     })
     await sendEmail({
       to: user.email,
-      subject: `NKAMVA — ${LABELS[input.level]} de votre compte`,
+      subject: `NKAMVA · ${LABELS[input.level]} de votre compte`,
       html,
       text,
       tags: ['account-sanction'],

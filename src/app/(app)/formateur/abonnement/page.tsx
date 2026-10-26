@@ -134,7 +134,7 @@ export default async function AbonnementPage() {
           <b>Votre abonnement a pris fin.</b> Votre espace reste ouvert pour retirer votre solde,
           suivre vos litiges et consulter vos factures. Les personnes qui ont acheté vos ressources
           y accèdent toujours. Vous pouvez rouvrir votre espace à tout moment en réglant un nouvel
-          abonnement — sans repasser par une candidature.
+          abonnement, sans repasser par une candidature.
         </InfoBox>
       ) : null}
 

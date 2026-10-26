@@ -331,7 +331,7 @@ async function announceTariffChange(input: {
           link: '/formateur/portefeuille',
         },
         {
-          subject: `NKAMVA — ${title}`,
+          subject: `NKAMVA · ${title}`,
           title,
           paragraphs: [grid, deferral],
           cta: { label: 'Voir mon abonnement', url: absoluteUrl('/formateur/portefeuille') },

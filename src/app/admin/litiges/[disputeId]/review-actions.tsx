@@ -221,7 +221,7 @@ export function DisputeActions({
             onChange={(e) => setPartial(e.target.checked)}
             className="size-4 accent-brand"
           />
-          Remboursement partiel — total contesté : {fmtFcfa(disputedAmountFcfa)}
+          Remboursement partiel (total contesté : {fmtFcfa(disputedAmountFcfa)})
         </label>
 
         {partial ? (

@@ -17,7 +17,7 @@ export default function AppError({
   return (
     <ErrorPanel
       reset={reset}
-      description="Votre espace est momentanément indisponible. Réessayez dans un instant — vos achats et votre progression sont conservés."
+      description="Votre espace est momentanément indisponible. Réessayez dans un instant : vos achats et votre progression sont conservés."
     />
   );
 }
