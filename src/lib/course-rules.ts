@@ -15,6 +15,20 @@
 export const MIN_COURSE_PRICE_FCFA = 500
 
 /**
+ * Prix plafond. Sans lui, 2 147 483 648 FCFA dépassait l'entier de la colonne
+ * et rendait une erreur 500, et 2 147 483 647 FCFA était accepté (campagne du
+ * 12 octobre 2026, m3). ⚠️ Valeur provisoire, non arbitrée : elle borne
+ * l'absurde, elle ne fixe pas une politique de prix.
+ */
+export const MAX_COURSE_PRICE_FCFA = 10_000_000
+
+/**
+ * Les formats que le lecteur et la règle de consommation comprennent. Un
+ * format inventé (`"hologramme"`) n'imposait aucun type de fichier (m5).
+ */
+export const COURSE_FORMAT_VALUES = ['video', 'pdf', 'kit', 'notion', 'tableur'] as const
+
+/**
  * Où va une ressource. Miroir de l'enum `CourseCircuit` de Prisma, écrit ici en
  * littéraux : importer le type généré ferait entrer `@prisma/client` dans le
  * graphe du client.
