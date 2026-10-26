@@ -7,15 +7,15 @@ import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
 import { Faq } from "@/components/nk/faq";
+import { HelpAnswer } from "@/components/nk/help-answer";
 import { PayBand, PayChips, countriesLabel } from "@/components/nk/pay-band";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { Reveal } from "@/components/nk/reveal";
 import { ScrollCarousel } from "@/components/nk/scroll-carousel";
 import { Kicker, SectionHead } from "@/components/nk/section-head";
-import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { featuredCourses } from "@/lib/featured";
-import { payableMarkets, type PayableMarkets } from "@/lib/markets";
-import { CONSUMPTION_THRESHOLD_LABEL, DISPUTE_OPENING_WINDOW_DAYS } from "@/lib/rules";
+import { listHomepageFaq } from "@/lib/help-content";
+import { payableMarkets } from "@/lib/markets";
 
 // Le catalogue mis en avant reflète l'état réel de la base : rendu à la demande.
 export const dynamic = "force-dynamic";
@@ -107,66 +107,16 @@ const TRAINER_POINTS = [
   ],
 ];
 
-const faqItems = (markets: PayableMarkets) => [
-  {
-    question: "Quels moyens de paiement sont acceptés ?",
-    answer: (
-      <>
-        <p>
-          Le mobile money{markets.brands.length ? ` — ${markets.brands.join(", ")} — ` : " "}ainsi
-          que la carte bancaire. Les opérateurs proposés dépendent de votre pays.
-        </p>
-        {markets.countries.length ? (
-          <p>
-            NKAMVA encaisse aujourd&apos;hui au{" "}
-            {markets.countries.map((c) => c.name).join(", ")}.
-          </p>
-        ) : null}
-      </>
-    ),
-  },
-  {
-    question: "L'accès est-il vraiment à vie ?",
-    answer: (
-      <p>
-        Oui. Chaque ressource s&apos;achète une seule fois et reste dans votre espace « Mes achats » :
-        vous pouvez la consulter autant de fois que vous voulez, votre progression est conservée.
-      </p>
-    ),
-  },
-  {
-    question: "Quelle commission pour les formateurs ?",
-    answer: (
-      <p>
-        Vous fixez votre prix en FCFA ; NKAMVA prélève une commission de {COMMISSION_LABEL} sur
-        chaque vente — le formateur est crédité de {TRAINER_SHARE_LABEL} du prix payé. Le solde est
-        disponible en retrait mobile money depuis votre espace formateur.
-      </p>
-    ),
-  },
-  {
-    question: "Puis-je être remboursé ?",
-    answer: (
-      <p>
-        {/* Même règle que Tarifs et Aide. Ce paragraphe disait qu'un contenu
-            téléchargeable « passe en décision du support » : le code le refuse
-            dès qu'il a été téléchargé (`RESOURCE_DOWNLOADED`). */}
-        Une contestation est recevable jusqu&apos;au {DISPUTE_OPENING_WINDOW_DAYS}
-        <sup>e</sup> jour suivant l&apos;achat. Pour une ressource consultée en ligne, il faut en
-        avoir vu moins de {CONSUMPTION_THRESHOLD_LABEL} ; une ressource téléchargeable, une fois
-        téléchargée, ne peut plus être remboursée. Le détail de la procédure est décrit dans les{" "}
-        <Link href="/legal/conditions">conditions d&apos;utilisation</Link>.
-      </p>
-    ),
-  },
-];
 
 export default async function LandingPage() {
   // Les deux se lisent côté serveur : le catalogue en base, les marchés chez le
   // fournisseur de paiement (réponse mise en cache dix minutes).
-  const [{ courses, unavailable }, markets] = await Promise.all([
+  // La FAQ de l'accueil : les questions de l'aide cochées « accueil » dans
+  // /admin/aide, dans l'ordre de l'aide (`lib/help-content.ts`).
+  const [{ courses, unavailable }, markets, homepageFaq] = await Promise.all([
     featuredCourses(),
     payableMarkets(),
+    listHomepageFaq(),
   ]);
 
   return (
@@ -435,7 +385,17 @@ export default async function LandingPage() {
             />
           </Reveal>
           <Reveal>
-            <Faq id="accueil-faq" items={faqItems(markets)} />
+            <Faq
+              id="accueil-faq"
+              items={homepageFaq.map((item) => ({
+                question: item.question,
+                answer: (
+                  <p>
+                    <HelpAnswer segments={item.answer} />
+                  </p>
+                ),
+              }))}
+            />
           </Reveal>
         </div>
       </section>
