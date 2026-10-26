@@ -1,7 +1,9 @@
 // Lot 3 — Formateur : ses moyens de paiement (GET) / en ajouter un (POST, PM1)
 import { z } from 'zod'
 import { success, error, requireTrainer, parseBody, errorFromException } from '@/lib/api'
-import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
+import {
+  getRateLimitIdentifier, peekRateLimit, recordRateLimitHit, retryAfterLabel, RATE_LIMITS,
+} from '@/lib/rate-limit'
 import { createPayoutMethod, listMyPayoutMethods } from '@/lib/payout-methods'
 import { assertSecondFactorForPayout } from '@/lib/two-factor'
 
@@ -35,11 +37,21 @@ export async function POST(request: Request) {
   const ctx = await requireTrainer()
   if (ctx instanceof Response) return ctx
 
-  const limit = checkRateLimit(
-    getRateLimitIdentifier(ctx.user, request), 'PAYOUT_METHOD_CREATE',
-    RATE_LIMITS.PAYOUT_METHOD_CREATE.max, RATE_LIMITS.PAYOUT_METHOD_CREATE.windowMs,
-  )
-  if (!limit.allowed) return error('RATE_LIMITED', 'Trop de tentatives, réessayez plus tard', 429)
+  // Deux choses comptent dans ce plafond : un moyen réellement créé, et un code
+  // de second facteur faux. Le second est ce qui empêche de deviner le code par
+  // essais répétés ; une simple erreur de saisie, elle, ne compte plus. Avant,
+  // tout comptait — un refus « 2FA requise » compris — et trois maladresses
+  // bloquaient le formateur une journée (campagne du 12 octobre 2026, M7).
+  const counter = getRateLimitIdentifier(ctx.user, request)
+  const { max, windowMs } = RATE_LIMITS.PAYOUT_METHOD_CREATE
+  const limit = peekRateLimit(counter, 'PAYOUT_METHOD_CREATE', max, windowMs)
+  if (!limit.allowed) {
+    return error(
+      'RATE_LIMITED',
+      `Plafond atteint : ${max} tentatives par ${windowMs / 3_600_000} h. Réessayez ${retryAfterLabel(limit.retryAfter)}.`,
+      429,
+    )
+  }
 
   const parsed = await parseBody(request, CreateSchema)
   if (parsed instanceof Response) return parsed
@@ -48,10 +60,17 @@ export async function POST(request: Request) {
     // Avant toute écriture : un code valide, saisi maintenant. Vérifier
     // seulement que la protection *existe* ne servirait à rien — un attaquant
     // qui tient la session pourrait l'activer lui-même.
-    await assertSecondFactorForPayout(ctx.user.id, parsed.data.twoFactorCode)
+    try {
+      await assertSecondFactorForPayout(ctx.user.id, parsed.data.twoFactorCode)
+    } catch (err) {
+      if ((err as Error).message === 'TWO_FACTOR_INVALID_CODE') recordRateLimitHit(counter, 'PAYOUT_METHOD_CREATE', windowMs)
+      throw err
+    }
 
     const { twoFactorCode: _ignored, ...input } = parsed.data
-    return success(await createPayoutMethod(ctx.user.trainerId!, ctx.user.id, input), undefined, 201)
+    const method = await createPayoutMethod(ctx.user.trainerId!, ctx.user.id, input)
+    recordRateLimitHit(counter, 'PAYOUT_METHOD_CREATE', windowMs)
+    return success(method, undefined, 201)
   } catch (err) {
     return errorFromException(err)
   }
