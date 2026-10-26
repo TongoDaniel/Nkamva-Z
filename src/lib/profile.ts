@@ -359,17 +359,23 @@ export async function requestDeletion(
     if (disputesAsTrainer > 0) return { ok: false, reason: 'OPEN_DISPUTE' }
   }
 
-  const requestedAt = new Date()
-  await db.user.update({
-    where: { id: userId },
-    data: { deletionRequestedAt: requestedAt },
-  })
+  // Une demande déjà en cours garde sa date. La réécrire repoussait l'effacement
+  // de trente jours à chaque nouveau clic : la suppression n'arrivait jamais
+  // pour qui revenait vérifier (campagne du 12 octobre 2026, m16).
+  const pending = await db.user.findUnique({ where: { id: userId }, select: { deletionRequestedAt: true } })
+  const requestedAt = pending?.deletionRequestedAt ?? new Date()
+  if (!pending?.deletionRequestedAt) {
+    await db.user.update({
+      where: { id: userId },
+      data: { deletionRequestedAt: requestedAt },
+    })
 
-  await auditStandalone({
-    actorId: userId, actorRole: 'USER',
-    action: 'ACCOUNT_DELETION_REQUESTED', targetType: 'User', targetId: userId,
-    meta: { graceDays: DELETION_GRACE_DAYS },
-  })
+    await auditStandalone({
+      actorId: userId, actorRole: 'USER',
+      action: 'ACCOUNT_DELETION_REQUESTED', targetType: 'User', targetId: userId,
+      meta: { graceDays: DELETION_GRACE_DAYS },
+    })
+  }
 
   return {
     ok: true,
