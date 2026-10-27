@@ -199,8 +199,9 @@
   --secondary-foreground: #15211b;
   --muted: #eeeadf;
   --muted-foreground: #626e69;
-  --accent: var(--brand-tint);
-  --accent-foreground: var(--brand-dark);
+  /* Survol des composants génériques : neutre, jamais teinté (27 oct. 2026). */
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
   --destructive: #b3402e;
   --destructive-foreground: #ffffff;
   --border: #e4dfd2;
@@ -252,8 +253,9 @@
 
   /* Primitives shadcn/ui dérivées de l'accent. */
   --primary: var(--brand);
-  --accent: var(--brand-tint);
-  --accent-foreground: var(--brand-dark);
+  /* Survol des composants génériques : neutre, jamais teinté (27 oct. 2026). */
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
   --ring: var(--brand);
   /* `--chart-2` porte déjà le vert forêt sur `:root` : faire suivre `--chart-1`
      l'accent y collait deux rangs de la palette catégorielle sur la même
@@ -284,8 +286,9 @@
   --secondary-foreground: #f0eee6;
   --muted: #1e2a37;
   --muted-foreground: #a5b1bd;
-  --accent: var(--brand-tint);
-  --accent-foreground: var(--brand-dark);
+  /* Survol des composants génériques : neutre, jamais teinté (27 oct. 2026). */
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
   --destructive: #e07a66;
   --destructive-foreground: #170a07;
   --border: rgba(240, 238, 230, 0.12);
@@ -453,7 +456,7 @@
     --live-glass-fg: rgb(255 255 255 / 0.7);
     --live-glass-on: rgb(255 255 255 / 0.25);
     --live-glass-on-fg: #ffffff;
-    --live-alert-bg: rgb(179 64 46 / 0.15);
+    --live-alert-bg: rgb(255 255 255 / 0.06);
     --live-alert-fg: #ffd9d1;
   }
   .nk-live-clair {
@@ -475,9 +478,10 @@
     --live-btn-off-line: var(--color-line-2);
     --live-glass: rgb(255 255 255 / 0.9);
     --live-glass-fg: var(--color-ink-2);
-    --live-glass-on: var(--color-brand-tint);
+    /* Commande active : cerclée de la marque (bordure), sans aplat teinté. */
+    --live-glass-on: var(--color-card);
     --live-glass-on-fg: var(--color-brand);
-    --live-alert-bg: var(--color-danger-tint);
+    --live-alert-bg: var(--color-card);
     --live-alert-fg: var(--color-danger);
   }
 

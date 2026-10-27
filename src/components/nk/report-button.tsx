@@ -151,7 +151,7 @@ export function ReportButton({
           onClick={() => setOpen(true)}
           aria-label={label}
           className={cn(
-            "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-ink-3 transition hover:bg-danger-tint hover:text-danger",
+            "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-ink-3 transition hover:bg-paper hover:text-danger",
             className,
           )}
         >

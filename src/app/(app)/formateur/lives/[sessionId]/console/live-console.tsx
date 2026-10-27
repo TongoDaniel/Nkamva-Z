@@ -604,7 +604,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
               </p>
             ) : (
               <>
-                <p className="mb-3 rounded-nk-sm bg-brand-tint px-3 py-2 text-[13px] font-semibold text-brand-dark">
+                <p className="mb-3 rounded-nk-sm border border-line border-l-4 border-l-brand bg-card px-3 py-2 text-[13px] font-semibold text-brand-dark rounded-l-sm">
                   {requests.length} demande{requests.length > 1 ? "s" : ""}, de la plus ancienne à
                   la plus récente.
                 </p>
@@ -833,7 +833,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                             className={cn(
                               "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full transition [&_svg]:size-4",
                               p.screenAllowed
-                                ? "bg-brand-tint text-brand-dark hover:bg-brand-tint-2"
+                                ? "bg-paper text-ink ring-1 ring-brand hover:bg-paper"
                                 : "text-ink-3 hover:bg-paper hover:text-ink",
                               p.screenRequestedAt && !p.screenAllowed && "ring-2 ring-brand/40",
                             )}

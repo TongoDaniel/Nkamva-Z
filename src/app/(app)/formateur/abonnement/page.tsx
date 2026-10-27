@@ -113,7 +113,7 @@ export default async function AbonnementPage() {
       </section>
 
       {subscription.dueTotalFcfa > 0 && subscription.suspensionAt && !ended ? (
-        <InfoBox className="border border-gold/40 bg-gold-tint text-ink">
+        <InfoBox className="border border-line border-l-4 border-l-gold bg-card text-ink rounded-l-sm">
           <b>Votre abonnement est à régler : {fmtFcfa(subscription.dueTotalFcfa)}.</b> Sans
           règlement d&apos;ici au {fmtDate(subscription.suspensionAt)}, vos ressources sortiront du
           catalogue. Rien de ce qui a déjà été acheté n&apos;est touché.

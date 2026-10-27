@@ -51,7 +51,7 @@ export function LegalPage({
         </ul>
       </nav>
 
-      <p className="mx-auto mt-6 flex max-w-[760px] items-start gap-3 rounded-nk bg-gold-tint px-5 py-4 text-[13.5px] leading-relaxed text-gold-ink">
+      <p className="mx-auto mt-6 flex max-w-[760px] items-start gap-3 rounded-nk border border-line bg-card border-l-4 border-l-gold px-5 py-4 text-[13.5px] leading-relaxed text-gold-ink rounded-l-sm">
         <FileWarning className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <span>
           <b>Document en attente de relecture juridique.</b> Le contenu ci-dessous décrit

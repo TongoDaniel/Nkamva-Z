@@ -49,7 +49,7 @@ function Row({ item, onRead }: { item: NotificationItem; onRead: (id: string) =>
       <span
         className={cn(
           "grid size-10 shrink-0 place-items-center rounded-xl [&_svg]:size-[18px]",
-          unread ? "bg-brand-tint text-brand" : "bg-line-2 text-ink-3",
+          unread ? "border border-brand bg-card text-brand" : "border border-line bg-card text-ink-3",
         )}
         aria-hidden="true"
       >

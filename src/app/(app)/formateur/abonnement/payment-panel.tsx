@@ -201,7 +201,7 @@ export function PaymentPanel({
                   key={option.value}
                   className={cn(
                     "flex cursor-pointer items-center gap-3 rounded-nk-lg border px-4 py-3 transition",
-                    selected ? "border-brand bg-brand-tint" : "border-line hover:border-line-2",
+                    selected ? "border-brand ring-1 ring-brand" : "border-line hover:border-line-2",
                   )}
                 >
                   <input

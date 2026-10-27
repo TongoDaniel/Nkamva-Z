@@ -110,7 +110,7 @@ export default async function DisputeReviewPage({
       />
 
       {!withinPolicy ? (
-        <p className="mb-5 flex items-start gap-2.5 rounded-nk bg-gold-tint px-5 py-4 text-[13.5px] leading-relaxed text-gold-ink">
+        <p className="mb-5 flex items-start gap-2.5 rounded-nk border border-line bg-card border-l-4 border-l-gold px-5 py-4 text-[13.5px] leading-relaxed text-gold-ink rounded-l-sm">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
             Dossier hors barème :{" "}
@@ -125,7 +125,7 @@ export default async function DisputeReviewPage({
       ) : null}
 
       {withinPolicy && luEnLigne ? (
-        <p className="mb-5 flex items-start gap-2.5 rounded-nk bg-brand-tint px-5 py-4 text-[13.5px] leading-relaxed text-brand-dark">
+        <p className="mb-5 flex items-start gap-2.5 rounded-nk border border-line bg-card border-l-4 border-l-brand px-5 py-4 text-[13.5px] leading-relaxed text-brand-dark rounded-l-sm">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
             <b className="font-semibold">Document lu en ligne à {partLue} %</b> — page{" "}
@@ -364,7 +364,7 @@ export default async function DisputeReviewPage({
             ) : null}
 
             {dispute.overrideJustification ? (
-              <p className="mt-4 rounded-nk bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+              <p className="mt-4 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
                 <b>Dérogation au barème :</b> {dispute.overrideJustification}
               </p>
             ) : null}

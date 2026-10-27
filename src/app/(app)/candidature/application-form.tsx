@@ -179,7 +179,7 @@ export function ApplicationForm({
                 className={cn(
                   "cursor-pointer rounded-full border-[1.5px] px-4 py-2 text-[13.5px] font-semibold transition",
                   active
-                    ? "border-brand bg-brand-tint text-brand-dark"
+                    ? "border-brand text-brand-dark ring-1 ring-brand"
                     : "border-line bg-card text-ink-2 hover:border-ink-3",
                 )}
               >

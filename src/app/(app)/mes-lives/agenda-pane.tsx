@@ -132,7 +132,7 @@ function MonthGrid({
             <button
               type="button"
               onClick={() => setOffset(0)}
-              className="nk-tap cursor-pointer rounded-nk-sm px-2 py-1 text-[13px] font-bold text-brand hover:bg-brand-tint"
+              className="nk-tap cursor-pointer rounded-nk-sm px-2 py-1 text-[13px] font-bold text-brand hover:bg-paper"
             >
               Ce mois
             </button>
@@ -206,7 +206,7 @@ function MonthGrid({
                 "nk-tap relative grid min-h-[42px] cursor-pointer place-items-center rounded-nk-sm text-[13px] font-bold transition",
                 isSelected
                   ? "bg-ink text-paper"
-                  : "bg-brand-tint text-brand hover:bg-brand-tint-2",
+                  : "font-extrabold text-brand hover:bg-paper",
                 isToday && !isSelected && "ring-2 ring-ink",
               )}
             >
@@ -436,7 +436,7 @@ export function AgendaPane({
         />
         <section className="rounded-nk-lg border border-line bg-card p-5 shadow-nk-sm">
           <span
-            className="mb-3 grid size-10 place-items-center rounded-xl bg-gold-tint text-gold-ink"
+            className="mb-3 grid size-10 place-items-center rounded-xl border border-line bg-card text-gold-ink"
             aria-hidden="true"
           >
             <CalendarDays className="size-5" />

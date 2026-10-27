@@ -146,7 +146,7 @@ export function ConfirmationStatus({
       >
         {settled ? (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-brand-tint text-brand">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-brand">
               <CheckCircle2 className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement confirmé</h2>
@@ -181,7 +181,7 @@ export function ConfirmationStatus({
           </>
         ) : failed ? (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-danger-tint text-danger">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-danger">
               <XCircle className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement non abouti</h2>
@@ -214,7 +214,7 @@ export function ConfirmationStatus({
           </>
         ) : timedOut ? (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-gold-tint text-gold-ink">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-gold-ink">
               <Clock className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement toujours en attente</h2>
@@ -232,7 +232,7 @@ export function ConfirmationStatus({
           </>
         ) : (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-brand-tint text-brand">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-brand">
               <Loader2 className="size-8 animate-spin" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">

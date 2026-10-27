@@ -188,7 +188,7 @@ export default async function JournalAuditPage({
       />
 
       {invertedRange ? (
-        <p role="alert" className="mb-5 rounded-xl bg-gold-tint px-4 py-3 text-[13px] text-gold-ink">
+        <p role="alert" className="mb-5 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] text-gold-ink rounded-l-sm">
           La date de début est postérieure à la date de fin : aucune entrée ne peut tomber dans
           cet intervalle.
         </p>

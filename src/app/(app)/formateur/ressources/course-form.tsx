@@ -356,7 +356,7 @@ export function CourseForm({
                   key={option.value}
                   className={cn(
                     "flex cursor-pointer gap-3 rounded-xl border-[1.5px] p-3.5 transition",
-                    checked ? "border-brand bg-brand-tint/40" : "border-line bg-card",
+                    checked ? "border-brand ring-1 ring-brand" : "border-line bg-card",
                     (unavailable || circuitLocked) &&
                       "cursor-not-allowed opacity-60 hover:border-line",
                   )}

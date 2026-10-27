@@ -118,7 +118,7 @@ export function ReviewActions({
           l'ont été doivent pouvoir se terminer : le formateur peut encore
           saisir ses deux montants. */}
       {microDepositIssued ? (
-        <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+        <p className="mt-4 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
           <b className="font-extrabold">Des micro-virements sont en attente.</b> Virez les deux
           montants affichés, puis attendez que le formateur les confirme. On ne les retire pas une
           seconde fois : les nouveaux ne correspondraient plus à ce que vous avez envoyé. Ce mode de
@@ -302,7 +302,7 @@ export function ReviewActions({
                 key={option.value}
                 className={
                   escalationAction === option.value
-                    ? "cursor-pointer rounded-nk border-[1.5px] border-brand bg-brand-tint p-3.5"
+                    ? "cursor-pointer rounded-nk border-[1.5px] border-brand p-3.5 ring-1 ring-brand"
                     : "cursor-pointer rounded-nk border-[1.5px] border-line p-3.5 hover:border-brand/40"
                 }
               >

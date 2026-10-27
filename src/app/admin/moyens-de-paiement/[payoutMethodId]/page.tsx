@@ -158,7 +158,7 @@ export default async function MoyenDePaiementDetailPage({
             </dl>
 
             {comparison.businessIsSoleTrader ? (
-              <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+              <p className="mt-4 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
                 <b className="font-extrabold">La dénomination sociale est le nom du formateur.</b>{" "}
                 C&apos;est le cas d&apos;une entreprise individuelle : légitime, mais le compte
                 « de la société » est en pratique celui de la personne. Les documents doivent le

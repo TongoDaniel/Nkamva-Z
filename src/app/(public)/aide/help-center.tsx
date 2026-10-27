@@ -284,7 +284,7 @@ export function HelpCenter({
                 className="flex h-full w-full cursor-pointer items-start gap-3.5 rounded-nk border border-line bg-card p-4 text-left shadow-nk-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-brand-tint-2 hover:shadow-nk sm:block sm:p-5"
               >
                 <span
-                  className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-brand-tint text-brand [&_svg]:size-[21px] sm:mb-3.5"
+                  className="grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card text-brand [&_svg]:size-[21px] sm:mb-3.5"
                   aria-hidden="true"
                 >
                   {group.icon}
@@ -357,7 +357,7 @@ export function HelpCenter({
                           aria-hidden="true"
                           className={cn(
                             "grid size-[30px] flex-none place-items-center rounded-full transition-[transform,background-color] duration-300",
-                            isOpen ? "rotate-45 bg-brand-tint text-brand" : "bg-line-2 text-ink-2",
+                            isOpen ? "rotate-45 border border-brand bg-card text-brand" : "border border-line bg-card text-ink-2",
                           )}
                         >
                           <Plus className="size-[15px]" />
