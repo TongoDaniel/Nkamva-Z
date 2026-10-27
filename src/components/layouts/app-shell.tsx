@@ -99,7 +99,7 @@ function AccountMenu({
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex w-full cursor-pointer items-center gap-3 rounded-nk-sm px-3 py-2.5 text-left text-sm font-semibold text-danger outline-none hover:bg-danger-tint data-highlighted:bg-danger-tint"
+              className="flex w-full cursor-pointer items-center gap-3 rounded-nk-sm px-3 py-2.5 text-left text-sm font-semibold text-danger outline-none hover:bg-paper data-highlighted:bg-paper"
             >
               <LogOut className="size-[17px]" aria-hidden="true" />
               Se déconnecter

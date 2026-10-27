@@ -87,7 +87,7 @@ export function FileDrop({
         }}
         className={cn(
           "flex cursor-pointer items-center gap-3 rounded-xl border-[1.5px] border-dashed bg-card px-4 py-3.5 transition-colors",
-          dragging ? "border-brand bg-brand-tint/40" : "border-line hover:border-ink-3",
+          dragging ? "border-brand ring-1 ring-brand" : "border-line hover:border-ink-3",
           error && "border-danger",
           "focus-within:border-brand focus-within:shadow-[0_0_0_3px_var(--brand-shadow)]",
         )}
@@ -106,10 +106,10 @@ export function FileDrop({
           className={cn(
             "grid size-9 flex-none place-items-center rounded-[10px]",
             file
-              ? "bg-brand-tint text-brand"
+              ? "border border-line bg-card text-brand"
               : tone === "info"
-                ? "bg-info-tint text-info"
-                : "bg-brand-tint text-brand",
+                ? "border border-line bg-card text-info"
+                : "border border-line bg-card text-brand",
           )}
         >
           {file ? <FileCheck2 className="size-[18px]" /> : <Icon className="size-[18px]" />}

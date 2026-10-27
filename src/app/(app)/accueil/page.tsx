@@ -112,7 +112,7 @@ export default async function AccueilPage({
     erreur === "acces-refuse" ? (
       <p
         role="alert"
-        className="mb-6 rounded-nk border border-danger/30 bg-danger-tint px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger sm:mb-8"
+        className="mb-6 rounded-nk border border-line bg-card border-l-4 border-l-danger px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger sm:mb-8 rounded-l-sm"
       >
         Vous n&apos;avez pas les droits nécessaires pour accéder à cette page.
       </p>

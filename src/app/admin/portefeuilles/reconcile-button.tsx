@@ -124,7 +124,7 @@ export function ReconcileButton({
             </div>
           </dl>
 
-          <p className="mb-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+          <p className="mb-4 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
             La correction remplace la valeur stockée par la valeur recalculée. Elle ne crée ni
             vente ni retrait : elle ne fait qu&apos;aligner le solde sur ce que les
             réservations et les versements en cours établissent déjà.

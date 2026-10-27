@@ -133,7 +133,7 @@ export default async function InvitationPage({
               <>
                 <p
                   role="alert"
-                  className="mb-4 rounded-xl bg-gold-tint px-4 py-3 text-[14px] leading-relaxed text-gold-ink"
+                  className="mb-4 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[14px] leading-relaxed text-gold-ink rounded-l-sm"
                 >
                   {BLOCKERS[blocker]}
                 </p>

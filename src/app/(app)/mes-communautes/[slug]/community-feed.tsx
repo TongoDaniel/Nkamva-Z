@@ -65,7 +65,7 @@ export function CommunityFeed({
   const [rubrique, setRubrique] = React.useState(rubriques[0]?.value ?? "RESOURCES");
 
   const versGroupe = forumEnabled ? (
-    <p className="flex flex-wrap items-center justify-between gap-3 rounded-nk-lg border border-line bg-brand-tint/40 px-4 py-3 text-[13.5px] leading-relaxed text-ink-2">
+    <p className="flex flex-wrap items-center justify-between gap-3 rounded-nk-lg border border-line bg-card border-l-4 border-l-brand px-4 py-3 text-[13.5px] leading-relaxed text-ink-2 rounded-l-sm">
       <span className="flex items-start gap-2.5">
         <MessageSquare className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
         <span>

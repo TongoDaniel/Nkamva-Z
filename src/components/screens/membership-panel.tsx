@@ -90,7 +90,7 @@ export function MembershipPanel({
   if (membership.status === "PAST_DUE") {
     return (
       <div className="mt-4 grid gap-3">
-        <p className="flex items-start gap-2.5 rounded-nk-sm border border-line-2 bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+        <p className="flex items-start gap-2.5 rounded-nk-sm border border-line-2 bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-ink-2 rounded-l-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-gold-ink" aria-hidden="true" />
           <span>
             <b className="text-ink">Échéance à régler.</b> Votre adhésion prend fin le{" "}

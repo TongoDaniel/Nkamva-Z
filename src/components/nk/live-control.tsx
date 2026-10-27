@@ -81,7 +81,7 @@ export function LiveControlButton({
               : "cursor-pointer border-[var(--live-btn-line)] bg-[var(--live-btn)] text-[var(--live-fg)] hover:bg-[var(--live-btn-hover)]"
             : active
               ? "cursor-pointer border-[var(--live-btn-line)] bg-[var(--live-btn)] text-[var(--live-fg)] hover:bg-[var(--live-btn-hover)]"
-              : "cursor-pointer border-danger/40 bg-danger-tint text-danger hover:bg-danger/20",
+              : "cursor-pointer border-danger bg-card text-danger hover:bg-paper",
       )}
     >
       {children}

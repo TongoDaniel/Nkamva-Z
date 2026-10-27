@@ -89,7 +89,7 @@ export function VisibilityNotice({ visibility }: { visibility: TrainerVisibility
       className={
         step.tone === "bad"
           ? "mb-8 flex flex-wrap items-start gap-3.5 rounded-nk-lg border border-danger/30 bg-danger/5 px-5 py-4"
-          : "mb-8 flex flex-wrap items-start gap-3.5 rounded-nk-lg border border-gold/30 bg-gold-tint px-5 py-4"
+          : "mb-8 flex flex-wrap items-start gap-3.5 rounded-nk-lg border border-line bg-card border-l-4 border-l-gold px-5 py-4 rounded-l-sm"
       }
     >
       <span

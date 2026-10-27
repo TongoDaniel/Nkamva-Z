@@ -438,7 +438,7 @@ export function ConversationPane({
                   // de l'épingle reste blanche et une couture verticale coupe la
                   // ligne sélectionnée en deux.
                   "flex items-stretch border-b border-line-2 transition-colors",
-                  selected ? "bg-brand-tint/40" : "hover:bg-paper",
+                  selected ? "bg-paper" : "hover:bg-paper",
                 )}
               >
                 <button
@@ -454,7 +454,7 @@ export function ConversationPane({
                       c'est elle qui dit « plusieurs personnes ». */}
                   {isGroup ? (
                     <span
-                      className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-nk-sm bg-brand-tint text-brand"
+                      className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-nk-sm border border-line bg-card text-brand"
                       aria-hidden="true"
                     >
                       {conversation.avatarUrl ? (
@@ -480,7 +480,7 @@ export function ConversationPane({
                         // compris sur une pastille qu'on croit décorative — elle
                         // porte la seule distinction entre un groupe et une
                         // personne.
-                        <span className="hidden shrink-0 rounded-full bg-line-2 px-1.5 text-[13px] font-semibold text-ink-3 md:inline">
+                        <span className="hidden shrink-0 text-[13px] font-semibold text-ink-3 md:inline">
                           groupe
                         </span>
                       ) : null}
@@ -640,7 +640,7 @@ export function ConversationPane({
                             message.deleted
                               ? "border border-line bg-paper italic text-ink-3"
                               : message.announcement
-                                ? "rounded-bl-sm border-[1.5px] border-brand bg-brand-tint text-ink"
+                                ? "rounded-bl-sm border-[1.5px] border-brand bg-card text-ink"
                                 : message.mine
                                   ? "rounded-br-sm bg-brand text-white"
                                   : "rounded-bl-sm border border-line bg-card text-ink",

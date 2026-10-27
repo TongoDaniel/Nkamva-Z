@@ -29,8 +29,10 @@ export const btnVariants = cva(
         p: "bg-brand text-white hover:bg-brand-dark hover:-translate-y-px hover:shadow-brand",
         dark: "bg-ink text-paper hover:bg-black hover:text-white hover:-translate-y-px",
         o: "bg-card text-ink border-line hover:border-ink",
-        t: "bg-transparent text-brand hover:bg-brand-tint",
-        danger: "bg-danger-tint text-danger border-danger-tint hover:bg-danger hover:text-white hover:border-danger",
+        t: "bg-transparent text-brand hover:bg-paper",
+        // Cerclé de rouge, plein au survol seulement : le geste se confirme sans
+        // qu'un aplat rosé ne l'annonce à l'avance (bouton « danger » de Primer).
+        danger: "bg-card text-danger border-danger/50 hover:bg-danger hover:text-white hover:border-danger",
         // Les deux variantes ci-dessous ne vivent que sur fond navy (`.cta`).
         light: "bg-white text-navy hover:bg-paper hover:text-navy hover:-translate-y-px hover:shadow-[0_8px_24px_rgba(0,0,0,.3)]",
         gh: "bg-transparent text-white border-white/30 hover:border-white hover:text-white",

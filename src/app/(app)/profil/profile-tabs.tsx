@@ -32,7 +32,7 @@ export function ProfileTabs({
       {profile.deletionRequestedAt ? (
         <p
           role="status"
-          className="mb-6 mt-2 rounded-nk border border-danger/30 bg-danger-tint px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger"
+          className="mb-6 mt-2 rounded-nk border border-line bg-card border-l-4 border-l-danger px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger rounded-l-sm"
         >
           La suppression de ce compte est programmée. Vous pouvez encore l&apos;annuler depuis
           l&apos;onglet « Mes données ».

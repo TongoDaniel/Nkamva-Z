@@ -207,7 +207,7 @@ export default async function PortefeuillePage() {
           className={
             subscription.subscriptionStatus === "SUSPENDED"
               ? "border border-danger/30 bg-danger/5 text-ink"
-              : "border border-gold/40 bg-gold-tint text-ink"
+              : "border border-line border-l-4 border-l-gold bg-card text-ink rounded-l-sm"
           }
         >
           {subscription.subscriptionStatus === "SUSPENDED" ? (

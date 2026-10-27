@@ -35,7 +35,7 @@ export function EmptyState({
     >
       {icon ? (
         <div
-          className="mx-auto mb-3.5 grid size-12 place-items-center rounded-full bg-brand-tint text-brand [&_svg]:size-5 sm:mb-4 sm:size-16 sm:[&_svg]:size-7"
+          className="mx-auto mb-3.5 grid size-12 place-items-center rounded-full border border-line bg-card text-brand [&_svg]:size-5 sm:mb-4 sm:size-16 sm:[&_svg]:size-7"
           aria-hidden="true"
         >
           {icon}

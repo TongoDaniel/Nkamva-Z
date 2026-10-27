@@ -197,12 +197,13 @@ export function Tabs({
             {typeof item.count === "number" && item.count > 0 ? (
               <span
                 className={cn(
-                  "ml-1.5 rounded-full px-2 py-0.5 text-[13px] font-bold",
+                  // Un compteur est un nombre, pas une pastille.
+                  "ml-1.5 text-[13px] font-bold tabular-nums",
                   active && variant === "underline"
-                    ? "bg-brand-tint text-brand"
+                    ? "text-brand"
                     : active
-                      ? "bg-white/20 text-paper"
-                      : "bg-line-2 text-ink-2",
+                      ? "text-paper/80"
+                      : "text-ink-3",
                 )}
               >
                 {item.count}
