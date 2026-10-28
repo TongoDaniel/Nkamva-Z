@@ -501,10 +501,10 @@ export async function initiateMembershipPayment(
     select: { id: true },
   })
   if (settledMeanwhile) {
-    await db.purchase.updateMany({
-      where: { id: purchase.id, providerStatus: 'PENDING' },
-      data: { providerStatus: 'CANCELED' },
-    })
+    // Supprimée, pas annulée : jamais ouverte chez un fournisseur ni auditée,
+    // elle n'a rien à raconter. Annulée, elle s'afficherait dans l'historique
+    // de l'apprenant comme un paiement qu'il n'a jamais tenté.
+    await db.purchase.deleteMany({ where: { id: purchase.id, providerStatus: 'PENDING' } })
     return followWinningAttempt(learnerId, communityId, open ? 'DUE' : 'JOIN')
   }
 
