@@ -89,7 +89,7 @@ export default async function UtilisateursPage({
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <nav aria-label="Filtrer par rôle">
+        <nav aria-label="Filtrer par rôle" className="min-w-0 max-w-full">
           <ul className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-line bg-paper p-1">
             {TABS.map((t) => (
               <li key={t.value}>
