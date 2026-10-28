@@ -56,7 +56,7 @@ export default async function ContactPage() {
               Le centre d&apos;aide répond déjà aux questions les plus courantes sur l&apos;achat,
               l&apos;accès et les remboursements.
             </p>
-            <Link href="/aide" className="text-[13.5px] font-bold text-brand hover:text-brand-dark">
+            <Link href="/aide" className="nk-tap text-[13.5px] font-bold text-brand hover:text-brand-dark">
               Consulter le centre d&apos;aide →
             </Link>
           </section>
