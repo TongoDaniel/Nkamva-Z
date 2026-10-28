@@ -28,6 +28,7 @@ import { Tabs } from "@/components/nk/tabs";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
 import { useLiveRoom } from "@/hooks/use-live-room";
+import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { cn } from "@/lib/utils";
 import type { LiveRoomView } from "@/lib/lives";
 import { routesOf } from "@/lib/spaces";
@@ -162,13 +163,19 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
     );
   }
 
+  // Sans fuseau, le serveur écrivait la date dans le sien — UTC en production —
+  // et le navigateur dans celui du lecteur : deux textes pour le même nœud.
+  // Le premier rendu prend celui de l'animateur (`hooks/use-reader-time-zone.ts`).
+  const { timeZone, hostLabel } = useSessionTimeZone(room.timeZone);
   const dateLabel = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   }).format(room.startsAt);
+  const hostTime = hostLabel(room.startsAt);
 
   const queue = room.participants.filter((p) => p.handPosition !== null);
   const host = room.participants.find((p) => p.isHost) ?? null;
@@ -449,6 +456,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                   un téléphone. Elle reste là où la place ne manque pas. */}
               <span className="hidden lg:inline"> · {dateLabel}</span>
             </p>
+            {hostTime ? <p className="mt-0.5 truncate text-[13px] text-[#b9c9dd]">soit {hostTime}</p> : null}
           </div>
           <Btn
             variant={TON === "clair" ? "o" : "gh"}
