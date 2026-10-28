@@ -151,7 +151,7 @@ export function ReportButton({
           onClick={() => setOpen(true)}
           aria-label={label}
           className={cn(
-            "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-ink-3 transition hover:bg-paper hover:text-danger",
+            "nk-tap grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-ink-3 transition hover:bg-paper hover:text-danger",
             className,
           )}
         >
@@ -162,7 +162,7 @@ export function ReportButton({
           type="button"
           onClick={() => setOpen(true)}
           className={cn(
-            "inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-semibold text-ink-3 hover:text-danger",
+            "nk-tap inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-semibold text-ink-3 hover:text-danger",
             className,
           )}
         >

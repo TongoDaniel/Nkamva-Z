@@ -1501,6 +1501,15 @@ Raison : usage bureau, et l'audit ne relève **aucun débordement** sur ces écr
 ils sont utilisables, simplement pas optimisés. Les inclure ajouterait un lot XL
 pour un gain nul.
 > Conséquence : les tâches L3-23 à L3-25 du backlog sont retirées.
+>
+> **Révisée le 26 octobre 2026 — l'administration entre dans le périmètre.**
+> Décision du propriétaire, et la prémisse ne tenait plus : mesurés à 375 px, les
+> **24 écrans débordaient tous**, de 55 à 460 px. Une seule cause commune —
+> le conteneur de `AdminShell` était une rangée `flex`, et l'en-tête mobile se
+> posait à côté de `<main>` au lieu de dessus, ne lui laissant que 76 px. Corrigé
+> par `flex-col lg:flex-row`, plus deux écrans à contenu insécable
+> (`/admin/integrations`, `/admin/utilisateurs`). Le cliquet d'espacements de
+> `check:mobile` passe de 2 à 0.
 
 **110. Échelle de points de rupture : celle de Tailwind** — `sm` 640 · `md` 768 ·
 `lg` 1024 · `xl` 1280. Aucun seuil arbitraire nouveau. Table de migration des sept

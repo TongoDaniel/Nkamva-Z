@@ -603,6 +603,12 @@ export interface LiveRoomView {
   description: string | null
   status: LiveSessionStatus
   startsAt: Date
+  /**
+   * Fuseau de l'animateur (arbitrage 107) — nul si la séance a été programmée
+   * avant. La salle écrit la date de la séance : son premier rendu la place
+   * dans ce fuseau, comme la ligne d'agenda (`hooks/use-reader-time-zone.ts`).
+   */
+  timeZone: string | null
   durationMinutes: number
   startedAt: Date | null
   attendees: number
@@ -671,7 +677,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     where: { id: sessionId },
     select: {
       id: true, communityId: true, title: true, description: true, status: true,
-      scheduledStartAt: true, durationMinutes: true, startedAt: true, roomName: true,
+      scheduledStartAt: true, timeZone: true, durationMinutes: true, startedAt: true, roomName: true,
       community: {
         select: {
           name: true, slug: true,
@@ -791,6 +797,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     description: session.description,
     status: session.status,
     startsAt: session.scheduledStartAt,
+    timeZone: session.timeZone,
     durationMinutes: session.durationMinutes,
     startedAt: session.startedAt,
     attendees: participants.length,

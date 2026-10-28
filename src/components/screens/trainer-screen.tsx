@@ -91,7 +91,7 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
                   href={trainer.websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  className="mt-3 inline-block text-[13.5px] font-bold text-brand hover:text-brand-dark"
+                  className="nk-tap mt-3 inline-block text-[13.5px] font-bold text-brand hover:text-brand-dark"
                 >
                   Site web
                 </a>

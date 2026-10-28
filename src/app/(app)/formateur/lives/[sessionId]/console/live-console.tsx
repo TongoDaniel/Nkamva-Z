@@ -32,6 +32,7 @@ import { Tabs } from "@/components/nk/tabs";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
 import { useLiveRoom } from "@/hooks/use-live-room";
+import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { cn } from "@/lib/utils";
 import type { LiveRoomView } from "@/lib/lives";
 
@@ -221,12 +222,17 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
     act("message", { action: "message", body: text }, undefined, () => setDraft(""));
   }
 
+  // Même défaut que la salle du participant : sans fuseau, le serveur écrivait
+  // la date dans le sien. L'animateur lit ici sa propre séance, le rappel de son
+  // fuseau ne lui apprendrait rien.
+  const { timeZone } = useSessionTimeZone(room.timeZone);
   const dateLabel = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   }).format(room.startsAt);
 
   // Les deux règles de la console (arbitrages 40 et 42), lues au ⓘ — dans la

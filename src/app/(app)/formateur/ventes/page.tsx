@@ -92,7 +92,7 @@ export default async function MesVentesPage({
           <div className="min-w-0">
             <b className="block truncate text-sm font-bold">
               {row.subject.kind === "COURSE" ? (
-                <Link href={routes.course(row.subject.slug)} className="text-ink hover:text-brand">
+                <Link href={routes.course(row.subject.slug)} className="nk-tap text-ink hover:text-brand">
                   {row.subject.title}
                 </Link>
               ) : row.subject.kind === "COMMUNITY" ? (
