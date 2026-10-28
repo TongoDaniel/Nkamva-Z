@@ -38,6 +38,12 @@ jobs:
       - name: Vérifier les types
         run: bunx tsc --noEmit
 
+      # Le build de production, tel que l'image Docker le lance : sans `.env`,
+      # et arrêté par une erreur de typage (finding 11). Sans ce pas, un build
+      # cassé ne se voyait qu'au déploiement de develop.
+      - name: Build de production
+        run: bun run build
+
   # ---------------------------------------------------------------------------
   # Tests : vitest sur une vraie base Postgres jetable. Les migrations la
   # construisent entièrement (jamais `db push`). Aucune clé de service n'est
