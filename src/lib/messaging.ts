@@ -805,8 +805,8 @@ export async function sendMessage(
           },
           {
             subject: announcement
-              ? `NKAMVA — annonce dans ${conversation.community.name}`
-              : `NKAMVA — nouveau message dans ${conversation.community.name}`,
+              ? `NKAMVA · annonce dans ${conversation.community.name}`
+              : `NKAMVA · nouveau message dans ${conversation.community.name}`,
             title: announcement ? 'Une annonce vous attend' : 'Vous avez reçu un message',
             paragraphs: [
               'Bonjour,',

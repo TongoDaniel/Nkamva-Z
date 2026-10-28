@@ -128,7 +128,7 @@ export function ReviewActions({
 
       {instructible && type === "BANK_IBAN" && !microDepositIssued ? (
         <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
-          Un compte bancaire se vérifie <b className="font-bold text-ink-2">sur pièce</b> — RIB au
+          Un compte bancaire se vérifie <b className="font-bold text-ink-2">sur pièce</b> : RIB au
           nom du titulaire, comparé au nom légal vérifié. Le micro-virement a été abandonné : aucun
           service ne permet de l&apos;émettre automatiquement dans la zone.
         </p>
@@ -201,7 +201,7 @@ export function ReviewActions({
       <Modal
         open={dialog === "reject"}
         onOpenChange={(open) => setDialog(open ? "reject" : null)}
-        title={lastChance ? "Refuser — et bloquer le formateur ?" : "Refuser ce moyen de paiement ?"}
+        title={lastChance ? "Refuser, et bloquer le formateur ?" : "Refuser ce moyen de paiement ?"}
         description={
           lastChance
             ? `Ce sera le ${maxRejections}e refus : la vérification sera suspendue et le dossier confié à un Super-admin.`
@@ -243,7 +243,7 @@ export function ReviewActions({
           className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
         />
         <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
-          Décision 30 — jamais un rejet opaque. Dites ce qui ne correspond pas, sans recopier le
+          Décision 30 : jamais un rejet opaque. Dites ce qui ne correspond pas, sans recopier le
           nom légal vérifié dans le message.
         </p>
       </Modal>

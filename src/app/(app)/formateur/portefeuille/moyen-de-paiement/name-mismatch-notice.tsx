@@ -37,8 +37,8 @@ export function NameMismatchNotice({ reason }: { reason?: string | null }) {
       </ul>
       <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
         Aucune autre situation n&apos;est acceptée, quel que soit le lien avec le titulaire.
-        Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur — un nom d&apos;usage, une
-        transcription différente —{" "}
+        Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur (un nom d&apos;usage, une
+        transcription différente),{" "}
         <Link href="/contact" className="font-bold text-brand">
           contactez le support
         </Link>

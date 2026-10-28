@@ -153,7 +153,7 @@ function SessionsSalon({
         description={
           isTrainer
             ? "Les séances que vous programmez pour cette communauté s'afficheront ici, et leurs enregistrements à leur suite."
-            : "Quand l'animateur programmera une séance, elle apparaîtra ici — et son replay y restera ensuite."
+            : "Quand l'animateur programmera une séance, elle apparaîtra ici, et son replay y restera ensuite."
         }
         action={isTrainer ? <ScheduleLive communities={[community]} inCommunity /> : null}
       />

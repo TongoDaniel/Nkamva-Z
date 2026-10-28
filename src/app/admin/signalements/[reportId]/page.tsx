@@ -59,7 +59,7 @@ export default async function SignalementDetailPage({
   return (
     <>
       <AdminHead
-        title={`${TARGET_LABELS[report.targetType] ?? report.targetType} — ${
+        title={`${TARGET_LABELS[report.targetType] ?? report.targetType} · ${
           REASON_LABELS[report.reason] ?? report.reason
         }`}
         lead={<>Signalé le {fmtDate(report.createdAt)} par {reporterName}</>}

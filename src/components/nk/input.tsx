@@ -307,7 +307,7 @@ export function OtpInput({
   return (
     <div role="group" aria-labelledby={`${groupId}-label`} aria-describedby={error ? `${groupId}-error` : undefined}>
       <span id={`${groupId}-label`} className="sr-only">
-        {label} — {length} chiffres
+        {label}, {length} chiffres
       </span>
       <div className="my-1 flex justify-center gap-2.5">
         {Array.from({ length }).map((_, i) => (

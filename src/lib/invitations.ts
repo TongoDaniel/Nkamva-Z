@@ -788,12 +788,12 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
         link: lienMembre,
       },
       {
-        subject: `NKAMVA — bienvenue dans ${invitation.community.name}`,
+        subject: `NKAMVA · bienvenue dans ${invitation.community.name}`,
         title: `Bienvenue dans ${invitation.community.name}`,
         paragraphs: [
           'Bonjour,',
           `Votre invitation est acceptée : ${giftMonths} mois vous sont offerts, jusqu'au ${terme}.`,
-          "Rien ne vous sera prélevé — une adhésion offerte ne se reconduit pas d'elle-même. Vous serez prévenu avant son terme.",
+          "Rien ne vous sera prélevé : une adhésion offerte ne se reconduit pas d'elle-même. Vous serez prévenu avant son terme.",
         ],
         cta: { label: 'Ouvrir la communauté', url: absoluteUrl(lienMembre) },
       },
@@ -817,7 +817,7 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
         link: lien,
       },
       {
-        subject: `NKAMVA — votre invitation à ${invitation.community.name} a été acceptée`,
+        subject: `NKAMVA · votre invitation à ${invitation.community.name} a été acceptée`,
         title: 'Votre invitation a été acceptée',
         paragraphs: ['Bonjour,', qui, `Communauté : ${invitation.community.name}.`],
         cta: { label: 'Voir mes invitations', url: absoluteUrl(lien) },

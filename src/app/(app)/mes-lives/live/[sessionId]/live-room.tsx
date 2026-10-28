@@ -265,7 +265,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
             micLocked
               ? "Micro coupé par l'animateur"
               : offStage
-                ? "Scène complète — levez la main"
+                ? "Scène complète : levez la main"
                 : transport.micEnabled
                   ? "Couper le micro"
                   : "Activer le micro"
@@ -279,7 +279,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
           disabled={micUnavailable || !transport.connected}
           label={
             offStage
-              ? "Scène complète — levez la main"
+              ? "Scène complète : levez la main"
               : transport.camEnabled
                 ? "Couper la caméra"
                 : "Activer la caméra"
@@ -305,7 +305,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
             disabled={!transport.connected || !transport.screenShareSupported}
             label={
               !transport.screenShareSupported
-                ? "Partage d'écran indisponible sur ce navigateur — rejoignez depuis un ordinateur"
+                ? "Partage d'écran indisponible sur ce navigateur : rejoignez depuis un ordinateur"
                 : transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran"
             }
             onClick={() => void transport.setScreen(!transport.screenEnabled)}
@@ -386,7 +386,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
         </p>
       ) : offStage ? (
         <p className="border-t border-[var(--live-line)] px-5 py-3 text-center text-[13px] text-[var(--live-muted)]">
-          La scène est complète — {room.stage.taken} personnes sur {room.stage.capacity} y
+          La scène est complète : {room.stage.taken} personnes sur {room.stage.capacity} y
           prennent la parole. Levez la main : l&apos;animateur vous la donnera dès qu&apos;une
           place se libère.
         </p>
@@ -687,7 +687,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                       {p.handPosition ? (
                         <span className="sr-only">
                           {" "}
-                          — position {p.handPosition} dans la file de parole
+                          , position {p.handPosition} dans la file de parole
                         </span>
                       ) : null}
                     </span>

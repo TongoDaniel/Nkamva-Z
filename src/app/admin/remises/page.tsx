@@ -127,7 +127,7 @@ export default async function RemisesPage() {
 
             <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
               Cumul : <b className="font-bold text-ink-2">la plus favorable l&apos;emporte</b>{" "}
-              (arbitrage 65). Trois remises ne s&apos;empilent pas — l&apos;addition mènerait un
+              (arbitrage 65). Trois remises ne s&apos;empilent pas : l&apos;addition mènerait un
               abonnement à zéro sans que personne l&apos;ait décidé.
             </p>
           </>

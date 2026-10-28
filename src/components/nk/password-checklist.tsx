@@ -31,7 +31,7 @@ export function PasswordChecklist({ value, className }: { value: string; classNa
             )}
             <span>
               {rule.label}
-              <span className="sr-only">{ok ? " — satisfait" : " — pas encore satisfait"}</span>
+              <span className="sr-only">{ok ? ", satisfait" : ", pas encore satisfait"}</span>
             </span>
           </li>
         );

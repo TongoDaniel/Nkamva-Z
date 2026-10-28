@@ -86,7 +86,7 @@ export default async function RetraitDetailPage({
           <div className="min-w-0 flex-1">
             <b className="block text-[14.5px] font-extrabold text-ink">Premier retrait</b>
             <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
-              Décision 25 — le premier retrait passe toujours en revue manuelle, quel que soit le
+              Décision 25 : le premier retrait passe toujours en revue manuelle, quel que soit le
               score. L&apos;auto-approbation à partir de {KYC_THRESHOLD_VERIFIED} points ne
               s&apos;applique qu&apos;aux suivants.
             </p>
@@ -125,7 +125,7 @@ export default async function RetraitDetailPage({
 
             {withdrawable < 0 ? (
               <p className="mt-4 rounded-xl bg-danger/5 px-4 py-3 text-[13px] leading-relaxed text-ink">
-                <b className="font-extrabold">Le solde retirable est négatif.</b> Décision 13 — un
+                <b className="font-extrabold">Le solde retirable est négatif.</b> Décision 13 : un
                 remboursement a été prélevé sur un solde déjà engagé. Aucune approbation
                 n&apos;est possible tant qu&apos;il n&apos;est pas revenu au-dessus de zéro ; les
                 ventes suivantes l&apos;apurent.
@@ -175,7 +175,7 @@ export default async function RetraitDetailPage({
               {payout.carenceHolds ? (
                 <Row label="Délai de sécurité">
                   <span className="font-bold text-gold-ink">
-                    En cours au moment de la demande — l&apos;auto-approbation était exclue.
+                    En cours au moment de la demande : l&apos;auto-approbation était exclue.
                   </span>
                 </Row>
               ) : null}

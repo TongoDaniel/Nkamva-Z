@@ -635,7 +635,7 @@ export function TrainerSignupWizard({
               />
               <InfoBox>
                 Ces documents servent uniquement à vérifier votre identité et votre expertise avant
-                validation de votre candidature — ils ne sont jamais visibles publiquement. Aucune
+                validation de votre candidature : ils ne sont jamais visibles publiquement. Aucune
                 coordonnée bancaire ne vous est demandée ici : elle ne servira qu&apos;au moment de
                 votre premier retrait.
               </InfoBox>

@@ -39,14 +39,14 @@ export default async function TauxDeChangePage() {
       <AdminCard title="Zone franc">
         <p className="text-[13.5px] leading-relaxed text-ink-2">
           Le franc CFA d&apos;Afrique centrale (XAF) et celui de l&apos;Ouest (XOF) sont à parité
-          fixe : <b>1 XAF = 1 XOF</b>. Ces pays — Cameroun, Congo, Gabon, Côte d&apos;Ivoire,
-          Sénégal, Bénin, Burkina Faso — encaissent le montant affiché, sans conversion et sans
+          fixe : <b>1 XAF = 1 XOF</b>. Ces pays (Cameroun, Congo, Gabon, Côte d&apos;Ivoire,
+          Sénégal, Bénin, Burkina Faso) encaissent le montant affiché, sans conversion et sans
           taux à administrer. Ils n&apos;apparaissent donc pas ci-dessous.
         </p>
       </AdminCard>
 
       <AdminCard
-        title={`Autres devises — ${open} ouverte${open > 1 ? "s" : ""} sur ${coverage.length}`}
+        title={`Autres devises : ${open} ouverte${open > 1 ? "s" : ""} sur ${coverage.length}`}
       >
         {coverage.length === 0 ? (
           <p className="text-[13.5px] text-ink-2">

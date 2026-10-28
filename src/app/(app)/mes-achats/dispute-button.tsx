@@ -186,7 +186,7 @@ export function DisputeButton({
             <p id="dispute-detail-hint" className="mb-4.5 mt-1.5 text-[13px] text-ink-3">
               {detail.trim().length < MIN_DETAIL
                 ? `Encore ${MIN_DETAIL - detail.trim().length} caractères.`
-                : "Ce texte n'est lu que par vous et par le support — jamais par le formateur."}
+                : "Ce texte n'est lu que par vous et par le support, jamais par le formateur."}
             </p>
 
             {/* Une capture vaut souvent le paragraphe qu'on vient de demander :

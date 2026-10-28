@@ -118,7 +118,7 @@ export function ReplayPlayer({
               <div className="w-full px-6">
                 <p className="text-[13.5px] font-bold text-white">Version audio seule</p>
                 <p className="mt-1 text-[13px] text-[#b9c9dd]">
-                  L&apos;image n&apos;est pas chargée — seule la parole l&apos;est.
+                  L&apos;image n&apos;est pas chargée, seule la parole l&apos;est.
                 </p>
               </div>
             ) : null}
