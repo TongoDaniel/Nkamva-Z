@@ -212,7 +212,7 @@ export function DisputeActions({
         <label
           className={cn(
             "mb-4 flex cursor-pointer items-center gap-3 rounded-nk border-[1.5px] px-4 py-3 text-[14px]",
-            partial ? "border-brand bg-brand-tint" : "border-line",
+            partial ? "border-brand ring-1 ring-brand" : "border-line",
           )}
         >
           <input
@@ -255,7 +255,7 @@ export function DisputeActions({
 
         {overrideNeeded ? (
           <>
-            <p className="mb-2 rounded-nk bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+            <p className="mb-2 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
               Ce dossier sort du barème {DISPUTE_OPENING_WINDOW_DAYS} jours / {CONSUMPTION_THRESHOLD_LABEL}. La dérogation sera enregistrée au journal
               d&apos;audit avec votre justification.
             </p>

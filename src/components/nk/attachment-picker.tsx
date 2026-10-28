@@ -175,7 +175,7 @@ export function AttachmentPicker({
           {value.map((attachment) => (
             <li
               key={attachment.s3Key}
-              className="flex items-center gap-2 rounded-xl border-[1.5px] border-brand/40 bg-brand-tint px-3.5 py-2"
+              className="flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2"
             >
               <FileCheck2 className="size-4 shrink-0 text-brand" aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-brand-dark">

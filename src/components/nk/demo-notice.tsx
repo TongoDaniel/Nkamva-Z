@@ -17,7 +17,7 @@ export function DemoNotice({
   return (
     <p
       className={cn(
-        "flex items-start gap-2 rounded-nk-sm border border-gold/30 bg-gold-tint px-3.5 py-2.5 text-[13px] font-medium text-gold-ink",
+        "flex items-start gap-2 rounded-nk-sm border border-line bg-card border-l-4 border-l-gold px-3.5 py-2.5 text-[13px] font-medium text-gold-ink rounded-l-sm",
         className,
       )}
     >

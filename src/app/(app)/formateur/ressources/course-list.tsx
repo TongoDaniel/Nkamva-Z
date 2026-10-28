@@ -159,7 +159,7 @@ export function TrainerCourseList({
                 className="group relative grid grid-cols-[auto_1fr] items-start gap-x-4 gap-y-3 rounded-nk-lg border border-line bg-card px-4 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk focus-within:border-brand sm:flex sm:flex-wrap sm:items-center sm:gap-4.5 sm:px-5 sm:py-4.5"
               >
                 <span
-                  className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand sm:size-16"
+                  className="grid size-12 shrink-0 place-items-center rounded-xl border border-line bg-card text-brand sm:size-16"
                   aria-hidden="true"
                 >
                   <FormatGlyph format={course.format} className="size-5 sm:size-6" />

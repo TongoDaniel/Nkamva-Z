@@ -150,7 +150,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
                 {course.learnPoints.map((point) => (
                   <li key={point} className="flex items-start gap-3 text-[15px] leading-snug">
                     <span
-                      className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-brand-tint text-brand"
+                      className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-line bg-card text-brand"
                       aria-hidden="true"
                     >
                       <Check className="size-3.5" />
@@ -266,7 +266,7 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
               </>
             ) : suspended ? (
               <>
-                <p className="mb-4.5 rounded-xl bg-danger-tint px-4 py-3 text-[13.5px] font-semibold text-danger">
+                <p className="mb-4.5 rounded-xl border border-line bg-card border-l-4 border-l-danger px-4 py-3 text-[13.5px] font-semibold text-danger rounded-l-sm">
                   L&apos;accès à cette ressource est suspendu le temps d&apos;un litige en cours.
                 </p>
                 <BtnLink href="/contact" variant="o" size="lg" block>Contacter le support</BtnLink>

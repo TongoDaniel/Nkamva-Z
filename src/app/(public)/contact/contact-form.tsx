@@ -86,7 +86,7 @@ export function ContactForm({ responseHours }: { responseHours: number }) {
         role="status"
         className="rounded-nk-lg border border-line bg-card p-5 text-center shadow-nk-sm sm:p-8"
       >
-        <span className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-brand-tint text-brand">
+        <span className="mx-auto mb-4 grid size-14 place-items-center rounded-full border border-line bg-card text-brand">
           <CheckCircle2 className="size-7" aria-hidden="true" />
         </span>
         <h2 className="mb-2 text-[20px] font-extrabold">Message envoyé</h2>
@@ -138,7 +138,7 @@ export function ContactForm({ responseHours }: { responseHours: number }) {
               className={cn(
                 "flex cursor-pointer items-center gap-3 rounded-nk border-[1.5px] px-4 py-2.5 text-[14px] transition",
                 subject === option.value
-                  ? "border-brand bg-brand-tint"
+                  ? "border-brand ring-1 ring-brand"
                   : "border-line hover:border-ink-3",
               )}
             >

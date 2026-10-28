@@ -117,7 +117,7 @@ export default async function FormateurPage({
     erreur === "acces-refuse" ? (
       <p
         role="alert"
-        className="mb-8 rounded-nk border border-danger/30 bg-danger-tint px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger"
+        className="mb-8 rounded-nk border border-line bg-card border-l-4 border-l-danger px-5 py-4 text-[14px] font-semibold leading-relaxed text-danger rounded-l-sm"
       >
         Vous n&apos;avez pas les droits nécessaires pour accéder à cette page.
       </p>
@@ -409,7 +409,7 @@ export default async function FormateurPage({
                       className="group relative flex flex-wrap items-center gap-4 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm transition duration-150 hover:border-brand hover:shadow-nk focus-within:border-brand focus-within:shadow-nk"
                     >
                       <span
-                        className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
+                        className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-card text-brand"
                         aria-hidden="true"
                       >
                         <FormatGlyph format={course.format} className="size-5" />

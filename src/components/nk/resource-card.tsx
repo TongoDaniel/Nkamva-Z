@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { Chip } from "./chip";
-import { categoryTone, Cover, coverImageUrl, formatLabel } from "./cover";
+import { Cover, coverImageUrl, formatLabel } from "./cover";
 import { FavButton } from "./fav-button";
 import { initials } from "./avatar";
 import { fmtDuration, fmtNumber } from "@/lib/format";
@@ -112,7 +112,7 @@ export function ResourceCard({
         )}
       >
         {compact ? null : (
-          <Chip tone={categoryTone(course.category)} className="self-start">
+          <Chip tone="muted" className="self-start">
             {course.category}
           </Chip>
         )}
@@ -131,7 +131,7 @@ export function ResourceCard({
         </h3>
         <p className="flex items-center gap-2 text-[13px] font-medium text-ink-2">
           <span
-            className="grid size-[22px] shrink-0 place-items-center rounded-full bg-brand-tint-2 text-[13px] font-bold text-brand-dark"
+            className="grid size-[22px] shrink-0 place-items-center rounded-full border border-line bg-card text-[13px] font-bold text-brand-dark"
             aria-hidden="true"
           >
             {initials(trainerName)}

@@ -168,7 +168,7 @@ export default async function IntegrationsPage() {
           className={
             report.paymentSimulation.active
               ? "mb-6 rounded-nk-lg border border-danger/30 bg-danger/5 px-5 py-4 text-[13px] leading-relaxed text-ink"
-              : "mb-6 rounded-nk-lg bg-gold-tint px-5 py-4 text-[13px] leading-relaxed text-gold-ink"
+              : "mb-6 rounded-nk-lg border border-line bg-card border-l-4 border-l-gold px-5 py-4 text-[13px] leading-relaxed text-gold-ink rounded-l-sm"
           }
         >
           <b className="font-extrabold">Simulation de paiement :</b>{" "}

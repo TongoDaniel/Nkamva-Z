@@ -41,13 +41,13 @@ export default async function StatutCandidaturePage() {
   const view = {
     SUBMITTED: {
       icon: <FileSearch className="size-8" aria-hidden="true" />,
-      tone: "bg-info-tint text-info",
+      tone: "border border-line bg-card text-info",
       title: "Votre dossier est en cours d'examen",
       body: "L'équipe de modération examine chaque candidature une par une. Vous serez prévenu par e-mail dès qu'une décision est prise, favorable ou non.",
     },
     APPROVED: {
       icon: <CheckCircle2 className="size-8" aria-hidden="true" />,
-      tone: "bg-brand-tint text-brand",
+      tone: "border border-line bg-card text-brand",
       title: "Votre candidature est acceptée",
       // Deux formulations, parce qu'il y a deux situations : annoncer « votre
       // espace est ouvert » puis présenter un mur de paiement juste en dessous
@@ -58,7 +58,7 @@ export default async function StatutCandidaturePage() {
     },
     REJECTED: {
       icon: <XCircle className="size-8" aria-hidden="true" />,
-      tone: "bg-danger-tint text-danger",
+      tone: "border border-line bg-card text-danger",
       title: "Votre candidature n'a pas été retenue",
       body: "L'équipe de modération n'a pas donné suite à ce dossier.",
     },
@@ -80,7 +80,7 @@ export default async function StatutCandidaturePage() {
           <p className="max-w-[52ch] leading-relaxed text-ink-2">{view.body}</p>
 
           {application.status === "REJECTED" && application.finalRejectionReason ? (
-            <p className="mt-5 rounded-nk bg-danger-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-danger">
+            <p className="mt-5 rounded-nk border border-line border-l-4 border-l-danger bg-card px-4 py-3.5 text-[13.5px] leading-relaxed text-danger rounded-l-sm">
               <b>Motif :</b> {application.finalRejectionReason}
             </p>
           ) : null}

@@ -131,7 +131,7 @@ export function DocumentField({
       />
 
       {value ? (
-        <p className="flex flex-wrap items-center gap-2 rounded-xl border-[1.5px] border-brand/40 bg-brand-tint px-3.5 py-2.5">
+        <p className="flex flex-wrap items-center gap-2 rounded-xl border-[1.5px] border-line bg-card border-l-4 border-l-brand px-3.5 py-2.5 rounded-l-sm">
           <Check className="size-4 shrink-0 text-brand" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-brand-dark">
             {value.fileName}

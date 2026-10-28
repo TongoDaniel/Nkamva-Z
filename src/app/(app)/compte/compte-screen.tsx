@@ -48,7 +48,7 @@ function Ligne({
         current={current}
         className={cn(
           "flex min-h-14 items-center gap-3.5 px-4 text-[15px] font-semibold transition-colors",
-          current ? "bg-brand-tint text-brand-dark" : "text-ink-2 hover:bg-paper hover:text-ink",
+          current ? "bg-paper font-bold text-ink" : "text-ink-2 hover:bg-paper hover:text-ink",
         )}
         pendingClassName="inset-x-4 bottom-1.5"
       >
@@ -158,7 +158,7 @@ export function CompteScreen({
       <button
         type="button"
         onClick={() => signOut({ callbackUrl: "/" })}
-        className="mt-6 flex min-h-14 w-full cursor-pointer items-center justify-center rounded-nk-lg border border-danger/30 bg-card text-[15px] font-bold text-danger transition-colors hover:bg-danger-tint"
+        className="mt-6 flex min-h-14 w-full cursor-pointer items-center justify-center rounded-nk-lg border border-danger/30 bg-card text-[15px] font-bold text-danger transition-colors hover:bg-paper"
       >
         Se déconnecter
       </button>

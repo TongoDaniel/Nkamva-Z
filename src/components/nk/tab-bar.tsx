@@ -65,12 +65,15 @@ export function TabBar({
 }) {
   const current = currentIndex(pathname, items);
 
-  /** Le fond clair qui dit où l'on est quand plus aucun mot ne le dit. */
+  /**
+   * Ce qui dit où l'on est quand plus aucun mot ne le dit : la couleur de
+   * l'icône et un point sous elle — plus de disque teinté derrière.
+   */
   const chip = (active: boolean) =>
     cn(
-      "grid place-items-center transition-colors",
+      "relative grid place-items-center transition-colors",
       labels ? "size-auto" : "size-10 rounded-full",
-      !labels && active && "bg-brand-tint",
+      !labels && active && "text-brand after:absolute after:bottom-0 after:size-1 after:rounded-full after:bg-brand",
     );
 
   return (

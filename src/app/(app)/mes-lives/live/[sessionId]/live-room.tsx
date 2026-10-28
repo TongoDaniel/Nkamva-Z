@@ -663,7 +663,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
           ) : volet === "participants" ? (
             <>
               {queue.length > 0 ? (
-                <p className="mb-3 shrink-0 rounded-nk-sm bg-brand-tint px-3 py-2 text-[13px] font-semibold text-brand-dark">
+                <p className="mb-3 shrink-0 rounded-nk-sm border border-line bg-card border-l-4 border-l-brand px-3 py-2 text-[13px] font-semibold text-brand-dark rounded-l-sm">
                   {queue.length} demande{queue.length > 1 ? "s" : ""} de parole
                   {room.handPosition ? ` · vous êtes en position ${room.handPosition}` : ""}
                 </p>

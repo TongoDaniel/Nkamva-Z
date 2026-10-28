@@ -118,7 +118,7 @@ export function MobileMoneyFields({
               className={cn(
                 "flex cursor-pointer items-center gap-2.5 rounded-nk border-[1.5px] px-3 py-2.5 text-[13.5px] font-semibold transition",
                 value.provider === operator.provider
-                  ? "border-brand bg-brand-tint"
+                  ? "border-brand ring-1 ring-brand"
                   : "border-line bg-card hover:border-ink-3",
               )}
             >
