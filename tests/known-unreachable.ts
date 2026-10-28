@@ -35,6 +35,10 @@ export const KNOWN_UNREACHABLE: KnownUnreachable[] = [
     reason: 'Sonde de supervision : appelée par le moniteur et le déploiement, jamais par l\'application.',
   },
   {
+    path: '/api/csp-report',
+    reason: 'Appelée par le navigateur lui-même, désignée par l\'en-tête CSP de next.config.ts (hors de src/).',
+  },
+  {
     path: '/api/me/avatar/confirm',
     reason: 'Appelée par AvatarPanel via `${endpoint}/confirm` : une adresse composée, que le balayeur ne lit pas.',
   },
