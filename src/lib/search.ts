@@ -11,6 +11,9 @@
 
 import { db } from './db'
 import { searchAnyOf } from './search-text'
+import {
+  communityIdsMatching, courseIdsMatching, idsBranch, trainerProfileIdsMatching,
+} from './search-unaccent'
 import { userAvatarSrc } from './avatars'
 import { PUBLIC_TRAINER_WHERE, TRAINER_ACCEPTS_MEMBERS_WHERE, rankPublicTrainers } from './trainers'
 import type { CourseListItem } from './dto'
@@ -56,11 +59,21 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
   const anyOf = <T,>(fields: (contains: { contains: string; mode: 'insensitive' }) => T[]) =>
     searchAnyOf(query, fields)
 
+  // Le texte stocké, comparé sans ses accents : « robe » trouve « rôbe » (m6).
+  const [courseIds, trainerIds, communityIds] = await Promise.all([
+    courseIdsMatching(query, ['title', 'blurb', 'category']),
+    trainerProfileIdsMatching(query),
+    communityIdsMatching(query),
+  ])
+
   const [courses, trainers, communities] = await Promise.all([
     db.course.findMany({
       where: {
         status: 'published',
-        OR: anyOf((contains) => [{ title: contains }, { blurb: contains }, { category: contains }]),
+        OR: [
+          ...anyOf((contains) => [{ title: contains }, { blurb: contains }, { category: contains }]),
+          ...idsBranch(courseIds),
+        ],
       },
       select: {
         id: true, slug: true, title: true, blurb: true, category: true, format: true,
@@ -84,6 +97,7 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
       filter: {
         OR: [
           ...anyOf((contains) => [{ user: { fullName: contains } }, { slogan: contains }]),
+          ...idsBranch(trainerIds),
           { domains: { has: query } },
         ],
       },
@@ -111,7 +125,10 @@ export async function searchEverything(rawQuery: string): Promise<SearchResults>
         visibility: 'PUBLIC',
         // M3 : la communauté d'un formateur suspendu ne s'annonce plus.
         trainerProfile: TRAINER_ACCEPTS_MEMBERS_WHERE,
-        OR: anyOf((contains) => [{ name: contains }, { description: contains }]),
+        OR: [
+          ...anyOf((contains) => [{ name: contains }, { description: contains }]),
+          ...idsBranch(communityIds),
+        ],
       },
       select: {
         id: true, slug: true, name: true, description: true, priceFcfa: true, membersCount: true,
