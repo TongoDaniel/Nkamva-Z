@@ -291,6 +291,9 @@ export async function initiateMembershipPayment(
   // en impasse définitive : le mobile money renvoyait cette même carte morte, et
   // les deux moyens paraissaient en panne. Constaté le 9 août 2026 sur une
   // adhésion restée en attente dix-huit heures.
+  // Borne du contrôle qui suit l'insertion : seul un règlement postérieur à nos
+  // lectures peut nous avoir échappé.
+  const readAt = new Date()
   const pending = await db.purchase.findFirst({
     where: { learnerId, communityId, providerStatus: 'PENDING' },
     select: {
@@ -483,12 +486,17 @@ export async function initiateMembershipPayment(
   // simulation comme en mobile money instantané —, son achat n'est déjà plus
   // `PENDING` et le nôtre passe : le même mois se paierait deux fois. Vérifié
   // après l'insertion, l'écart se referme : un gagnant encore `PENDING` nous
-  // aurait bloqués à l'index, un gagnant réglé est visible ici. Jamais deux
-  // achats réglés sur la même période.
+  // aurait bloqués à l'index, un gagnant réglé est visible ici.
+  //
+  // Seul compte un règlement **survenu depuis nos lectures** (`updatedAt`). Un
+  // achat réglé plus tôt sur une période qui court encore n'est pas un double
+  // clic : c'est l'ancien membre que la levée d'un bannissement après
+  // résiliation a fermé en `EXPIRED`, et qui a le droit de revenir.
   const settledMeanwhile = await db.purchase.findFirst({
     where: {
       id: { not: purchase.id }, learnerId, communityId, providerStatus: 'SUCCEEDED',
       periodStart: { lt: periodEnd }, periodEnd: { gt: periodStart },
+      updatedAt: { gte: readAt },
     },
     select: { id: true },
   })
