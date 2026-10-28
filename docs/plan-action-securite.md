@@ -23,7 +23,7 @@
 | — | **Webhook LiveKit** : clôture auto des lives + replays | 🟢 **Ouverte — PR #14** |
 | — | **Partage d'écran** robuste tous navigateurs | 🟢 **Ouverte — PR #15** |
 | 4b | CSP `Report-Only` → stricte | ⏳ Partiel (Google Fonts retiré) ; enforce à faire |
-| 11 | `typescript.ignoreBuildErrors: true` | ⏸ Toi (valider un vrai `next build`) |
+| 11 | `typescript.ignoreBuildErrors: true` | ✅ Fait : `false`, périmètre `tsconfig.build.json`, build Docker vérifié |
 | 5 | Secrets dans l'historique Git | ⏸ Toi (scanner l'historique distant) |
 | 10 | TRACE actif (pas un XST) | ⏸ Toi (config Caddy staging) |
 | — | IDOR & escalade de privilèges | ✅ Testé, aucun défaut (§13 du rapport) |

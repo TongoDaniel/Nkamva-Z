@@ -18,8 +18,11 @@ const nextConfig: NextConfig = {
     // fragment s'appelle `[externals]_crypto_….js` et le module est le même.
     resolveAlias: { "node:crypto": "crypto" },
   },
+  // Une erreur de typage arrête le build : elle ne part plus en déploiement
+  // (finding 11 du pentest). Le job « typecheck » de la CI la signale avant.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
+    tsconfigPath: "tsconfig.build.json",
   },
   reactStrictMode: false,
   // On ne divulgue pas la pile technique.
