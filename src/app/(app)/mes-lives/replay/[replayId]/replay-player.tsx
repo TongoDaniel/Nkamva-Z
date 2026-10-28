@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Download, Gauge, Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
-import { Chip } from "@/components/nk/chip";
 import { toast } from "sonner";
+import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { api, ApiError } from "@/lib/client";
 import type { ReplayView, ReplayMessage } from "@/lib/lives";
 import { ReplayChat } from "./replay-chat";
@@ -49,6 +49,11 @@ export function ReplayPlayer({
   // ~1,3 Go. Sur les connexions que sert la plateforme, c'est la différence
   // entre écouter le replay et ne jamais le charger.
   const [variant, setVariant] = React.useState<"video" | "audio">("video");
+  // La date d'enregistrement est celle du live : sans fuseau, le serveur
+  // l'écrivait dans le sien, et une séance du soir à Toronto changeait de jour
+  // à l'hydratation. Même règle que `ReplayRow`, sans rappel de l'heure de
+  // l'animateur — le lecteur n'affiche que le jour.
+  const { timeZone } = useSessionTimeZone(replay.timeZone);
 
   // L'URL est signée et expire : on la demande à l'ouverture de l'écran plutôt
   // que de la rendre avec la page, où elle traînerait dans le HTML.
@@ -105,14 +110,14 @@ export function ReplayPlayer({
       <section className="min-w-0">
         <div className="overflow-hidden rounded-nk-lg bg-navy shadow-nk">
           <div className="relative grid aspect-video place-items-center bg-navy-2 text-center">
-            <Chip tone="gold" className="absolute left-4 top-4 z-[2]">
+            <span className="absolute left-4 top-4 z-[2] rounded-md bg-black/55 px-2 py-1 text-[13px] font-bold uppercase leading-none tracking-[0.08em] text-white">
               Replay
-            </Chip>
+            </span>
             {url && variant === "audio" ? (
               <div className="w-full px-6">
                 <p className="text-[13.5px] font-bold text-white">Version audio seule</p>
                 <p className="mt-1 text-[13px] text-[#b9c9dd]">
-                  L&apos;image n&apos;est pas chargée — seule la parole l&apos;est.
+                  L&apos;image n&apos;est pas chargée, seule la parole l&apos;est.
                 </p>
               </div>
             ) : null}
@@ -242,6 +247,7 @@ export function ReplayPlayer({
               day: "numeric",
               month: "long",
               year: "numeric",
+              timeZone,
             }).format(replay.recordedAt)}
           </p>
           {replay.description ? (

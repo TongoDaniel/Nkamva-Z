@@ -412,7 +412,7 @@ export async function approveApplication(applicationId: string, input: ApproveIn
       })
       await sendEmail({
         to: application.user.email,
-        subject: 'NKAMVA — Votre candidature formateur est acceptée',
+        subject: 'NKAMVA · Votre candidature formateur est acceptée',
         ...renderSimpleEmail({
           title: 'Votre candidature est acceptée',
           paragraphs: [
@@ -434,12 +434,12 @@ export async function approveApplication(applicationId: string, input: ApproveIn
       title: 'Candidature acceptée : réglez votre abonnement',
       // « formule mensuelle » et non « abonnement mensuelle » : les libellés de
       // cadence s'accordent sur « formule », au féminin.
-      body: `Votre dossier est validé. Réglez votre abonnement — formule ${CADENCE_LABELS[cadence].toLowerCase()}, ${fmtFcfa(quote.payableFcfa)} — pour ouvrir votre espace formateur.`,
+      body: `Votre dossier est validé. Réglez votre abonnement (formule ${CADENCE_LABELS[cadence].toLowerCase()}, ${fmtFcfa(quote.payableFcfa)}) pour ouvrir votre espace formateur.`,
       link: '/candidature/statut',
     })
     await sendEmail({
       to: application.user.email,
-      subject: 'NKAMVA — Votre candidature est acceptée, une dernière étape',
+      subject: 'NKAMVA · Votre candidature est acceptée, une dernière étape',
       ...renderSimpleEmail({
         title: 'Votre candidature est acceptée',
         paragraphs: [
@@ -547,7 +547,7 @@ export async function rejectDocuments(applicationId: string, input: RejectDocume
 
   // Les motifs sont saisis par un admin : ils passent par le gabarit, qui les
   // échappe, plutôt que d'être concaténés dans du balisage.
-  const reasons = input.rejections.map(r => `— ${r.rejectionReason}`).join('\n')
+  const reasons = input.rejections.map(r => `- ${r.rejectionReason}`).join('\n')
   await deliverSideEffects('TRAINER_DOCUMENTS_REJECTED', { type: 'TrainerApplication', id: applicationId }, async () => {
     await notify(application.userId, {
       type: 'TRAINER_DOCUMENTS_REJECTED',
@@ -557,7 +557,7 @@ export async function rejectDocuments(applicationId: string, input: RejectDocume
     })
     await sendEmail({
       to: application.user.email,
-      subject: 'NKAMVA — Des pièces de votre candidature doivent être renvoyées',
+      subject: 'NKAMVA · Des pièces de votre candidature doivent être renvoyées',
       ...renderSimpleEmail({
         title: 'Des pièces sont à renvoyer',
         paragraphs: [
@@ -625,7 +625,7 @@ export async function rejectApplicationFinal(applicationId: string, input: Rejec
     })
     await sendEmail({
       to: application.user.email,
-      subject: 'NKAMVA — Votre candidature formateur n\'a pas été retenue',
+      subject: 'NKAMVA · Votre candidature formateur n\'a pas été retenue',
       ...renderSimpleEmail({
         title: 'Suite donnée à votre candidature',
         paragraphs: ['Après examen, votre candidature n\'a pas été retenue.', `Motif : ${input.reason}`],

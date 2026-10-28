@@ -77,7 +77,7 @@ export default async function MesVentesPage({
       cell: (row) => (
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="grid size-9 shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand"
+            className="grid size-9 shrink-0 place-items-center rounded-nk-sm border border-line bg-card text-brand"
             aria-hidden="true"
           >
             {row.subject.kind === "COMMUNITY" ? (
@@ -92,7 +92,7 @@ export default async function MesVentesPage({
           <div className="min-w-0">
             <b className="block truncate text-sm font-bold">
               {row.subject.kind === "COURSE" ? (
-                <Link href={routes.course(row.subject.slug)} className="text-ink hover:text-brand">
+                <Link href={routes.course(row.subject.slug)} className="nk-tap text-ink hover:text-brand">
                   {row.subject.title}
                 </Link>
               ) : row.subject.kind === "COMMUNITY" ? (

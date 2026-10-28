@@ -32,7 +32,7 @@ export default async function ContactPage() {
         <aside className="grid gap-4">
           <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
             <span
-              className="mb-3 grid size-10 place-items-center rounded-xl bg-brand-tint text-brand"
+              className="mb-3 grid size-10 place-items-center rounded-xl border border-line bg-card text-brand"
               aria-hidden="true"
             >
               <Clock className="size-5" />
@@ -46,7 +46,7 @@ export default async function ContactPage() {
 
           <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
             <span
-              className="mb-3 grid size-10 place-items-center rounded-xl bg-info-tint text-info"
+              className="mb-3 grid size-10 place-items-center rounded-xl border border-line bg-card text-info"
               aria-hidden="true"
             >
               <LifeBuoy className="size-5" />
@@ -56,14 +56,14 @@ export default async function ContactPage() {
               Le centre d&apos;aide répond déjà aux questions les plus courantes sur l&apos;achat,
               l&apos;accès et les remboursements.
             </p>
-            <Link href="/aide" className="text-[13.5px] font-bold text-brand hover:text-brand-dark">
+            <Link href="/aide" className="nk-tap text-[13.5px] font-bold text-brand hover:text-brand-dark">
               Consulter le centre d&apos;aide →
             </Link>
           </section>
 
           <section className="rounded-nk-lg border border-line bg-card p-6 shadow-nk-sm">
             <span
-              className="mb-3 grid size-10 place-items-center rounded-xl bg-gold-tint text-gold-ink"
+              className="mb-3 grid size-10 place-items-center rounded-xl border border-line bg-card text-gold-ink"
               aria-hidden="true"
             >
               <ShieldQuestion className="size-5" />

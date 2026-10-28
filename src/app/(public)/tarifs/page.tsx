@@ -126,7 +126,7 @@ export default async function TarifsPage() {
               {plan.features.map((feature) => (
                 <li key={feature} className="flex items-start gap-3 text-[14.5px] leading-snug">
                   <span
-                    className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-brand-tint text-brand"
+                    className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border border-line bg-card text-brand"
                     aria-hidden="true"
                   >
                     <Check className="size-3" />
@@ -155,7 +155,7 @@ export default async function TarifsPage() {
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4.5 text-[15.5px] font-bold hover:text-brand">
               {item.q}
               <span
-                className="grid size-7 shrink-0 place-items-center rounded-full bg-line-2 text-ink-2 transition group-open:rotate-45 group-open:bg-brand-tint group-open:text-brand"
+                className="grid size-7 shrink-0 place-items-center rounded-full border border-line bg-card text-ink-2 transition group-open:rotate-45 group-open:border-brand group-open:text-brand"
                 aria-hidden="true"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-3.5">

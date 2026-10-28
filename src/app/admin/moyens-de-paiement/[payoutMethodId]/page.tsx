@@ -85,7 +85,7 @@ export default async function MoyenDePaiementDetailPage({
               Escalade ouverte après {PAYOUT_METHOD_MAX_REJECTIONS} refus
             </b>
             <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
-              Décision 27 — Finances ne tranche pas seule un écart de nom persistant.
+              Décision 27 : Finances ne tranche pas seule un écart de nom persistant.
               {isSuperAdmin
                 ? " Vous avez accès à l'identité et au moyen de paiement : c'est à vous d'arbitrer."
                 : " Un Super-admin doit reprendre ce dossier ; vous pouvez le consulter mais pas le trancher."}
@@ -111,7 +111,7 @@ export default async function MoyenDePaiementDetailPage({
                   volontaire.
                 */}
                 {method.trainerProfile.verifiedLegalName ?? (
-                  <span className="text-danger">absent — vérification impossible</span>
+                  <span className="text-danger">absent, vérification impossible</span>
                 )}
               </Row>
               <Row
@@ -126,7 +126,7 @@ export default async function MoyenDePaiementDetailPage({
                   <>
                     {/* Sans ce libellé, la forme normalisée se lit collée au nom :
                         « Sarr Formation SARLformation sarr ». */}
-                    <span className="sr-only"> — forme normalisée : </span>
+                    <span className="sr-only">, forme normalisée : </span>
                     <code className="ml-2 rounded bg-paper px-1.5 py-0.5 text-[13px] text-ink-3">
                       {comparison.expectedNormalized}
                     </code>
@@ -137,14 +137,14 @@ export default async function MoyenDePaiementDetailPage({
                 {comparison.operatorName ? (
                   <>
                     {comparison.operatorName}
-                    <span className="sr-only"> — forme normalisée : </span>
+                    <span className="sr-only">, forme normalisée : </span>
                     <code className="ml-2 rounded bg-paper px-1.5 py-0.5 text-[13px] text-ink-3">
                       {comparison.operatorNormalized}
                     </code>
                   </>
                 ) : (
                   <span className="text-ink-3">
-                    Aucun contrôle opérateur disponible — la comparaison vous revient.
+                    Aucun contrôle opérateur disponible : la comparaison vous revient.
                   </span>
                 )}
               </Row>
@@ -158,7 +158,7 @@ export default async function MoyenDePaiementDetailPage({
             </dl>
 
             {comparison.businessIsSoleTrader ? (
-              <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+              <p className="mt-4 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
                 <b className="font-extrabold">La dénomination sociale est le nom du formateur.</b>{" "}
                 C&apos;est le cas d&apos;une entreprise individuelle : légitime, mais le compte
                 « de la société » est en pratique celui de la personne. Les documents doivent le
@@ -208,7 +208,7 @@ export default async function MoyenDePaiementDetailPage({
           {method.accountNature === "BUSINESS" ? (
             <AdminCard title="Documents d'entreprise">
               <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
-                Décision 28 — la dénomination sociale doit correspondre au compte,{" "}
+                Décision 28 : la dénomination sociale doit correspondre au compte,{" "}
                 <b className="font-bold text-ink">et le nom légal vérifié doit figurer comme
                 représentant légal</b> sur ces documents. C&apos;est la partie que la machine ne
                 sait pas lire.

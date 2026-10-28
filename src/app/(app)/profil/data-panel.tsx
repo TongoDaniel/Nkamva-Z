@@ -118,7 +118,7 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
       >
         {profile.deletionRequestedAt ? (
           <>
-            <p className="mb-4 rounded-nk bg-danger-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-danger">
+            <p className="mb-4 rounded-nk border border-line bg-card border-l-4 border-l-danger px-4 py-3.5 text-[13.5px] leading-relaxed text-danger rounded-l-sm">
               Suppression demandée le {fmtDate(profile.deletionRequestedAt)}. Effacement prévu
               le {fmtDate(profile.deletionScheduledAt)}. D&apos;ici là, votre compte reste
               pleinement utilisable.

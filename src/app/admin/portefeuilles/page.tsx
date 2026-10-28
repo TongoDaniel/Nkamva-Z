@@ -73,7 +73,7 @@ export default async function PortefeuillesPage() {
             {canCorrect ? null : (
               <>
                 {" "}
-                La correction est réservée au Super-admin — signalez-lui cet écran.
+                La correction est réservée au Super-admin : signalez-lui cet écran.
               </>
             )}
           </p>

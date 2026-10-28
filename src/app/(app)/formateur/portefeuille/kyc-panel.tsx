@@ -92,7 +92,7 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
             ) : (
               <>
                 À partir de {KYC_THRESHOLD_VERIFIED} points, vos retraits sont approuvés
-                automatiquement — hors délai de sécurité en cours sur un moyen de paiement
+                automatiquement, sauf délai de sécurité en cours sur un moyen de paiement
                 récent.
               </>
             )}
@@ -131,8 +131,8 @@ export function KycPanel({ kyc }: { kyc: KycScore }) {
             <span
               className={
                 c.done
-                  ? "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-brand-tint text-brand"
-                  : "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-line-2 text-ink-3"
+                  ? "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border border-line bg-card text-brand"
+                  : "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border border-line bg-card text-ink-3"
               }
               aria-hidden="true"
             >

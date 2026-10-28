@@ -118,6 +118,22 @@ describe('Lives et replays', () => {
     expect((await joinLiveSession(session.id, trainerUser.id)).isHost).toBe(true)
   })
 
+  it("la présence réelle ne va qu'à l'animateur, et seulement pendant le direct", async () => {
+    const { community, trainer, trainerUser, member } = await setup()
+    await subscribe(community.id, member.id)
+    const session = await schedule(community.id, trainer.id, trainerUser.id)
+
+    // Un membre ne la reçoit jamais ; l'animateur non plus avant le direct.
+    expect((await joinLiveSession(session.id, member.id)).connectedNow).toBeNull()
+    expect((await joinLiveSession(session.id, trainerUser.id)).connectedNow).toBeNull()
+
+    // En direct, sans LiveKit joignable (cas des tests), elle reste inconnue
+    // plutôt que de valoir 0 : « 0 connecté » affirmerait une salle vide.
+    await prisma.liveSession.update({ where: { id: session.id }, data: { status: 'LIVE', startedAt: new Date() } })
+    expect((await joinLiveSession(session.id, trainerUser.id)).connectedNow).toBeNull()
+    expect((await joinLiveSession(session.id, member.id)).connectedNow).toBeNull()
+  })
+
   it('revenir après une coupure reprend la même présence', async () => {
     const { community, trainer, trainerUser, member } = await setup()
     await subscribe(community.id, member.id)

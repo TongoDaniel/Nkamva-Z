@@ -40,7 +40,16 @@ export default async function DisputeDetailPage({
   if (!auth) return null;
 
   const { disputeId } = await params;
-  const dispute = await getMyDispute(disputeId, auth.user.id);
+  // Le litige d'un autre, ou un identifiant inconnu : la même page
+  // « introuvable » dans les deux cas — ne pas dire si le litige existe.
+  // `getMyDispute` lève plutôt que de rendre `null` ; non rattrapée, l'erreur
+  // tombait sur l'écran « momentanément indisponible ».
+  const dispute = await getMyDispute(disputeId, auth.user.id).catch((err: unknown) => {
+    if (err instanceof Error && (err.message === "NOT_OWNER" || err.message === "DISPUTE_NOT_FOUND")) {
+      return null;
+    }
+    throw err;
+  });
   if (!dispute) notFound();
 
   const state = DISPUTE_STATUS[dispute.status];
@@ -67,12 +76,12 @@ export default async function DisputeDetailPage({
 
       <div className="grid items-start gap-6 pt-2 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0">
-          <p className="mb-5 rounded-nk bg-brand-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-brand-dark">
+          <p className="mb-5 rounded-nk border border-line bg-card border-l-4 border-l-brand px-4 py-3.5 text-[13.5px] leading-relaxed text-brand-dark rounded-l-sm">
             {state.help}
           </p>
 
           {dispute.status === "WAITING_LEARNER" && dispute.learnerDeadlineAt ? (
-            <p className="mb-5 flex items-start gap-2.5 rounded-nk bg-gold-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink">
+            <p className="mb-5 flex items-start gap-2.5 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink rounded-l-sm">
               <Clock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
                 Sans réponse de votre part avant le {fmtDate(dispute.learnerDeadlineAt)}, le

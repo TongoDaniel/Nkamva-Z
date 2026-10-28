@@ -130,9 +130,9 @@ export async function issueInvoiceForPurchase(purchaseId: string) {
   if (purchase.providerStatus !== 'SUCCEEDED') throw new Error('PURCHASE_NOT_SUCCEEDED')
 
   const label = purchase.course
-    ? `Ressource — ${purchase.course.title}`
+    ? `Ressource · ${purchase.course.title}`
     : purchase.community
-      ? `Adhésion — ${purchase.community.name}`
+      ? `Adhésion · ${purchase.community.name}`
       : 'Achat NKAMVA'
 
   return issueInvoice({
@@ -167,7 +167,7 @@ export async function issueInvoiceForSubscriptionCharge(chargeId: string) {
   return issueInvoice({
     kind: 'SUBSCRIPTION',
     userId: charge.trainerProfile.userId,
-    label: `Abonnement NKAMVA — ${period}${storage}`,
+    label: `Abonnement NKAMVA · ${period}${storage}`,
     amountFcfa: charge.amountDueFcfa,
     subscriptionChargeId: charge.id,
     issuedAt: charge.periodStart,

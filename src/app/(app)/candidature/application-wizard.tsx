@@ -85,7 +85,7 @@ export function ApplicationWizard({
           }
         >
           {!storageAvailable ? (
-            <p className="mb-5 flex items-start gap-2.5 rounded-nk bg-gold-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink">
+            <p className="mb-5 flex items-start gap-2.5 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink rounded-l-sm">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
                 Le stockage des fichiers n&apos;est pas configuré sur cet environnement : le dépôt

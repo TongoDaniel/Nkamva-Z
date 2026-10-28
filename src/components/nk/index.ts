@@ -13,7 +13,7 @@ export {
   passwordStrength,
 } from "./input";
 export { Avatar, initials } from "./avatar";
-export { Cover, FormatGlyph, coverTone, categoryTone, formatLabel, FORMAT_LABELS } from "./cover";
+export { Cover, FormatGlyph, coverTone, formatLabel, FORMAT_LABELS } from "./cover";
 export { Skeleton, SkeletonRegion, ResourceCardSkeleton } from "./skeleton";
 export { UploadBar } from "./upload-bar";
 export { EmptyState, EmptyRow } from "./empty-state";

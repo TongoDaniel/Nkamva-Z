@@ -61,7 +61,7 @@ export default function ConditionsPage() {
           a été consulté au moment de la contestation ;
         </li>
         <li>
-          pour une ressource téléchargeable, si elle n&apos;a pas été téléchargée — une fois le
+          pour une ressource téléchargeable, si elle n&apos;a pas été téléchargée (une fois le
           fichier récupéré, il ne peut plus être restitué.
         </li>
       </ul>

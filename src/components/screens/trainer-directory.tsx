@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Search, SearchX } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
-import { Chip } from "@/components/nk/chip";
 import { EmptyState } from "@/components/nk/empty-state";
 import { PillInput } from "@/components/nk/input";
 import { Tabs, type TabItem } from "@/components/nk/tabs";
@@ -164,13 +163,9 @@ export function TrainerDirectory({
                 </div>
 
                 {trainer.domains.length > 0 ? (
-                  <ul className="mb-3.5 flex flex-wrap gap-1.5">
-                    {trainer.domains.slice(0, 3).map((domain) => (
-                      <li key={domain}>
-                        <Chip>{domain}</Chip>
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.08em] text-brand">
+                    {trainer.domains.slice(0, 3).join(" · ")}
+                  </p>
                 ) : null}
 
                 {trainer.description ? (

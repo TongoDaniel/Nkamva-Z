@@ -54,7 +54,7 @@ function CheckRow({ check }: { check: IntegrationCheck }) {
       </dt>
       <dd className="min-w-0 flex-1">
         <StPill tone={STATE_TONES[check.state]}>{STATE_LABELS[check.state]}</StPill>
-        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{check.detail}</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2 [overflow-wrap:anywhere]">{check.detail}</p>
       </dd>
     </div>
   );
@@ -119,7 +119,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
       </div>
 
       <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[13px] leading-relaxed text-ink-2">
-        <b className="font-extrabold text-ink">Sans lui</b> — {integration.whenAbsent}
+        <b className="font-extrabold text-ink">Sans lui :</b> {integration.whenAbsent}
       </p>
     </AdminCard>
   );
@@ -140,7 +140,7 @@ export default async function IntegrationsPage() {
     <>
       <AdminHead
         title="Intégrations"
-        lead="« La variable est posée » ne veut pas dire « ça marche ». Chaque ligne ci-dessous vient d'un appel réel au fournisseur, fait à l'instant — jamais d'une simple lecture de la configuration."
+        lead="« La variable est posée » ne veut pas dire « ça marche ». Chaque ligne ci-dessous vient d'un appel réel au fournisseur, fait à l'instant, jamais d'une simple lecture de la configuration."
         actions={<RefreshButton />}
       />
 
@@ -168,15 +168,15 @@ export default async function IntegrationsPage() {
           className={
             report.paymentSimulation.active
               ? "mb-6 rounded-nk-lg border border-danger/30 bg-danger/5 px-5 py-4 text-[13px] leading-relaxed text-ink"
-              : "mb-6 rounded-nk-lg bg-gold-tint px-5 py-4 text-[13px] leading-relaxed text-gold-ink"
+              : "mb-6 rounded-nk-lg border border-line bg-card border-l-4 border-l-gold px-5 py-4 text-[13px] leading-relaxed text-gold-ink rounded-l-sm"
           }
         >
-          <b className="font-extrabold">Simulation de paiement</b> —{" "}
+          <b className="font-extrabold">Simulation de paiement :</b>{" "}
           {report.paymentSimulation.detail}
         </p>
       ) : null}
 
-      <div className="grid gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
         {report.integrations.map((integration) => (
           <IntegrationCard key={integration.key} integration={integration} />
         ))}
@@ -185,11 +185,11 @@ export default async function IntegrationsPage() {
       <p className="mt-5 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
         <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         Aucune sonde n&apos;écrit ni ne facture : elles lisent un solde, une
-        configuration, une liste. Aucune valeur de secret ne traverse cet écran — la
+        configuration, une liste. Aucune valeur de secret ne traverse cet écran : la
         présence d&apos;une variable est rendue, jamais son contenu, et les messages
         d&apos;erreur du fournisseur sont expurgés avant affichage. Les sondes qui
-        écrivent — dont le droit de créer un direct chez Mux, qui ne se vérifie
-        qu&apos;en ouvrant un flux facturable — restent dans{" "}
+        écrivent (dont le droit de créer un direct chez Mux, qui ne se vérifie
+        qu&apos;en ouvrant un flux facturable) restent dans{" "}
         <code className="font-mono text-[13px]">scripts/probe-integrations.ts</code>,
         lancé à la main.
       </p>

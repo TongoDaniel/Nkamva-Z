@@ -397,7 +397,7 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
             link: '/formateur/portefeuille',
           },
           {
-            subject: `NKAMVA — ${title}`,
+            subject: `NKAMVA · ${title}`,
             title,
             paragraphs: [current, next],
             cta: { label: 'Voir mon abonnement', url: absoluteUrl('/formateur/portefeuille') },

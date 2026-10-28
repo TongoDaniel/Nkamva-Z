@@ -174,7 +174,10 @@ export function AdminShell({
   }, [open]);
 
   return (
-    <div className="nk-admin flex min-h-dvh bg-background">
+    // En colonne sous `lg` : l'en-tête mobile se pose au-dessus du contenu. En
+    // ligne, il s'asseyait à côté de `<main>` et lui prenait ~280 px — la page
+    // tenait dans 76 px et débordait de l'écran sur les 24 écrans.
+    <div className="nk-admin flex min-h-dvh flex-col bg-background lg:flex-row">
       <a href="#contenu" className="nk-skip rounded-full bg-ink px-4 py-2 font-semibold text-paper">
         Aller au contenu
       </a>
@@ -301,7 +304,7 @@ export function AdminShell({
         </div>
       </nav>
 
-      <main id="contenu" className="min-w-0 flex-1 px-4.5 pb-12 pt-5.5 md:px-8.5 md:pb-16 md:pt-7.5">
+      <main id="contenu" className="min-w-0 flex-1 px-4.5 pb-8 pt-5.5 sm:pb-12 md:px-8.5 md:pb-16 md:pt-7.5">
         {children}
       </main>
     </div>

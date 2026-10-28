@@ -35,7 +35,7 @@ export function EmptyState({
     >
       {icon ? (
         <div
-          className="mx-auto mb-3.5 grid size-12 place-items-center rounded-full bg-brand-tint text-brand [&_svg]:size-5 sm:mb-4 sm:size-16 sm:[&_svg]:size-7"
+          className="mx-auto mb-3.5 grid size-12 place-items-center rounded-full border border-line bg-card text-brand [&_svg]:size-5 sm:mb-4 sm:size-16 sm:[&_svg]:size-7"
           aria-hidden="true"
         >
           {icon}
@@ -55,6 +55,6 @@ export function EmptyState({
 /** État vide compact pour l'intérieur d'une carte admin (`.adm-empty`). */
 export function EmptyRow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-5 py-10 text-center text-[13.5px] font-semibold text-ink-3">{children}</p>
+    <p className="px-5 py-8 text-center text-[13.5px] font-semibold text-ink-3 sm:py-10">{children}</p>
   );
 }

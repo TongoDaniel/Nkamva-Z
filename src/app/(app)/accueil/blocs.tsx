@@ -177,7 +177,7 @@ export function LiveNowBanner({ event, className }: { event: EventItem; classNam
   return (
     <Link
       href={event.href}
-      className={`group flex items-center gap-3 rounded-nk-lg border border-danger/30 bg-danger-tint px-4 py-3 transition duration-150 hover:border-danger sm:gap-4 sm:px-5 sm:py-4 ${className ?? ""}`}
+      className={`group flex items-center gap-3 rounded-nk-lg border border-line border-l-4 border-l-danger bg-card px-4 py-3 transition duration-150 hover:border-danger sm:gap-4 sm:px-5 sm:py-4 ${className ?? ""} rounded-l-sm`}
     >
       <span className="relative flex size-2.5 shrink-0" aria-hidden="true">
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-60 motion-reduce:hidden" />
@@ -492,7 +492,7 @@ export function ResumeList({ items }: { items: ResourceItem[] }) {
             className="group relative flex items-center gap-3.5 rounded-nk-lg border border-line bg-card px-4 py-3.5 shadow-nk-sm transition duration-150 hover:border-brand focus-within:border-brand"
           >
             <span
-              className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
+              className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-card text-brand"
               aria-hidden="true"
             >
               <FormatGlyph format={course.format} className="size-[18px]" />
@@ -554,9 +554,9 @@ export function Novelties({ courses }: { courses: CourseListItem[] }) {
  * un lecteur d'écran réciterait l'échéance à chaque retour sur l'accueil.
  */
 export const BANNER_TONES = {
-  danger: "border-danger/30 bg-danger-tint text-danger",
-  gold: "border-gold/30 bg-gold-tint text-gold-ink",
-  clay: "border-clay/30 bg-clay-tint text-clay-ink",
+  danger: "border-line border-l-4 border-l-danger bg-card text-danger rounded-l-sm",
+  gold: "border-line border-l-4 border-l-gold bg-card text-gold-ink rounded-l-sm",
+  clay: "border-line border-l-4 border-l-clay bg-card text-clay-ink rounded-l-sm",
   muted: "border-line bg-card text-ink-2",
 } as const;
 

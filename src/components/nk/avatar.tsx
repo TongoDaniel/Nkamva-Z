@@ -27,7 +27,7 @@ const avatarVariants = cva(
         // `.nk-admin`) : pointer `azure` en dur rouvrait le même dégradé bicolore
         // dans le back-office.
         brand: "bg-linear-to-br from-brand to-brand-2",
-        tint: "bg-brand-tint-2 !text-brand-dark",
+        tint: "border border-line bg-card !text-ink-2",
         ink: "bg-ink",
       },
     },

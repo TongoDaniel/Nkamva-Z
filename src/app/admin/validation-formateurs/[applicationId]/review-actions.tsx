@@ -194,7 +194,7 @@ export function ReviewActions({
                 key={document.id}
                 className={cn(
                   "rounded-nk border-[1.5px] p-4",
-                  value ? "border-danger/40 bg-danger-tint/30" : "border-line",
+                  value ? "border-danger ring-1 ring-danger" : "border-line",
                 )}
               >
                 <div className="mb-2 flex items-center justify-between gap-3">

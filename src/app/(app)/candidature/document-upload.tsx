@@ -94,7 +94,7 @@ export function DocumentUpload({
     <div
       className={cn(
         "rounded-nk border-[1.5px] p-5",
-        confirmed ? "border-brand-tint-2 bg-brand-tint/40" : rejected ? "border-danger/40 bg-danger-tint/40" : "border-line bg-card",
+        confirmed ? "border-brand bg-card" : rejected ? "border-danger bg-card" : "border-line bg-card",
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -113,7 +113,7 @@ export function DocumentUpload({
       ) : null}
 
       {rejected && current?.rejectionReason ? (
-        <p className="mt-3 flex items-start gap-2 rounded-nk-sm bg-danger-tint px-3.5 py-2.5 text-[13px] leading-relaxed text-danger">
+        <p className="mt-3 flex items-start gap-2 rounded-nk-sm border border-line bg-card border-l-4 border-l-danger px-3.5 py-2.5 text-[13px] leading-relaxed text-danger rounded-l-sm">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
             <b>Motif du refus :</b> {current.rejectionReason}

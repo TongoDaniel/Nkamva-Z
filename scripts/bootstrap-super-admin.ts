@@ -111,7 +111,7 @@ async function main() {
   })
   await sendEmail({
     to: email,
-    subject: 'NKAMVA — votre accès super-administrateur',
+    subject: 'NKAMVA · votre accès super-administrateur',
     html, text,
     tags: ['admin-invitation'],
   })

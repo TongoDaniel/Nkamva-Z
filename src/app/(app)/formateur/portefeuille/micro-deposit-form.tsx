@@ -66,7 +66,7 @@ export function MicroDepositForm({
             avec la référence <b className="font-bold text-ink-2">{reference}</b>
           </>
         ) : null}
-        . Saisissez-les pour prouver que le compte est bien le vôtre — l&apos;ordre
+        . Saisissez-les pour prouver que le compte est bien le vôtre. L&apos;ordre
         n&apos;a pas d&apos;importance.
       </p>
 

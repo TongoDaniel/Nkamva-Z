@@ -11,6 +11,7 @@ import { HelpAnswer } from "@/components/nk/help-answer";
 import { PayBand, PayChips, countriesLabel } from "@/components/nk/pay-band";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { Reveal } from "@/components/nk/reveal";
+import { HowItWorksSwitch, ProductTrack } from "./home-mobile";
 import { ScrollCarousel } from "@/components/nk/scroll-carousel";
 import { Kicker, SectionHead } from "@/components/nk/section-head";
 import { featuredCourses } from "@/lib/featured";
@@ -24,7 +25,7 @@ const LEARN_STEPS = [
   {
     lead: "Parcourez",
     rest: " le catalogue",
-    body: "Développement, business, design, marketing — filtrez par catégorie, comparez les formats et les prix.",
+    body: "Développement, business, design, marketing : filtrez par catégorie, comparez les formats et les prix.",
   },
   {
     lead: "Payez à l'unité",
@@ -47,7 +48,7 @@ const TEACH_STEPS = [
   {
     lead: "Publiez",
     rest: " vos ressources",
-    body: "Guides PDF, cours vidéo, modèles réutilisables — vous fixez librement votre prix, en FCFA.",
+    body: "Guides PDF, cours vidéo ou modèles réutilisables : vous fixez librement votre prix, en FCFA.",
   },
   {
     lead: "Encaissez",
@@ -63,7 +64,7 @@ const PRODUCT_ROWS = [
     after: ", gardez l'accès à vie",
     body: "Chaque guide, cours ou modèle s'achète une fois, au prix fixé par son formateur. Pas d'abonnement caché.",
     cta: { href: "/ressources", label: "Parcourir le catalogue" },
-    shot: "/shots/catalogue-new.png",
+    shot: "/shots/catalogue.png",
     alt: "Écran réel du catalogue NKAMVA : recherche, catégories et cartes ressources",
     url: "nkamva.com/ressources",
     reversed: false,
@@ -74,9 +75,9 @@ const PRODUCT_ROWS = [
     after: "",
     body: "Contenu détaillé, format, nombre de pages ou durée : chaque fiche annonce exactement ce que contient la ressource, avant le paiement.",
     cta: null,
-    shot: "/shots/fiche-new.png",
+    shot: "/shots/fiche.png",
     alt: "Écran réel d'une fiche ressource : format, durée et prix annoncés avant le paiement",
-    url: "nkamva.com/ressource",
+    url: "nkamva.com/ressources/robe-en-wax",
     reversed: true,
   },
   {
@@ -85,9 +86,9 @@ const PRODUCT_ROWS = [
     after: "",
     body: "Vos achats restent dans votre espace : progression conservée et lecture reprise en un geste, sur mobile comme sur ordinateur.",
     cta: null,
-    shot: "/shots/dashboard-new.png",
-    alt: "Écran réel du tableau de bord apprenant : reprendre la lecture en cours",
-    url: "nkamva.com/accueil",
+    shot: "/shots/mes-ressources.png",
+    alt: "Écran réel de « Mes ressources » : la progression de chaque achat et la reprise en un geste",
+    url: "nkamva.com/mes-ressources",
     reversed: false,
   },
 ];
@@ -99,7 +100,7 @@ const TRAINER_POINTS = [
   ],
   [
     "Formats libres",
-    "PDF, vidéo, kits, modèles Notion ou tableurs — publiez ce qui sert vraiment vos apprenants.",
+    "PDF, vidéo, kits, modèles Notion ou tableurs : publiez ce qui sert vraiment vos apprenants.",
   ],
   [
     "Retraits par mobile money",
@@ -136,7 +137,7 @@ export default async function LandingPage() {
           <Reveal delay={1.6}>
             <p className="mx-auto mb-[26px] max-w-[54ch] text-[15.5px] leading-relaxed text-ink-2 text-pretty sm:text-[17px]">
               Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par
-              mobile money ou carte bancaire — la ressource reste à vous, à vie.
+              mobile money ou carte bancaire : la ressource reste à vous, à vie.
             </p>
           </Reveal>
           <Reveal delay={2.4}>
@@ -183,26 +184,30 @@ export default async function LandingPage() {
               id="comment-ca-marche"
             />
           </Reveal>
-          <div className="grid gap-[26px] lg:grid-cols-2">
-            <Reveal delay={0}>
-              <StepLane
-                chip="Pour apprendre"
-                chipTone="brand"
-                title="Trouvez, payez, apprenez"
-                steps={LEARN_STEPS}
-                cta={{ href: "/ressources", label: "Explorer les ressources" }}
-              />
-            </Reveal>
-            <Reveal delay={1}>
-              <StepLane
-                chip="Pour former"
-                chipTone="clay"
-                title="Publiez et encaissez"
-                steps={TEACH_STEPS}
-                cta={{ href: "/devenir-formateur", label: "Devenir formateur" }}
-              />
-            </Reveal>
-          </div>
+          <HowItWorksSwitch
+            learn={
+              <Reveal delay={0} className="h-full">
+                <StepLane
+                  chip="Pour apprendre"
+                  chipTone="brand"
+                  title="Trouvez, payez, apprenez"
+                  steps={LEARN_STEPS}
+                  cta={{ href: "/ressources", label: "Explorer les ressources" }}
+                />
+              </Reveal>
+            }
+            teach={
+              <Reveal delay={1} className="h-full">
+                <StepLane
+                  chip="Pour former"
+                  chipTone="clay"
+                  title="Publiez et encaissez"
+                  steps={TEACH_STEPS}
+                  cta={{ href: "/devenir-formateur", label: "Devenir formateur" }}
+                />
+              </Reveal>
+            }
+          />
         </div>
       </section>
 
@@ -218,9 +223,16 @@ export default async function LandingPage() {
               id="le-produit"
             />
           </Reveal>
+          {/* Un seul `Reveal` pour toute la piste : posé sur chaque carte, il
+              masquerait celles qui attendent hors champ, à droite, jusqu'au
+              glissement. */}
+          <Reveal>
+            <ProductTrack count={PRODUCT_ROWS.length}>
           {PRODUCT_ROWS.map((row, index) => (
-            <Reveal key={row.shot}>
-              <div className="grid items-center gap-[22px] py-[26px] lg:grid-cols-[0.85fr_1.15fr] lg:gap-[52px] lg:py-[30px]">
+              <div
+                key={row.shot}
+                className="grid w-[86%] shrink-0 snap-start content-start gap-[18px] lg:w-auto lg:items-center lg:gap-[52px] lg:py-[30px] lg:grid-cols-[0.85fr_1.15fr]"
+              >
                 <div className={row.reversed ? "lg:order-2" : undefined}>
                   <h3 className="mb-2.5 text-[23px] font-extrabold leading-[1.15]">
                     {row.title}
@@ -248,11 +260,14 @@ export default async function LandingPage() {
                   alt={row.alt}
                   url={row.url}
                   priority={index === 0}
-                  className={row.reversed ? "lg:order-1" : undefined}
+                  // Sur la piste, l'écran passe avant le texte : c'est lui
+                  // qu'on fait défiler, le texte le légende.
+                  className={row.reversed ? "-order-1 lg:order-1" : "-order-1 lg:order-none"}
                 />
               </div>
-            </Reveal>
           ))}
+            </ProductTrack>
+          </Reveal>
         </div>
       </section>
 
@@ -328,7 +343,7 @@ export default async function LandingPage() {
         <div className="nk-wrap">
           <Reveal>
             <div className="grid items-stretch overflow-hidden rounded-[28px] border border-line bg-card shadow-nk-sm lg:grid-cols-[0.98fr_1.02fr]">
-              <div className="relative aspect-[16/10.5] lg:aspect-auto lg:min-h-[460px]">
+              <div className="relative aspect-[16/7] sm:aspect-[16/10.5] lg:aspect-auto lg:min-h-[460px]">
                 <Image
                   src="/formateurs.webp"
                   alt="Formateurs en atelier autour d'un ordinateur"
@@ -401,16 +416,16 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- CTA finale ---- */}
-      <section className="relative mt-[84px] overflow-hidden bg-navy">
+      <section className="relative mt-14 overflow-hidden bg-navy sm:mt-[84px]">
         <div
           aria-hidden="true"
           className="absolute inset-0 bg-[radial-gradient(760px_340px_at_50%_-60px,rgba(46,124,246,.28),transparent_65%)]"
         />
-        <div className="relative mx-auto max-w-[860px] px-5 pb-[50px] pt-[60px] text-center md:px-7 md:pb-16 md:pt-[78px]">
+        <div className="relative mx-auto max-w-[860px] px-5 pb-9 pt-10 text-center sm:pb-[50px] sm:pt-[60px] md:px-7 md:pb-16 md:pt-[78px]">
           <h2 className="mb-3 text-[clamp(28px,3.4vw,40px)] font-extrabold leading-[1.1] text-white text-balance">
-            Prêt à apprendre — ou à transmettre ?
+            Prêt à apprendre, ou à transmettre ?
           </h2>
-          <p className="mx-auto mb-[30px] max-w-[52ch] text-[16.5px] leading-relaxed text-[#b9c9dd]">
+          <p className="mx-auto mb-6 max-w-[52ch] text-[16.5px] leading-relaxed text-[#b9c9dd] sm:mb-[30px]">
             Créez votre compte, explorez le catalogue à votre rythme, ou proposez votre première
             ressource.
           </p>
@@ -471,7 +486,7 @@ function StepLane({
         ))}
       </ol>
       <p className="border-t border-line-2 pb-[18px] pt-3.5 text-[13.5px]">
-        <Link href={cta.href} className="font-bold">
+        <Link href={cta.href} className="nk-tap font-bold">
           {cta.label} →
         </Link>
       </p>

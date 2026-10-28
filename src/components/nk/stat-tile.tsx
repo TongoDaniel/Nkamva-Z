@@ -2,10 +2,10 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const TONES = {
-  brand: "bg-brand-tint text-brand",
-  blue: "bg-info-tint text-info",
-  gold: "bg-gold-tint text-gold-ink",
-  clay: "bg-clay-tint text-clay-ink",
+  brand: "border border-line bg-card text-brand",
+  blue: "border border-line bg-card text-info",
+  gold: "border border-line bg-card text-gold-ink",
+  clay: "border border-line bg-card text-clay-ink",
 } as const;
 
 /**
@@ -42,7 +42,7 @@ export function StatTile({
     <div
       className={cn(
         "flex items-center gap-3.5 rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm",
-        !icon && ["border-l-4", RAILS[tone]],
+        !icon && ["border-l-4 rounded-l-sm", RAILS[tone]],
         className,
       )}
     >

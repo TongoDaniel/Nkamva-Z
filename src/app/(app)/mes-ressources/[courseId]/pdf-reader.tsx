@@ -347,7 +347,7 @@ export function PdfReader({
       */}
       <div
         ref={flux}
-        className="relative max-h-[72vh] min-h-[320px] overflow-y-auto overscroll-contain p-4"
+        className="relative max-h-[72dvh] min-h-[320px] overflow-y-auto overscroll-contain p-4"
       >
         {Array.from({ length: doc.numPages }, (_, i) => (
           <PageCanvas
