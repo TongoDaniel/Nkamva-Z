@@ -40,7 +40,16 @@ export default async function DisputeDetailPage({
   if (!auth) return null;
 
   const { disputeId } = await params;
-  const dispute = await getMyDispute(disputeId, auth.user.id);
+  // Le litige d'un autre, ou un identifiant inconnu : la même page
+  // « introuvable » dans les deux cas — ne pas dire si le litige existe.
+  // `getMyDispute` lève plutôt que de rendre `null` ; non rattrapée, l'erreur
+  // tombait sur l'écran « momentanément indisponible ».
+  const dispute = await getMyDispute(disputeId, auth.user.id).catch((err: unknown) => {
+    if (err instanceof Error && (err.message === "NOT_OWNER" || err.message === "DISPUTE_NOT_FOUND")) {
+      return null;
+    }
+    throw err;
+  });
   if (!dispute) notFound();
 
   const state = DISPUTE_STATUS[dispute.status];
