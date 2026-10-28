@@ -15,6 +15,7 @@
 import type { Prisma } from '@prisma/client'
 import { db } from './db'
 import { searchAnyOf } from './search-text'
+import { idsBranch, trainerProfileIdsMatching } from './search-unaccent'
 import { userAvatarSrc } from './avatars'
 
 /**
@@ -177,8 +178,10 @@ export async function listPublicTrainers(search?: string): Promise<PublicTrainer
     filter: search
       ? {
           OR: [
-            // Jokers échappés, et la forme sans accents cherchée aussi (m6).
+            // Jokers échappés, la forme sans accents cherchée aussi, et le texte
+            // stocké comparé sans ses accents : « robe » trouve « rôbe » (m6).
             ...searchAnyOf(search, (contains) => [{ user: { fullName: contains } }, { slogan: contains }]),
+            ...idsBranch(await trainerProfileIdsMatching(search)),
             { domains: { has: search } },
           ],
         }
