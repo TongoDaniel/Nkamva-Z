@@ -80,7 +80,11 @@ export default async function MessageriePage({
           />
         </div>
       ) : (
-        <ConversationPane conversations={conversations} initialThread={initialThread} />
+        <ConversationPane
+          conversations={conversations}
+          initialThread={initialThread}
+          openThread={initialId === fil}
+        />
       )}
     </div>
   );
