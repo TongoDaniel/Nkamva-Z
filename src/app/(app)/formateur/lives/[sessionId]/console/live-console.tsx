@@ -765,6 +765,14 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                 </Btn>
               </div>
 
+              {/* La présence réelle, mesurée chez LiveKit : la liste ci-dessous
+                  garde aussi ceux dont le départ n'a pas encore été signalé. */}
+              {room.connectedNow !== null ? (
+                <p className="mb-2 text-[13px] text-ink-2" aria-live="polite">
+                  <b className="font-bold text-ink">{room.connectedNow}</b>{" "}
+                  {room.connectedNow > 1 ? "personnes connectées" : "personne connectée"} en ce moment
+                </p>
+              ) : null}
               {room.participants.length === 0 ? (
                 <p className="py-8 text-center text-[13.5px] text-ink-3">
                   Personne n&apos;est encore entré dans la salle.
