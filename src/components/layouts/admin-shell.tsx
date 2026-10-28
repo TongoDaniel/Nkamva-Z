@@ -9,6 +9,7 @@ import {
   BadgeCheck, BarChart3, Coins, CreditCard, FileClock, Gavel, LayoutDashboard,
   LogOut, Menu, PiggyBank, Plug, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2,
   TicketPercent, UserCog, Users, Wallet, X,
+  LifeBuoy,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Wordmark } from "@/components/nk/logo";
@@ -43,6 +44,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/validation-formateurs", label: "Validation formateurs", icon: BadgeCheck, roles: ["MODERATION"] },
       { href: "/admin/litiges", label: "Litiges", icon: Gavel, roles: ["MODERATION"] },
       { href: "/admin/signalements", label: "Signalements", icon: ShieldAlert, roles: ["MODERATION"] },
+      { href: "/admin/aide", label: "Aide & FAQ", icon: LifeBuoy, roles: ["MODERATION"] },
     ],
   },
   {

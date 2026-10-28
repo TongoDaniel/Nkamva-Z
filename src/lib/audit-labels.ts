@@ -91,7 +91,7 @@ export const AUDIT_ACTION_GROUPS: Array<{ value: string; label: string; prefixes
     // celles qu'on relit pour répondre à « qui a changé ça, et quand ».
     value: 'platform',
     label: 'Plateforme',
-    prefixes: ['SETTING_UPDATED', 'PLATFORM_TARIFF', 'PLATFORM_DISCOUNT', 'STORAGE_TIERS'],
+    prefixes: ['SETTING_UPDATED', 'PLATFORM_TARIFF', 'PLATFORM_DISCOUNT', 'STORAGE_TIERS', 'HELP_'],
   },
   {
     value: 'jobs',
@@ -294,6 +294,14 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   SCHEDULED_JOB_COMPLETED: 'Tâche planifiée terminée',
   SCHEDULED_JOB_FAILED: 'Tâche planifiée en échec',
   SETTING_UPDATED: 'Réglage modifié',
+  HELP_CATEGORY_CREATED: 'Rubrique d’aide créée',
+  HELP_CATEGORY_UPDATED: 'Rubrique d’aide modifiée',
+  HELP_CATEGORY_DELETED: 'Rubrique d’aide supprimée',
+  HELP_CATEGORY_MOVED: 'Rubrique d’aide déplacée',
+  HELP_ARTICLE_CREATED: 'Question d’aide créée',
+  HELP_ARTICLE_UPDATED: 'Question d’aide modifiée',
+  HELP_ARTICLE_DELETED: 'Question d’aide supprimée',
+  HELP_ARTICLE_MOVED: 'Question d’aide déplacée',
   CONTACT_MESSAGE_SENT: 'Message au support envoyé',
   NOTIFICATION_DELIVERY_FAILED: "Envoi d'une notification en échec",
   STRIPE_WEBHOOK_EVENT_IGNORED: 'Événement Stripe ignoré',
@@ -338,6 +346,8 @@ export const AUDIT_TARGET_LABELS: Record<string, string> = {
   PlatformTariff: 'Tarif',
   PlatformDiscount: 'Réduction',
   Setting: 'Réglage',
+  HelpCategory: 'Rubrique d’aide',
+  HelpArticle: 'Question d’aide',
   ScheduledJob: 'Tâche planifiée',
 }
 
