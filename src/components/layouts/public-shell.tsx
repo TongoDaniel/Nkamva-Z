@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { BtnLink } from "@/components/nk/button-link";
 import { Logo } from "@/components/nk/logo";
 import { TabBar } from "@/components/nk/tab-bar";
@@ -90,25 +91,49 @@ export function PublicTopbar() {
 
 /** Pied de page public — port de `.bigfoot`. */
 export function PublicFooter() {
+  // Sous `sm`, chaque colonne de liens se replie derrière son titre (voir plus bas).
+  const [openColumn, setOpenColumn] = React.useState<string | null>(null);
   return (
     <footer className="mt-10 border-t border-line bg-paper sm:mt-[72px]">
       {/* Mesuré à 835 px de haut à 375 px de large, pour un écran qui en fait
           812 : le pied de page était un écran entier. Les trois colonnes de
           liens tiennent deux de front sur téléphone — leurs libellés font un
           mot — et la respiration reprend sa taille dès 640 px. */}
-      <div className="nk-wrap grid grid-cols-2 gap-x-5 gap-y-7 pb-7 pt-8 sm:grid-cols-2 sm:gap-10 sm:pb-10 sm:pt-[52px] lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
-        <div className="col-span-2 sm:col-span-1">
+      {/* Puis replié (26 octobre 2026) : à deux de front, il faisait encore
+          645 px — trois listes de liens que presque personne ne déroule au bas
+          d'une page. Sous `sm`, chaque colonne devient un titre qu'on touche
+          pour la déplier ; les liens restent dans la page, masqués seulement
+          par le style, donc toujours suivis par les moteurs. */}
+      <div className="nk-wrap grid grid-cols-1 gap-y-5 pb-6 pt-7 sm:grid-cols-2 sm:gap-10 sm:pb-10 sm:pt-[52px] lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className="sm:col-span-1">
           <Logo />
           <p className="mt-3 max-w-[34ch] text-sm leading-relaxed text-ink-2">
             Apprendre et former à l&apos;unité, en FCFA, par mobile money ou carte bancaire.
           </p>
         </div>
-        {FOOTER_COLUMNS.map((col) => (
+        <div className="grid divide-y divide-line-2 border-y border-line-2 sm:contents sm:divide-y-0">
+        {FOOTER_COLUMNS.map((col) => {
+          const open = openColumn === col.title;
+          const listId = `pied-${col.title.toLowerCase()}`;
+          return (
           <div key={col.title}>
-            <h2 className="mb-3.5 mt-1.5 font-sans text-[13px] font-bold uppercase tracking-[0.12em] text-ink-3">
-              {col.title}
+            <h2 className="font-sans text-[13px] font-bold uppercase tracking-[0.12em] text-ink-3 sm:mb-3.5 sm:mt-1.5">
+              <button
+                type="button"
+                onClick={() => setOpenColumn(open ? null : col.title)}
+                aria-expanded={open}
+                aria-controls={listId}
+                className="flex w-full cursor-pointer items-center justify-between py-3.5 uppercase sm:hidden"
+              >
+                {col.title}
+                <ChevronDown
+                  className={cn("size-4 transition-transform", open && "rotate-180")}
+                  aria-hidden="true"
+                />
+              </button>
+              <span className="hidden sm:block">{col.title}</span>
             </h2>
-            <ul className="grid gap-2.5">
+            <ul id={listId} className={cn("gap-2.5 pb-4 sm:grid sm:pb-0", open ? "grid" : "hidden")}>
               {col.links.map((l) => (
                 <li key={l.href}>
                   <Link href={l.href} className="text-sm font-semibold text-ink-2 hover:text-brand">
@@ -118,7 +143,9 @@ export function PublicFooter() {
               ))}
             </ul>
           </div>
-        ))}
+          );
+        })}
+        </div>
       </div>
       <div className="border-t border-line-2">
         <div className="nk-wrap flex flex-wrap items-center justify-between gap-3.5 py-4.5">
