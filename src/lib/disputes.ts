@@ -12,6 +12,7 @@
 //     contesté auprès du provider au lieu d'ouvrir un litige (décision 17)
 // ==========================================================================
 
+import { fmtFcfa } from './format'
 import type {
   DisputeReason,
   DisputeResolution,
@@ -477,11 +478,11 @@ async function notifyDisputeOpened(
   disputeId: string,
   params: { trainerUserId: string; trainerEmail: string; reason: DisputeReason; itemTitle: string },
 ) {
-  const contestLink = `/formateur/litiges/${disputeId}/contester`
+  const contestLink = `/formateur/litiges/${disputeId}`
   await notify(params.trainerUserId, {
     type: 'DISPUTE_OPENED',
     title: 'Un litige a été ouvert sur une de vos ventes',
-    body: `Motif : ${params.reason} · ${params.itemTitle}. Les fonds correspondants sont réservés le temps de l'instruction.`,
+    body: `Motif : ${REASON_LABELS[params.reason]} · ${params.itemTitle}. Les fonds correspondants sont réservés le temps de l'instruction.`,
     link: contestLink,
   })
   await sendEmail({
@@ -493,17 +494,19 @@ async function notifyDisputeOpened(
       title: 'Litige ouvert sur une de vos ventes',
       paragraphs: [
         `Un litige a été ouvert sur la vente « ${params.itemTitle} ».`,
-        `Motif déclaré : ${params.reason}.`,
+        `Motif déclaré : ${REASON_LABELS[params.reason]}.`,
         'Les fonds correspondants sont réservés sur votre portefeuille le temps de l\'instruction par notre équipe.',
       ],
-      cta: { label: 'Contester cette décision', url: absoluteUrl(contestLink) },
+      // Rien n'est encore décidé : le formateur répond au litige, il ne
+      // conteste pas une décision.
+      cta: { label: 'Répondre à ce litige', url: absoluteUrl(contestLink) },
     }),
     tags: ['dispute-opened'],
   })
   await notifyAdminSubRole('MODERATION', {
     type: 'DISPUTE_OPENED',
     title: 'Nouveau litige à instruire',
-    body: `Motif : ${params.reason} · ${params.itemTitle}`,
+    body: `Motif : ${REASON_LABELS[params.reason]} · ${params.itemTitle}`,
     link: `/admin/litiges/${disputeId}`,
   })
 }
@@ -865,7 +868,7 @@ async function notifyTrainerResolution(disputeId: string) {
   if (!dispute) return
 
   const itemTitle = dispute.purchase.course?.title ?? dispute.purchase.community?.name ?? 'Ressource'
-  const contestLink = `/formateur/litiges/${dispute.id}/contester`
+  const contestLink = `/formateur/litiges/${dispute.id}`
   const refunded = dispute.status === 'RESOLVED_REFUNDED'
 
   await notify(dispute.trainerProfile.userId, {
@@ -882,8 +885,8 @@ async function notifyTrainerResolution(disputeId: string) {
     ...renderSimpleEmail({
       title: refunded ? 'Remboursement accordé sur une de vos ventes' : 'Litige clos sans remboursement',
       paragraphs: [
-        `Le litige portant sur « ${itemTitle} » (motif : ${dispute.reason}) vient d'être tranché.`,
-        `Décision : ${dispute.resolution}.`,
+        `Le litige portant sur « ${itemTitle} » (motif : ${REASON_LABELS[dispute.reason].toLowerCase()}) vient d'être tranché.`,
+        `Décision : ${dispute.resolution ? RESOLUTION_LABELS[dispute.resolution] : 'clos'}.`,
       ],
       cta: { label: 'Contester cette décision', url: absoluteUrl(contestLink) },
     }),
@@ -1084,8 +1087,8 @@ async function createManualRefundTask(
     notifyAdminSubRole('FINANCES', {
       type: 'MANUAL_REFUND_TASK',
       title: 'Remboursement à exécuter manuellement',
-      body: `${refundAmountFcfa} FCFA à rembourser (${provider}). Le litige reste bloqué tant que la tâche n'est pas traitée.`,
-      link: `/admin/remboursements-manuels`,
+      body: `${fmtFcfa(refundAmountFcfa)} à rembourser (${provider === 'PAWAPAY' ? 'mobile money' : 'carte bancaire'}). Le litige reste bloqué tant que la tâche n'est pas traitée.`,
+      link: '/admin/remboursements',
     }),
   )
 }
@@ -1256,7 +1259,7 @@ export async function openDisputeFromChargeback(params: {
         type: 'DOUBLE_DEBIT_PREVENTED',
         title: 'Chargeback sur une vente déjà remboursée',
         body: 'Le chargeback a été contesté automatiquement auprès du provider. Aucun litige n\'a été ouvert, aucun double débit.',
-        link: `/admin/achats/${purchase.id}`,
+        link: '/admin/transactions?statut=refunded',
       }),
     )
     return { created: false, disputeId: null, doubleDebitPrevented: true }
@@ -1720,6 +1723,14 @@ export const REASON_LABELS: Record<DisputeReason, string> = {
   ACCESS_ISSUE: "Problème d'accès à la ressource",
   UNAUTHORIZED_CHARGE: 'Paiement non autorisé',
   OTHER: 'Autre motif',
+}
+
+/** Libellés des décisions, tels que le formateur les lit dans l'avis de clôture. */
+export const RESOLUTION_LABELS: Record<DisputeResolution, string> = {
+  FULL_REFUND: 'remboursement intégral',
+  PARTIAL_REFUND: 'remboursement partiel',
+  REJECT: 'pas de remboursement',
+  AUTO_TIMEOUT: "clos faute de réponse de l'acheteur",
 }
 
 /** Alias : même signature et même retour que `getDisputeForLearner`. */
