@@ -10,8 +10,9 @@
 // précisément parce que serveur et navigateur partageaient le fuseau du poste
 // qu'il est passé inaperçu en dev.
 //
-// Il lit `/mes-lives`, le salon « Sessions » d'une communauté et `/accueil` tels
-// que le serveur les envoie, avant toute hydratation. Ce qu'il tient :
+// Il lit `/mes-lives`, le salon « Sessions » d'une communauté, `/accueil`, la
+// salle d'une séance et le lecteur d'un replay tels que le serveur les envoie,
+// avant toute hydratation. Ce qu'il tient :
 //
 //   · une séance s'écrit dans le fuseau de son animateur, jamais dans celui du
 //     serveur — le texte que le navigateur hydratera est donc le même ;
@@ -137,16 +138,16 @@ async function main() {
 
   // 17:00 UTC : 18:00 à Douala, 19:00 à Paris — trois textes pour un instant.
   const debutDouala = utc(1, 17)
-  await seance('Séance Fuseau Douala', debutDouala, 'Africa/Douala')
+  const seanceDouala = await seance('Séance Fuseau Douala', debutDouala, 'Africa/Douala')
   // 23:30 UTC sans fuseau : le repli la place le lendemain, à 00:30 — le jour
   // change aussi, pas seulement l'heure.
   const debutSansFuseau = utc(2, 23, 30)
-  await seance('Séance Fuseau Absent', debutSansFuseau, null)
+  const seanceSansFuseau = await seance('Séance Fuseau Absent', debutSansFuseau, null)
   // 02:00 UTC à Toronto : la veille au soir. Le repli (Douala) dirait le même
   // jour qu'UTC ; seul le fuseau de la séance donne la veille.
   const debutToronto = utc(-3, 2)
   const passee = await seance('Séance Fuseau Toronto', debutToronto, 'America/Toronto', 'ENDED')
-  await db.replay.create({
+  const replay = await db.replay.create({
     data: {
       sessionId: passee.id, communityId: communaute.id, trainerId: formatrice.id,
       title: 'Replay Fuseau Toronto', recordedAt: debutToronto, durationSeconds: 3_600,
@@ -232,10 +233,37 @@ async function main() {
     verifier(`l'événement s'écrit à ${douala.heure}, comme avant le partage du hook`,
       new RegExp(`Séance Fuseau Douala[\\s\\S]{0,120}${douala.heure} · 90 min`).test(accueil.texte),
       accueil.texte.match(/Séance Fuseau Douala.{0,120}/)?.[0])
+
+    // La salle et le lecteur écrivaient leur date sans fuseau : celui du
+    // serveur au premier rendu, celui du lecteur à l'hydratation. On ne compare
+    // que le jour et l'heure — la mise en forme complète (« à », virgule) peut
+    // différer entre l'ICU de ce script et celui du serveur.
+    console.log('\nsalle d’une séance')
+    const salle = await lire(`/mes-lives/live/${seanceDouala.id}`)
+    verifier('la page répond', salle.status === 200, `HTTP ${salle.status}`)
+    const entete = (texte: string) => texte.match(/animé par Awa Fuseau · (\S+ (\d{1,2}) \S+\D*(\d\d:\d\d))/)
+    const s = entete(salle.texte)
+    verifier(`la séance de Douala s'écrit le ${douala.jour} à ${douala.heure}, pas à ${serveurUtc.heure} (UTC)`,
+      s?.[2] === douala.jour && s?.[3] === douala.heure, s?.[1] ?? 'en-tête introuvable')
+    verifier('le rappel « soit … à Douala » attend l’hydratation', !/soit \d\d:\d\d à/.test(salle.texte))
+
+    const salleRepli = await lire(`/mes-lives/live/${seanceSansFuseau.id}`)
+    const sr = entete(salleRepli.texte)
+    verifier(`la séance sans fuseau prend le repli : le ${repli.jour} à ${repli.heure}`,
+      sr?.[2] === repli.jour && sr?.[3] === repli.heure, sr?.[1] ?? 'en-tête introuvable')
+
+    console.log('\nlecteur de replay')
+    const lecteur = await lire(`/mes-lives/replay/${replay.id}`)
+    verifier('la page répond', lecteur.status === 200, `HTTP ${lecteur.status}`)
+    const enregistre = lecteur.texte.match(/enregistré le (\d{1,2} \S+ \d{4})/)
+    verifier(`l'enregistrement date du ${jourLong(debutToronto, 'America/Toronto')}, pas du ${jourLong(debutToronto, 'UTC')}`,
+      enregistre?.[1] === jourLong(debutToronto, 'America/Toronto'), enregistre?.[0] ?? 'date introuvable')
   } finally {
     if (KEEP) {
       console.log(`\n  KEEP=1 — données conservées sous la marque ${marque}`)
       console.log(`  communauté : /mes-communautes/${communaute.slug}`)
+      console.log(`  salle      : /mes-lives/live/${seanceDouala.id}`)
+      console.log(`  replay     : /mes-lives/replay/${replay.id}`)
       console.log(`  membre     : ${cookie}`)
       console.log(`  pour effacer : CLEAN=${marque} bun scripts/smoke-fuseau-lives.ts`)
     } else {

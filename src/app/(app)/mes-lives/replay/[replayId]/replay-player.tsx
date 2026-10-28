@@ -7,6 +7,7 @@ import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
 import { Chip } from "@/components/nk/chip";
 import { toast } from "sonner";
+import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { api, ApiError } from "@/lib/client";
 import type { ReplayView, ReplayMessage } from "@/lib/lives";
 import { ReplayChat } from "./replay-chat";
@@ -49,6 +50,11 @@ export function ReplayPlayer({
   // ~1,3 Go. Sur les connexions que sert la plateforme, c'est la différence
   // entre écouter le replay et ne jamais le charger.
   const [variant, setVariant] = React.useState<"video" | "audio">("video");
+  // La date d'enregistrement est celle du live : sans fuseau, le serveur
+  // l'écrivait dans le sien, et une séance du soir à Toronto changeait de jour
+  // à l'hydratation. Même règle que `ReplayRow`, sans rappel de l'heure de
+  // l'animateur — le lecteur n'affiche que le jour.
+  const { timeZone } = useSessionTimeZone(replay.timeZone);
 
   // L'URL est signée et expire : on la demande à l'ouverture de l'écran plutôt
   // que de la rendre avec la page, où elle traînerait dans le HTML.
@@ -242,6 +248,7 @@ export function ReplayPlayer({
               day: "numeric",
               month: "long",
               year: "numeric",
+              timeZone,
             }).format(replay.recordedAt)}
           </p>
           {replay.description ? (
