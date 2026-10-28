@@ -1,0 +1,8 @@
+// Périmètre typé par `next build`. L'image Docker n'embarque ni `tests/` ni
+// `docs/` (.dockerignore) : ce qui en dépend — l'outil `check:orphans` — n'a
+// rien à faire dans le build. Le job « typecheck » de la CI vérifie, lui,
+// tout `tsconfig.json`.
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "tests", "scripts/orphans.ts"]
+}
