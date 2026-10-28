@@ -250,7 +250,7 @@ confirmation rapide.
 
 | # | Tâche | Fichiers | Taille |
 |---|---|---|---|
-| **L3-6** | Mutualiser les filtres colonne / tiroir (aujourd'hui deux arbres indépendants, ~40 cases rendues deux fois) | `screens/catalog-controls.tsx` | M |
+| **L3-6** | Mutualiser les filtres colonne / tiroir (aujourd'hui deux arbres indépendants, ~40 cases rendues deux fois) | `screens/catalog-controls.tsx` | ✅ 26 oct. 2026 — un seul `aside` : colonne collante à partir de `lg`, tiroir en dessous ; l'état du tiroir vit dans `CatalogNavProvider` |
 | **L3-7** | Catalogue, communautés, formateurs, recherche | `screens/{catalog,communities,trainers,trainer-directory}-screen.tsx` | L |
 | **L3-8** | Pagination : cibles tactiles et position atteignable au pouce | `(app)/mes-achats/page.tsx` + 8 écrans admin paginés | S |
 
