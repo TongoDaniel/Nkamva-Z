@@ -423,6 +423,13 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   DISCOUNT_ALREADY_ENDED: { message: 'Cette réduction est déjà terminée', status: 409 },
   // --- Réglages système ---
   SETTING_NOT_FOUND: { message: 'Ce réglage n’existe pas', status: 404 },
+  // Aide & FAQ (/admin/aide)
+  HELP_NOT_FOUND: { message: 'Cette rubrique ou cette question n’existe plus', status: 404 },
+  HELP_CATEGORY_NOT_EMPTY: { message: 'Videz la rubrique avant de la supprimer : déplacez ou supprimez ses questions', status: 409 },
+  HELP_TEXT_REQUIRED: { message: 'La question et sa réponse sont toutes deux nécessaires', status: 400 },
+  HELP_TITLE_REQUIRED: { message: 'Une rubrique a besoin d’un titre', status: 400 },
+  HELP_ICON_INVALID: { message: 'Cette icône n’est pas proposée', status: 400 },
+  HELP_ANSWER_INVALID: { message: 'La réponse contient un marqueur inconnu ou un lien hors du site', status: 400 },
   VALUE_REQUIRED: { message: 'Une valeur est requise', status: 400 },
   VALUE_TOO_LONG: { message: 'Valeur trop longue (500 caractères maximum)', status: 400 },
   VALUE_UNCHANGED: { message: 'La valeur est déjà celle-ci', status: 409 },

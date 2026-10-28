@@ -2619,6 +2619,28 @@ paraît plus que dans l'encart « Votre formateur », où son sujet est clair.
 > en-tête, puis retirée. Aucune erreur serveur. La migration n'a été jouée sur aucune
 > base.
 
+**144. L'aide et la FAQ s'éditent depuis l'administration, et leurs chiffres
+ne s'écrivent jamais à la main** (26 octobre 2026, choix du propriétaire) —
+Le centre d'aide (22 questions, 5 rubriques) et la FAQ de l'accueil étaient en
+dur dans le code. Ils vivent désormais en base (`help_categories`,
+`help_articles`) et s'éditent depuis `/admin/aide`.
+- **Qui** : le Super-admin et la Modération ; pas les Finances.
+- **Les chiffres** passent par des **marqueurs** (`{commission}`,
+  `{retrait_minimum}`, `{delai_contestation}`…) que le rendu remplace par la
+  valeur de sa source unique. Un marqueur inconnu est refusé à l'enregistrement.
+  Même règle que pour tout chiffre affiché (source unique) : un taux qui change met à
+  jour toutes les réponses.
+- **La FAQ de l'accueil** n'est pas une seconde liste : ce sont les questions
+  de l'aide cochées « accueil », dans l'ordre de l'aide.
+- **Liens** : `[texte](/chemin)`, chemins du site seulement ; aucun HTML.
+- Créer, modifier, supprimer, réordonner, masquer sans supprimer ; chaque geste
+  est journalisé (`HELP_*`, groupe « Plateforme » du journal d'audit). Une
+  rubrique ne se supprime que vide.
+> Les quatre questions de l'ancienne FAQ d'accueil sont reprises par leurs
+> équivalentes de l'aide (moyens de paiement, accès à vie, commission,
+> remboursement) : l'accueil affiche désormais leur rédaction, enrichie de ce
+> que seule l'accueil disait (opérateurs, pays, lien vers les conditions).
+
 ---
 
 ---
