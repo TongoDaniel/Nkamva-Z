@@ -266,7 +266,7 @@ export function CoursePlayer({
 
         {isArchive ? (
           <div className="rounded-nk-lg border border-line bg-card p-5 text-center shadow-nk-sm sm:p-8">
-            <span className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-brand-tint text-brand">
+            <span className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl border border-line bg-card text-brand">
               <Download className="size-6" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-lg font-extrabold">Ressource à télécharger</h2>

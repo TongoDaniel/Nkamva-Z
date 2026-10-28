@@ -47,17 +47,6 @@ export function coverTone(category?: string | null): CoverTone {
  * `.chip-clay|gold|blue` de la maquette. Même dérivation que `coverTone` :
  * correspondance connue, puis hachage stable, jamais d'aléatoire.
  */
-const TONE_TO_CHIP = {
-  dev: "brand",
-  biz: "clay",
-  mkt: "gold",
-  dsg: "blue",
-} as const;
-
-export function categoryTone(category?: string | null) {
-  return TONE_TO_CHIP[coverTone(category)];
-}
-
 /** Libellés courts des formats gérés par le backend (`Course.format`). */
 export const FORMAT_LABELS: Record<string, string> = {
   video: "Vidéo",

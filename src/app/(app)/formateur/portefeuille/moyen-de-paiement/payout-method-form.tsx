@@ -186,14 +186,14 @@ export function PayoutMethodForm({ replacing }: { replacing: boolean }) {
               className={cn(
                 "cursor-pointer rounded-nk-lg border-[1.5px] p-4 text-left transition",
                 nature === n.value
-                  ? "border-brand bg-brand-tint"
+                  ? "border-brand ring-1 ring-brand"
                   : "border-line bg-card hover:border-brand/40",
               )}
             >
               <span
                 className={cn(
                   "mb-2 grid size-9 place-items-center rounded-nk-sm [&_svg]:size-4",
-                  nature === n.value ? "bg-brand text-white" : "bg-brand-tint text-brand",
+                  nature === n.value ? "bg-brand text-white" : "border border-line bg-card text-brand",
                 )}
                 aria-hidden="true"
               >

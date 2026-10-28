@@ -2,17 +2,26 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-/** Pastille de catégorie — port de `.chip` / `.chip-clay|gold|blue|mut`. */
+/**
+ * Libellé de catégorie — un surtitre, pas une pastille.
+ *
+ * C'était une pastille à fond teinté (`.chip`). Retirée le 27 octobre 2026 à la
+ * demande du propriétaire, après recherche : une catégorie fixe n'a pas d'état
+ * à signaler, et les systèmes de référence la rendent en texte simple (Queensland
+ * Health, Customer.io) ; le fond coloré y était une forme appliquée partout, pas
+ * un rôle. Le ton ne colore plus que le texte. Un **statut**, lui, passe par
+ * `StPill` (point + libellé) ; un **filtre actif** par `FilterPill`.
+ */
 export const chipVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-bold",
+  "inline-flex items-center gap-1.5 text-[13px] font-bold uppercase leading-none tracking-[0.08em]",
   {
     variants: {
       tone: {
-        brand: "bg-brand-tint text-brand",
-        clay: "bg-clay-tint text-clay-ink",
-        gold: "bg-gold-tint text-gold-ink",
-        blue: "bg-info-tint text-info",
-        muted: "bg-line-2 text-ink-2",
+        brand: "text-brand",
+        clay: "text-clay-ink",
+        gold: "text-gold-ink",
+        blue: "text-info",
+        muted: "text-ink-3",
       },
     },
     defaultVariants: { tone: "brand" },
@@ -38,13 +47,15 @@ export function FilterPill({
   removeLabel?: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-tint py-1.5 pl-3 pr-2 text-[13px] font-semibold text-brand-dark">
+    // Un filtre actif se retire : c'est une puce cerclée, pas un aplat coloré —
+    // ce qui la distingue d'un libellé de catégorie au premier regard.
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card py-1.5 pl-3 pr-2 text-[13px] font-semibold text-ink">
       {label}
       <button
         type="button"
         onClick={onRemove}
         aria-label={removeLabel ?? `Retirer le filtre ${label}`}
-        className="grid size-[18px] cursor-pointer place-items-center rounded-full bg-white/60 text-brand-dark hover:bg-white"
+        className="nk-tap grid size-[18px] cursor-pointer place-items-center rounded-full text-ink-3 hover:bg-paper hover:text-ink"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" className="size-[11px]" aria-hidden="true">
           <path d="M6 6l12 12M18 6 6 18" />

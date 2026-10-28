@@ -108,9 +108,9 @@ function SlotRow({
       className={cn(
         "mb-3.5 rounded-nk border-[1.5px] p-4.5",
         done
-          ? "border-brand-tint-2 bg-brand-tint/40"
+          ? "border-brand bg-card"
           : state?.error
-            ? "border-danger/40 bg-danger-tint/40"
+            ? "border-danger bg-card"
             : "border-line bg-card",
       )}
     >
@@ -132,7 +132,7 @@ function SlotRow({
       {state?.error ? (
         <p
           role="alert"
-          className="mt-2.5 flex items-start gap-2 rounded-nk-sm bg-danger-tint px-3.5 py-2.5 text-[13px] leading-relaxed font-semibold text-danger"
+          className="mt-2.5 flex items-start gap-2 rounded-nk-sm border border-line bg-card border-l-4 border-l-danger px-3.5 py-2.5 text-[13px] leading-relaxed font-semibold text-danger rounded-l-sm"
         >
           <CircleAlert className="mt-px size-4 shrink-0" aria-hidden="true" />
           <span>{state.error}</span>
@@ -187,7 +187,7 @@ export function WizardDocuments({
   return (
     <>
       {!storageAvailable ? (
-        <p className="mb-4 flex items-start gap-2.5 rounded-nk bg-gold-tint px-4 py-3.5 text-[13px] leading-relaxed text-gold-ink">
+        <p className="mb-4 flex items-start gap-2.5 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3.5 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
             Le stockage des fichiers n&apos;est pas configuré sur cet environnement : le dépôt de

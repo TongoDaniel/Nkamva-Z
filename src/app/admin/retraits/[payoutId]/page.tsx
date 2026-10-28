@@ -81,7 +81,7 @@ export default async function RetraitDetailPage({
       </div>
 
       {payout.isFirstPayout ? (
-        <div className="mb-6 flex flex-wrap items-start gap-3 rounded-nk-lg border border-line bg-gold-tint p-5">
+        <div className="mb-6 flex flex-wrap items-start gap-3 rounded-nk-lg border border-line bg-card border-l-4 border-l-gold p-5 rounded-l-sm">
           <TriangleAlert className="mt-0.5 size-5 shrink-0 text-gold-ink" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <b className="block text-[14.5px] font-extrabold text-ink">Premier retrait</b>
@@ -158,8 +158,8 @@ export default async function RetraitDetailPage({
                         <span
                           className={
                             met
-                              ? "grid size-4 shrink-0 place-items-center rounded-full bg-brand-tint text-brand"
-                              : "grid size-4 shrink-0 place-items-center rounded-full bg-line-2 text-ink-3"
+                              ? "grid size-4 shrink-0 place-items-center rounded-full border border-line bg-card text-brand"
+                              : "grid size-4 shrink-0 place-items-center rounded-full border border-line bg-card text-ink-3"
                           }
                           aria-hidden="true"
                         >

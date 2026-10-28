@@ -40,7 +40,7 @@ function QueueRow({
   return (
     <li className="flex flex-wrap items-center gap-4 border-b border-line-2 py-4 first:pt-0 last:border-b-0 last:pb-0">
       <span
-        className="grid size-9 shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand [&_svg]:size-4"
+        className="grid size-9 shrink-0 place-items-center rounded-nk-sm border border-line bg-card text-brand [&_svg]:size-4"
         aria-hidden="true"
       >
         {icon}

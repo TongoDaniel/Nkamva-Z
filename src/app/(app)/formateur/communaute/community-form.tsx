@@ -259,7 +259,7 @@ export function CommunityForm({
           />
 
           {renamed && slug ? (
-            <p className="mb-[18px] rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+            <p className="mb-[18px] rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
               Renommer change aussi l&apos;adresse publique du salon. Le lien{" "}
               <code className="font-mono">/communautes/{slug}</code> cessera de fonctionner, y
               compris dans les messages où vos membres l&apos;ont déjà recopié.

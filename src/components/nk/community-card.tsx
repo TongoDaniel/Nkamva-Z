@@ -260,7 +260,7 @@ export function CommunityCard({
         "@container group relative flex flex-col gap-2.5 rounded-nk-lg border p-3 shadow-nk-sm transition duration-200",
         "hover:-translate-y-0.5 hover:shadow-nk focus-within:-translate-y-0.5 focus-within:shadow-nk",
         "@3xs:gap-3 @3xs:p-4",
-        highlight ? "border-[1.5px] border-brand/30 bg-brand-tint/40" : "border-line bg-card",
+        highlight ? "border-[1.5px] border-brand bg-card ring-1 ring-brand" : "border-line bg-card",
         className,
       )}
     >

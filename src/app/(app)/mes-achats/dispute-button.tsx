@@ -120,11 +120,11 @@ export function DisputeButton({
             Vérification en cours…
           </p>
         ) : blocked ? (
-          <p className="rounded-nk bg-danger-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-danger">
+          <p className="rounded-nk border border-line bg-card border-l-4 border-l-danger px-4 py-3.5 text-[13.5px] leading-relaxed text-danger rounded-l-sm">
             {blocked}
           </p>
         ) : refusal ? (
-          <div className="flex items-start gap-3 rounded-nk bg-gold-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink">
+          <div className="flex items-start gap-3 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink rounded-l-sm">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <span>
               {INELIGIBILITY[refusal] ?? "Cet achat ne peut pas être contesté."}
@@ -137,7 +137,7 @@ export function DisputeButton({
           </div>
         ) : eligibility ? (
           <>
-            <p className="mb-5 rounded-nk bg-brand-tint px-4 py-3.5 text-[13px] leading-relaxed text-brand-dark">
+            <p className="mb-5 rounded-nk border border-line bg-card border-l-4 border-l-brand px-4 py-3.5 text-[13px] leading-relaxed text-brand-dark rounded-l-sm">
               Pendant l&apos;examen, votre accès à la ressource est suspendu et la part
               correspondante du formateur est gelée. Si la contestation n&apos;est pas retenue,
               l&apos;accès vous est rendu.
@@ -152,7 +152,7 @@ export function DisputeButton({
                     className={cn(
                       "flex cursor-pointer items-center gap-3 rounded-nk border-[1.5px] px-4 py-2.5 text-[14px] transition",
                       reason === option.value
-                        ? "border-brand bg-brand-tint"
+                        ? "border-brand ring-1 ring-brand"
                         : "border-line hover:border-ink-3",
                     )}
                   >

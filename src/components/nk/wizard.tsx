@@ -50,7 +50,7 @@ export function WizardSteps({
                     "grid size-[26px] place-items-center rounded-full text-[13px]",
                     active && "bg-brand text-white",
                     done && "bg-brand-dark text-white",
-                    !active && !done && "bg-line-2 text-ink-3",
+                    !active && !done && "border border-line bg-card text-ink-3",
                   )}
                   aria-hidden="true"
                 >

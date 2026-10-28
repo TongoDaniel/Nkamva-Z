@@ -158,7 +158,7 @@ export function AvatarPanel({
           // Le même repli que la liste des conversations : coin carré et
           // glyphe, là où une personne a un rond et ses initiales.
           <span
-            className="grid size-16 shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand"
+            className="grid size-16 shrink-0 place-items-center rounded-nk-sm border border-line bg-card text-brand"
             aria-hidden="true"
           >
             <Users className="size-7" />

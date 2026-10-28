@@ -127,7 +127,7 @@ export function CheckoutForm({
               className={cn(
                 "flex cursor-pointer items-center gap-4 rounded-nk border-[1.5px] p-4 transition",
                 provider === value
-                  ? "border-brand bg-brand-tint"
+                  ? "border-brand ring-1 ring-brand"
                   : "border-line bg-card hover:border-ink-3",
               )}
             >

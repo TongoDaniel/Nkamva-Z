@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Download, Gauge, Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
-import { Chip } from "@/components/nk/chip";
 import { toast } from "sonner";
 import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { api, ApiError } from "@/lib/client";
@@ -111,9 +110,9 @@ export function ReplayPlayer({
       <section className="min-w-0">
         <div className="overflow-hidden rounded-nk-lg bg-navy shadow-nk">
           <div className="relative grid aspect-video place-items-center bg-navy-2 text-center">
-            <Chip tone="gold" className="absolute left-4 top-4 z-[2]">
+            <span className="absolute left-4 top-4 z-[2] rounded-md bg-black/55 px-2 py-1 text-[13px] font-bold uppercase leading-none tracking-[0.08em] text-white">
               Replay
-            </Chip>
+            </span>
             {url && variant === "audio" ? (
               <div className="w-full px-6">
                 <p className="text-[13.5px] font-bold text-white">Version audio seule</p>
