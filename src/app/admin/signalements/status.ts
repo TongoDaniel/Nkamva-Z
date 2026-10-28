@@ -24,25 +24,8 @@ export const REPORT_STATUS: Record<string, { label: string; tone: Tone; help: st
   },
 };
 
-export const TARGET_LABELS: Record<string, string> = {
-  COURSE: "Ressource",
-  USER: "Compte",
-  COMMUNITY: "Communauté",
-  COMMUNITY_POST: "Billet de communauté",
-  COMMUNITY_POST_REPLY: "Réponse de communauté",
-  MESSAGE: "Message privé",
-  LIVE_MESSAGE: "Message de salon live",
-  DISPUTE_MESSAGE: "Message de litige",
-};
-
-export const REASON_LABELS: Record<string, string> = {
-  ILLEGAL: "Contenu illégal",
-  MISLEADING: "Contenu trompeur",
-  HARASSMENT: "Harcèlement",
-  SPAM: "Spam",
-  INTELLECTUAL_PROPERTY: "Propriété intellectuelle",
-  OTHER: "Autre",
-};
+// Les libellés vivent dans `lib/report-labels` : l'avis de Modération les lit aussi.
+export { REPORT_TARGET_LABELS as TARGET_LABELS, REPORT_REASON_LABELS as REASON_LABELS } from "@/lib/report-labels";
 
 /**
  * Ce que la clôture sait retirer, et en quels termes le dire à celui qui

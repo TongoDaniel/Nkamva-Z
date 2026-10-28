@@ -15,6 +15,7 @@ import type { ReportReason, ReportStatus, ReportTargetType } from '@prisma/clien
 import { db } from './db'
 import { audit } from './audit'
 import { notify, notifyAdminSubRole, deliverSideEffects } from './notification'
+import { REPORT_REASON_LABELS, REPORT_TARGET_LABELS } from './report-labels'
 
 export interface CreateReportInput {
   targetType: ReportTargetType
@@ -94,7 +95,7 @@ export async function createReport(reporterId: string, input: CreateReportInput)
     notifyAdminSubRole('MODERATION', {
       type: 'REPORT_TO_REVIEW',
       title: 'Nouveau signalement',
-      body: `${input.targetType}, motif ${input.reason}.`,
+      body: `${REPORT_TARGET_LABELS[input.targetType] ?? input.targetType}, motif : ${(REPORT_REASON_LABELS[input.reason] ?? input.reason).toLowerCase()}.`,
       link: `/admin/signalements/${report.id}`,
     }),
   )
