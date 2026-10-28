@@ -20,8 +20,8 @@ export function stripAccents(value: string): string {
  * Les formes à chercher pour une saisie : telle quelle, et sans ses accents si
  * elle en porte, toutes échappées. « rôbe » trouve ainsi « robe ».
  *
- * ⚠️ L'inverse reste vrai : « robe » ne trouve pas « rôbe ». Le corriger demande
- * l'extension `unaccent` (ou une colonne normalisée), donc une migration.
+ * L'inverse — « robe » qui trouve « rôbe » — se joue côté base, avec l'extension
+ * `unaccent` : voir `search-unaccent.ts`.
  */
 export function searchForms(raw: string): string[] {
   const term = raw.trim()

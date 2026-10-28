@@ -20,6 +20,7 @@
 
 import { db } from './db'
 import { searchAnyOf } from './search-text'
+import { communityIdsMatching, idsBranch } from './search-unaccent'
 import { audit, auditStandalone } from './audit'
 import { userAvatarSrc } from './avatars'
 import { notify, deliverSideEffects } from './notification'
@@ -196,8 +197,12 @@ export async function listPublicCommunities(
       : {}),
     ...(search
       ? {
-          // Jokers échappés, et la forme sans accents cherchée aussi (m6).
-          OR: searchAnyOf(search, (contains) => [{ name: contains }, { description: contains }]),
+          // Jokers échappés, la forme sans accents cherchée aussi, et le texte
+          // stocké comparé sans ses accents : « robe » trouve « rôbe » (m6).
+          OR: [
+            ...searchAnyOf(search, (contains) => [{ name: contains }, { description: contains }]),
+            ...idsBranch(await communityIdsMatching(search)),
+          ],
         }
       : {}),
   }

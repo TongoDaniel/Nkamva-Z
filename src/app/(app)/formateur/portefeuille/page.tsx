@@ -310,7 +310,7 @@ export default async function PortefeuillePage() {
 
             {archived.length > 0 ? (
               <details className="mt-5 border-t border-line pt-4">
-                <summary className="cursor-pointer text-[13px] font-bold text-ink-2">
+                <summary className="nk-tap cursor-pointer py-2 text-[13px] font-bold text-ink-2">
                   Comptes précédents ({archived.length})
                 </summary>
                 <ul className="mt-3 grid gap-2">

@@ -130,11 +130,11 @@ const REFRESH_CEILING = 14
  * préfixe, soit voir sa chaîne de classes proposer une reprise `sm:`. Le
  * mobile d'abord, la générosité ensuite.
  *
- * C'est un **cliquet**, pas un verdict : deux occurrences restent, toutes deux
- * dans l'admin, hors périmètre du chantier (arbitrage mobile first). Si le
- * compte monte, quelqu'un a écrit une marge de grand écran sans reprise.
+ * C'est un **cliquet** : il est à zéro depuis que l'admin est entré dans le
+ * périmètre mobile (26 octobre 2026, décision du propriétaire). Si le compte
+ * monte, quelqu'un a écrit une marge de grand écran sans reprise.
  */
-const CEILING_MAX = 2
+const CEILING_MAX = 0
 
 /** `p-10`, `mt-12`, `gap-14`… — l'échelle 10 et au-delà vaut 40 px et plus. */
 const GRAND_ESPACEMENT =
