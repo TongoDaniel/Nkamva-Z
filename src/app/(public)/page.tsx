@@ -511,7 +511,7 @@ function StepLane({
         ))}
       </ol>
       <p className="border-t border-line-2 pb-[18px] pt-3.5 text-[13.5px]">
-        <Link href={cta.href} className="font-bold">
+        <Link href={cta.href} className="nk-tap font-bold">
           {cta.label} →
         </Link>
       </p>
