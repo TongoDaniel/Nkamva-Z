@@ -478,6 +478,28 @@ export async function initiateMembershipPayment(
     return followWinningAttempt(learnerId, communityId, open ? 'DUE' : 'JOIN')
   }
 
+  // L'index ne tranche qu'entre deux lignes `PENDING`. Si l'autre clic a été
+  // réglé entre nos lectures et notre insertion — règlement immédiat, en
+  // simulation comme en mobile money instantané —, son achat n'est déjà plus
+  // `PENDING` et le nôtre passe : le même mois se paierait deux fois. Vérifié
+  // après l'insertion, l'écart se referme : un gagnant encore `PENDING` nous
+  // aurait bloqués à l'index, un gagnant réglé est visible ici. Jamais deux
+  // achats réglés sur la même période.
+  const settledMeanwhile = await db.purchase.findFirst({
+    where: {
+      id: { not: purchase.id }, learnerId, communityId, providerStatus: 'SUCCEEDED',
+      periodStart: { lt: periodEnd }, periodEnd: { gt: periodStart },
+    },
+    select: { id: true },
+  })
+  if (settledMeanwhile) {
+    await db.purchase.updateMany({
+      where: { id: purchase.id, providerStatus: 'PENDING' },
+      data: { providerStatus: 'CANCELED' },
+    })
+    return followWinningAttempt(learnerId, communityId, open ? 'DUE' : 'JOIN')
+  }
+
   await auditStandalone({
     actorId: learnerId, actorRole: 'LEARNER',
     action: 'MEMBERSHIP_PAYMENT_INITIATED', targetType: 'Community', targetId: communityId,

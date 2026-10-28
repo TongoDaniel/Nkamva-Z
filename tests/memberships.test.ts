@@ -125,6 +125,30 @@ describe('Adhésion aux communautés', () => {
     expect(count).toBe(1)
   })
 
+  it('un clic qui arrive pendant le règlement de l\'autre ne paie pas le mois une seconde fois', async () => {
+    // L'instant exact où le double clic échouait par intermittence en CI : le
+    // premier achat est déjà réglé, mais le second clic a fait ses lectures
+    // avant que l'adhésion n'existe. L'index partiel sur `PENDING` ne
+    // l'arrête plus, il faut le contrôle qui suit l'insertion.
+    const { community, learner, trainer } = await setup()
+    const periodStart = new Date(Date.now() - 1000)
+    const winner = await prisma.purchase.create({
+      data: {
+        learnerId: learner.id, trainerId: trainer.id, communityId: community.id,
+        amountFcfa: 5000, commissionRate: 0.15, trainerShareFcfa: 4250, platformShareFcfa: 750,
+        provider: 'STRIPE', providerStatus: 'SUCCEEDED', providerTransactionId: 'pi_gagnant',
+        periodStart, periodEnd: periodEndFor(periodStart),
+      },
+    })
+
+    const intent = await initiateMembershipPayment(community.id, learner.id, 'STRIPE')
+    expect(intent.purchaseId).toBe(winner.id)
+    expect(intent.nextStep).toBe('ALREADY_SETTLED')
+    expect(await prisma.purchase.count({
+      where: { learnerId: learner.id, providerStatus: { in: ['PENDING', 'SUCCEEDED'] } },
+    })).toBe(1)
+  })
+
   it('refuse une seconde adhésion et l\'adhésion à sa propre communauté', async () => {
     const { community, learner, trainerUser } = await setup()
     await join(community.id, learner.id)
