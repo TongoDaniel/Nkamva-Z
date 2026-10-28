@@ -24,11 +24,11 @@ export const metadata: Metadata = {
     process.env.WEB_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000",
   ),
   title: {
-    default: "NKAMVA — Prêt à apprendre ou à transmettre ?",
-    template: "%s — NKAMVA",
+    default: "NKAMVA · Prêt à apprendre ou à transmettre ?",
+    template: "%s · NKAMVA",
   },
   description:
-    "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire — la ressource reste à vous, à vie.",
+    "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire : la ressource reste à vous, à vie.",
   keywords: ["NKAMVA", "formation en ligne", "cours", "communauté", "formateurs", "FCFA"],
   authors: [{ name: "NKAMVA" }],
   applicationName: "NKAMVA",

@@ -402,7 +402,7 @@ export async function createPayoutMethod(
       })
       await sendEmail({
         to: previous.trainerEmailSnapshot,
-        subject: 'NKAMVA — Votre moyen de paiement a été modifié',
+        subject: 'NKAMVA · Votre moyen de paiement a été modifié',
         // Le lien mène au formulaire de contact : c'est le seul canal de
         // signalement qui existe. Les deux URL précédentes — `/formateur/paiements`
         // et `/support/signaler` — n'ont jamais correspondu à une page, dans un
@@ -681,7 +681,7 @@ export async function rejectPayoutMethod(
       title: blocked ? 'Vos coordonnées bancaires sont bloquées' : 'Vos coordonnées bancaires ont été refusées',
       body: blocked
         ? 'Après trois tentatives, la vérification est suspendue. Notre support prend le relais pour débloquer votre dossier.'
-        : `${input.reason} — le compte doit être à votre nom (compte personnel) ou au nom de votre société dont vous êtes le représentant légal. Le support peut vous accompagner.`,
+        : `${input.reason}. Le compte doit être à votre nom (compte personnel) ou au nom de votre société dont vous êtes le représentant légal. Le support peut vous accompagner.`,
       link: '/formateur/paiements',
     })
     // Décision 27 — Finances ne tranche pas seule un écart de nom : au blocage,

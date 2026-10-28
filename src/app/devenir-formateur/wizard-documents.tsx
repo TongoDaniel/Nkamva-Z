@@ -191,7 +191,7 @@ export function WizardDocuments({
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
             Le stockage des fichiers n&apos;est pas configuré sur cet environnement : le dépôt de
-            pièces est indisponible. Votre présentation, elle, est bien enregistrée — reprenez
+            pièces est indisponible. Votre présentation, elle, est bien enregistrée : reprenez
             depuis <b>Ma candidature</b> une fois le stockage en place.
           </span>
         </p>

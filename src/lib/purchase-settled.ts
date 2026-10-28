@@ -82,13 +82,13 @@ async function announceSettledPurchase(purchaseId: string): Promise<void> {
       title: estAdhesion ? `Bienvenue dans ${intitule}` : `Votre achat est confirmé`,
       body: estAdhesion
         ? `Votre adhésion est active. ${fmtFcfa(purchase.amountFcfa)} réglés.`
-        : `${intitule} — ${fmtFcfa(purchase.amountFcfa)}. L'accès est à vie.`,
+        : `${intitule} · ${fmtFcfa(purchase.amountFcfa)}. L'accès est à vie.`,
       link: lienAcheteur,
     },
     {
       subject: estAdhesion
-        ? `NKAMVA — bienvenue dans ${intitule}`
-        : `NKAMVA — votre achat de « ${intitule} »`,
+        ? `NKAMVA · bienvenue dans ${intitule}`
+        : `NKAMVA · votre achat de « ${intitule} »`,
       title: estAdhesion ? `Bienvenue dans ${intitule}` : 'Votre achat est confirmé',
       paragraphs: estAdhesion
         ? [
@@ -132,8 +132,8 @@ async function announceSettledPurchase(purchaseId: string): Promise<void> {
     },
     {
       subject: estAdhesion
-        ? `NKAMVA — nouveau membre dans ${intitule}`
-        : `NKAMVA — vous avez vendu « ${intitule} »`,
+        ? `NKAMVA · nouveau membre dans ${intitule}`
+        : `NKAMVA · vous avez vendu « ${intitule} »`,
       title: estAdhesion ? `Nouveau membre dans ${intitule}` : 'Vous avez fait une vente',
       paragraphs: [
         'Bonjour,',

@@ -44,7 +44,7 @@ export function CommunityCoverUploader({
       const { file, changed, originalBytes } = await shrinkImage(original);
       if (changed) {
         toast.info(
-          `Image réduite à ${IMAGE_MAX_WIDTH} px — ${formatBytes(originalBytes)} → ${formatBytes(file.size)}.`,
+          `Image réduite à ${IMAGE_MAX_WIDTH} px : ${formatBytes(originalBytes)} ramenés à ${formatBytes(file.size)}.`,
         );
       }
 

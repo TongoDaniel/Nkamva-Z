@@ -197,7 +197,7 @@ export function PricingActions() {
           hint={
             storageTier
               ? `Prix d'une tranche de ${TIER_LABEL}, à cette cadence. Zéro rend les paliers gratuits.`
-              : "Zéro vaut gratuité — c'est ainsi qu'on ouvre une période de lancement."
+              : "Zéro vaut gratuité : c'est ainsi qu'on ouvre une période de lancement."
           }
         />
         <Field
@@ -247,9 +247,9 @@ export function PricingActions() {
             onChange={(e) => setKind(e.target.value as typeof kind)}
             className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
           >
-            <option value="CAMPAIGN">Campagne — valable pour tous</option>
-            <option value="TRAINER">Remise nominative — un formateur</option>
-            <option value="PROMO_CODE">Code promo — saisi à la souscription</option>
+            <option value="CAMPAIGN">Campagne, valable pour tous</option>
+            <option value="TRAINER">Remise nominative, pour un formateur</option>
+            <option value="PROMO_CODE">Code promo, saisi à la souscription</option>
           </select>
         </div>
 

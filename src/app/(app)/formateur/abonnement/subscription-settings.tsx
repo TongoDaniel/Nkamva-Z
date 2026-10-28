@@ -143,7 +143,7 @@ export function SubscriptionSettings({
         <SettingRow
           danger
           title="Résilier mon abonnement"
-          description={`${activePaidMembers} personne(s) sont abonnées à votre communauté. Fermez-la d'abord : leurs adhésions s'éteindront à leur terme — jusqu'à un mois — et vous pourrez alors résilier.`}
+          description={`${activePaidMembers} personne(s) sont abonnées à votre communauté. Fermez-la d'abord : leurs adhésions s'éteindront à leur terme (un mois au plus), et vous pourrez alors résilier.`}
           action={
             <Btn variant="o" asChild>
               <a href="/formateur/communaute">Ouvrir ma communauté</a>

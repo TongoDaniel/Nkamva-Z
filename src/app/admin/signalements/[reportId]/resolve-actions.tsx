@@ -82,7 +82,7 @@ export function ResolveActions({
 
       {!hideable ? (
         <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
-          Aucun retrait n&apos;est possible sur cet objet — soit il est déjà retiré, soit il
+          Aucun retrait n&apos;est possible sur cet objet : soit il est déjà retiré, soit il
           n&apos;appartient pas à la Modération de le faire : suspendre un compte revient au
           Super-admin, et fermer une communauté coupe des adhésions payées. Retenir le
           signalement le trace et prévient son auteur, sans autre effet.

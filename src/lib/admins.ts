@@ -112,7 +112,7 @@ export async function createAdmin(input: CreateAdminInput): Promise<AdminAccount
   })
   await sendEmail({
     to: email,
-    subject: 'NKAMVA — votre accès administrateur',
+    subject: 'NKAMVA · votre accès administrateur',
     html, text,
     tags: ['admin-invitation'],
   })

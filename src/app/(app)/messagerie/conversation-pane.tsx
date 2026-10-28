@@ -575,7 +575,7 @@ export function ConversationPane({
                   disabled={conversation.pinnedBySystem}
                   aria-label={
                     conversation.pinnedBySystem
-                      ? `${conversation.title} — épinglé d'office`
+                      ? `${conversation.title}, épinglé d'office`
                       : conversation.pinned
                         ? `Détacher ${conversation.title}`
                         : `Épingler ${conversation.title}`

@@ -128,7 +128,7 @@ export default async function DisputeReviewPage({
         <p className="mb-5 flex items-start gap-2.5 rounded-nk bg-brand-tint px-5 py-4 text-[13.5px] leading-relaxed text-brand-dark">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
-            <b className="font-semibold">Document lu en ligne à {partLue} %</b> — page{" "}
+            <b className="font-semibold">Document lu en ligne à {partLue} %</b>, page{" "}
             {snapshot?.lastPage} sur {snapshot?.coursePageCount}, sans téléchargement. La règle
             automatique des {CONSUMPTION_THRESHOLD_LABEL} ne s&apos;applique pas à un format téléchargeable : ce dossier
             reste dans le barème, et la décision vous revient en connaissance de cette lecture.
@@ -357,7 +357,7 @@ export default async function DisputeReviewPage({
 
             {dispute.manualRefundTask ? (
               <p className="mt-4 border-t border-line-2 pt-4 text-[13px] leading-relaxed text-ink-2">
-                Remboursement à exécuter à la main chez {dispute.manualRefundTask.provider} —{" "}
+                Remboursement à exécuter à la main chez {dispute.manualRefundTask.provider} :{" "}
                 {fmtFcfa(dispute.manualRefundTask.refundAmountFcfa)}. Il figure dans la file des
                 finances.
               </p>

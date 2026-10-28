@@ -25,7 +25,7 @@ const LEARN_STEPS = [
   {
     lead: "Parcourez",
     rest: " le catalogue",
-    body: "Développement, business, design, marketing — filtrez par catégorie, comparez les formats et les prix.",
+    body: "Développement, business, design, marketing : filtrez par catégorie, comparez les formats et les prix.",
   },
   {
     lead: "Payez à l'unité",
@@ -48,7 +48,7 @@ const TEACH_STEPS = [
   {
     lead: "Publiez",
     rest: " vos ressources",
-    body: "Guides PDF, cours vidéo, modèles réutilisables — vous fixez librement votre prix, en FCFA.",
+    body: "Guides PDF, cours vidéo ou modèles réutilisables : vous fixez librement votre prix, en FCFA.",
   },
   {
     lead: "Encaissez",
@@ -100,7 +100,7 @@ const TRAINER_POINTS = [
   ],
   [
     "Formats libres",
-    "PDF, vidéo, kits, modèles Notion ou tableurs — publiez ce qui sert vraiment vos apprenants.",
+    "PDF, vidéo, kits, modèles Notion ou tableurs : publiez ce qui sert vraiment vos apprenants.",
   ],
   [
     "Retraits par mobile money",
@@ -114,7 +114,7 @@ const faqItems = (markets: PayableMarkets) => [
     answer: (
       <>
         <p>
-          Le mobile money{markets.brands.length ? ` — ${markets.brands.join(", ")} — ` : " "}ainsi
+          Le mobile money{markets.brands.length ? ` (${markets.brands.join(", ")}) ` : " "}ainsi
           que la carte bancaire. Les opérateurs proposés dépendent de votre pays.
         </p>
         {markets.countries.length ? (
@@ -140,7 +140,7 @@ const faqItems = (markets: PayableMarkets) => [
     answer: (
       <p>
         Vous fixez votre prix en FCFA ; NKAMVA prélève une commission de {COMMISSION_LABEL} sur
-        chaque vente — le formateur est crédité de {TRAINER_SHARE_LABEL} du prix payé. Le solde est
+        chaque vente : le formateur est crédité de {TRAINER_SHARE_LABEL} du prix payé. Le solde est
         disponible en retrait mobile money depuis votre espace formateur.
       </p>
     ),
@@ -187,7 +187,7 @@ export default async function LandingPage() {
           <Reveal delay={1.6}>
             <p className="mx-auto mb-[26px] max-w-[54ch] text-[15.5px] leading-relaxed text-ink-2 text-pretty sm:text-[17px]">
               Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par
-              mobile money ou carte bancaire — la ressource reste à vous, à vie.
+              mobile money ou carte bancaire : la ressource reste à vous, à vie.
             </p>
           </Reveal>
           <Reveal delay={2.4}>
@@ -463,7 +463,7 @@ export default async function LandingPage() {
         />
         <div className="relative mx-auto max-w-[860px] px-5 pb-9 pt-10 text-center sm:pb-[50px] sm:pt-[60px] md:px-7 md:pb-16 md:pt-[78px]">
           <h2 className="mb-3 text-[clamp(28px,3.4vw,40px)] font-extrabold leading-[1.1] text-white text-balance">
-            Prêt à apprendre — ou à transmettre ?
+            Prêt à apprendre, ou à transmettre ?
           </h2>
           <p className="mx-auto mb-6 max-w-[52ch] text-[16.5px] leading-relaxed text-[#b9c9dd] sm:mb-[30px]">
             Créez votre compte, explorez le catalogue à votre rythme, ou proposez votre première

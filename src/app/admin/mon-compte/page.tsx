@@ -95,7 +95,7 @@ export default async function AdminMonComptePage() {
             title="Rôle"
             description={
               auth.user.adminRole
-                ? `${ADMIN_ROLE_LABELS[auth.user.adminRole]} — ouvert le ${fmtDate(profile.createdAt)}`
+                ? `${ADMIN_ROLE_LABELS[auth.user.adminRole]}, ouvert le ${fmtDate(profile.createdAt)}`
                 : "Aucun sous-rôle"
             }
             action={

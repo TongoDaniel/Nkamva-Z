@@ -96,7 +96,7 @@ export function renderSimpleEmail(params: SimpleEmailParams): { html: string; te
         ${footnote}
         </td></tr>
       </table>
-      <p style="margin:20px 0 0;font-size:12px;color:${INK_2}">NKAMVA — des ressources créées par des formateurs africains</p>
+      <p style="margin:20px 0 0;font-size:12px;color:${INK_2}">NKAMVA, des ressources créées par des formateurs africains</p>
     </td></tr>
   </table>
 </body>
@@ -110,7 +110,7 @@ export function renderSimpleEmail(params: SimpleEmailParams): { html: string; te
     ...(params.cta ? ['', `${params.cta.label} : ${params.cta.url}`] : []),
     ...(params.footnote ? ['', params.footnote] : []),
     '',
-    '— L\'équipe NKAMVA',
+    'L\'équipe NKAMVA',
   ].join('\n')
 
   return { html, text }

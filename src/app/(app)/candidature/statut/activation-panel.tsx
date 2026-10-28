@@ -197,7 +197,7 @@ export function ActivationPanel({
           {byCard ? (
             <>
               Rien n&apos;est ouvert avant la confirmation du paiement. Si elle n&apos;arrive pas,
-              vous pourrez relancer une tentative depuis cet écran — vous ne serez pas débité deux
+              vous pourrez relancer une tentative depuis cet écran, sans être débité deux
               fois.
             </>
           ) : (

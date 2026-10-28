@@ -148,7 +148,7 @@ export default async function FormateurPage({
     banners.push({
       key: "suspended",
       tone: "danger",
-      title: "Abonnement suspendu — vos ressources sont retirées du catalogue",
+      title: "Abonnement suspendu : vos ressources sont retirées du catalogue",
       detail:
         "Celles et ceux qui les ont achetées y accèdent toujours. Le règlement de l'échéance les remet en vente.",
       href: "/formateur/abonnement",
@@ -169,7 +169,7 @@ export default async function FormateurPage({
     banners.push({
       key: "past-due",
       tone: "gold",
-      title: `Échéance à régler — ${fmtFcfa(subscription.dueTotalFcfa)}`,
+      title: `Échéance à régler : ${fmtFcfa(subscription.dueTotalFcfa)}`,
       detail: subscription.suspensionAt
         ? `Vos ressources restent en vente jusqu'au ${fmtDate(subscription.suspensionAt)}.`
         : "Vos ressources restent en vente pour l'instant.",

@@ -150,7 +150,7 @@ export function ReviewActions({
       >
         {withdrawableFcfa < amountFcfa ? (
           <p className="mb-4 rounded-xl bg-danger/5 px-4 py-3 text-[13px] leading-relaxed text-ink">
-            <b className="font-extrabold">Le solde retirable ne couvre plus ce montant</b> —{" "}
+            <b className="font-extrabold">Le solde retirable ne couvre plus ce montant :</b>{" "}
             {fmtFcfa(withdrawableFcfa)} disponible contre {fmtFcfa(amountFcfa)} demandés.
             L&apos;API refusera l&apos;approbation.
           </p>
@@ -300,7 +300,7 @@ export function ReviewActions({
         open={dialog === "reopen"}
         onOpenChange={(open) => setDialog(open ? "reopen" : null)}
         title="Reprendre cette demande ?"
-        description="Elle repart en instruction et le montant est de nouveau immobilisé. À faire une fois la cause de l'échec levée — coordonnées corrigées, compte débloqué."
+        description="Elle repart en instruction et le montant est de nouveau immobilisé. À faire une fois la cause de l'échec levée (coordonnées corrigées, compte débloqué)."
         footer={
           <>
             <Btn

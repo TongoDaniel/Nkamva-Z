@@ -94,7 +94,7 @@ export async function createReport(reporterId: string, input: CreateReportInput)
     notifyAdminSubRole('MODERATION', {
       type: 'REPORT_TO_REVIEW',
       title: 'Nouveau signalement',
-      body: `${input.targetType} — motif ${input.reason}.`,
+      body: `${input.targetType}, motif ${input.reason}.`,
       link: `/admin/signalements/${report.id}`,
     }),
   )
@@ -196,7 +196,7 @@ export async function resolveReportTarget(
       // dossier ne doit pas avoir à deviner qui est visé.
       return user
         ? {
-            label: user.fullName ? `${user.fullName} — ${user.email}` : user.email,
+            label: user.fullName ? `${user.fullName} · ${user.email}` : user.email,
             href: null,
             exists: true,
             // Décision 67 — la sanction se décide depuis ce dossier, il faut
@@ -225,7 +225,7 @@ export async function resolveReportTarget(
       // sait de quoi il s'agit, pas qu'il est encore visible des membres.
       return post
         ? {
-            label: `Billet de « ${post.community.name} » — ${excerpt(post.body)}`,
+            label: `Billet de « ${post.community.name} » : ${excerpt(post.body)}`,
             href: `/communautes/${post.community.slug}`,
             exists: true,
             removed: post.deletedAt !== null,
@@ -242,7 +242,7 @@ export async function resolveReportTarget(
       })
       return reply
         ? {
-            label: `Réponse dans « ${reply.post.community.name} » — ${excerpt(reply.body)}`,
+            label: `Réponse dans « ${reply.post.community.name} » : ${excerpt(reply.body)}`,
             href: `/communautes/${reply.post.community.slug}`,
             exists: true,
             removed: reply.deletedAt !== null,
@@ -261,7 +261,7 @@ export async function resolveReportTarget(
       // aux membres de la communauté. Le titre de la séance situe le propos.
       return message
         ? {
-            label: `Salon live « ${message.session.title} » — ${excerpt(message.body)}`,
+            label: `Salon live « ${message.session.title} » : ${excerpt(message.body)}`,
             href: null,
             exists: true,
             removed: message.deletedAt !== null,
@@ -275,7 +275,7 @@ export async function resolveReportTarget(
       })
       return message
         ? {
-            label: `Message de litige — ${excerpt(message.body)}`,
+            label: `Message de litige : ${excerpt(message.body)}`,
             href: `/admin/litiges/${message.disputeId}`,
             exists: true,
           }
@@ -297,7 +297,7 @@ export async function resolveReportTarget(
       // elle n'instruit qu'un message.
       return message
         ? {
-            label: `Message privé (${message.conversation.community.name}) — ${excerpt(message.body)}`,
+            label: `Message privé (${message.conversation.community.name}) : ${excerpt(message.body)}`,
             href: null,
             exists: true,
             removed: message.deletedAt !== null,

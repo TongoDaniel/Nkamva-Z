@@ -43,7 +43,7 @@ export default async function StatutCandidaturePage() {
       icon: <FileSearch className="size-8" aria-hidden="true" />,
       tone: "bg-info-tint text-info",
       title: "Votre dossier est en cours d'examen",
-      body: "L'équipe de modération examine chaque candidature une par une. Vous serez prévenu par e-mail dès qu'une décision est prise — favorable ou non.",
+      body: "L'équipe de modération examine chaque candidature une par une. Vous serez prévenu par e-mail dès qu'une décision est prise, favorable ou non.",
     },
     APPROVED: {
       icon: <CheckCircle2 className="size-8" aria-hidden="true" />,

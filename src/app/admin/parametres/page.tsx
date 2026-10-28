@@ -142,7 +142,7 @@ export default async function ParametresPage() {
         <AdminCard title="Palier de stockage en vigueur">
           <CurrentTariffTiles
             current={storageCurrent}
-            emptyNote="Aucun prix posé. Les paliers pris par les formateurs ne facturent alors rien — et rien ne leur sera réclamé rétroactivement le jour où un prix sera posé."
+            emptyNote="Aucun prix posé. Les paliers pris par les formateurs ne facturent alors rien, et rien ne leur sera réclamé rétroactivement le jour où un prix sera posé."
           />
 
           <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
@@ -192,7 +192,7 @@ export default async function ParametresPage() {
         <AdminCard title="Réductions">
           {discounts.length === 0 ? (
             <p className="text-[13px] leading-relaxed text-ink-2">
-              Aucune réduction. Trois canaux existent — campagne, remise nominative, code promo —
+              Aucune réduction. Trois canaux existent (campagne, remise nominative, code promo)
               et <b className="font-bold text-ink">la plus favorable l&apos;emporte</b> : elles ne
               s&apos;additionnent jamais.
             </p>
@@ -244,7 +244,7 @@ export default async function ParametresPage() {
               </ul>
               <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
                 Cumul : <b className="font-bold text-ink-2">la plus favorable l&apos;emporte</b>.
-                Trois remises ne s&apos;empilent pas — l&apos;addition mènerait l&apos;abonnement
+                Trois remises ne s&apos;empilent pas : l&apos;addition mènerait l&apos;abonnement
                 à zéro sans que personne l&apos;ait décidé.
               </p>
             </>
@@ -254,7 +254,7 @@ export default async function ParametresPage() {
         {settingRows.length > 0 ? (
           <AdminCard title="Réglages système">
             <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
-              Ces valeurs vivent en base, pas dans le code — contrairement aux règles ci-dessous.{" "}
+              Ces valeurs vivent en base, pas dans le code, contrairement aux règles ci-dessous.{" "}
               <b className="font-bold text-ink">
                 Les modifier change ce que fait la plateforme, tout de suite
               </b>{" "}
