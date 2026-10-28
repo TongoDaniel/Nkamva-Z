@@ -32,6 +32,23 @@ vi.mock('@/lib/stripe', async (importOriginal) => {
   }
 })
 
+/**
+ * Un point d'arrêt entre les lectures d'`initiateMembershipPayment` et son
+ * insertion : le contrôle de bannissement tombe exactement là. Un test y
+ * glisse ce que l'autre onglet fait pendant ce temps.
+ */
+const entreLecturesEtInsertion = vi.hoisted(() => ({ hook: null as null | (() => Promise<void>) }))
+vi.mock('@/lib/communities', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/communities')>()
+  return {
+    ...real,
+    isBannedFromCommunity: async (...args: Parameters<typeof real.isBannedFromCommunity>) => {
+      await entreLecturesEtInsertion.hook?.()
+      return real.isBannedFromCommunity(...args)
+    },
+  }
+})
+
 import { prisma, cleanDatabase } from './setup'
 import {
   initiateMembershipPayment, activateMembershipForPurchase, getMembership,
@@ -45,7 +62,11 @@ const DAY = 86_400_000
 
 describe('Adhésion aux communautés', () => {
   beforeEach(async () => { await cleanDatabase() })
-  afterEach(async () => { stripeCheckout.enabled = false; await cleanDatabase() })
+  afterEach(async () => {
+    stripeCheckout.enabled = false
+    entreLecturesEtInsertion.hook = null
+    await cleanDatabase()
+  })
 
   async function setup() {
     const trainerUser = await prisma.user.create({
@@ -126,23 +147,27 @@ describe('Adhésion aux communautés', () => {
   })
 
   it('un clic qui arrive pendant le règlement de l\'autre ne paie pas le mois une seconde fois', async () => {
-    // L'instant exact où le double clic échouait par intermittence en CI : le
-    // premier achat est déjà réglé, mais le second clic a fait ses lectures
-    // avant que l'adhésion n'existe. L'index partiel sur `PENDING` ne
-    // l'arrête plus, il faut le contrôle qui suit l'insertion.
+    // L'entrelacement exact où le double clic échouait par intermittence en
+    // CI : ce clic a fait ses lectures (rien d'ouvert, rien en attente), puis
+    // l'autre clic insère et se règle avant notre insertion. L'index partiel
+    // sur `PENDING` ne l'arrête plus, il faut le contrôle qui suit.
     const { community, learner, trainer } = await setup()
-    const periodStart = new Date(Date.now() - 1000)
-    const winner = await prisma.purchase.create({
-      data: {
-        learnerId: learner.id, trainerId: trainer.id, communityId: community.id,
-        amountFcfa: 5000, commissionRate: 0.15, trainerShareFcfa: 4250, platformShareFcfa: 750,
-        provider: 'STRIPE', providerStatus: 'SUCCEEDED', providerTransactionId: 'pi_gagnant',
-        periodStart, periodEnd: periodEndFor(periodStart),
-      },
-    })
+    let winnerId = ''
+    entreLecturesEtInsertion.hook = async () => {
+      const periodStart = new Date()
+      const winner = await prisma.purchase.create({
+        data: {
+          learnerId: learner.id, trainerId: trainer.id, communityId: community.id,
+          amountFcfa: 5000, commissionRate: 0.15, trainerShareFcfa: 4250, platformShareFcfa: 750,
+          provider: 'STRIPE', providerStatus: 'SUCCEEDED', providerTransactionId: 'pi_gagnant',
+          periodStart, periodEnd: periodEndFor(periodStart),
+        },
+      })
+      winnerId = winner.id
+    }
 
     const intent = await initiateMembershipPayment(community.id, learner.id, 'STRIPE')
-    expect(intent.purchaseId).toBe(winner.id)
+    expect(intent.purchaseId).toBe(winnerId)
     expect(intent.nextStep).toBe('ALREADY_SETTLED')
     expect(await prisma.purchase.count({
       where: { learnerId: learner.id, providerStatus: { in: ['PENDING', 'SUCCEEDED'] } },
