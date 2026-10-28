@@ -10,6 +10,7 @@ import { Faq } from "@/components/nk/faq";
 import { PayBand, PayChips, countriesLabel } from "@/components/nk/pay-band";
 import { ResourceCard } from "@/components/nk/resource-card";
 import { Reveal } from "@/components/nk/reveal";
+import { HowItWorksSwitch, ProductTrack } from "./home-mobile";
 import { ScrollCarousel } from "@/components/nk/scroll-carousel";
 import { Kicker, SectionHead } from "@/components/nk/section-head";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
@@ -233,26 +234,30 @@ export default async function LandingPage() {
               id="comment-ca-marche"
             />
           </Reveal>
-          <div className="grid gap-[26px] lg:grid-cols-2">
-            <Reveal delay={0}>
-              <StepLane
-                chip="Pour apprendre"
-                chipTone="brand"
-                title="Trouvez, payez, apprenez"
-                steps={LEARN_STEPS}
-                cta={{ href: "/ressources", label: "Explorer les ressources" }}
-              />
-            </Reveal>
-            <Reveal delay={1}>
-              <StepLane
-                chip="Pour former"
-                chipTone="clay"
-                title="Publiez et encaissez"
-                steps={TEACH_STEPS}
-                cta={{ href: "/devenir-formateur", label: "Devenir formateur" }}
-              />
-            </Reveal>
-          </div>
+          <HowItWorksSwitch
+            learn={
+              <Reveal delay={0} className="h-full">
+                <StepLane
+                  chip="Pour apprendre"
+                  chipTone="brand"
+                  title="Trouvez, payez, apprenez"
+                  steps={LEARN_STEPS}
+                  cta={{ href: "/ressources", label: "Explorer les ressources" }}
+                />
+              </Reveal>
+            }
+            teach={
+              <Reveal delay={1} className="h-full">
+                <StepLane
+                  chip="Pour former"
+                  chipTone="clay"
+                  title="Publiez et encaissez"
+                  steps={TEACH_STEPS}
+                  cta={{ href: "/devenir-formateur", label: "Devenir formateur" }}
+                />
+              </Reveal>
+            }
+          />
         </div>
       </section>
 
@@ -268,9 +273,16 @@ export default async function LandingPage() {
               id="le-produit"
             />
           </Reveal>
+          {/* Un seul `Reveal` pour toute la piste : posé sur chaque carte, il
+              masquerait celles qui attendent hors champ, à droite, jusqu'au
+              glissement. */}
+          <Reveal>
+            <ProductTrack count={PRODUCT_ROWS.length}>
           {PRODUCT_ROWS.map((row, index) => (
-            <Reveal key={row.shot}>
-              <div className="grid items-center gap-[22px] py-[26px] lg:grid-cols-[0.85fr_1.15fr] lg:gap-[52px] lg:py-[30px]">
+              <div
+                key={row.shot}
+                className="grid w-[86%] shrink-0 snap-start content-start gap-[18px] lg:w-auto lg:items-center lg:gap-[52px] lg:py-[30px] lg:grid-cols-[0.85fr_1.15fr]"
+              >
                 <div className={row.reversed ? "lg:order-2" : undefined}>
                   <h3 className="mb-2.5 text-[23px] font-extrabold leading-[1.15]">
                     {row.title}
@@ -298,11 +310,14 @@ export default async function LandingPage() {
                   alt={row.alt}
                   url={row.url}
                   priority={index === 0}
-                  className={row.reversed ? "lg:order-1" : undefined}
+                  // Sur la piste, l'écran passe avant le texte : c'est lui
+                  // qu'on fait défiler, le texte le légende.
+                  className={row.reversed ? "-order-1 lg:order-1" : "-order-1 lg:order-none"}
                 />
               </div>
-            </Reveal>
           ))}
+            </ProductTrack>
+          </Reveal>
         </div>
       </section>
 
@@ -378,7 +393,7 @@ export default async function LandingPage() {
         <div className="nk-wrap">
           <Reveal>
             <div className="grid items-stretch overflow-hidden rounded-[28px] border border-line bg-card shadow-nk-sm lg:grid-cols-[0.98fr_1.02fr]">
-              <div className="relative aspect-[16/10.5] lg:aspect-auto lg:min-h-[460px]">
+              <div className="relative aspect-[16/7] sm:aspect-[16/10.5] lg:aspect-auto lg:min-h-[460px]">
                 <Image
                   src="/formateurs.webp"
                   alt="Formateurs en atelier autour d'un ordinateur"
@@ -441,16 +456,16 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- CTA finale ---- */}
-      <section className="relative mt-[84px] overflow-hidden bg-navy">
+      <section className="relative mt-14 overflow-hidden bg-navy sm:mt-[84px]">
         <div
           aria-hidden="true"
           className="absolute inset-0 bg-[radial-gradient(760px_340px_at_50%_-60px,rgba(46,124,246,.28),transparent_65%)]"
         />
-        <div className="relative mx-auto max-w-[860px] px-5 pb-[50px] pt-[60px] text-center md:px-7 md:pb-16 md:pt-[78px]">
+        <div className="relative mx-auto max-w-[860px] px-5 pb-9 pt-10 text-center sm:pb-[50px] sm:pt-[60px] md:px-7 md:pb-16 md:pt-[78px]">
           <h2 className="mb-3 text-[clamp(28px,3.4vw,40px)] font-extrabold leading-[1.1] text-white text-balance">
             Prêt à apprendre — ou à transmettre ?
           </h2>
-          <p className="mx-auto mb-[30px] max-w-[52ch] text-[16.5px] leading-relaxed text-[#b9c9dd]">
+          <p className="mx-auto mb-6 max-w-[52ch] text-[16.5px] leading-relaxed text-[#b9c9dd] sm:mb-[30px]">
             Créez votre compte, explorez le catalogue à votre rythme, ou proposez votre première
             ressource.
           </p>
