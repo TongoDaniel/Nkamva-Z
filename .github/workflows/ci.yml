@@ -16,9 +16,9 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Typage : barrière rapide et verte. `ignoreBuildErrors: true` laisse passer
-  # les erreurs de type au build Next (finding 11) ; ce job les rattrape ici en
-  # attendant qu'on puisse remettre le drapeau à false.
+  # Typage : barrière rapide. Le build Next s'arrête lui aussi sur une erreur de
+  # type (finding 11), mais seulement au déploiement et sur `tsconfig.build.json`,
+  # sans `tests/` : ce job vérifie tout, dès la PR.
   # ---------------------------------------------------------------------------
   typecheck:
     runs-on: ubuntu-latest
