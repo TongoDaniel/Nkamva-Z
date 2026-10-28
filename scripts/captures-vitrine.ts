@@ -40,7 +40,11 @@ const SECRET = process.env.NEXTAUTH_SECRET || 'nkamva-dev-secret-change-in-produ
  * sert l'image jusqu'à 1280 px de large sur écran dense, qu'une source de
  * 909 px ne pouvait pas remplir.
  */
-const VIEWPORT = { width: 1212, height: 720, scale: 1.5 }
+/**
+ * 1280 et non 1212 : en deçà, la grille du catalogue tombe à deux colonnes et
+ * la vitrine montre deux cartes géantes au lieu d'un catalogue.
+ */
+const VIEWPORT = { width: 1280, height: 760, scale: 1.5 }
 
 // ───────────────────────────── CDP minimal ─────────────────────────────
 
@@ -243,7 +247,7 @@ async function pickCourse(learnerId: string) {
   const course = await db.course.findFirst({
     where: { status: 'published', id: { notIn: ownedIds } },
     select: { slug: true, title: true, priceFcfa: true },
-    orderBy: { purchases: { _count: 'desc' } },
+    orderBy: [{ purchases: { _count: 'desc' } }, { publishedAt: 'desc' }],
   })
   if (!course) {
     throw new Error(
@@ -316,7 +320,12 @@ const SETTLED = /* js */ `(async () => {
 
 // ───────────────────────── pilotage ─────────────────────────
 
-type Screen = { fichier: string; path: string; legende: string }
+/**
+ * `connecte` : le catalogue et la fiche se montrent tels qu'un visiteur les
+ * découvre (la vitrine s'adresse à lui) ; « Mes ressources » n'existe qu'une
+ * fois connecté.
+ */
+type Screen = { fichier: string; path: string; legende: string; connecte: boolean }
 
 async function main() {
   const args = process.argv.slice(2)
@@ -352,19 +361,22 @@ async function main() {
 
   const screens: Screen[] = [
     {
-      fichier: 'catalogue-new.png',
-      path: '/catalogue',
+      fichier: 'catalogue.png',
+      path: '/ressources',
       legende: 'Payez à l’unité, gardez l’accès à vie',
+      connecte: false,
     },
     {
-      fichier: 'fiche-new.png',
-      path: `/catalogue/ressource/${course.slug}`,
+      fichier: 'fiche.png',
+      path: `/ressources/${course.slug}`,
       legende: 'Ce que vous achetez, sans surprise',
+      connecte: false,
     },
     {
-      fichier: 'dashboard-new.png',
-      path: '/accueil',
+      fichier: 'mes-ressources.png',
+      path: '/mes-ressources',
       legende: 'Reprenez où vous en étiez',
+      connecte: true,
     },
   ]
 
@@ -419,14 +431,16 @@ async function main() {
     )
 
     const host = new URL(base).hostname
-    await cdp.send('Network.clearBrowserCookies', {}, sessionId)
-    await cdp.send(
-      'Network.setCookie',
-      { name: 'next-auth.session-token', value: learner.value, domain: host, path: '/' },
-      sessionId,
-    )
 
     for (const screen of screens) {
+      await cdp.send('Network.clearBrowserCookies', {}, sessionId)
+      if (screen.connecte) {
+        await cdp.send(
+          'Network.setCookie',
+          { name: 'next-auth.session-token', value: learner.value, domain: host, path: '/' },
+          sessionId,
+        )
+      }
       const loaded = cdp.once('Page.loadEventFired')
       await cdp.send('Page.navigate', { url: `${base}${screen.path}` }, sessionId)
       await loaded
