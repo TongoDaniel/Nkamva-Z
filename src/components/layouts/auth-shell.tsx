@@ -157,7 +157,7 @@ export function AuthHeading({
     <>
       {icon ? (
         <div
-          className="mx-auto mb-5 grid size-13 place-items-center rounded-[14px] bg-brand-tint text-brand [&_svg]:size-6"
+          className="mx-auto mb-5 grid size-13 place-items-center rounded-[14px] border border-line bg-card text-brand [&_svg]:size-6"
           aria-hidden="true"
         >
           {icon}
@@ -192,7 +192,7 @@ export function FormError({ children }: { children?: React.ReactNode }) {
   return (
     <p
       role="alert"
-      className="mb-4 rounded-xl border border-danger/30 bg-danger-tint px-4 py-3 text-[13.5px] font-semibold text-danger"
+      className="mb-4 rounded-xl border border-line bg-card border-l-4 border-l-danger px-4 py-3 text-[13.5px] font-semibold text-danger rounded-l-sm"
     >
       {children}
     </p>
@@ -205,7 +205,7 @@ export function FormNotice({ children }: { children?: React.ReactNode }) {
   return (
     <p
       role="status"
-      className="mb-4 rounded-xl bg-brand-tint px-4 py-3 text-[13.5px] font-semibold text-brand-dark"
+      className="mb-4 rounded-xl border border-line bg-card border-l-4 border-l-brand px-4 py-3 text-[13.5px] font-semibold text-brand-dark rounded-l-sm"
     >
       {children}
     </p>

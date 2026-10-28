@@ -40,7 +40,10 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("overflow-x-auto", className)}>
+    // `relative` : un `sr-only` (position absolue) dans une cellule se plaçait
+    // par rapport à un ancêtre **hors** du conteneur de défilement, qui ne le
+    // rognait donc pas — la page entière défilait de 395 px à 375 de large.
+    <div className={cn("relative overflow-x-auto", className)}>
       <table className="w-full min-w-[720px] border-collapse text-left">
         <caption className="sr-only">{caption}</caption>
         <thead>

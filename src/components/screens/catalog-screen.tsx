@@ -180,7 +180,7 @@ export function CatalogScreen({
       <PageHead
         crumbs={[routes.catalogParent, { label: "Le catalogue" }]}
         title="Le catalogue"
-        lead="Cours vidéo, guides et modèles créés par des formateurs africains. Payez à l'unité, en FCFA — la ressource reste à vous, à vie."
+        lead="Cours vidéo, guides et modèles créés par des formateurs africains. Payez à l'unité, en FCFA : la ressource reste à vous, à vie."
       />
       <CatalogNavProvider>
         <Suspense fallback={<CatalogFallback />}>

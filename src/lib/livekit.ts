@@ -240,14 +240,18 @@ export async function setParticipantCanPublish(
   }
 }
 
-/** Nombre de personnes réellement connectées, pour le pic de fréquentation. */
-export async function countConnected(roomName: string): Promise<number> {
+/**
+ * Nombre de personnes réellement connectées à la salle, selon LiveKit.
+ * `null` quand on ne peut pas le savoir (LiveKit non configuré ou injoignable) :
+ * afficher « 0 connecté » dans ce cas serait affirmer une salle vide.
+ */
+export async function countConnected(roomName: string): Promise<number | null> {
   const client = rooms()
-  if (!client) return 0
+  if (!client) return null
   try {
     return (await client.listParticipants(roomName)).length
   } catch {
-    return 0
+    return null
   }
 }
 

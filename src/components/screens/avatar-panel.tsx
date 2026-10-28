@@ -68,7 +68,7 @@ export function AvatarPanel({
       const { file, changed, originalBytes } = await shrinkAvatar(original);
       if (changed) {
         toast.info(
-          `Photo recadrée à ${AVATAR_SIZE} px — ${formatBytes(originalBytes)} → ${formatBytes(file.size)}.`,
+          `Photo recadrée à ${AVATAR_SIZE} px : ${formatBytes(originalBytes)} ramenés à ${formatBytes(file.size)}.`,
         );
       }
 
@@ -158,7 +158,7 @@ export function AvatarPanel({
           // Le même repli que la liste des conversations : coin carré et
           // glyphe, là où une personne a un rond et ses initiales.
           <span
-            className="grid size-16 shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand"
+            className="grid size-16 shrink-0 place-items-center rounded-nk-sm border border-line bg-card text-brand"
             aria-hidden="true"
           >
             <Users className="size-7" />

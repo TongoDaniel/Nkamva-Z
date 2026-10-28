@@ -58,7 +58,7 @@ export default async function TrainerDisputePage({
 
       <div className="grid items-start gap-6 pt-2 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0">
-          <p className="mb-5 rounded-nk bg-brand-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-brand-dark">
+          <p className="mb-5 rounded-nk border border-line bg-card border-l-4 border-l-brand px-4 py-3.5 text-[13.5px] leading-relaxed text-brand-dark rounded-l-sm">
             {state.help}
           </p>
 
@@ -98,7 +98,7 @@ export default async function TrainerDisputePage({
             ) : null}
 
             {openTicket ? (
-              <p className="flex items-start gap-2.5 rounded-nk bg-gold-tint px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink">
+              <p className="flex items-start gap-2.5 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3.5 text-[13.5px] leading-relaxed text-gold-ink rounded-l-sm">
                 <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 Vos éléments sont en cours d&apos;examen. Vous pourrez en apporter d&apos;autres
                 une fois la modération vous avoir répondu.

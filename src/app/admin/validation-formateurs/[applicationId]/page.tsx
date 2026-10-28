@@ -81,7 +81,7 @@ export default async function ApplicationDetailPage({
       />
 
       {application.status === "REJECTED" && application.finalRejectionReason ? (
-        <p className="mb-5 rounded-nk bg-danger-tint px-5 py-4 text-[13.5px] leading-relaxed text-danger">
+        <p className="mb-5 rounded-nk border border-line bg-card border-l-4 border-l-danger px-5 py-4 text-[13.5px] leading-relaxed text-danger rounded-l-sm">
           <b>Motif du refus :</b> {application.finalRejectionReason}
         </p>
       ) : null}

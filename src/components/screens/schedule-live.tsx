@@ -124,7 +124,7 @@ export function ScheduleLive({
       >
         <form onSubmit={submit} noValidate className="grid gap-4">
           {error ? (
-            <p role="alert" className="rounded-nk-sm bg-danger-tint px-3.5 py-2.5 text-[13.5px] text-danger">
+            <p role="alert" className="rounded-nk-sm border border-line bg-card border-l-4 border-l-danger px-3.5 py-2.5 text-[13.5px] text-danger rounded-l-sm">
               {error}
             </p>
           ) : null}

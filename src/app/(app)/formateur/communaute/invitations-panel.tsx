@@ -201,7 +201,7 @@ export function InvitationsPanel({
         await copy(
           data.url,
           data.emailed
-            ? "Invitation envoyée, et son lien copié — il ne sera plus affiché."
+            ? "Invitation envoyée, et son lien copié. Il ne sera plus affiché."
             : "Invitation créée, lien copié. L'e-mail n'est pas parti : transmettez-le vous-même.",
         );
         return fetchRows();
@@ -295,7 +295,7 @@ export function InvitationsPanel({
                   aria-pressed={grant === value}
                   className={
                     grant === value
-                      ? "cursor-pointer rounded-xl border-[1.5px] border-brand bg-brand-tint px-3.5 py-[13px] text-[14px] font-bold text-brand"
+                      ? "cursor-pointer rounded-xl border-[1.5px] border-brand px-3.5 py-[13px] text-[14px] font-bold text-brand ring-1 ring-brand"
                       : "cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-[13px] text-[14px] font-semibold text-ink-2 hover:border-ink-3"
                   }
                 >
@@ -398,7 +398,7 @@ export function InvitationsPanel({
                 key={row.id}
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-nk border border-line px-4 py-3"
               >
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-tint text-brand">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-card text-brand">
                   {row.kind === "SHARE_LINK" ? (
                     <Link2 className="size-4" aria-hidden="true" />
                   ) : (

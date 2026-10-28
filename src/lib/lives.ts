@@ -245,7 +245,7 @@ export async function scheduleLiveSession(
     notifyMembers(community.id, userId, {
       type: 'LIVE_SCHEDULED',
       title: `Nouvelle session dans ${community.name}`,
-      body: `${title} — le ${input.scheduledStartAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })}.`,
+      body: `${title}, le ${input.scheduledStartAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })}.`,
       link: '/mes-lives',
     }),
   )
@@ -603,6 +603,12 @@ export interface LiveRoomView {
   description: string | null
   status: LiveSessionStatus
   startsAt: Date
+  /**
+   * Fuseau de l'animateur (arbitrage 107) — nul si la séance a été programmée
+   * avant. La salle écrit la date de la séance : son premier rendu la place
+   * dans ce fuseau, comme la ligne d'agenda (`hooks/use-reader-time-zone.ts`).
+   */
+  timeZone: string | null
   durationMinutes: number
   startedAt: Date | null
   attendees: number
@@ -633,6 +639,13 @@ export interface LiveRoomView {
   screenAllowed: boolean
   /** Sa demande de partage en attente, s'il en a une. */
   screenRequestedAt: Date | null
+  /**
+   * Personnes réellement connectées en ce moment, mesurées chez LiveKit. Pour
+   * l'animateur seulement, pendant le direct ; `null` sinon, ou si LiveKit ne
+   * répond pas. `participants` liste qui est entré et n'est pas reparti selon
+   * la base — un départ n'y est noté que si le webhook LiveKit le signale.
+   */
+  connectedNow: number | null
   participants: Array<{
     userId: string
     name: string | null
@@ -671,7 +684,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     where: { id: sessionId },
     select: {
       id: true, communityId: true, title: true, description: true, status: true,
-      scheduledStartAt: true, durationMinutes: true, startedAt: true, roomName: true,
+      scheduledStartAt: true, timeZone: true, durationMinutes: true, startedAt: true, roomName: true,
       community: {
         select: {
           name: true, slug: true,
@@ -791,6 +804,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     description: session.description,
     status: session.status,
     startsAt: session.scheduledStartAt,
+    timeZone: session.timeZone,
     durationMinutes: session.durationMinutes,
     startedAt: session.startedAt,
     attendees: participants.length,
@@ -801,6 +815,8 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       avatarUrl: userAvatarSrc(session.community.trainerProfile.user),
     },
     live: session.status === 'LIVE',
+    connectedNow:
+      viewer.isTrainer && session.status === 'LIVE' ? await countConnected(session.roomName) : null,
     isHost: viewer.isTrainer,
     canSpeak: muted === null,
     mutedReason: muted,
@@ -1848,12 +1864,3 @@ async function notifyMembers(
   for (const member of members) await notify(member.learnerId, params)
 }
 
-/** Utilisé par la console formateur pour afficher la présence réelle. */
-export async function connectedCount(sessionId: string): Promise<number> {
-  const session = await db.liveSession.findUnique({
-    where: { id: sessionId },
-    select: { roomName: true, status: true },
-  })
-  if (!session || session.status !== 'LIVE') return 0
-  return countConnected(session.roomName)
-}

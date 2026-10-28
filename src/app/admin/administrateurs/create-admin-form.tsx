@@ -71,7 +71,7 @@ export function CreateAdminForm() {
     >
       <form id="create-admin-form" onSubmit={onSubmit} noValidate>
         {create.error ? (
-          <p role="alert" className="mb-4 rounded-xl bg-danger-tint px-4 py-3 text-[13.5px] font-semibold text-danger">
+          <p role="alert" className="mb-4 rounded-xl border border-line bg-card border-l-4 border-l-danger px-4 py-3 text-[13.5px] font-semibold text-danger rounded-l-sm">
             {create.error}
           </p>
         ) : null}
@@ -98,7 +98,7 @@ export function CreateAdminForm() {
             {ROLE_OPTIONS.map((option) => (
               <label
                 key={option.value}
-                className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 has-[:checked]:border-brand has-[:checked]:bg-brand-tint"
+                className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 has-[:checked]:border-brand has-[:checked]:ring-1 has-[:checked]:ring-brand"
               >
                 <input
                   type="radio"

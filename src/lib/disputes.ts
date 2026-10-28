@@ -481,12 +481,12 @@ async function notifyDisputeOpened(
   await notify(params.trainerUserId, {
     type: 'DISPUTE_OPENED',
     title: 'Un litige a été ouvert sur une de vos ventes',
-    body: `Motif : ${params.reason} — ${params.itemTitle}. Les fonds correspondants sont réservés le temps de l'instruction.`,
+    body: `Motif : ${params.reason} · ${params.itemTitle}. Les fonds correspondants sont réservés le temps de l'instruction.`,
     link: contestLink,
   })
   await sendEmail({
     to: params.trainerEmail,
-    subject: 'NKAMVA — Litige ouvert sur une de vos ventes',
+    subject: 'NKAMVA · Litige ouvert sur une de vos ventes',
     // `itemTitle` est un titre de ressource saisi par un formateur : il passe
     // par le gabarit, qui l'échappe, et n'est jamais concaténé dans du balisage.
     ...renderSimpleEmail({
@@ -503,7 +503,7 @@ async function notifyDisputeOpened(
   await notifyAdminSubRole('MODERATION', {
     type: 'DISPUTE_OPENED',
     title: 'Nouveau litige à instruire',
-    body: `Motif : ${params.reason} — ${params.itemTitle}`,
+    body: `Motif : ${params.reason} · ${params.itemTitle}`,
     link: `/admin/litiges/${disputeId}`,
   })
 }
@@ -645,7 +645,7 @@ export async function askLearner(disputeId: string, input: AskLearnerInput) {
     })
     await sendEmail({
       to: dispute.learner.email,
-      subject: 'NKAMVA — Le support attend votre réponse',
+      subject: 'NKAMVA · Le support attend votre réponse',
       ...renderSimpleEmail({
         title: 'Le support attend votre réponse',
         paragraphs: [
@@ -878,7 +878,7 @@ async function notifyTrainerResolution(disputeId: string) {
   })
   await sendEmail({
     to: dispute.trainerProfile.user.email,
-    subject: refunded ? 'NKAMVA — Remboursement accordé sur une de vos ventes' : 'NKAMVA — Litige clos sans remboursement',
+    subject: refunded ? 'NKAMVA · Remboursement accordé sur une de vos ventes' : 'NKAMVA · Litige clos sans remboursement',
     ...renderSimpleEmail({
       title: refunded ? 'Remboursement accordé sur une de vos ventes' : 'Litige clos sans remboursement',
       paragraphs: [

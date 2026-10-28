@@ -202,7 +202,7 @@ export async function requestPayout(
     notifyAdminSubRole('FINANCES', {
       type: autoApproved ? 'PAYOUT_AUTO_APPROVED' : 'PAYOUT_TO_REVIEW',
       title: autoApproved ? 'Retrait auto-approuvé à verser' : 'Retrait à instruire',
-      body: `${amountFcfa} FCFA${kyc.firstPayout ? ' — premier retrait, revue obligatoire' : ''}.`,
+      body: `${amountFcfa} FCFA${kyc.firstPayout ? ', premier retrait, revue obligatoire' : ''}.`,
       link: `/admin/payouts/${payout.id}`,
     }),
   )
@@ -565,13 +565,13 @@ export async function markPayoutFailed(
     await notify(payout.trainerProfile.userId, {
       type: 'PAYOUT_FAILED',
       title: 'Votre virement a échoué',
-      body: `${input.reason} — les fonds sont de nouveau disponibles sur votre portefeuille.`,
+      body: `${input.reason}. Les fonds sont de nouveau disponibles sur votre portefeuille.`,
       link: '/formateur/paiements',
     })
     await notifyAdminSubRole('FINANCES', {
       type: 'PAYOUT_FAILED',
       title: 'Échec de virement à reprendre',
-      body: `${payout.amountFcfa} FCFA — ${input.reason}`,
+      body: `${payout.amountFcfa} FCFA : ${input.reason}`,
       link: `/admin/payouts/${payoutId}`,
     })
   })

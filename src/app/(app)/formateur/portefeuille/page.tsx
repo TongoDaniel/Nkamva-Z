@@ -207,7 +207,7 @@ export default async function PortefeuillePage() {
           className={
             subscription.subscriptionStatus === "SUSPENDED"
               ? "border border-danger/30 bg-danger/5 text-ink"
-              : "border border-gold/40 bg-gold-tint text-ink"
+              : "border border-line border-l-4 border-l-gold bg-card text-ink rounded-l-sm"
           }
         >
           {subscription.subscriptionStatus === "SUSPENDED" ? (
@@ -310,7 +310,7 @@ export default async function PortefeuillePage() {
 
             {archived.length > 0 ? (
               <details className="mt-5 border-t border-line pt-4">
-                <summary className="cursor-pointer text-[13px] font-bold text-ink-2">
+                <summary className="nk-tap cursor-pointer py-2 text-[13px] font-bold text-ink-2">
                   Comptes précédents ({archived.length})
                 </summary>
                 <ul className="mt-3 grid gap-2">

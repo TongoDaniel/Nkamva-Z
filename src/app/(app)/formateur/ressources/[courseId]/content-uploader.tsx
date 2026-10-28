@@ -256,7 +256,7 @@ export function ContentUploader({
           </span>
         ) : (
           <span className="text-[13.5px] text-ink-2">
-            Obligatoire avant publication — fichier {attendu}.
+            Obligatoire avant publication : fichier {attendu}.
           </span>
         )}
       </div>

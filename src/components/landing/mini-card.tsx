@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Chip } from "@/components/nk/chip";
-import { categoryTone, Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
+import { Cover, coverImageUrl, formatLabel } from "@/components/nk/cover";
 import { Price } from "@/components/nk/resource-card";
 import { fmtDuration } from "@/lib/format";
 import type { CourseListItem } from "@/lib/dto";
@@ -48,7 +48,7 @@ export function MiniCard({
           )}
         </h3>
         <div className="flex items-center justify-between text-[13px] font-medium text-ink-2">
-          <Chip tone={categoryTone(course.category)}>{course.category}</Chip>
+          <Chip tone="muted">{course.category}</Chip>
           <Price amountFcfa={course.priceFcfa} className="text-base" />
         </div>
       </div>

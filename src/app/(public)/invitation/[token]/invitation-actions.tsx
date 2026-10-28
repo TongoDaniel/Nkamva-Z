@@ -25,7 +25,7 @@ export function AcceptGift({ token, communityName }: { token: string; communityN
     },
     {
       success: ({ giftMonths }) =>
-        `Bienvenue dans ${communityName} — ${giftMonths} mois offerts, rien ne vous sera prélevé.`,
+        `Bienvenue dans ${communityName} : ${giftMonths} mois offerts, rien ne vous sera prélevé.`,
       error: "L'invitation n'a pas pu être acceptée.",
       // Navigation dans la transition : le bouton reste occupé jusqu'à ce que
       // la communauté soit à l'écran.

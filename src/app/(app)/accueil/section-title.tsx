@@ -39,7 +39,7 @@ export function SectionTitle({
           className="nk-tap group relative inline-flex shrink-0 items-center gap-0.5 text-[13px] font-bold text-brand"
         >
           {linkLabel}
-          <span className="sr-only"> — {title}</span>
+          <span className="sr-only">, {title}</span>
           <ChevronRight
             className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5"
             aria-hidden="true"

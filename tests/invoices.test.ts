@@ -97,7 +97,7 @@ describe('Factures', () => {
 
     expect(second.id).toBe(first.id)
     expect(await prisma.invoice.count()).toBe(1)
-    expect(first.label).toBe('Ressource — Masterclass DDD')
+    expect(first.label).toBe('Ressource · Masterclass DDD')
     expect(first.amountFcfa).toBe(15000)
   })
 

@@ -11,9 +11,18 @@ const nextConfig: NextConfig = {
   // ce qu'il ne faut pas. On désigne la racine explicitement.
   turbopack: {
     root: path.resolve(process.cwd()),
+    // `livekit-server-sdk` importe `node:crypto` dynamiquement : Turbopack en
+    // fait un fragment nommé `[externals]_node:crypto_….js`. Sous Windows le
+    // deux-points ouvre un flux de données alternatif, et la copie vers
+    // `.next/standalone` casse en fin de build (EINVAL). Sans préfixe, le
+    // fragment s'appelle `[externals]_crypto_….js` et le module est le même.
+    resolveAlias: { "node:crypto": "crypto" },
   },
+  // Une erreur de typage arrête le build : elle ne part plus en déploiement
+  // (finding 11 du pentest). Le job « typecheck » de la CI la signale avant.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
+    tsconfigPath: "tsconfig.build.json",
   },
   reactStrictMode: false,
   // On ne divulgue pas la pile technique.
@@ -22,15 +31,18 @@ const nextConfig: NextConfig = {
   // (et non uniquement dans Caddy) pour qu'ils suivent l'app quel que soit le
   // proxy en tête, y compris en build standalone.
   async headers() {
+    const isDev = process.env.NODE_ENV !== "production";
     const csp = [
       "default-src 'self'",
       "base-uri 'self'",
       "object-src 'none'",
       "frame-ancestors 'self'",
       "form-action 'self'",
-      // 'unsafe-inline'/'unsafe-eval' : Next injecte des scripts/styles en ligne.
-      // À resserrer (nonces) une fois la CSP passée en mode strict.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // 'unsafe-inline' : Next injecte ses données de rendu en scripts en ligne.
+      // Le retirer demande des nonces, donc un rendu dynamique de toutes les
+      // pages — un arbitrage de performance à part. 'unsafe-eval' ne sert qu'au
+      // rechargement à chaud du serveur de dev : la production s'en passe.
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       // Polices et styles sont auto-hébergés (next/font → /_next/static/media) :
       // navigation de staging vérifiée, aucune requête vers Google Fonts. On ne
       // garde donc pas fonts.googleapis.com / fonts.gstatic.com.
@@ -42,6 +54,9 @@ const nextConfig: NextConfig = {
       // LiveKit (wss), R2/S3 et Stripe passent par https/wss vers l'extérieur.
       "connect-src 'self' https: wss:",
       "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
+      // Chaque violation laisse une ligne `[csp]` dans les journaux du serveur.
+      "report-uri /api/csp-report",
+      "report-to csp",
     ].join("; ");
     return [
       {
@@ -52,10 +67,12 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=(self)" },
-          // CSP en Report-Only d'abord : elle observe sans rien casser (LiveKit,
-          // Stripe, R2, polices). À basculer en `Content-Security-Policy` stricte
-          // une fois les rapports vérifiés.
-          { key: "Content-Security-Policy-Report-Only", value: csp },
+          // CSP appliquée (elle était en Report-Only depuis la PR #10). Aucune
+          // page ne charge de script, de cadre ni de police d'un tiers : la
+          // politique bloque ce qui n'a rien à faire là, et la route de rapport
+          // dit ce qu'elle aurait bloqué à tort.
+          { key: "Content-Security-Policy", value: csp },
+          { key: "Reporting-Endpoints", value: 'csp="/api/csp-report"' },
         ],
       },
     ];

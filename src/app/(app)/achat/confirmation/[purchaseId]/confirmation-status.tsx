@@ -146,7 +146,7 @@ export function ConfirmationStatus({
       >
         {settled ? (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-brand-tint text-brand">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-brand">
               <CheckCircle2 className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement confirmé</h2>
@@ -181,7 +181,7 @@ export function ConfirmationStatus({
           </>
         ) : failed ? (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-danger-tint text-danger">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-danger">
               <XCircle className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement non abouti</h2>
@@ -214,14 +214,14 @@ export function ConfirmationStatus({
           </>
         ) : timedOut ? (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-gold-tint text-gold-ink">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-gold-ink">
               <Clock className="size-8" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">Paiement toujours en attente</h2>
             <p className="mb-6 max-w-[52ch] text-ink-2">
               L&apos;opérateur n&apos;a pas encore confirmé la transaction. C&apos;est fréquent en
               mobile money. Dès qu&apos;elle est confirmée, la ressource apparaît dans votre
-              espace — rien n&apos;est perdu.
+              espace : rien n&apos;est perdu.
             </p>
             <div className="flex flex-wrap gap-3">
               <BtnLink href="/mes-achats" size="lg">Suivre dans mes achats</BtnLink>
@@ -232,7 +232,7 @@ export function ConfirmationStatus({
           </>
         ) : (
           <>
-            <span className="mb-5 grid size-16 place-items-center rounded-full bg-brand-tint text-brand">
+            <span className="mb-5 grid size-16 place-items-center rounded-full border border-line bg-card text-brand">
               <Loader2 className="size-8 animate-spin" aria-hidden="true" />
             </span>
             <h2 className="mb-2 text-[24px] font-extrabold">
@@ -243,7 +243,7 @@ export function ConfirmationStatus({
                 l'apprenant attend un écran qui ne viendra jamais. */}
             <p className="max-w-[52ch] text-ink-2">
               {provider === "PAWAPAY"
-                ? "Une demande de paiement vient d’être envoyée sur votre numéro. Saisissez votre code secret pour la valider — cette page se met à jour toute seule."
+                ? "Une demande de paiement vient d’être envoyée sur votre numéro. Saisissez votre code secret pour la valider. Cette page se met à jour toute seule."
                 : "Nous attendons la confirmation de l’opérateur. Vous pouvez laisser cette page ouverte : elle se met à jour toute seule."}
             </p>
           </>

@@ -567,7 +567,7 @@ export function TrainerSignupWizard({
                         className={cn(
                           "cursor-pointer rounded-full border-[1.5px] px-4 py-2 text-[13.5px] font-semibold transition",
                           active
-                            ? "border-brand bg-brand-tint text-brand-dark"
+                            ? "border-brand text-brand-dark ring-1 ring-brand"
                             : "border-line bg-card text-ink-2 hover:border-ink-3",
                         )}
                       >
@@ -635,7 +635,7 @@ export function TrainerSignupWizard({
               />
               <InfoBox>
                 Ces documents servent uniquement à vérifier votre identité et votre expertise avant
-                validation de votre candidature — ils ne sont jamais visibles publiquement. Aucune
+                validation de votre candidature : ils ne sont jamais visibles publiquement. Aucune
                 coordonnée bancaire ne vous est demandée ici : elle ne servira qu&apos;au moment de
                 votre premier retrait.
               </InfoBox>

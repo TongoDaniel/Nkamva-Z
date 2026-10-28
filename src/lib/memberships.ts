@@ -291,6 +291,9 @@ export async function initiateMembershipPayment(
   // en impasse définitive : le mobile money renvoyait cette même carte morte, et
   // les deux moyens paraissaient en panne. Constaté le 9 août 2026 sur une
   // adhésion restée en attente dix-huit heures.
+  // Borne du contrôle qui suit l'insertion : seul un règlement postérieur à nos
+  // lectures peut nous avoir échappé.
+  const readAt = new Date()
   const pending = await db.purchase.findFirst({
     where: { learnerId, communityId, providerStatus: 'PENDING' },
     select: {
@@ -475,6 +478,33 @@ export async function initiateMembershipPayment(
     // paiement du gagnant plutôt que d'en ouvrir un second.
     if ((err as { code?: string })?.code !== 'P2002') throw err
 
+    return followWinningAttempt(learnerId, communityId, open ? 'DUE' : 'JOIN')
+  }
+
+  // L'index ne tranche qu'entre deux lignes `PENDING`. Si l'autre clic a été
+  // réglé entre nos lectures et notre insertion — règlement immédiat, en
+  // simulation comme en mobile money instantané —, son achat n'est déjà plus
+  // `PENDING` et le nôtre passe : le même mois se paierait deux fois. Vérifié
+  // après l'insertion, l'écart se referme : un gagnant encore `PENDING` nous
+  // aurait bloqués à l'index, un gagnant réglé est visible ici.
+  //
+  // Seul compte un règlement **survenu depuis nos lectures** (`updatedAt`). Un
+  // achat réglé plus tôt sur une période qui court encore n'est pas un double
+  // clic : c'est l'ancien membre que la levée d'un bannissement après
+  // résiliation a fermé en `EXPIRED`, et qui a le droit de revenir.
+  const settledMeanwhile = await db.purchase.findFirst({
+    where: {
+      id: { not: purchase.id }, learnerId, communityId, providerStatus: 'SUCCEEDED',
+      periodStart: { lt: periodEnd }, periodEnd: { gt: periodStart },
+      updatedAt: { gte: readAt },
+    },
+    select: { id: true },
+  })
+  if (settledMeanwhile) {
+    // Supprimée, pas annulée : jamais ouverte chez un fournisseur ni auditée,
+    // elle n'a rien à raconter. Annulée, elle s'afficherait dans l'historique
+    // de l'apprenant comme un paiement qu'il n'a jamais tenté.
+    await db.purchase.deleteMany({ where: { id: purchase.id, providerStatus: 'PENDING' } })
     return followWinningAttempt(learnerId, communityId, open ? 'DUE' : 'JOIN')
   }
 

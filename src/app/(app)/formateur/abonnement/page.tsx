@@ -113,7 +113,7 @@ export default async function AbonnementPage() {
       </section>
 
       {subscription.dueTotalFcfa > 0 && subscription.suspensionAt && !ended ? (
-        <InfoBox className="border border-gold/40 bg-gold-tint text-ink">
+        <InfoBox className="border border-line border-l-4 border-l-gold bg-card text-ink rounded-l-sm">
           <b>Votre abonnement est à régler : {fmtFcfa(subscription.dueTotalFcfa)}.</b> Sans
           règlement d&apos;ici au {fmtDate(subscription.suspensionAt)}, vos ressources sortiront du
           catalogue. Rien de ce qui a déjà été acheté n&apos;est touché.
@@ -134,7 +134,7 @@ export default async function AbonnementPage() {
           <b>Votre abonnement a pris fin.</b> Votre espace reste ouvert pour retirer votre solde,
           suivre vos litiges et consulter vos factures. Les personnes qui ont acheté vos ressources
           y accèdent toujours. Vous pouvez rouvrir votre espace à tout moment en réglant un nouvel
-          abonnement — sans repasser par une candidature.
+          abonnement, sans repasser par une candidature.
         </InfoBox>
       ) : null}
 

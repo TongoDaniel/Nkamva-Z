@@ -1280,11 +1280,15 @@ au §5 sont implémentées sauf mention contraire ci-dessous.*
 6. **Réponse de PawaPay** sur le règlement en devise locale par marché et sur la
    présence éventuelle d'un nom de payeur dans les rappels — la seconde réponse,
    si elle est positive, rend l'intégration MTN inutile.
-7. **Écarts résiduels connus** : notification de résolution de litige au
-   formateur ; distinction `INDIVIDUAL` / `BUSINESS` dans la vérification ;
-   limitations de débit définies mais non branchées sur toutes les routes ;
-   `negativeSince` non recalculé lors d'un débit de remboursement ;
-   `react-email` non installé ; couche « name lookup » opérateur inactive.
+7. **Écarts résiduels connus** — revus par l'audit fonctionnel du 27 octobre
+   2026. **Résolus depuis** : la notification de résolution de litige au
+   formateur, la dénomination sociale d'un compte d'entreprise vérifiée à
+   l'instruction, `negativeSince` recalculé à chaque débit (remboursement
+   compris). **Restent** : les limitations de débit, branchées sur les routes
+   sensibles (connexion, paiement, retrait, messages, signalements) mais pas sur
+   les 68 autres routes d'écriture, toutes authentifiées ; la couche « name
+   lookup » opérateur, inactive tant que PawaPay ne la propose pas. Les
+   courriels sont des gabarits texte : `react-email` n'est pas un manque.
 8. **Redirection de l'espace visiteur** — un utilisateur connecté navigue
    librement dans l'espace public. **Ajourné volontairement** : deux arbitrages
    doivent précéder toute ligne de code (le périmètre, puisque `/recherche` n'a

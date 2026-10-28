@@ -42,14 +42,14 @@ export async function POST(request: Request) {
   // formulaire public, ils ne doivent jamais atteindre la boîte du support sous
   // forme de balisage.
   const { html, text } = renderSimpleEmail({
-    title: `Nouveau message — ${SUBJECTS[subject]}`,
+    title: `Nouveau message : ${SUBJECTS[subject]}`,
     paragraphs: [`De : ${name} <${email}>`, message],
     footnote: 'Répondez directement à cette adresse pour joindre l\'expéditeur.',
   })
 
   await sendEmail({
     to,
-    subject: `[Contact] ${SUBJECTS[subject]} — ${name}`,
+    subject: `[Contact] ${SUBJECTS[subject]} · ${name}`,
     html,
     text,
     tags: ['contact'],

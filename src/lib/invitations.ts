@@ -788,12 +788,12 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
         link: lienMembre,
       },
       {
-        subject: `NKAMVA — bienvenue dans ${invitation.community.name}`,
+        subject: `NKAMVA · bienvenue dans ${invitation.community.name}`,
         title: `Bienvenue dans ${invitation.community.name}`,
         paragraphs: [
           'Bonjour,',
           `Votre invitation est acceptée : ${giftMonths} mois vous sont offerts, jusqu'au ${terme}.`,
-          "Rien ne vous sera prélevé — une adhésion offerte ne se reconduit pas d'elle-même. Vous serez prévenu avant son terme.",
+          "Rien ne vous sera prélevé : une adhésion offerte ne se reconduit pas d'elle-même. Vous serez prévenu avant son terme.",
         ],
         cta: { label: 'Ouvrir la communauté', url: absoluteUrl(lienMembre) },
       },
@@ -817,7 +817,7 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
         link: lien,
       },
       {
-        subject: `NKAMVA — votre invitation à ${invitation.community.name} a été acceptée`,
+        subject: `NKAMVA · votre invitation à ${invitation.community.name} a été acceptée`,
         title: 'Votre invitation a été acceptée',
         paragraphs: ['Bonjour,', qui, `Communauté : ${invitation.community.name}.`],
         cta: { label: 'Voir mes invitations', url: absoluteUrl(lien) },
@@ -933,8 +933,11 @@ export async function consumeInvitationForPurchase(
 // --- Rattachement au compte qui vient de naître (arbitrage 85) ---------------
 
 /**
- * À la création d'un compte, les invitations nominatives en attente adressées à
- * cette adresse deviennent visibles dans NKAMVA. C'est une **lecture, pas une
+ * À la première vérification d'une adresse (`/api/auth/verify-otp`), les
+ * invitations nominatives en attente qui lui sont adressées deviennent visibles
+ * dans NKAMVA. Pas à la création du compte : l'adresse n'y est pas encore
+ * prouvée, et la notification dirait à qui l'a saisie quelles communautés
+ * invitent son vrai propriétaire. C'est une **lecture, pas une
  * acceptation** : adhérer, même gratuitement, reste un geste de l'invité.
  *
  * Sans cela, l'invité qui ferme son onglet au mauvais moment n'a plus qu'un
@@ -942,8 +945,8 @@ export async function consumeInvitationForPurchase(
  * acceptée » sans comprendre pourquoi.
  *
  * ⚠️ Le lien de la notification ne peut pas porter le jeton : il n'est pas
- * restituable pour un nominatif. Il mène à l'accueil, où la carte d'invitation
- * reprend le fil.
+ * restituable pour un nominatif. Elle renvoie donc au lien de l'e-mail, qui
+ * reste le seul chemin d'acceptation.
  */
 export async function notifyPendingInvitationsForNewAccount(userId: string, email: string): Promise<number> {
   const normalized = email.trim().toLowerCase()

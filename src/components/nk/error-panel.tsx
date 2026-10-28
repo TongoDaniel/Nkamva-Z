@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/nk/empty-state";
 export function ErrorPanel({
   reset,
   title = "Cette page n'a pas pu se charger",
-  description = "Le service est momentanément indisponible. Réessayez dans un instant — vos achats et votre progression ne sont pas affectés.",
+  description = "Le service est momentanément indisponible. Réessayez dans un instant : vos achats et votre progression ne sont pas affectés.",
 }: {
   reset: () => void;
   title?: string;

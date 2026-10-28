@@ -197,7 +197,7 @@ export function ActivationPanel({
           {byCard ? (
             <>
               Rien n&apos;est ouvert avant la confirmation du paiement. Si elle n&apos;arrive pas,
-              vous pourrez relancer une tentative depuis cet écran — vous ne serez pas débité deux
+              vous pourrez relancer une tentative depuis cet écran, sans être débité deux
               fois.
             </>
           ) : (
@@ -245,7 +245,7 @@ export function ActivationPanel({
 
       <FormError>{error}</FormError>
       {!error && lastFailure ? (
-        <p className="mb-4 rounded-nk bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+        <p className="mb-4 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
           <b>Votre dernière tentative a échoué.</b> {lastFailure}
         </p>
       ) : null}
@@ -259,7 +259,7 @@ export function ActivationPanel({
               className={cn(
                 "flex cursor-pointer items-center gap-4 rounded-nk border-[1.5px] p-4 transition",
                 provider === value
-                  ? "border-brand bg-brand-tint"
+                  ? "border-brand ring-1 ring-brand"
                   : "border-line bg-card hover:border-ink-3",
               )}
             >

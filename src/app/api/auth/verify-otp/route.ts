@@ -4,6 +4,7 @@ import { audit } from '@/lib/audit'
 import { success, error, parseBody } from '@/lib/api'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { consumeOtp, peekOtp } from '@/lib/otp'
+import { notifyPendingInvitationsForNewAccount } from '@/lib/invitations'
 import { otpFailureResponse } from '../otp-errors'
 
 const schema = z.object({
@@ -63,6 +64,17 @@ export async function POST(request: Request) {
           meta: { email },
         })
       })
+
+      // Les invitations nominatives qui attendaient cette adresse deviennent
+      // visibles dans NKAMVA. Après la vérification, et pas à l'inscription :
+      // s'inscrire avec l'adresse d'un autre, sans pouvoir la vérifier, aurait
+      // suffi à lire quelles communautés l'invitent. Une notification manquée
+      // ne doit pas faire échouer la vérification — le lien de l'e-mail reste.
+      try {
+        await notifyPendingInvitationsForNewAccount(user.id, email)
+      } catch (err) {
+        console.error('[INVITATIONS:NOTIFY_ON_VERIFY]', err)
+      }
     }
   }
 

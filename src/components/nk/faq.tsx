@@ -66,7 +66,7 @@ export function Faq({
                   aria-hidden="true"
                   className={cn(
                     "grid size-[30px] flex-none place-items-center rounded-full transition-[transform,background-color] duration-300",
-                    open ? "rotate-45 bg-brand-tint text-brand" : "bg-line-2 text-ink-2",
+                    open ? "rotate-45 border border-brand bg-card text-brand" : "border border-line bg-card text-ink-2",
                   )}
                 >
                   <Plus className="size-[15px]" />
@@ -100,7 +100,7 @@ export function Faq({
  */
 export function ToFill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-md bg-gold-tint px-[7px] py-px text-[13px] font-bold text-gold-ink">
+    <span className="text-[13px] font-bold uppercase tracking-[0.08em] text-gold-ink">
       {children}
     </span>
   );

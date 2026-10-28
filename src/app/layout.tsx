@@ -24,11 +24,11 @@ export const metadata: Metadata = {
     process.env.WEB_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000",
   ),
   title: {
-    default: "NKAMVA — Prêt à apprendre ou à transmettre ?",
-    template: "%s — NKAMVA",
+    default: "NKAMVA · Prêt à apprendre ou à transmettre ?",
+    template: "%s · NKAMVA",
   },
   description:
-    "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire — la ressource reste à vous, à vie.",
+    "Cours vidéo, guides et modèles créés par des formateurs africains. Achetez une fois par mobile money ou carte bancaire : la ressource reste à vous, à vie.",
   keywords: ["NKAMVA", "formation en ligne", "cours", "communauté", "formateurs", "FCFA"],
   authors: [{ name: "NKAMVA" }],
   applicationName: "NKAMVA",
@@ -86,8 +86,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body className={`${bricolage.variable} ${instrument.variable}`}>
+    // Les variables de police vont sur `<html>`, pas sur `<body>`. Le bloc
+    // `@theme` de globals.css publie `--font-sans` et `--font-display` sur
+    // `:root` ; posées sur `<body>`, `--font-instrument` et `--font-bricolage`
+    // n'y existaient pas encore, la valeur devenait invalide, et tout le site
+    // s'affichait dans la police système, titres compris, sans qu'aucune
+    // erreur ne le signale.
+    <html lang="fr" className={`${bricolage.variable} ${instrument.variable}`} suppressHydrationWarning>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>

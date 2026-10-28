@@ -125,7 +125,7 @@ export function ResetForm() {
             setFieldError(null);
           }}
         />
-        <p className="mb-4 rounded-xl bg-brand-tint px-4 py-3 text-[13px] leading-relaxed text-brand-dark">
+        <p className="mb-4 rounded-xl border border-line bg-card border-l-4 border-l-brand px-4 py-3 text-[13px] leading-relaxed text-brand-dark rounded-l-sm">
           Toutes vos sessions ouvertes seront déconnectées après ce changement.
         </p>
         <Btn type="submit" size="lg" block loading={pending}>

@@ -26,7 +26,7 @@ function ResourceActions({ item }: { item: ResourceItem }) {
 
   if (item.accessSuspended) {
     return (
-      <p className="max-w-[220px] rounded-xl bg-danger-tint px-3.5 py-2.5 text-[13px] font-semibold text-danger">
+      <p className="max-w-[220px] rounded-xl border border-line bg-card border-l-4 border-l-danger px-3.5 py-2.5 text-[13px] font-semibold text-danger rounded-l-sm">
         Accès suspendu le temps d&apos;un litige.
       </p>
     );
@@ -145,7 +145,7 @@ export function ResourceList({
                 className="flex flex-wrap items-center gap-4.5 rounded-nk-lg border border-line bg-card px-5 py-4.5 shadow-nk-sm"
               >
                 <span
-                  className="grid size-16 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand"
+                  className="grid size-16 shrink-0 place-items-center rounded-xl border border-line bg-card text-brand"
                   aria-hidden="true"
                 >
                   <FormatGlyph format={course.format} className="size-6" />

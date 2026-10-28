@@ -31,7 +31,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
 
   return (
     <div className="grid gap-4">
-      <div className="rounded-nk border border-gold-ink/30 bg-gold-tint px-4 py-3 text-[13.5px] leading-relaxed text-ink-2">
+      <div className="rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13.5px] leading-relaxed text-ink-2 rounded-l-sm">
         <b className="text-ink">Conservez ces dix codes maintenant.</b> Ils ne seront plus jamais
         affichés. Chacun ne sert qu&apos;une fois, et c&apos;est votre seule porte de secours si vous
         perdez votre téléphone.

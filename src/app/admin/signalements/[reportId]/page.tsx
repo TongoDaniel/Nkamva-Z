@@ -59,7 +59,7 @@ export default async function SignalementDetailPage({
   return (
     <>
       <AdminHead
-        title={`${TARGET_LABELS[report.targetType] ?? report.targetType} — ${
+        title={`${TARGET_LABELS[report.targetType] ?? report.targetType} · ${
           REASON_LABELS[report.reason] ?? report.reason
         }`}
         lead={<>Signalé le {fmtDate(report.createdAt)} par {reporterName}</>}
@@ -77,7 +77,7 @@ export default async function SignalementDetailPage({
       </div>
 
       {report.siblingCount > 0 ? (
-        <div className="mb-6 flex flex-wrap items-start gap-3 rounded-nk-lg border border-line bg-gold-tint p-5">
+        <div className="mb-6 flex flex-wrap items-start gap-3 rounded-nk-lg border border-line bg-card border-l-4 border-l-gold p-5 rounded-l-sm">
           <TriangleAlert className="mt-0.5 size-5 shrink-0 text-gold-ink" aria-hidden="true" />
           <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-ink-2">
             <b className="font-extrabold text-ink">

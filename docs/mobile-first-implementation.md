@@ -250,7 +250,7 @@ confirmation rapide.
 
 | # | Tâche | Fichiers | Taille |
 |---|---|---|---|
-| **L3-6** | Mutualiser les filtres colonne / tiroir (aujourd'hui deux arbres indépendants, ~40 cases rendues deux fois) | `screens/catalog-controls.tsx` | M |
+| **L3-6** | Mutualiser les filtres colonne / tiroir (aujourd'hui deux arbres indépendants, ~40 cases rendues deux fois) | `screens/catalog-controls.tsx` | ✅ 26 oct. 2026 — un seul `aside` : colonne collante à partir de `lg`, tiroir en dessous ; l'état du tiroir vit dans `CatalogNavProvider` |
 | **L3-7** | Catalogue, communautés, formateurs, recherche | `screens/{catalog,communities,trainers,trainer-directory}-screen.tsx` | L |
 | **L3-8** | Pagination : cibles tactiles et position atteignable au pouce | `(app)/mes-achats/page.tsx` + 8 écrans admin paginés | S |
 
@@ -262,7 +262,7 @@ confirmation rapide.
 | **L3-10** | Les 4 lecteurs profitent du déverrouillage | — | ✅ par L3-9 |
 | **L3-11** | Mes ressources, mes communautés, mes achats, factures, litiges, favoris, notifications | ~10 pages sous `(app)/` | L |
 | **L3-12** | Messagerie : passage deux volets → un volet sur mobile, avec retour | `messagerie/{page,conversation-pane}.tsx` | M |
-| **L3-13** | Agenda des lives (`grid-cols-7` figé dès 375 px) | `mes-lives/agenda-pane.tsx` | S |
+| **L3-13** | Agenda des lives (`grid-cols-7` figé dès 375 px) | `mes-lives/agenda-pane.tsx` | ✅ 26 oct. 2026 — la grille tenait (cases 39 × 42) ; le défaut était sa place, sous la liste. Calendrier replié au-dessus de la liste sous `lg` |
 
 ### 3.4 — Espace formateur — 14 écrans
 
@@ -285,7 +285,7 @@ confirmation rapide.
 
 | # | Tâche | Fichiers | Taille |
 |---|---|---|---|
-| **L3-21** | Re-hiérarchiser la page d'accueil : 7 864 px sur un écran de 812 px, soit ≈ 9,7 écrans. Travail de design, pas de CSS | `(public)/page.tsx` (516 lignes) | L |
+| **L3-21** | Re-hiérarchiser la page d'accueil : 7 864 px sur un écran de 812 px, soit ≈ 9,7 écrans. Travail de design, pas de CSS | `(public)/page.tsx` (516 lignes) | ✅ 26 oct. 2026 — 7 087 → 5 463 px à 375 (6,7 écrans) : onglets apprendre / former, piste des écrans produit, photo et CTA resserrées ; grand écran identique. Pied de page à part |
 | **L3-22** | Tarifs, aide, contact, formateurs, communautés, légal | ~10 pages sous `(public)/` | M |
 
 ### 3.7 — Admin — ~~24 écrans~~ **retiré du périmètre**

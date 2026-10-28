@@ -89,7 +89,7 @@ export default async function MesAchatsPage({
       cell: (row) => (
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="grid size-9 shrink-0 place-items-center rounded-nk-sm bg-brand-tint text-brand"
+            className="grid size-9 shrink-0 place-items-center rounded-nk-sm border border-line bg-card text-brand"
             aria-hidden="true"
           >
             <FormatGlyph format={row.course?.format} className="size-4" />

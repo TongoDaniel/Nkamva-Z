@@ -118,7 +118,7 @@ export function ReviewActions({
           l'ont été doivent pouvoir se terminer : le formateur peut encore
           saisir ses deux montants. */}
       {microDepositIssued ? (
-        <p className="mt-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+        <p className="mt-4 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
           <b className="font-extrabold">Des micro-virements sont en attente.</b> Virez les deux
           montants affichés, puis attendez que le formateur les confirme. On ne les retire pas une
           seconde fois : les nouveaux ne correspondraient plus à ce que vous avez envoyé. Ce mode de
@@ -128,7 +128,7 @@ export function ReviewActions({
 
       {instructible && type === "BANK_IBAN" && !microDepositIssued ? (
         <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
-          Un compte bancaire se vérifie <b className="font-bold text-ink-2">sur pièce</b> — RIB au
+          Un compte bancaire se vérifie <b className="font-bold text-ink-2">sur pièce</b> : RIB au
           nom du titulaire, comparé au nom légal vérifié. Le micro-virement a été abandonné : aucun
           service ne permet de l&apos;émettre automatiquement dans la zone.
         </p>
@@ -201,7 +201,7 @@ export function ReviewActions({
       <Modal
         open={dialog === "reject"}
         onOpenChange={(open) => setDialog(open ? "reject" : null)}
-        title={lastChance ? "Refuser — et bloquer le formateur ?" : "Refuser ce moyen de paiement ?"}
+        title={lastChance ? "Refuser, et bloquer le formateur ?" : "Refuser ce moyen de paiement ?"}
         description={
           lastChance
             ? `Ce sera le ${maxRejections}e refus : la vérification sera suspendue et le dossier confié à un Super-admin.`
@@ -243,7 +243,7 @@ export function ReviewActions({
           className="w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
         />
         <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
-          Décision 30 — jamais un rejet opaque. Dites ce qui ne correspond pas, sans recopier le
+          Décision 30 : jamais un rejet opaque. Dites ce qui ne correspond pas, sans recopier le
           nom légal vérifié dans le message.
         </p>
       </Modal>
@@ -302,7 +302,7 @@ export function ReviewActions({
                 key={option.value}
                 className={
                   escalationAction === option.value
-                    ? "cursor-pointer rounded-nk border-[1.5px] border-brand bg-brand-tint p-3.5"
+                    ? "cursor-pointer rounded-nk border-[1.5px] border-brand p-3.5 ring-1 ring-brand"
                     : "cursor-pointer rounded-nk border-[1.5px] border-line p-3.5 hover:border-brand/40"
                 }
               >

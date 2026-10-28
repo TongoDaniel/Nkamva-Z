@@ -52,7 +52,7 @@ export const COURSE_CIRCUITS = [
   {
     value: 'COMMUNITY',
     label: 'Incluse dans ma communauté',
-    hint: 'Réservée à vos abonnés, sans achat à l’unité — vous ne fixez pas de prix.',
+    hint: 'Réservée à vos abonnés, sans achat à l’unité : vous ne fixez pas de prix.',
   },
 ] as const satisfies ReadonlyArray<{ value: CourseCircuitValue; label: string; hint: string }>
 

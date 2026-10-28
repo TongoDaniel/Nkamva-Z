@@ -32,6 +32,7 @@ import { Tabs } from "@/components/nk/tabs";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
 import { useLiveRoom } from "@/hooks/use-live-room";
+import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { cn } from "@/lib/utils";
 import type { LiveRoomView } from "@/lib/lives";
 
@@ -221,12 +222,17 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
     act("message", { action: "message", body: text }, undefined, () => setDraft(""));
   }
 
+  // Même défaut que la salle du participant : sans fuseau, le serveur écrivait
+  // la date dans le sien. L'animateur lit ici sa propre séance, le rappel de son
+  // fuseau ne lui apprendrait rien.
+  const { timeZone } = useSessionTimeZone(room.timeZone);
   const dateLabel = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   }).format(room.startsAt);
 
   // Les deux règles de la console (arbitrages 40 et 42), lues au ⓘ — dans la
@@ -236,7 +242,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
       Vous pouvez couper un micro et ouvrir un écran, pas retirer quelqu&apos;un de la
       session : exclure relève du bannissement de la communauté. Le partage d&apos;écran
       d&apos;un participant passe toujours par vous, et se retire du même geste ; le vôtre
-      ne demande rien. Le salon, lui, est conservé et rattaché au replay — ce qui
+      ne demande rien. Le salon, lui, est conservé et rattaché au replay, ce qui
       s&apos;y écrit reste lisible après la session.
     </>
   );
@@ -320,7 +326,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
         )}
       >
         {lockedCount === 0
-          ? "Aucun micro coupé — chacun parle librement."
+          ? "Aucun micro coupé : chacun parle librement."
           : `${lockedCount} micro${lockedCount > 1 ? "s" : ""} coupé${lockedCount > 1 ? "s" : ""} par vous.`}
         {/* Arbitrage 93 — l'occupation de la scène, pas une jauge de places
             dans la salle : personne n'est refusé à l'entrée. */}
@@ -331,7 +337,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           )}
         >
           Scène : {room.stage.taken} sur {room.stage.capacity} à l&apos;antenne
-          {room.stage.full ? " — complète, coupez un micro pour libérer une place." : "."}
+          {room.stage.full ? " : complète, coupez un micro pour libérer une place." : "."}
         </span>
       </p>
       <Btn
@@ -393,7 +399,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
         label={
           controlsReason ??
           (!transport.screenShareSupported
-            ? "Partage d'écran indisponible sur ce navigateur — présentez depuis un ordinateur"
+            ? "Partage d'écran indisponible sur ce navigateur : présentez depuis un ordinateur"
             : transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran")
         }
         onClick={() => void transport.setScreen(!transport.screenEnabled)}
@@ -498,7 +504,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
             {/* L'explication tient une ligne de plus sur téléphone : elle y
                 est redite par le ⓘ de l'entête. */}
             <span className="hidden font-medium text-[var(--live-muted)] lg:inline">
-              — automatique pour tout live, le replay sera daté du jour de la session.
+              (automatique pour tout live) : le replay sera daté du jour de la session.
             </span>
           </p>
         ) : null}
@@ -604,7 +610,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
               </p>
             ) : (
               <>
-                <p className="mb-3 rounded-nk-sm bg-brand-tint px-3 py-2 text-[13px] font-semibold text-brand-dark">
+                <p className="mb-3 rounded-nk-sm border border-line border-l-4 border-l-brand bg-card px-3 py-2 text-[13px] font-semibold text-brand-dark rounded-l-sm">
                   {requests.length} demande{requests.length > 1 ? "s" : ""}, de la plus ancienne à
                   la plus récente.
                 </p>
@@ -641,7 +647,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                                   doublon, un lecteur d'écran lit la file à plat. */}
                               <span className="sr-only">
                                 {" "}
-                                — position {index + 1} dans la file des demandes
+                                , position {index + 1} dans la file des demandes
                               </span>
                             </b>
                             <small className="block text-[13px] text-ink-3">
@@ -681,7 +687,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                                 act(
                                   `floor:${p.userId}`,
                                   { action: "mute", userId: p.userId, muted: false },
-                                  `${nom} a la parole — sa main est baissée, son micro lui est rendu.`,
+                                  `${nom} a la parole : sa main est baissée, son micro lui est rendu.`,
                                 )
                               }
                             >
@@ -759,6 +765,14 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                 </Btn>
               </div>
 
+              {/* La présence réelle, mesurée chez LiveKit : la liste ci-dessous
+                  garde aussi ceux dont le départ n'a pas encore été signalé. */}
+              {room.connectedNow !== null ? (
+                <p className="mb-2 text-[13px] text-ink-2" aria-live="polite">
+                  <b className="font-bold text-ink">{room.connectedNow}</b>{" "}
+                  {room.connectedNow > 1 ? "personnes connectées" : "personne connectée"} en ce moment
+                </p>
+              ) : null}
               {room.participants.length === 0 ? (
                 <p className="py-8 text-center text-[13.5px] text-ink-3">
                   Personne n&apos;est encore entré dans la salle.
@@ -833,7 +847,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                             className={cn(
                               "grid size-8 shrink-0 cursor-pointer place-items-center rounded-full transition [&_svg]:size-4",
                               p.screenAllowed
-                                ? "bg-brand-tint text-brand-dark hover:bg-brand-tint-2"
+                                ? "bg-paper text-ink ring-1 ring-brand hover:bg-paper"
                                 : "text-ink-3 hover:bg-paper hover:text-ink",
                               p.screenRequestedAt && !p.screenAllowed && "ring-2 ring-brand/40",
                             )}

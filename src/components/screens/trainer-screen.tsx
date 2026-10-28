@@ -51,13 +51,9 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
             <Avatar name={name} src={trainer.avatarUrl} size="lg" alt={`Photo de ${name}`} />
             <div className="min-w-[220px] flex-1">
               {trainer.domains.length > 0 ? (
-                <ul className="mb-2 flex flex-wrap gap-1.5">
-                  {trainer.domains.slice(0, 3).map((domain) => (
-                    <li key={domain}>
-                      <Chip>{domain}</Chip>
-                    </li>
-                  ))}
-                </ul>
+                <p className="mb-2 text-[13px] font-bold uppercase tracking-[0.08em] text-brand">
+                  {trainer.domains.slice(0, 3).join(" · ")}
+                </p>
               ) : null}
               {trainer.slogan ? (
                 <p className="text-[15px] font-semibold text-ink">{trainer.slogan}</p>
@@ -95,7 +91,7 @@ export async function TrainerScreen({ trainerId, space }: { trainerId: string; s
                   href={trainer.websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  className="mt-3 inline-block text-[13.5px] font-bold text-brand hover:text-brand-dark"
+                  className="nk-tap mt-3 inline-block text-[13.5px] font-bold text-brand hover:text-brand-dark"
                 >
                   Site web
                 </a>

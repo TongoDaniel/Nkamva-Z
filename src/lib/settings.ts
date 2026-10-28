@@ -55,7 +55,7 @@ export const SETTING_SPECS = {
     fallback: 8,
     min: 1,
     max: 24,
-    effect: "Page d'accueil publique — nombre de ressources mises en avant.",
+    effect: "Page d'accueil publique : nombre de ressources mises en avant.",
   },
   'payouts.review_sla_hours': {
     fallback: 48,

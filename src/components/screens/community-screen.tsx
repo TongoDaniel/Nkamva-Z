@@ -3,7 +3,6 @@ import { userAvatarSrc } from '@/lib/avatars'
 import { notFound } from 'next/navigation'
 import { MessageSquare, PlayCircle, Users, Library } from 'lucide-react'
 import { BtnLink } from '@/components/nk/button-link'
-import { Chip } from '@/components/nk/chip'
 import { Price, ResourceCard } from '@/components/nk/resource-card'
 import { PageHead } from '@/components/nk/page-head'
 import { ReportButton } from '@/components/nk/report-button'
@@ -154,9 +153,9 @@ export async function CommunityScreen({ slug, space }: { slug: string; space: Sp
             <section className="mt-9">
               <div className="mb-5 flex items-baseline gap-2">
                 <h2 className="text-[19px] font-extrabold">Ressources incluses</h2>
-                <Chip tone="muted" className="font-display">
+                <span className="font-display text-[19px] font-extrabold text-ink-3">
                   {community.courses.length}
-                </Chip>
+                </span>
               </div>
               {/* Arbitrage 47 — ces ressources ne sont pas vendues à l'unité :
                   elles s'obtiennent par l'abonnement, et leur prix n'a pas

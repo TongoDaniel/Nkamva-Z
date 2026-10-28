@@ -188,7 +188,7 @@ export default async function JournalAuditPage({
       />
 
       {invertedRange ? (
-        <p role="alert" className="mb-5 rounded-xl bg-gold-tint px-4 py-3 text-[13px] text-gold-ink">
+        <p role="alert" className="mb-5 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] text-gold-ink rounded-l-sm">
           La date de début est postérieure à la date de fin : aucune entrée ne peut tomber dans
           cet intervalle.
         </p>
@@ -210,7 +210,7 @@ export default async function JournalAuditPage({
             title="Aucune entrée"
             description={
               filtered
-                ? "Aucune entrée ne répond à ces filtres. Le journal n'en a perdu aucune — c'est la recherche qui est trop étroite."
+                ? "Aucune entrée ne répond à ces filtres. Le journal n'en a perdu aucune : c'est la recherche qui est trop étroite."
                 : "Rien n'a encore été journalisé dans ce domaine."
             }
             action={
@@ -272,7 +272,7 @@ export default async function JournalAuditPage({
       <p className="mt-5 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
         <FileClock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         Le journal n&apos;expose aucune action de modification : il n&apos;a de valeur que si
-        personne ne peut le retoucher, pas même depuis cet écran. Filtrer ne cache rien —
+        personne ne peut le retoucher, pas même depuis cet écran. Filtrer ne cache rien :
         l&apos;écran annonce toujours le total dont il montre un extrait.
       </p>
     </>

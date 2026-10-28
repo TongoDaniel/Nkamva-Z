@@ -28,6 +28,7 @@ import { Tabs } from "@/components/nk/tabs";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
 import { useLiveRoom } from "@/hooks/use-live-room";
+import { useSessionTimeZone } from "@/hooks/use-reader-time-zone";
 import { cn } from "@/lib/utils";
 import type { LiveRoomView } from "@/lib/lives";
 import { routesOf } from "@/lib/spaces";
@@ -162,13 +163,19 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
     );
   }
 
+  // Sans fuseau, le serveur écrivait la date dans le sien — UTC en production —
+  // et le navigateur dans celui du lecteur : deux textes pour le même nœud.
+  // Le premier rendu prend celui de l'animateur (`hooks/use-reader-time-zone.ts`).
+  const { timeZone, hostLabel } = useSessionTimeZone(room.timeZone);
   const dateLabel = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   }).format(room.startsAt);
+  const hostTime = hostLabel(room.startsAt);
 
   const queue = room.participants.filter((p) => p.handPosition !== null);
   const host = room.participants.find((p) => p.isHost) ?? null;
@@ -258,7 +265,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
             micLocked
               ? "Micro coupé par l'animateur"
               : offStage
-                ? "Scène complète — levez la main"
+                ? "Scène complète : levez la main"
                 : transport.micEnabled
                   ? "Couper le micro"
                   : "Activer le micro"
@@ -272,7 +279,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
           disabled={micUnavailable || !transport.connected}
           label={
             offStage
-              ? "Scène complète — levez la main"
+              ? "Scène complète : levez la main"
               : transport.camEnabled
                 ? "Couper la caméra"
                 : "Activer la caméra"
@@ -298,7 +305,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
             disabled={!transport.connected || !transport.screenShareSupported}
             label={
               !transport.screenShareSupported
-                ? "Partage d'écran indisponible sur ce navigateur — rejoignez depuis un ordinateur"
+                ? "Partage d'écran indisponible sur ce navigateur : rejoignez depuis un ordinateur"
                 : transport.screenEnabled ? "Arrêter le partage d'écran" : "Partager mon écran"
             }
             onClick={() => void transport.setScreen(!transport.screenEnabled)}
@@ -379,7 +386,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
         </p>
       ) : offStage ? (
         <p className="border-t border-[var(--live-line)] px-5 py-3 text-center text-[13px] text-[var(--live-muted)]">
-          La scène est complète — {room.stage.taken} personnes sur {room.stage.capacity} y
+          La scène est complète : {room.stage.taken} personnes sur {room.stage.capacity} y
           prennent la parole. Levez la main : l&apos;animateur vous la donnera dès qu&apos;une
           place se libère.
         </p>
@@ -449,6 +456,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                   un téléphone. Elle reste là où la place ne manque pas. */}
               <span className="hidden lg:inline"> · {dateLabel}</span>
             </p>
+            {hostTime ? <p className="mt-0.5 truncate text-[13px] text-[#b9c9dd]">soit {hostTime}</p> : null}
           </div>
           <Btn
             variant={TON === "clair" ? "o" : "gh"}
@@ -655,7 +663,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
           ) : volet === "participants" ? (
             <>
               {queue.length > 0 ? (
-                <p className="mb-3 shrink-0 rounded-nk-sm bg-brand-tint px-3 py-2 text-[13px] font-semibold text-brand-dark">
+                <p className="mb-3 shrink-0 rounded-nk-sm border border-line bg-card border-l-4 border-l-brand px-3 py-2 text-[13px] font-semibold text-brand-dark rounded-l-sm">
                   {queue.length} demande{queue.length > 1 ? "s" : ""} de parole
                   {room.handPosition ? ` · vous êtes en position ${room.handPosition}` : ""}
                 </p>
@@ -679,7 +687,7 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                       {p.handPosition ? (
                         <span className="sr-only">
                           {" "}
-                          — position {p.handPosition} dans la file de parole
+                          , position {p.handPosition} dans la file de parole
                         </span>
                       ) : null}
                     </span>

@@ -103,7 +103,7 @@ export function ReconcileButton({
         onOpenChange={setOpen}
         size="lg"
         title="Corriger un écart de solde"
-        description={`${trainerName} — ${FIELD_LABELS[field] ?? field}`}
+        description={`${trainerName} · ${FIELD_LABELS[field] ?? field}`}
       >
         <form onSubmit={submit}>
           <dl className="mb-5 flex flex-col gap-2.5 rounded-[14px] bg-paper px-4 py-3.5 text-[13.5px]">
@@ -124,7 +124,7 @@ export function ReconcileButton({
             </div>
           </dl>
 
-          <p className="mb-4 rounded-xl bg-gold-tint px-4 py-3 text-[13px] leading-relaxed text-gold-ink">
+          <p className="mb-4 rounded-xl border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
             La correction remplace la valeur stockée par la valeur recalculée. Elle ne crée ni
             vente ni retrait : elle ne fait qu&apos;aligner le solde sur ce que les
             réservations et les versements en cours établissent déjà.
