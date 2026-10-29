@@ -894,7 +894,8 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
     // programme plus de direct, et la correction M3 lui interdit déjà
     // d'accueillir quiconque. Facturer ses membres chaque mois pour un salon à
     // l'arrêt était le cas inverse, resté ouvert (audit du 28 octobre 2026,
-    // A4). L'adhésion se clôt au terme de la période payée, sans rien prélever.
+    // A4). L'adhésion se clôt au terme de la période payée, sans rien prélever
+    // (arbitrage 151 : la fermeture, plutôt qu'une pause de la facturation).
     const reason =
       sub.canceledAt ? 'CANCELED'
       : sub.community.status !== 'active' ? 'COMMUNITY_CLOSED'
