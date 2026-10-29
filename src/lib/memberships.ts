@@ -82,6 +82,43 @@ export function periodEndFor(start: Date): Date {
   return addMonthsUtc(start, 1)
 }
 
+/**
+ * Le montant de la période qui s'ouvre au renouvellement.
+ *
+ * Un changement de prix survenu **pendant** la période en cours ne s'applique
+ * pas à l'échéance qui la suit : le membre en a été prévenu au moment du
+ * changement, et doit avoir une période entière pour décider de rester. Il
+ * paie donc encore ce qu'il a payé pour la période en cours, si c'est moins ;
+ * le nouveau prix vient à l'échéance d'après. Une **baisse**, elle,
+ * s'applique tout de suite — le minimum des deux.
+ *
+ * C'est la règle de l'abonnement formateur (`pricing.ts`). Auparavant le prix
+ * courant était facturé sans avis : passer de 2 500 à 50 000 FCFA touchait tous
+ * les membres au mois suivant (audit du 28 octobre 2026, A6).
+ */
+async function renewalAmount(sub: {
+  learnerId: string
+  communityId: string
+  periodEnd: Date
+  community: { priceFcfa: number; priceChangedAt: Date | null }
+}): Promise<number> {
+  const { priceFcfa, priceChangedAt } = sub.community
+  if (!priceChangedAt) return priceFcfa
+
+  // La période en cours est celle qui se termine maintenant : on la retrouve
+  // par sa fin, qui est celle de l'adhésion.
+  const current = await db.purchase.findFirst({
+    where: {
+      learnerId: sub.learnerId, communityId: sub.communityId,
+      providerStatus: 'SUCCEEDED', periodEnd: sub.periodEnd,
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { amountFcfa: true, periodStart: true },
+  })
+  if (!current?.periodStart || priceChangedAt <= current.periodStart) return priceFcfa
+  return Math.min(priceFcfa, current.amountFcfa)
+}
+
 // --- Lecture ---
 
 /**
@@ -822,7 +859,8 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
       community: {
         select: {
           id: true, name: true, slug: true, status: true,
-          priceFcfa: true, commissionRate: true, trainerId: true,
+          priceFcfa: true, priceChangedAt: true, commissionRate: true, trainerId: true,
+          trainerProfile: { select: { subscriptionStatus: true, suspendedAt: true } },
         },
       },
     },
@@ -851,10 +889,17 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
     // une communauté dont on l'a écarté de la parole serait indéfendable.
     // ⚠️ Choix par défaut, non arbitré — l'arbitrage 40 dit ce qu'est le
     // bannissement, pas ce qu'il advient de la facturation.
+    //
+    // Le formateur suspendu ou parti n'anime plus rien : il ne publie plus, ne
+    // programme plus de direct, et la correction M3 lui interdit déjà
+    // d'accueillir quiconque. Facturer ses membres chaque mois pour un salon à
+    // l'arrêt était le cas inverse, resté ouvert (audit du 28 octobre 2026,
+    // A4). L'adhésion se clôt au terme de la période payée, sans rien prélever.
     const reason =
       sub.canceledAt ? 'CANCELED'
       : sub.community.status !== 'active' ? 'COMMUNITY_CLOSED'
       : sub.status === 'BANNED' ? 'BANNED'
+      : !trainerAcceptsMembers(sub.community.trainerProfile) ? 'TRAINER_INACTIVE'
       : null
 
     if (reason) {
@@ -868,7 +913,7 @@ export async function renewDueMemberships(now = new Date()): Promise<MembershipR
 
     const periodStart = sub.periodEnd
     const periodEnd = periodEndFor(periodStart)
-    const amountFcfa = sub.community.priceFcfa
+    const amountFcfa = await renewalAmount(sub)
     const trainerShareFcfa = Math.round(amountFcfa * (1 - sub.community.commissionRate))
 
     try {
@@ -1018,7 +1063,9 @@ async function closeMembership(
             ? `Vos mois offerts dans ${context.communityName} sont terminés`
             : `Votre adhésion à ${context.communityName} a pris fin`,
         body:
-          context.reason === 'UNPAID'
+          context.reason === 'TRAINER_INACTIVE'
+            ? "Le formateur n'anime plus cette communauté pour le moment : rien ne vous a été prélevé et rien ne le sera. Vous gardez l'accès aux ressources reçues pendant votre adhésion, et pourrez la rejoindre de nouveau quand elle reprendra."
+            : context.reason === 'UNPAID'
             ? 'L\'échéance est restée impayée. Vous gardez l\'accès aux ressources reçues pendant votre adhésion, et pouvez revenir quand vous le souhaitez.'
             // L'invité n'a jamais donné de moyen de paiement : rien ne lui a été
             // prélevé et rien ne le sera (arbitrage 77). Le dire noir sur blanc

@@ -10,6 +10,9 @@ import { Field, CheckOption } from "@/components/nk/input";
 import { FormError } from "@/components/layouts/auth-shell";
 import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
+import { fmtFcfa } from "@/lib/format";
+// Même plafond pour une adhésion que pour une ressource (A5, 28 octobre 2026).
+import { MAX_COURSE_PRICE_FCFA } from "@/lib/course-rules";
 import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { cn } from "@/lib/utils";
 
@@ -199,6 +202,8 @@ export function CommunityForm({
       if (values.name.trim().length < 3) issues.name = "Donnez un nom d'au moins 3 caractères.";
       if (!Number.isFinite(price) || price < COMMUNITY_MIN_PRICE_FCFA) {
         issues.priceFcfa = `Le prix d'adhésion minimum est de ${COMMUNITY_MIN_PRICE_FCFA} FCFA.`;
+      } else if (price > MAX_COURSE_PRICE_FCFA) {
+        issues.priceFcfa = `Le prix d'adhésion maximum est de ${fmtFcfa(MAX_COURSE_PRICE_FCFA)}.`;
       }
     }
     if (Object.keys(issues).length) {
@@ -301,6 +306,7 @@ export function CommunityForm({
             type="number"
             inputMode="numeric"
             min={COMMUNITY_MIN_PRICE_FCFA}
+            max={MAX_COURSE_PRICE_FCFA}
             step={500}
             value={values.priceFcfa}
             onChange={(e) => set("priceFcfa", e.target.value)}

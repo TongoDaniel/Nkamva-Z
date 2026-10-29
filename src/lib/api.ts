@@ -310,6 +310,12 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   EMPTY_FILE: { message: 'Fichier vide', status: 422 },
   CANNOT_READ_FILE: { message: 'Fichier illisible', status: 422 },
   MAGIC_NUMBER_MISMATCH: { message: 'Le contenu ne correspond pas au type déclaré', status: 422 },
+  // Audit du 28 octobre 2026, A2 — un fichier déjà vendu ne se remplace pas :
+  // les acheteurs ont payé celui-là, et la fenêtre de contestation se ferme.
+  COURSE_CONTENT_LOCKED: {
+    message: "Cette ressource a déjà été achetée : son fichier ne peut plus être remplacé. Pour une nouvelle version, publiez une nouvelle ressource.",
+    status: 409,
+  },
   // Lot 6 — le fichier déposé et le format annoncé doivent dire la même chose
   CONTENT_FORMAT_MISMATCH: {
     message: 'Ce fichier ne correspond pas au format annoncé pour la ressource',
