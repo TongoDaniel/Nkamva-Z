@@ -2890,6 +2890,25 @@ intérieures de l'entête et de la bande de commandes se réduisent. Mesuré à
 375 × 812 : entête de la console 166 → 113 px, entête de la salle environ
 117 → 67 px, bande de commandes 94 → 84 px. La scène gagne la différence.
 
+## Arbitrage 151 — Formateur suspendu : ses adhésions se closent au terme
+
+> 29 octobre 2026, à l'issue de l'audit des cas limites (A4) : « Garde la
+> fermeture ».
+
+Un formateur suspendu ou parti n'anime plus rien, et la correction M3 lui
+interdit déjà d'accueillir quiconque. Ses membres, eux, recevaient encore une
+échéance chaque mois. Désormais, au terme de la période payée, l'adhésion se
+clôt (`TRAINER_INACTIVE`) **sans rien prélever**, et le membre en est averti.
+Il garde l'accès aux ressources reçues (arbitrage 48).
+
+**Écarté** : geler la facturation pendant la suspension et la reprendre au
+retour du formateur. Cela demandait un état « en pause » qui n'existe pas, et
+une reprise de prélèvement que le membre n'aurait pas redemandée. Conséquence
+assumée : si le formateur revient, ses anciens membres réadhèrent.
+
+Un membre déjà en impayé au moment de la suspension règle toujours son mois
+(M3) : la règle ne porte que sur l'ouverture de nouvelles échéances.
+
 ## Recette de l'audit — 5 septembre 2026
 
 Le chantier ouvert par l'audit fonctionnel du 1er septembre 2026 est **clos sur
