@@ -539,6 +539,9 @@ export async function presignCourseUpload(
   if (course.trainerId !== trainerId) throw new Error('NOT_OWNER')
   // Décision 68 — le téléversement est un chemin d'écriture, il est bloqué.
   if (!(await canTrainerWrite(trainerId))) throw new Error('SUBSCRIPTION_SUSPENDED')
+  // Arrêté dès la présignature : sans cela le formateur déposerait des
+  // gigaoctets pour se les voir refuser à la confirmation.
+  if (params.kind !== 'image' && course.obligationAt) throw new Error('COURSE_CONTENT_LOCKED')
 
   const limits = COURSE_UPLOAD_LIMITS[params.kind]
   // `mimes` est un tuple de littéraux : sans élargissement, `includes` refuse
@@ -584,6 +587,14 @@ export async function confirmCourseUpload(
   // La clé doit être celle que nous avons émise pour CE cours : sinon un
   // formateur pourrait rattacher l'objet d'un autre.
   if (!params.s3Key.startsWith(`course-assets/${courseId}/`)) throw new Error('UPLOAD_NOT_FOUND')
+
+  // Audit du 28 octobre 2026, A2 — le fichier d'une ressource vendue est
+  // figé, comme `deleteCourseContent` refuse déjà de le supprimer (arbitrage
+  // 13). Le remplacer laissait vendre un bon fichier, puis servir aux
+  // acheteurs un fichier vide ou différent, sans qu'ils en sachent rien ; la
+  // durée et le nombre de pages, recalculés, déplaçaient en outre le seuil de
+  // consommation d'un litige en cours. La couverture, elle, reste libre.
+  if (params.kind !== 'image' && course.obligationAt) throw new Error('COURSE_CONTENT_LOCKED')
 
   const limits = COURSE_UPLOAD_LIMITS[params.kind]
   if (!(limits.mimes as readonly string[]).includes(params.mimeType)) throw new Error('MIME_NOT_ALLOWED')
@@ -645,6 +656,9 @@ export async function confirmCourseUpload(
   const pageCount =
     params.kind === 'pdf' ? await readPdfPageCountFromStorage(params.s3Key, sizeBytes) : null
 
+  const previous = isCover ? course.coverS3Key : course.contentS3Key
+  const replaced = previous && previous !== params.s3Key ? previous : null
+
   const updated = await db.course.update({
     where: { id: courseId },
     data: isCover
@@ -667,8 +681,14 @@ export async function confirmCourseUpload(
     meta: {
       s3Key: params.s3Key, sizeBytes, mimeType: params.mimeType,
       ...(isCover ? {} : { durationSeconds, pageCount }),
+      ...(replaced ? { replacedS3Key: replaced } : {}),
     },
   })
+
+  // L'objet remplacé ne servait plus personne et restait payé sur R2, hors
+  // quota puisque plus rien ne le décrivait (A2). Il part après la base : un
+  // échec de suppression laisse un orphelin, jamais une fiche sans fichier.
+  if (replaced) await deleteObject(replaced).catch(() => {})
 
   return updated
 }

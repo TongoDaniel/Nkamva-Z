@@ -4,7 +4,7 @@ import * as React from "react";
 import { Download } from "lucide-react";
 import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
-import { Field } from "@/components/nk/input";
+import { Field, CheckOption } from "@/components/nk/input";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { fmtDate } from "@/lib/format";
@@ -18,6 +18,10 @@ const CONFIRM_WORD = "SUPPRIMER";
 export function DataPanel({ profile }: { profile: ProfileView }) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmWord, setConfirmWord] = React.useState("");
+  // Un reliquat trop petit pour être versé (A3) : le serveur le signale par
+  // `WALLET_RESIDUE`, et la suppression ne passe qu'une fois son abandon coché.
+  const [residueAsked, setResidueAsked] = React.useState<string | null>(null);
+  const [residueAbandoned, setResidueAbandoned] = React.useState(false);
   const action = useKeyedAction();
 
   const onExport = () =>
@@ -50,14 +54,23 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
     );
 
   const onRequestDeletion = () =>
-    void action.run("request", () => api.post("/api/me/deletion"), {
-      success: "Suppression programmée. Vous pouvez encore l'annuler.",
-      error: "La demande a échoué. Réessayez.",
-      onSuccess: () => {
-        setConfirmOpen(false);
-        setConfirmWord("");
+    void action.run(
+      "request",
+      () => api.post("/api/me/deletion", residueAbandoned ? { abandonResidue: true } : {}),
+      {
+        success: "Suppression programmée. Vous pouvez encore l'annuler.",
+        error: "La demande a échoué. Réessayez.",
+        onSuccess: () => {
+          setConfirmOpen(false);
+          setConfirmWord("");
+          setResidueAsked(null);
+          setResidueAbandoned(false);
+        },
+        onError: (err) => {
+          if (err instanceof ApiError && err.code === "WALLET_RESIDUE") setResidueAsked(err.message);
+        },
       },
-    });
+    );
 
   const onCancelDeletion = () =>
     void action.run(
@@ -157,7 +170,9 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
             <Btn
               variant="danger"
               loading={action.isRunning("request")}
-              disabled={confirmWord.trim().toUpperCase() !== CONFIRM_WORD}
+              disabled={
+                confirmWord.trim().toUpperCase() !== CONFIRM_WORD || (residueAsked !== null && !residueAbandoned)
+              }
               onClick={onRequestDeletion}
             >
               Programmer la suppression
@@ -174,6 +189,16 @@ export function DataPanel({ profile }: { profile: ProfileView }) {
           autoComplete="off"
           onChange={(e) => setConfirmWord(e.target.value)}
         />
+        {residueAsked ? (
+          <div className="mt-4 grid gap-2">
+            <p className="text-[13.5px] leading-relaxed text-ink-2">{residueAsked}</p>
+            <CheckOption
+              checked={residueAbandoned}
+              onCheckedChange={setResidueAbandoned}
+              label="J'abandonne ce solde. Il ne sera débité qu'à l'effacement : si j'annule la suppression, je le garde."
+            />
+          </div>
+        ) : null}
       </Modal>
     </>
   );

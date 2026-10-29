@@ -13,6 +13,7 @@ import { audit } from '../audit'
 import { DELETION_GRACE_DAYS } from '../dto'
 import { deleteObject } from '../s3'
 import { recountCommunityMembers } from '../communities'
+import { abandonableResidueFcfa } from '../payouts'
 
 /** Domaine réservé par la RFC 2606 : une adresse en .invalid ne peut pas router. */
 const ANONYMIZED_EMAIL_DOMAIN = 'nkamva.invalid'
@@ -83,6 +84,22 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
       tx.favorite.deleteMany({ where: { userId } }),
     ])
 
+    // Le reliquat abandonné à la demande (A3) sort du portefeuille ici, et non
+    // à la demande : annuler la suppression pendant le délai de grâce laissait
+    // donc l'argent à son titulaire. Il est débité avec sa trace, comme tout
+    // mouvement qui n'est ni une vente ni un retrait.
+    const wallet = await tx.wallet.findFirst({
+      where: { trainerProfile: { userId } },
+      select: { id: true, trainerId: true, balance: true, reservedBalance: true, pendingPayoutBalance: true },
+    })
+    const residue = wallet ? abandonableResidueFcfa(wallet) : null
+    if (wallet && residue !== null) {
+      await tx.walletDebit.create({
+        data: { walletId: wallet.id, trainerId: wallet.trainerId, amountFcfa: residue, reason: 'CLOSING_RESIDUE' },
+      })
+      await tx.wallet.update({ where: { id: wallet.id }, data: { balance: { decrement: residue } } })
+    }
+
     // Les adhésions encore ouvertes se ferment avec le compte. Le renouvellement
     // ignore les comptes effacés, et rien d'autre ne les fermait : une adhésion
     // payée la veille d'une suppression restait `ACTIVE` pour toujours — « 1
@@ -139,6 +156,7 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
         emailOtpsDeleted: otps.count,
         trainerProfileAnonymized: Boolean(trainer),
         membershipsClosed: memberships.length,
+        ...(residue !== null ? { residueAbandonedFcfa: residue } : {}),
       },
     })
 
