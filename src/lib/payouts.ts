@@ -31,6 +31,7 @@ import type { PrismaTransaction } from './types'
 
 export { PAYOUT_MIN_AMOUNT_FCFA } from './rules'
 import { PAYOUT_MIN_AMOUNT_FCFA } from './rules'
+import { fmtFcfa } from './format'
 
 // Source unique dans `payout-methods.ts` : le même délai servait aux deux
 // familles d'écrans depuis deux constantes distinctes. Il vit désormais en
@@ -203,7 +204,7 @@ export async function requestPayout(
       type: autoApproved ? 'PAYOUT_AUTO_APPROVED' : 'PAYOUT_TO_REVIEW',
       title: autoApproved ? 'Retrait auto-approuvé à verser' : 'Retrait à instruire',
       body: `${amountFcfa} FCFA${kyc.firstPayout ? ', premier retrait, revue obligatoire' : ''}.`,
-      link: `/admin/payouts/${payout.id}`,
+      link: `/admin/retraits/${payout.id}`,
     }),
   )
 
@@ -278,7 +279,7 @@ export async function approvePayout(payoutId: string, input: ReviewPayoutInput) 
       type: 'PAYOUT_APPROVED',
       title: 'Votre retrait est approuvé',
       body: `${payout.amountFcfa} FCFA sont en cours de virement.`,
-      link: '/formateur/paiements',
+      link: '/formateur/portefeuille',
     }),
   )
 
@@ -445,7 +446,7 @@ export async function rejectPayout(payoutId: string, input: ReviewPayoutInput & 
       type: 'PAYOUT_REJECTED',
       title: 'Votre demande de retrait a été refusée',
       body: input.reason,
-      link: '/formateur/paiements',
+      link: '/formateur/portefeuille',
     }),
   )
 
@@ -517,7 +518,7 @@ export async function markPayoutPaid(
       type: 'PAYOUT_PAID',
       title: 'Votre retrait a été versé',
       body: `${payout.amountFcfa} FCFA ont été virés sur votre compte.`,
-      link: '/formateur/paiements',
+      link: '/formateur/portefeuille',
     }),
   )
 
@@ -566,13 +567,13 @@ export async function markPayoutFailed(
       type: 'PAYOUT_FAILED',
       title: 'Votre virement a échoué',
       body: `${input.reason}. Les fonds sont de nouveau disponibles sur votre portefeuille.`,
-      link: '/formateur/paiements',
+      link: '/formateur/portefeuille',
     })
     await notifyAdminSubRole('FINANCES', {
       type: 'PAYOUT_FAILED',
       title: 'Échec de virement à reprendre',
-      body: `${payout.amountFcfa} FCFA : ${input.reason}`,
-      link: `/admin/payouts/${payoutId}`,
+      body: `${fmtFcfa(payout.amountFcfa)} : ${input.reason}`,
+      link: `/admin/retraits/${payoutId}`,
     })
   })
 
@@ -730,7 +731,7 @@ export async function alertPayoutSlaBreaches(): Promise<{ breached: number }> {
       type: 'PAYOUT_SLA_BREACH',
       title: `${breached} retrait(s) en attente depuis plus de ${slaHours} h`,
       body: 'Le SLA de revue manuelle est dépassé.',
-      link: '/admin/payouts?status=IN_REVIEW',
+      link: '/admin/retraits?status=IN_REVIEW',
     })
   }
 
