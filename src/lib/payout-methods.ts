@@ -682,7 +682,7 @@ export async function rejectPayoutMethod(
       body: blocked
         ? 'Après trois tentatives, la vérification est suspendue. Notre support prend le relais pour débloquer votre dossier.'
         : `${input.reason}. Le compte doit être à votre nom (compte personnel) ou au nom de votre société dont vous êtes le représentant légal. Le support peut vous accompagner.`,
-      link: '/formateur/paiements',
+      link: '/formateur/portefeuille/moyen-de-paiement',
     })
     // Décision 27 — Finances ne tranche pas seule un écart de nom : au blocage,
     // le Super-admin est saisi.
@@ -691,7 +691,7 @@ export async function rejectPayoutMethod(
         type: 'PAYOUT_METHOD_ESCALATION',
         title: 'Moyen de paiement bloqué après 3 rejets',
         body: 'Une escalade est ouverte : seul le Super-admin peut trancher.',
-        link: '/admin/payout-methods/escalations',
+        link: '/admin/moyens-de-paiement?status=BLOCKED',
       })
     }
   })
@@ -729,7 +729,7 @@ export async function expirePayoutMethodCarence(): Promise<{ verified: number }>
         type: 'PAYOUT_METHOD_VERIFIED',
         title: 'Vos coordonnées bancaires sont vérifiées',
         body: 'Le délai de sécurité est écoulé : vous pouvez demander un retrait.',
-        link: '/formateur/paiements',
+        link: '/formateur/portefeuille/moyen-de-paiement',
       }),
     )
   }
@@ -826,7 +826,7 @@ export async function resolvePayoutMethodEscalation(
       body: input.action === 'BLOCK'
         ? 'Contactez le support pour connaître les suites.'
         : `Un délai de sécurité de ${PAYOUT_METHOD_CARENCE_HOURS} h s'applique avant votre prochain retrait.`,
-      link: '/formateur/paiements',
+      link: '/formateur/portefeuille/moyen-de-paiement',
     }),
   )
 
@@ -1122,7 +1122,7 @@ export async function alertPayoutMethodSlaBreaches(): Promise<{ breached: number
       type: 'PAYOUT_METHOD_SLA_BREACH',
       title: `${breached.length} moyen(s) de paiement en attente depuis plus de ${slaHours} h`,
       body: 'Le SLA de revue manuelle est dépassé.',
-      link: '/admin/payout-methods?status=PENDING_REVIEW',
+      link: '/admin/moyens-de-paiement?status=PENDING_REVIEW',
     })
   }
 
