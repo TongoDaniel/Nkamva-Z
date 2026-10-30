@@ -9,6 +9,7 @@ import { auditStandalone } from './audit'
 import { userAvatarSrc } from './avatars'
 import { canActAsLearner } from './roles'
 import { DELETION_GRACE_DAYS } from './dto'
+import { abandonableResidueFcfa } from './payouts'
 
 export { DELETION_GRACE_DAYS }
 
@@ -278,6 +279,8 @@ export async function buildGdprExport(userId: string) {
 export type DeletionRefusal =
   | 'ADMIN_ACCOUNT'
   | 'WALLET_NOT_EMPTY'
+  /** Un reliquat que rien ne peut verser : l'abandonner lève l'obstacle. */
+  | 'WALLET_RESIDUE'
   | 'PUBLISHED_COURSES'
   | 'ACTIVE_COMMUNITY'
   | 'OPEN_DISPUTE'
@@ -312,6 +315,7 @@ const SERVED_MEMBERSHIP_STATUSES = ['ACTIVE', 'PAST_DUE'] as const
 export async function requestDeletion(
   userId: string,
   trainerId: string | null,
+  options: { abandonResidue?: boolean } = {},
 ): Promise<{ ok: true; scheduledAt: string } | { ok: false; reason: DeletionRefusal }> {
   // Un compte d'administration ne s'efface pas lui-même (arbitrage 88). Ce
   // refus n'est pas de la même nature que les suivants : les autres demandent
@@ -333,7 +337,10 @@ export async function requestDeletion(
 
   if (trainerId) {
     const [wallet, published, communityMembers, payouts, disputesAsTrainer] = await Promise.all([
-      db.wallet.findUnique({ where: { trainerId }, select: { balance: true } }),
+      db.wallet.findUnique({
+        where: { trainerId },
+        select: { balance: true, reservedBalance: true, pendingPayoutBalance: true },
+      }),
       db.course.count({ where: { trainerId, status: 'published' } }),
       // Une communauté vivante avec des membres qui paient : l'archiver n'est
       // pas au système de le décider, c'est au formateur de prévenir les siens.
@@ -350,7 +357,13 @@ export async function requestDeletion(
         where: { trainerId, status: { in: [...OPEN_DISPUTE_STATUSES] } },
       }),
     ])
-    if ((wallet?.balance ?? 0) !== 0) return { ok: false, reason: 'WALLET_NOT_EMPTY' }
+    // Un reliquat inférieur aux frais d'un versement de clôture ne peut être ni
+    // versé ni retiré : exiger un solde nul rendait le compte impossible à
+    // effacer (A3). Le formateur l'abandonne expressément ; il est débité à la
+    // purge, si bien qu'annuler la suppression le lui laisse.
+    const residue = wallet ? abandonableResidueFcfa(wallet) : null
+    if (residue !== null && !options.abandonResidue) return { ok: false, reason: 'WALLET_RESIDUE' }
+    if (residue === null && (wallet?.balance ?? 0) !== 0) return { ok: false, reason: 'WALLET_NOT_EMPTY' }
     // Avant le solde nul on pouvait croire l'affaire close : un retrait en
     // cours vide le portefeuille alors que l'argent n'est pas encore arrivé.
     if (payouts > 0) return { ok: false, reason: 'PAYOUT_IN_FLIGHT' }
@@ -373,7 +386,8 @@ export async function requestDeletion(
     await auditStandalone({
       actorId: userId, actorRole: 'USER',
       action: 'ACCOUNT_DELETION_REQUESTED', targetType: 'User', targetId: userId,
-      meta: { graceDays: DELETION_GRACE_DAYS },
+      // Le consentement à l'abandon est la seule trace de cette décision.
+      meta: { graceDays: DELETION_GRACE_DAYS, ...(options.abandonResidue ? { residueAbandoned: true } : {}) },
     })
   }
 

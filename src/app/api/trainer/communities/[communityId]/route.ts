@@ -5,6 +5,7 @@
 // circulation (arbitrage 81). Écrire `visibility` à la main laisserait ces
 // liens vivants — et une communauté privée ouverte à qui détient l'URL.
 
+import { fmtFcfa } from '@/lib/format'
 import { success, error, requireTrainer, parseBody, domainErrorResponse } from '@/lib/api'
 import {
   updateCommunity,
@@ -12,6 +13,7 @@ import {
   COMMUNITY_DESCRIPTION_MAX,
   COMMUNITY_RULES_MAX,
   COMMUNITY_MIN_PRICE_FCFA,
+  COMMUNITY_MAX_PRICE_FCFA,
 } from '@/lib/communities'
 import { setCommunityVisibility } from '@/lib/invitations'
 import { z } from 'zod'
@@ -20,7 +22,7 @@ const UpdateSchema = z.object({
   name: z.string().trim().min(3).max(COMMUNITY_NAME_MAX).optional(),
   description: z.string().trim().max(COMMUNITY_DESCRIPTION_MAX).nullable().optional(),
   rules: z.string().trim().max(COMMUNITY_RULES_MAX).nullable().optional(),
-  priceFcfa: z.number().int().min(COMMUNITY_MIN_PRICE_FCFA).optional(),
+  priceFcfa: z.number().int().min(COMMUNITY_MIN_PRICE_FCFA).max(COMMUNITY_MAX_PRICE_FCFA).optional(),
   forumEnabled: z.boolean().optional(),
 
   messagingEnabled: z.boolean().optional(),
@@ -62,6 +64,9 @@ export async function PATCH(
     }
     if (code === 'SUBSCRIPTION_SUSPENDED') {
       return error('SUBSCRIPTION_SUSPENDED', 'Votre abonnement est suspendu : réglez-le pour modifier votre salon.', 403)
+    }
+    if (code === 'PRICE_TOO_HIGH') {
+      return error('PRICE_TOO_HIGH', `Le prix d'adhésion maximum est de ${fmtFcfa(COMMUNITY_MAX_PRICE_FCFA)}.`, 400)
     }
     if (code === 'PRICE_TOO_LOW') {
       return error('PRICE_TOO_LOW', `Le prix d'adhésion minimum est de ${COMMUNITY_MIN_PRICE_FCFA} FCFA.`, 400)

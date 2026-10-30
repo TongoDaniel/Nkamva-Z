@@ -18,7 +18,9 @@
 // il ne vend pas.
 // ==========================================================================
 
+import { MAX_COURSE_PRICE_FCFA } from './course-rules'
 import { db } from './db'
+import { fmtFcfa } from './format'
 import { searchAnyOf } from './search-text'
 import { communityIdsMatching, idsBranch } from './search-unaccent'
 import { audit, auditStandalone } from './audit'
@@ -329,6 +331,14 @@ export const COMMUNITY_RULES_MAX = 2000
  */
 export const COMMUNITY_MIN_PRICE_FCFA = 500
 
+/**
+ * Plafond du prix d'adhésion, le même que celui d'une ressource. Sans lui,
+ * 2 147 483 648 FCFA dépassait l'entier de la colonne (erreur 500) : le défaut
+ * m3 du 12 octobre n'avait été corrigé que pour les ressources (audit du
+ * 28 octobre 2026, A5).
+ */
+export const COMMUNITY_MAX_PRICE_FCFA = MAX_COURSE_PRICE_FCFA
+
 export interface CommunityInput {
   name: string
   description?: string | null
@@ -371,6 +381,7 @@ function assertCommunityInput(input: CommunityInput): void {
   if (!Number.isInteger(input.priceFcfa) || input.priceFcfa < COMMUNITY_MIN_PRICE_FCFA) {
     throw new Error('PRICE_TOO_LOW')
   }
+  if (input.priceFcfa > COMMUNITY_MAX_PRICE_FCFA) throw new Error('PRICE_TOO_HIGH')
   if ((input.description?.length ?? 0) > COMMUNITY_DESCRIPTION_MAX) throw new Error('DESCRIPTION_TOO_LONG')
   if ((input.rules?.length ?? 0) > COMMUNITY_RULES_MAX) throw new Error('RULES_TOO_LONG')
 }
@@ -452,6 +463,7 @@ export async function updateCommunity(
   })
 
   const renamed = input.name !== undefined && input.name.trim() !== community.name
+  const repriced = input.priceFcfa !== undefined && input.priceFcfa !== community.priceFcfa
 
   const updated = await db.community.update({
     where: { id: communityId },
@@ -463,6 +475,9 @@ export async function updateCommunity(
       ...(input.description !== undefined && { description: input.description?.trim() || null }),
       ...(input.rules !== undefined && { rules: input.rules?.trim() || null }),
       ...(input.priceFcfa !== undefined && { priceFcfa: input.priceFcfa }),
+      // Date du changement : le renouvellement s'en sert pour ne pas appliquer
+      // une hausse à l'échéance qui suit l'avis (`renewalAmount`, A6).
+      ...(repriced && { priceChangedAt: new Date() }),
       ...(input.forumEnabled !== undefined && { forumEnabled: input.forumEnabled }),
       ...(input.messagingEnabled !== undefined && { messagingEnabled: input.messagingEnabled }),
       ...(input.resourcesEnabled !== undefined && { resourcesEnabled: input.resourcesEnabled }),
@@ -476,13 +491,48 @@ export async function updateCommunity(
     meta: {
       renamed,
       ...(renamed ? { slug: updated.slug } : {}),
-      ...(input.priceFcfa !== undefined && input.priceFcfa !== community.priceFcfa
-        ? { priceFrom: community.priceFcfa, priceTo: input.priceFcfa }
-        : {}),
+      ...(repriced ? { priceFrom: community.priceFcfa, priceTo: input.priceFcfa } : {}),
     },
   })
 
+  if (repriced) await notifyMembersOfPriceChange(updated, community.priceFcfa)
+
   return updated
+}
+
+/**
+ * Prévient chaque membre en cours d'un changement de prix (audit du 28 octobre
+ * 2026, A6). Le changement n'était que journalisé : le membre le découvrait au
+ * renouvellement, sur le montant prélevé.
+ *
+ * Le texte suit `renewalAmount` : une hausse attend l'échéance d'après la
+ * prochaine, une baisse vaut dès la prochaine.
+ */
+async function notifyMembersOfPriceChange(
+  community: { id: string; name: string; priceFcfa: number },
+  previousPriceFcfa: number,
+): Promise<void> {
+  const members = await db.communitySubscription.findMany({
+    where: { communityId: community.id, status: { in: ['ACTIVE', 'PAST_DUE'] }, provider: { not: null } },
+    select: { id: true, learnerId: true },
+  })
+  const rise = community.priceFcfa > previousPriceFcfa
+  const body = rise
+    ? `Le prix passe de ${fmtFcfa(previousPriceFcfa)} à ${fmtFcfa(community.priceFcfa)} par mois. Votre prochaine échéance reste à ${fmtFcfa(previousPriceFcfa)} : le nouveau prix s'appliquera à celle d'après. Vous pouvez résilier d'ici là depuis votre espace.`
+    : `Le prix passe de ${fmtFcfa(previousPriceFcfa)} à ${fmtFcfa(community.priceFcfa)} par mois, dès votre prochaine échéance.`
+  for (const member of members) {
+    await deliverSideEffects(
+      'COMMUNITY_PRICE_CHANGED',
+      { type: 'CommunitySubscription', id: member.id },
+      () =>
+        notify(member.learnerId, {
+          type: 'COMMUNITY_PRICE_CHANGED',
+          title: `Nouveau prix pour ${community.name}`,
+          body,
+          link: '/mes-communautes',
+        }),
+    )
+  }
 }
 
 // ==========================================================================

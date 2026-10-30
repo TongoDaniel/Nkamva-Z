@@ -78,6 +78,25 @@ async function recordTransition(
  */
 export const CLOSING_PAYOUT_FEE_FCFA = 500
 
+/**
+ * Le reliquat qu'aucun versement ne peut sortir : positif, mais pas au-delà des
+ * frais de clôture (`AMOUNT_BELOW_FEES`), et rien de réservé ni d'engagé.
+ * `null` si le solde n'est pas dans ce cas.
+ *
+ * La suppression du compte exigeait un solde nul : ce reliquat la bloquait pour
+ * toujours (audit du 28 octobre 2026, A3). Il peut désormais être abandonné, sur
+ * consentement exprès, et il est débité à la purge.
+ */
+export function abandonableResidueFcfa(wallet: {
+  balance: number
+  reservedBalance: number
+  pendingPayoutBalance: number
+}): number | null {
+  const { balance, reservedBalance, pendingPayoutBalance } = wallet
+  if (reservedBalance !== 0 || pendingPayoutBalance !== 0) return null
+  return balance > 0 && balance <= CLOSING_PAYOUT_FEE_FCFA ? balance : null
+}
+
 export async function requestPayout(
   trainerProfileId: string,
   userId: string,
