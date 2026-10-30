@@ -570,6 +570,9 @@ model Community {
   /// c'est une image publiée par un formateur, comme sa bannière.
   avatarSizeBytes  BigInt?
   priceFcfa        Int
+  /// Dernier changement de `priceFcfa`. Une hausse ne s'applique pas à
+  /// l'échéance qui suit l'avis aux membres (`renewalAmount`, audit A6).
+  priceChangedAt   DateTime?
   commissionRate   Float                   @default(0.15)
   /// Arbitrage 126 — le fil collectif est désormais un **groupe** de la
   /// messagerie. L'interrupteur garde son nom en base : c'est lui qui ouvre
@@ -1126,6 +1129,11 @@ enum WalletDebitReason {
   /// **Ne dépend pas du consentement** au prélèvement automatique : la période
   /// a été servie, elle se paie.
   SUBSCRIPTION_ARREARS
+  /// Reliquat abandonné à l'effacement d'un compte formateur : inférieur aux
+  /// frais d'un versement de clôture, il ne pouvait pas être versé, et le
+  /// compte ne pouvait pas être effacé tant qu'il restait (audit du 28 octobre
+  /// 2026, A3). Abandonné sur consentement exprès, débité à la purge.
+  CLOSING_RESIDUE
 }
 
 // --- WalletDebit ---
