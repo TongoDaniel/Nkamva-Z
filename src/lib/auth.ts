@@ -2,7 +2,7 @@ import type { NextAuthOptions } from 'next-auth'
 import type { Role, AdminRole } from '@prisma/client'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from './db'
-import { verifyPassword } from './password'
+import { burnPasswordCheck, verifyPassword } from './password'
 import { isSessionRevoked } from './session-validity'
 import { RATE_LIMITS, clearRateLimit, ipFromHeaderRecord, peekRateLimit, recordRateLimitHit } from './rate-limit'
 import { adminTwoFactorEnforced, twoFactorRequiredFor, verifySecondFactor } from './two-factor'
@@ -53,10 +53,15 @@ export async function authorizeCredentials(
     where: { email },
     select: { id: true, email: true, passwordHash: true, role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, twoFactorEnabledAt: true, trainerProfile: { select: { id: true } } },
   })
-  if (!user || !user.passwordHash || user.deletedAt) { fail(); return null }
-  if (user.suspendedAt) { fail(); throw new Error('ACCOUNT_SUSPENDED') }
+  // Compte absent ou supprimé : Argon2 tourne quand même, pour que la durée de
+  // la réponse ne dise pas si l'adresse est inscrite.
+  if (!user || !user.passwordHash || user.deletedAt) { await burnPasswordCheck(credentials.password); fail(); return null }
   const valid = await verifyPassword(credentials.password, user.passwordHash)
   if (!valid) { fail(); return null }
+  // La suspension ne se dit qu'à qui connaît le mot de passe : annoncée avant,
+  // elle révélait à n'importe qui qu'une adresse a un compte, et qu'il est
+  // suspendu.
+  if (user.suspendedAt) { fail(); throw new Error('ACCOUNT_SUSPENDED') }
 
   // Le second facteur se vérifie **ici**, avant que la session existe. Le
   // contrôler plus tard, sur un écran dédié, le rendrait décoratif : il

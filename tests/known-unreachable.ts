@@ -38,6 +38,28 @@ export const KNOWN_UNREACHABLE: KnownUnreachable[] = [
     path: '/api/csp-report',
     reason: 'Appelée par le navigateur lui-même, désignée par l\'en-tête CSP de next.config.ts (hors de src/).',
   },
+  // Ajoutées le 1er novembre 2026 pour l'application mobile (`mobile/`, hors
+  // de src/). Le site lit les mêmes données par des composants serveur.
+  {
+    path: '/api/me/communities',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
+  {
+    path: '/api/me/communities/[slug]',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
+  {
+    path: '/api/me/notifications',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
+  {
+    path: '/api/trainer/overview',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
+  {
+    path: '/api/trainer/sales',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
   {
     path: '/api/me/avatar/confirm',
     reason: 'Appelée par AvatarPanel via `${endpoint}/confirm` : une adresse composée, que le balayeur ne lit pas.',

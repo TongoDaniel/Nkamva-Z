@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Info } from 'lucide-react-native'
+import { usePreventScreenCapture } from 'expo-screen-capture'
 import { ApiError } from '../../lib/api'
 import { formatFcfa } from '../../lib/format'
 import { usePayouts, useRequestPayout, useTrainerOverview, type TrainerOverview } from '../../lib/studio'
@@ -86,6 +87,9 @@ function WithdrawSheet({ visible, max, min, onClose }: { visible: boolean; max: 
 }
 
 export default function Portefeuille() {
+  // Comme dans une app bancaire : ni capture d'écran ni aperçu dans le
+  // sélecteur d'apps pour l'écran qui montre l'argent et permet de le retirer.
+  usePreventScreenCapture('portefeuille')
   const panel = useTrainerOverview()
   const payouts = usePayouts()
   const [sheet, setSheet] = useState(false)

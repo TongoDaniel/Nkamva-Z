@@ -1,5 +1,6 @@
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native'
 import { Receipt } from 'lucide-react-native'
+import { usePreventScreenCapture } from 'expo-screen-capture'
 import { useSales, type SalesSummary } from '../../lib/studio'
 import { formatFcfa } from '../../lib/format'
 import { Text } from '../../ui/Text'
@@ -38,6 +39,7 @@ function Summary({ s }: { s: SalesSummary }) {
  * échouée reste visible, barrée, pour que le total s'explique.
  */
 export default function Ventes() {
+  usePreventScreenCapture('ventes')
   const sales = useSales()
   const rows = sales.data?.pages.flatMap((p) => p.data) ?? []
   const summary = sales.data?.pages[0]?.meta?.summary as SalesSummary | undefined

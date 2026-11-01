@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { api, ApiError, setApiToken, setUnauthorizedHandler } from './api'
 import { tokenStore } from './token-store'
 import { clearPersistedCache } from './offline'
+import { clearDownloads } from './open-file'
 import type { SessionUser } from './types'
 
 type Status = 'loading' | 'signedOut' | 'signedIn'
@@ -33,13 +34,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading')
   const [user, setUser] = useState<SessionUser | null>(null)
 
+  // Rien de l'ancien compte ne reste sur l'appareil : jeton, cache des
+  // requêtes, fichiers de ressources téléchargés.
   const signOutLocally = useCallback(async () => {
     setApiToken(null)
     setUser(null)
     setStatus('signedOut')
     queryClient.clear()
-    await Promise.all([tokenStore.clear(), clearPersistedCache()])
+    await Promise.all([tokenStore.clear(), clearPersistedCache(), clearDownloads()])
   }, [queryClient])
+
+  /**
+   * Déconnexion voulue : le jeton est d'abord révoqué côté serveur, pour
+   * qu'une copie éventuelle ne vaille plus rien. Sans réseau, la session se
+   * ferme quand même sur le téléphone.
+   */
+  const logout = useCallback(async () => {
+    await api.post('auth/mobile/logout').catch(() => {})
+    await signOutLocally()
+  }, [signOutLocally])
 
   useEffect(() => {
     setUnauthorizedHandler(() => { void signOutLocally() })
@@ -53,7 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     ;(async () => {
       const token = await tokenStore.get()
-      if (!token) { if (!cancelled) setStatus('signedOut'); return }
+      // Pas de session : rien d'un compte précédent ne doit s'afficher (cache
+      // restauré du disque, badge de messages non lus).
+      if (!token) {
+        queryClient.clear()
+        await clearPersistedCache()
+        if (!cancelled) setStatus('signedOut')
+        return
+      }
       setApiToken(token)
       try {
         const profile = await api.get<{ id: string; email: string; role: SessionUser['role'] }>('me/profile')
@@ -67,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })()
     return () => { cancelled = true }
-  }, [signOutLocally])
+  }, [signOutLocally, queryClient])
 
   const login = useCallback(async (input: LoginInput) => {
     const result = await api.post<{ token: string; user: SessionUser }>('auth/mobile/token', input)
@@ -78,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('signedIn')
   }, [queryClient])
 
-  const value = useMemo(() => ({ status, user, login, logout: signOutLocally }), [status, user, login, signOutLocally])
+  const value = useMemo(() => ({ status, user, login, logout }), [status, user, login, logout])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

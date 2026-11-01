@@ -27,6 +27,7 @@ import { purgeExpiredReplays, alertUpcomingReplayPurges, reconcileProcessingRepl
 import { noticeEndingGiftMemberships, noticeTariffSwitch } from './notices'
 import { purgeStaleInvitations } from './invitations'
 import { reconcileProviderStates } from './provider-reconciliation'
+import { db } from './db'
 
 export interface ScheduledJob {
   name: string
@@ -191,6 +192,16 @@ export const SCHEDULED_JOBS: ScheduledJob[] = [
     name: 'REPLAY_PURGE',
     schedule: '0 5 * * *',
     run: async () => ({ ...(await purgeExpiredReplays()) }),
+  },
+  {
+    // Les jetons mobiles révoqués à la déconnexion n'ont plus à être retenus
+    // une fois expirés : la signature les refuse d'elle-même.
+    name: 'MOBILE_TOKEN_REVOCATION_PURGE',
+    schedule: '15 5 * * *',
+    run: async () => {
+      const { count } = await db.revokedMobileToken.deleteMany({ where: { expiresAt: { lt: new Date() } } })
+      return { purged: count }
+    },
   },
   {
     // Prévenir 30 jours avant : c'est la dernière fenêtre du formateur pour

@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { encode } from 'next-auth/jwt'
 import { prisma, cleanDatabase } from './setup'
-import { issueMobileToken, sessionUserFromMobileToken } from '@/lib/mobile-auth'
+import { issueMobileToken, revokeMobileToken, sessionUserFromMobileToken } from '@/lib/mobile-auth'
 
 describe('Jeton porteur de l’application mobile', () => {
   beforeEach(async () => { await cleanDatabase() })
@@ -63,6 +63,30 @@ describe('Jeton porteur de l’application mobile', () => {
       secret: 'un-autre-secret-que-celui-du-serveur-0123456789',
     })
     expect(await sessionUserFromMobileToken(forged)).toBeNull()
+  })
+
+  it('la déconnexion révoque le jeton côté serveur', async () => {
+    const user = await makeUser()
+    const token = await issueMobileToken(asAuthorized(user))
+    expect(await sessionUserFromMobileToken(token)).not.toBeNull()
+    expect(await revokeMobileToken(token)).toBe(true)
+    // Une copie du jeton, prise avant la déconnexion, ne sert plus à rien.
+    expect(await sessionUserFromMobileToken(token)).toBeNull()
+    // Révoquer deux fois ne casse rien.
+    expect(await revokeMobileToken(token)).toBe(true)
+  })
+
+  it('révoquer un jeton ne touche pas les autres jetons du même compte', async () => {
+    const user = await makeUser()
+    const first = await issueMobileToken(asAuthorized(user))
+    const second = await issueMobileToken(asAuthorized(user))
+    await revokeMobileToken(first)
+    expect(await sessionUserFromMobileToken(second)).not.toBeNull()
+  })
+
+  it('un jeton illisible ne se révoque pas', async () => {
+    expect(await revokeMobileToken('pas-un-jeton')).toBe(false)
+    expect(await revokeMobileToken('')).toBe(false)
   })
 
   it('un jeton vide ou illisible ne vaut rien', async () => {

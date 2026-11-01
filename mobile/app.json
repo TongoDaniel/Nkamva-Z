@@ -21,7 +21,8 @@
         "monochromeImage": "./assets/marque/android-monochrome-1024.png",
         "backgroundColor": "#022342"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "allowBackup": false
     },
     "web": {
       "favicon": "./assets/marque/favicon-48.png"
