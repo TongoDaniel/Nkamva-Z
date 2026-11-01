@@ -2,7 +2,6 @@ import { FlatList, View } from 'react-native'
 import { Radio } from 'lucide-react-native'
 import { useLives } from '../lib/queries'
 import { Text } from '../ui/Text'
-import { Card } from '../ui/Bits'
 import { EmptyState, ErrorState, Loading } from '../ui/States'
 import { colors } from '../ui/theme'
 import { LiveCard } from '../components/cards'
@@ -26,11 +25,13 @@ export default function Lives() {
       contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 40 }}
       refreshing={lives.isRefetching}
       onRefresh={() => lives.refetch()}
-      ListHeaderComponent={
+      // Note de bas de liste, comme les pieds de section des Réglages iOS,
+      // plutôt qu'un encadré beige en tête.
+      ListFooterComponent={
         upcoming.length ? (
-          <Card style={{ padding: 14, backgroundColor: colors.paper, marginBottom: 4 }}>
-            <Text variant="small">Un quart d’heure avant le début, un bouton te permet d’entrer dans la salle. Elle s’ouvre dans le navigateur ; la vidéo directement dans l’app arrive bientôt.</Text>
-          </Card>
+          <Text variant="caption" style={{ paddingHorizontal: 4, marginTop: 4 }}>
+            Un quart d’heure avant le début, un bouton te permet d’entrer dans la salle. Elle s’ouvre dans le navigateur ; la vidéo directement dans l’app arrive bientôt.
+          </Text>
         ) : undefined
       }
       renderItem={({ item }) => <LiveCard session={item} />}

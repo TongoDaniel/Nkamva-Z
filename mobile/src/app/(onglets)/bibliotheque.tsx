@@ -61,7 +61,7 @@ export default function Bibliotheque() {
           keyExtractor={(r) => r.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => <ResourceRow item={item} />}
-          ItemSeparatorComponent={() => <Divider inset={86} />}
+          ItemSeparatorComponent={() => <Divider inset={78} />}
           refreshing={resources.isRefetching}
           onRefresh={() => resources.refetch()}
           ListEmptyComponent={

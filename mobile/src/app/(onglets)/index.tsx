@@ -38,9 +38,8 @@ export default function Accueil() {
     <Screen refreshing={refreshing} onRefresh={refresh}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text variant="caption">NKAMVA</Text>
           {profile.isLoading ? (
-            <Bone width={200} height={28} style={{ marginTop: 4 }} />
+            <Bone width={200} height={28} />
           ) : (
             <Text variant="title">Bonjour{profile.data?.fullName ? ` ${firstName(profile.data.preferredName || profile.data.fullName)}` : ''}</Text>
           )}
@@ -62,7 +61,7 @@ export default function Accueil() {
         {resume.length ? (
           resume.map((item, i) => (
             <View key={item.id}>
-              {i > 0 ? <Divider inset={86} /> : null}
+              {i > 0 ? <Divider inset={78} /> : null}
               <ResourceRow item={item} />
             </View>
           ))
@@ -127,6 +126,6 @@ export default function Accueil() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  bell: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
-  dot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.clay, borderWidth: 2, borderColor: colors.paper },
+  bell: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  dot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.clay, borderWidth: 2, borderColor: colors.background },
 })

@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { ChevronRight, Flag, MessageCircle, Send, Users } from 'lucide-react-native'
+import { AlertCircle, ChevronRight, CircleCheck, Flag, MessageCircle, Send } from 'lucide-react-native'
 import { ReportSheet, type ReportTarget } from '../../components/ReportSheet'
 import { useCommunitySpace, useOpenTrainerConversation, useResources } from '../../lib/queries'
 import { formatDate, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
 import { Text } from '../../ui/Text'
 import { Button } from '../../ui/Button'
-import { Card, Chip, Divider, SectionTitle } from '../../ui/Bits'
+import { Card, CommunityAvatar, Divider, SectionTitle } from '../../ui/Bits'
 import { Cover } from '../../ui/Cover'
 import { ErrorState } from '../../ui/States'
 import { Bone } from '../../ui/Skeleton'
-import { colors, radius } from '../../ui/theme'
+import { colors } from '../../ui/theme'
 import { LiveCard } from '../../components/cards'
 
 function SpaceSkeleton() {
@@ -64,23 +64,25 @@ export default function Communaute() {
       <Stack.Screen options={{ title: '' }} />
 
       <View style={styles.head}>
-        <View style={styles.icon}><Users size={28} color={colors.brand} /></View>
+        <CommunityAvatar name={s.name} size={64} />
         <View style={{ flex: 1, gap: 4 }}>
           <Text variant="title" numberOfLines={2}>{s.name}</Text>
           <Text variant="small">Animée par {s.trainerName ?? 'ton formateur'}</Text>
         </View>
       </View>
 
+      {/* L'état de l'adhésion en une ligne de texte, comme sur la page d'un
+          abonnement Patreon : pas de pastille colorée. */}
       {m ? (
         m.status === 'PAST_DUE' ? (
-          <Chip label="Renouvellement en attente" tone="warn" />
+          <Status warn text="Renouvellement en attente" />
         ) : m.canceledAt ? (
-          <Chip label={`Résiliée · accès jusqu’au ${formatDate(m.periodEnd)}`} tone="warn" />
+          <Status warn text={`Résiliée · accès jusqu’au ${formatDate(m.periodEnd)}`} />
         ) : (
-          <Chip label={`Membre · renouvellement le ${formatDate(m.periodEnd)}`} tone="brand" />
+          <Status text={`Membre · renouvellement le ${formatDate(m.periodEnd)}`} />
         )
       ) : s.isTrainer ? (
-        <Chip label="Tu animes cette communauté" tone="brand" />
+        <Status text="Tu animes cette communauté" />
       ) : null}
 
       <View style={{ gap: 10 }}>
@@ -165,9 +167,19 @@ export default function Communaute() {
   )
 }
 
+function Status({ text, warn }: { text: string; warn?: boolean }) {
+  const color = warn ? colors.goldInk : colors.success
+  return (
+    <View style={styles.status}>
+      {warn ? <AlertCircle size={16} color={color} /> : <CircleCheck size={16} color={color} />}
+      <Text variant="small" style={{ color: warn ? color : colors.ink2, flexShrink: 1 }}>{text}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  icon: { width: 64, height: 64, borderRadius: radius.lg - 4, backgroundColor: colors.brandTint, alignItems: 'center', justifyContent: 'center' },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   course: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingVertical: 10 },
 })

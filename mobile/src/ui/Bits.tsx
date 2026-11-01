@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import type { ReactNode } from 'react'
 import { Text } from './Text'
-import { colors, radius, shadow } from './theme'
+import { colors, radius } from './theme'
 import { initials } from '../lib/format'
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
@@ -13,15 +13,20 @@ export function Card({ children, style, onPress }: { children: ReactNode; style?
   )
 }
 
-export function Chip({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'brand' | 'warn' | 'live' }) {
+/**
+ * Étiquette. Contour fin et texte encre, jamais de texte teinté sur un aplat
+ * pastel de la même teinte (le motif qui fait « interface générée »). Seule
+ * exception, « En direct » : un badge plein, comme sur YouTube ou Instagram,
+ * parce que c'est un signal à repérer d'un coup d'œil.
+ */
+export function Chip({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'warn' | 'live' }) {
   const t = {
-    neutral: { bg: colors.paper, fg: colors.ink2 },
-    brand: { bg: colors.brandTint, fg: colors.brand },
-    warn: { bg: colors.goldTint, fg: colors.goldInk },
-    live: { bg: colors.dangerTint, fg: colors.danger },
+    neutral: { bg: 'transparent', border: colors.line, fg: colors.ink2 },
+    warn: { bg: 'transparent', border: colors.gold, fg: colors.goldInk },
+    live: { bg: colors.danger, border: colors.danger, fg: '#fff' },
   }[tone]
   return (
-    <View style={[styles.chip, { backgroundColor: t.bg }]}>
+    <View style={[styles.chip, { backgroundColor: t.bg, borderColor: t.border }]}>
       {/* Une seule ligne, et la police de la variante telle quelle : sur Android,
           surcharger la famille ou l'espacement faisait mesurer le texte trop
           court, et la fin passait sur une seconde ligne invisible (« jeudi
@@ -34,6 +39,24 @@ export function Chip({ label, tone = 'neutral' }: { label: string; tone?: 'neutr
 export function Avatar({ name, size = 44, tone = colors.navy }: { name: string | null; size?: number; tone?: string }) {
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: tone }]}>
+      <Text variant="label" style={{ color: '#fff', fontSize: size * 0.36, lineHeight: size * 0.46 }}>{initials(name)}</Text>
+    </View>
+  )
+}
+
+const COMMUNITY_TONES = [colors.navy, colors.brand, colors.clayInk, colors.success, colors.goldInk, '#4b3a8c']
+
+/**
+ * Icône d'une communauté, comme celle d'un serveur Discord ou d'un espace
+ * Slack : les initiales sur un carré arrondi de couleur franche, stable pour
+ * un même nom. Remplace le pictogramme « groupe » sur aplat bleu pâle.
+ */
+export function CommunityAvatar({ name, size = 48 }: { name: string; size?: number }) {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0
+  const tone = COMMUNITY_TONES[Math.abs(h) % COMMUNITY_TONES.length]
+  return (
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: Math.round(size * 0.28), backgroundColor: tone }]}>
       <Text variant="label" style={{ color: '#fff', fontSize: size * 0.36, lineHeight: size * 0.46 }}>{initials(name)}</Text>
     </View>
   )
@@ -66,10 +89,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.line2,
-    ...shadow.sm,
+    // Un filet, pas d'ombre : filet et ombre portée ensemble sur la même
+    // carte font partie des tics des interfaces générées.
+    borderColor: colors.line,
   },
-  chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, alignSelf: 'flex-start' },
+  chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.pill, borderWidth: 1, alignSelf: 'flex-start' },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   section: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   track: { height: 6, borderRadius: 3, backgroundColor: colors.line2, overflow: 'hidden' },

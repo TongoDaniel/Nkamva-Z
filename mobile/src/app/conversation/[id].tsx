@@ -4,11 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import Svg, { Path } from 'react-native-svg'
-import { Check, CheckCheck, Megaphone, SendHorizontal, Users } from 'lucide-react-native'
+import { Check, CheckCheck, Megaphone, SendHorizontal } from 'lucide-react-native'
 import { api } from '../../lib/api'
 import { keys, useConversation, useSendMessage } from '../../lib/queries'
 import { Text } from '../../ui/Text'
-import { Avatar } from '../../ui/Bits'
+import { Avatar, CommunityAvatar } from '../../ui/Bits'
 import { ErrorState, Loading } from '../../ui/States'
 import { colors, fonts } from '../../ui/theme'
 import { ChatWallpaper } from '../../components/ChatWallpaper'
@@ -129,7 +129,7 @@ function HeaderTitle({ c, fallback }: { c?: ConversationDetail; fallback?: strin
   return (
     <View style={styles.header}>
       {group ? (
-        <View style={styles.groupAvatar}><Users size={18} color={colors.brand} /></View>
+        <CommunityAvatar name={c?.title ?? fallback ?? ''} size={36} />
       ) : (
         <Avatar name={c?.peer?.name ?? c?.title ?? fallback ?? null} size={36} />
       )}
@@ -259,7 +259,6 @@ export default function Conversation() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 260 },
-  groupAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brandTint, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: 12, paddingVertical: 10 },
   dayWrap: { alignItems: 'center', marginVertical: 10 },
   day: {

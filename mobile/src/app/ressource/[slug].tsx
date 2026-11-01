@@ -7,7 +7,7 @@ import { formatDuration, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
 import { Text } from '../../ui/Text'
 import { Button } from '../../ui/Button'
-import { Avatar, Card, Chip } from '../../ui/Bits'
+import { Avatar, Card } from '../../ui/Bits'
 import { Cover } from '../../ui/Cover'
 import { ErrorState } from '../../ui/States'
 import { Bone } from '../../ui/Skeleton'
@@ -74,15 +74,26 @@ export default function Ressource() {
       />
       <Cover course={c} height={200} />
 
-      <View style={{ gap: 10 }}>
-        <View style={styles.row}>
-          <Chip label={formatLabel(c.format)} />
-          <Chip label={c.category} />
-          {duration ? <Chip label={duration} /> : null}
-          {c.pageCount ? <Chip label={`${c.pageCount} pages`} /> : null}
-        </View>
+      <View style={{ gap: 6 }}>
         <Text variant="title">{c.title}</Text>
         <Text variant="body">{c.blurb}</Text>
+      </View>
+
+      {/* Bande d'infos comme sur une fiche de l'App Store : intitulé discret,
+          valeur en dessous, séparées par un filet. Remplace la rangée de
+          pastilles. */}
+      <View style={styles.facts}>
+        {[
+          { k: 'Format', v: formatLabel(c.format) },
+          { k: 'Catégorie', v: c.category },
+          ...(duration ? [{ k: 'Durée', v: duration }] : []),
+          ...(c.pageCount ? [{ k: 'Pages', v: String(c.pageCount) }] : []),
+        ].map((f, i) => (
+          <View key={f.k} style={[styles.fact, i > 0 && styles.factSep]}>
+            <Text variant="caption" numberOfLines={1}>{f.k}</Text>
+            <Text variant="label" numberOfLines={1} style={{ fontSize: 14 }}>{f.v}</Text>
+          </View>
+        ))}
       </View>
 
       {owned ? (
@@ -154,7 +165,10 @@ export default function Ressource() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  notice: { padding: 16, gap: 6, backgroundColor: colors.paper, borderColor: colors.line },
+  notice: { padding: 16, gap: 6 },
+  facts: { flexDirection: 'row', paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  fact: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 6 },
+  factSep: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.line },
   point: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   trainer: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
