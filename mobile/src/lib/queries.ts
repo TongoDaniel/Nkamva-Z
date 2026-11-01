@@ -21,8 +21,8 @@ export const keys = {
   notifications: ['notifications'] as const,
 }
 
-export function useProfile() {
-  return useQuery({ queryKey: keys.profile, queryFn: ({ signal }) => api.get<Profile>('me/profile', signal) })
+export function useProfile(enabled = true) {
+  return useQuery({ queryKey: keys.profile, enabled, queryFn: ({ signal }) => api.get<Profile>('me/profile', signal) })
 }
 
 /** Toute la bibliothèque : l'API plafonne à 50 par page, on suit les pages. */

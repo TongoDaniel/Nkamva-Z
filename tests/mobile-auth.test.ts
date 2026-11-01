@@ -39,7 +39,7 @@ describe('Jeton porteur de l’application mobile', () => {
     // base : on simule un jeton âgé de plus de cinq minutes, comme le fait
     // le test de révocation du cookie.
     const stale = await encode({
-      token: { userId: user.id, email: user.email, role: 'LEARNER', issuedAt: Math.floor(Date.now() / 1000) - 600, sessionsValidAfter: user.sessionsValidAfter.toISOString() },
+      token: { userId: user.id, email: user.email, role: 'LEARNER', adminRole: null, trainerId: null, issuedAt: Math.floor(Date.now() / 1000) - 600, sessionsValidAfter: user.sessionsValidAfter.toISOString() },
       secret: process.env.NEXTAUTH_SECRET!,
     })
     expect(await sessionUserFromMobileToken(stale)).toBeNull()
@@ -50,7 +50,7 @@ describe('Jeton porteur de l’application mobile', () => {
     const user = await makeUser()
     await prisma.user.update({ where: { id: user.id }, data: { suspendedAt: new Date() } })
     const stale = await encode({
-      token: { userId: user.id, email: user.email, role: 'LEARNER', issuedAt: Math.floor(Date.now() / 1000) - 600, sessionsValidAfter: user.sessionsValidAfter.toISOString() },
+      token: { userId: user.id, email: user.email, role: 'LEARNER', adminRole: null, trainerId: null, issuedAt: Math.floor(Date.now() / 1000) - 600, sessionsValidAfter: user.sessionsValidAfter.toISOString() },
       secret: process.env.NEXTAUTH_SECRET!,
     })
     expect(await sessionUserFromMobileToken(stale)).toBeNull()
@@ -59,7 +59,7 @@ describe('Jeton porteur de l’application mobile', () => {
   it('un jeton chiffré avec un autre secret ne vaut rien', async () => {
     const user = await makeUser()
     const forged = await encode({
-      token: { userId: user.id, email: user.email, role: 'ADMIN', issuedAt: Math.floor(Date.now() / 1000) },
+      token: { userId: user.id, email: user.email, role: 'ADMIN', adminRole: null, trainerId: null, issuedAt: Math.floor(Date.now() / 1000), sessionsValidAfter: user.sessionsValidAfter.toISOString() },
       secret: 'un-autre-secret-que-celui-du-serveur-0123456789',
     })
     expect(await sessionUserFromMobileToken(forged)).toBeNull()

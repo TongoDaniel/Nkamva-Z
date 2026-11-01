@@ -38,7 +38,8 @@
       ],
       "expo-secure-store",
       "expo-video",
-      "expo-sharing"
+      "expo-sharing",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "apiUrl": "https://nkamva.com"
