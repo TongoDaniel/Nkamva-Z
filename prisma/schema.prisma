@@ -2099,3 +2099,16 @@ model HelpArticle {
   @@index([categoryId, position])
   @@map("help_articles")
 }
+
+/// Jetons de l'application mobile révoqués à la déconnexion (identifiant `jti`
+/// du JWT). Une ligne n'a plus d'utilité une fois le jeton expiré : elle peut
+/// être purgée après `expiresAt`.
+model RevokedMobileToken {
+  jti       String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("revoked_mobile_tokens")
+}

@@ -43,3 +43,17 @@ export async function downloadAndOpen(url: string, title: string, mimeType?: str
   }
   throw new Error('Aucune application de ce téléphone ne sait ouvrir ce fichier.')
 }
+
+/**
+ * Efface les fichiers de ressources téléchargés : à la déconnexion, la
+ * personne suivante sur ce téléphone ne doit pas retrouver les ressources
+ * payées par la précédente dans le cache de l'app.
+ */
+export async function clearDownloads() {
+  try {
+    const dir = new Directory(Paths.cache, 'ressources')
+    if (dir.exists) dir.delete()
+  } catch {
+    // Un cache que le système a déjà vidé n'a rien à effacer.
+  }
+}

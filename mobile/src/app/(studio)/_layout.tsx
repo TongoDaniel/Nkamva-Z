@@ -1,10 +1,11 @@
 import { Platform } from 'react-native'
 import { NativeTabs } from 'expo-router/native-tabs'
 import { useConversations } from '../../lib/queries'
+import { useAuth } from '../../lib/auth'
 import { colors, fonts } from '../../ui/theme'
 
 /** Le mode formateur s'ouvre toujours sur son tableau de bord. */
-export const unstable_settings = { initialRouteName: 'tableau' }
+export const unstable_settings = { anchor: 'tableau' }
 
 const ANDROID = Platform.OS === 'android'
   ? {
@@ -25,7 +26,8 @@ const ANDROID = Platform.OS === 'android'
  */
 export default function StudioLayout() {
   const { data: conversations } = useConversations()
-  const unread = conversations?.reduce((n, c) => n + c.unreadCount, 0) ?? 0
+  const { status } = useAuth()
+  const unread = status === 'signedIn' ? conversations?.reduce((n, c) => n + c.unreadCount, 0) ?? 0 : 0
 
   return (
     <NativeTabs tintColor={colors.brand} minimizeBehavior="onScrollDown" {...ANDROID}>

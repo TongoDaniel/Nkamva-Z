@@ -21,12 +21,19 @@ export const persister = createAsyncStoragePersister({
 })
 
 /**
- * Ce qui part sur le disque. Jamais les URL signées de contenu (elles
- * expirent en cinq minutes), ni une requête en erreur ou encore en cours.
+ * Ce qui part sur le disque, en clair (AsyncStorage n'est pas chiffré) : le
+ * catalogue et la bibliothèque, de quoi apprendre sans réseau. Jamais ce qui
+ * est privé ou sensible : messages, notifications, profil (téléphone,
+ * adresse), espace formateur (revenus, retraits, noms des membres), ni les URL
+ * signées de contenu, qui expirent en cinq minutes. Une liste d'autorisation
+ * plutôt qu'une liste d'exclusion : une requête ajoutée plus tard reste en
+ * mémoire tant qu'on ne décide pas qu'elle peut aller sur le disque.
  */
+const PERSISTED = new Set(['resources', 'catalog', 'course', 'communities', 'my-communities', 'community', 'favorites', 'lives'])
+
 export function shouldPersist(query: Query): boolean {
   if (query.state.status !== 'success') return false
-  return query.queryKey[0] !== 'content'
+  return PERSISTED.has(String(query.queryKey[0]))
 }
 
 /** À la déconnexion : rien de l'ancien compte ne doit rester sur l'appareil. */

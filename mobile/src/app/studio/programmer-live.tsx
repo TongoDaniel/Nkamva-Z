@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker'
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker'
 import { CalendarDays, Clock } from 'lucide-react-native'
 import { ApiError } from '../../lib/api'
 import { formatDateTime } from '../../lib/format'
@@ -37,15 +37,13 @@ function PickerRow({ mode, value, onChange }: { mode: 'date' | 'time'; value: Da
     ? value.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
     : `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
 
-  const handle = (event: DateTimePickerEvent, date?: Date) => {
-    if (event.type === 'set' && date) onChange(date)
-  }
+  const handle = (_event: unknown, date: Date) => onChange(date)
 
   return (
     <Pressable
       style={styles.pickerRow}
       disabled={Platform.OS === 'ios'}
-      onPress={() => DateTimePickerAndroid.open({ value, mode, is24Hour: true, minimumDate: mode === 'date' ? new Date() : undefined, onChange: handle })}
+      onPress={() => DateTimePickerAndroid.open({ value, mode, is24Hour: true, minimumDate: mode === 'date' ? new Date() : undefined, onValueChange: handle })}
       accessibilityRole="button"
       accessibilityLabel={mode === 'date' ? `Date : ${label}` : `Heure : ${label}`}
     >
@@ -53,7 +51,7 @@ function PickerRow({ mode, value, onChange }: { mode: 'date' | 'time'; value: Da
       {Platform.OS === 'ios' ? (
         <>
           <Text variant="body" style={{ flex: 1, color: colors.ink }}>{mode === 'date' ? 'Date' : 'Heure'}</Text>
-          <DateTimePicker value={value} mode={mode} display="compact" locale="fr-FR" minimumDate={mode === 'date' ? new Date() : undefined} onChange={handle} />
+          <DateTimePicker value={value} mode={mode} display="compact" locale="fr-FR" minimumDate={mode === 'date' ? new Date() : undefined} onValueChange={handle} />
         </>
       ) : (
         <Text variant="body" style={{ flex: 1, color: colors.ink }}>{label}</Text>
