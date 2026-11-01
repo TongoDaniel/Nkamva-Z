@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
+import { readBearerToken, sessionUserFromMobileToken } from './mobile-auth'
 import { canActAsLearner } from './roles'
 import { db } from './db'
 import type { Role, AdminRole } from '@prisma/client'
@@ -50,9 +51,15 @@ export function error(code: string, message: string, status: number, details?: A
 }
 
 export async function getAuthContext(): Promise<AuthContext | null> {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return null
-  return { user: { id: session.user.id, email: session.user.email || '', role: session.user.role, adminRole: session.user.adminRole, trainerId: session.user.trainerId } }
+  // L'application mobile s'annonce par un jeton porteur (`mobile-auth.ts`).
+  // Quand l'en-tête est là, c'est lui seul qui décide : un jeton refusé ne
+  // retombe pas sur un éventuel cookie.
+  const bearer = await readBearerToken()
+  const user = bearer !== null
+    ? await sessionUserFromMobileToken(bearer)
+    : (await getServerSession(authOptions))?.user
+  if (!user?.id) return null
+  return { user: { id: user.id, email: user.email || '', role: user.role, adminRole: user.adminRole, trainerId: user.trainerId } }
 }
 
 export async function requireAuth(): Promise<AuthContext | NextResponse> {

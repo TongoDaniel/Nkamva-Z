@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "NKAMVA",
+    "slug": "nkamva",
+    "scheme": "nkamva",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/marque/icone-1024.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.nkamva.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.nkamva.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/marque/android-avant-plan-1024.png",
+        "monochromeImage": "./assets/marque/android-monochrome-1024.png",
+        "backgroundColor": "#022342"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/marque/favicon-48.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/marque/demarrage-512.png",
+          "imageWidth": 96
+        }
+      ],
+      "expo-secure-store",
+      "expo-video",
+      "expo-sharing"
+    ],
+    "extra": {
+      "apiUrl": "https://nkamva.com"
+    },
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
