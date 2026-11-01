@@ -48,7 +48,7 @@ import { db } from '../src/lib/db'
 import { hashPassword } from '../src/lib/password'
 import { creditWalletOnPurchase } from '../src/lib/wallet'
 import { setTariff, createDiscount } from '../src/lib/pricing'
-import { createApplication, submitApplication, approveApplication, rejectDocuments, rejectApplicationFinal } from '../src/lib/trainer-applications'
+import { createApplication, submitApplication, approveApplication, openTrainerSpace, rejectDocuments, rejectApplicationFinal } from '../src/lib/trainer-applications'
 import { requestDocumentUpload, confirmDocumentUpload } from '../src/lib/trainer-documents'
 import { createCourse, publishCourse } from '../src/lib/courses'
 import { linkCourseToCommunity } from '../src/lib/communities'
@@ -303,6 +303,12 @@ async function seedTrainers(passwordHash: string) {
       expectedUpdatedAt: submitted.updatedAt.toISOString(),
       actorId: moderation,
     })
+    // Quand l'abonnement formateur est payant, l'approbation ne fait plus
+    // naître le formateur : il naît au règlement. Le seed tient ce premier
+    // règlement pour acquis, sans passer par un fournisseur de paiement.
+    await db.$transaction((tx) => openTrainerSpace(tx, application.id, {
+      listPriceFcfa: 0, discountFcfa: 0, discountLabel: null, amountFcfa: 0, paidAt: new Date(),
+    }))
 
     const profile = await db.trainerProfile.findUniqueOrThrow({
       where: { userId: user.id },
@@ -701,6 +707,9 @@ async function seedCommunityLife() {
   // applicatif n'aurait pu créer.
   for (const seed of POSTS) {
     const community = COMMUNITIES.find((c) => c.key === seed.communityKey)!
+    // Depuis que le forum est devenu le groupe, `forumEnabled: false` ferme
+    // aussi les annonces : `sendMessage` refuserait ces billets.
+    if (community.forumEnabled === false) continue
     const communityRow = await db.community.findUniqueOrThrow({
       where: { slug: community.slug },
       select: { id: true },
@@ -792,12 +801,19 @@ async function seedLives() {
           return d
         })()
 
+    // `scheduleLiveSession` refuse désormais une date passée
+    // (LIVE_START_IN_PAST). Une séance de l'historique est donc programmée
+    // dans l'heure, puis ramenée à sa vraie date.
+    const inPast = startAt.getTime() <= Date.now()
     const session = await scheduleLiveSession(cid(seed.communityKey), tpid(community.trainerKey), trainerUserId, {
       title: seed.title,
       description: seed.description,
-      scheduledStartAt: startAt,
+      scheduledStartAt: inPast ? new Date(Date.now() + 60 * 60 * 1000) : startAt,
       durationMinutes: seed.durationMinutes,
     })
+    if (inPast) {
+      await db.liveSession.update({ where: { id: session.id }, data: { scheduledStartAt: startAt } })
+    }
 
     if (seed.outcome === 'SCHEDULED') {
       scheduled++

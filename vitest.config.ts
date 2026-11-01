@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
@@ -12,7 +13,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': new URL('./src/', import.meta.url).pathname,
+      // `fileURLToPath` et non `.pathname` : ce dernier garde les espaces
+      // encodés (`%20`) et le `/` de tête devant la lettre de lecteur Windows,
+      // et l'alias ne résout plus rien dès que le chemin du dépôt en contient.
+      '@': fileURLToPath(new URL('./src/', import.meta.url)),
     },
   },
 })

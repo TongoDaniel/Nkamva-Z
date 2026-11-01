@@ -1,0 +1,88 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { api, ApiError, setApiToken, setUnauthorizedHandler } from './api'
+import { tokenStore } from './token-store'
+import type { SessionUser } from './types'
+
+type Status = 'loading' | 'signedOut' | 'signedIn'
+
+interface LoginInput {
+  email: string
+  password: string
+  totp?: string
+}
+
+interface AuthValue {
+  status: Status
+  user: SessionUser | null
+  login: (input: LoginInput) => Promise<void>
+  logout: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthValue | null>(null)
+
+/**
+ * Session de l'app : un jeton porteur émis par `POST /api/auth/mobile/token`,
+ * rangé dans le trousseau. Il n'y a pas de déconnexion côté serveur : le jeton
+ * est simplement oublié. Une révocation (mot de passe changé, compte suspendu)
+ * fait répondre 401 au serveur, et la session se ferme d'elle-même.
+ */
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
+  const [status, setStatus] = useState<Status>('loading')
+  const [user, setUser] = useState<SessionUser | null>(null)
+
+  const signOutLocally = useCallback(async () => {
+    setApiToken(null)
+    setUser(null)
+    setStatus('signedOut')
+    queryClient.clear()
+    await tokenStore.clear()
+  }, [queryClient])
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => { void signOutLocally() })
+    return () => setUnauthorizedHandler(null)
+  }, [signOutLocally])
+
+  // Au démarrage : un jeton rangé est vérifié auprès du serveur avant d'ouvrir
+  // l'app. Sans réseau, on l'ouvre quand même, l'app affichera ses états
+  // hors ligne plutôt que de renvoyer à la connexion.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const token = await tokenStore.get()
+      if (!token) { if (!cancelled) setStatus('signedOut'); return }
+      setApiToken(token)
+      try {
+        const profile = await api.get<{ id: string; email: string; role: SessionUser['role'] }>('me/profile')
+        if (cancelled) return
+        setUser({ id: profile.id, email: profile.email, role: profile.role, trainerId: null })
+        setStatus('signedIn')
+      } catch (error) {
+        if (cancelled) return
+        if (error instanceof ApiError && error.status === 401) await signOutLocally()
+        else setStatus('signedIn')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [signOutLocally])
+
+  const login = useCallback(async (input: LoginInput) => {
+    const result = await api.post<{ token: string; user: SessionUser }>('auth/mobile/token', input)
+    await tokenStore.set(result.token)
+    setApiToken(result.token)
+    queryClient.clear()
+    setUser(result.user)
+    setStatus('signedIn')
+  }, [queryClient])
+
+  const value = useMemo(() => ({ status, user, login, logout: signOutLocally }), [status, user, login, signOutLocally])
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function useAuth(): AuthValue {
+  const value = useContext(AuthContext)
+  if (!value) throw new Error('useAuth hors de AuthProvider')
+  return value
+}

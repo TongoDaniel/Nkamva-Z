@@ -52,6 +52,8 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
   ignores: [
     "node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts",
     "examples/**", "skills", ".claude/**",
+    // L'application mobile a son propre lint (`expo lint`).
+    "mobile/**",
   ]
 }];
 
