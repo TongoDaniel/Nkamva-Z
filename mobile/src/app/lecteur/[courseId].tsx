@@ -10,7 +10,7 @@ import { formatDuration, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
 import { Text } from '../../ui/Text'
 import { Button } from '../../ui/Button'
-import { Card, Chip, Progress } from '../../ui/Bits'
+import { Card, Progress } from '../../ui/Bits'
 import { Cover } from '../../ui/Cover'
 import { ErrorState } from '../../ui/States'
 import { Bone } from '../../ui/Skeleton'
@@ -102,10 +102,9 @@ export default function Lecteur() {
       ) : null}
 
       <View style={{ gap: 8 }}>
-        <View style={styles.row}>
-          <Chip label={formatLabel(format)} />
-          {item?.origin === 'community' && item.community ? <Chip label={item.community.name} tone="brand" /> : null}
-        </View>
+        {item?.origin === 'community' && item.community ? (
+          <Text variant="caption">Inclus dans {item.community.name}</Text>
+        ) : null}
         <Text variant="title">{content.data.course.title}</Text>
         {course ? <Text variant="small">{course.trainerProfile.user.fullName ?? 'Formateur NKAMVA'}{formatDuration(course.durationSeconds) ? ` · ${formatDuration(course.durationSeconds)}` : ''}</Text> : null}
       </View>

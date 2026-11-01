@@ -1,11 +1,11 @@
 import { FlatList, Pressable, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { MessageCircle, Users } from 'lucide-react-native'
+import { MessageCircle } from 'lucide-react-native'
 import { useConversations } from '../../lib/queries'
 import { formatRelative } from '../../lib/format'
 import { Text } from '../../ui/Text'
-import { Avatar, Divider } from '../../ui/Bits'
+import { Avatar, CommunityAvatar, Divider } from '../../ui/Bits'
 import { EmptyState, ErrorState } from '../../ui/States'
 import { ConversationSkeleton, Repeat } from '../../ui/Skeleton'
 import { colors } from '../../ui/theme'
@@ -28,7 +28,7 @@ function Row({ c }: { c: ConversationSummary }) {
       accessibilityRole="button"
     >
       {c.kind === 'GROUP' ? (
-        <View style={styles.group}><Users color={colors.brand} size={22} /></View>
+        <CommunityAvatar name={c.title} size={48} />
       ) : (
         <Avatar name={c.peer?.name ?? c.title} size={48} />
       )}
@@ -85,7 +85,6 @@ const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.background },
   head: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 },
   row: { flexDirection: 'row', gap: 14, paddingHorizontal: 20, paddingVertical: 14, alignItems: 'center' },
-  group: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.brandTint, alignItems: 'center', justifyContent: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
 })
