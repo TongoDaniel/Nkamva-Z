@@ -28,7 +28,7 @@ function Item({ icon, label, onPress, danger }: { icon: ReactNode; label: string
   )
 }
 
-export default function Compte() {
+function MemberAccount() {
   const { logout } = useAuth()
   const { mode, setMode } = useMode()
   const profile = useProfile()
@@ -128,6 +128,39 @@ export default function Compte() {
       )}
     </Screen>
   )
+}
+
+
+/**
+ * Le Compte d'un visiteur : ce que le compte apporte, les deux portes
+ * d'entrée, et ce qui se consulte sans compte (aide, conditions).
+ */
+function GuestAccount() {
+  return (
+    <Screen>
+      <Text variant="title">Compte</Text>
+      <Card style={{ padding: 18, gap: 6 }}>
+        <Text variant="heading">Ton espace NKAMVA</Text>
+        <Text variant="small">Ta progression, tes favoris et tes communautés, sur ton téléphone comme sur le site.</Text>
+        <View style={{ gap: 10, marginTop: 6 }}>
+          <Button label="Créer un compte" onPress={() => router.push('/inscription')} />
+          <Button label="J’ai déjà un compte" tone="secondary" onPress={() => router.push('/connexion')} />
+        </View>
+      </Card>
+      <Card style={styles.group}>
+        <Item icon={<LifeBuoy size={20} color={colors.ink2} />} label="Aide" onPress={() => openSitePage('/aide')} />
+        <View style={styles.sep} />
+        <Item icon={<FileText size={20} color={colors.ink2} />} label="Conditions générales" onPress={() => openSitePage('/legal/conditions')} />
+        <View style={styles.sep} />
+        <Item icon={<Lock size={20} color={colors.ink2} />} label="Confidentialité" onPress={() => openSitePage('/legal/confidentialite')} />
+      </Card>
+    </Screen>
+  )
+}
+
+export default function Compte() {
+  const { status } = useAuth()
+  return status === 'signedIn' ? <MemberAccount /> : <GuestAccount />
 }
 
 const styles = StyleSheet.create({

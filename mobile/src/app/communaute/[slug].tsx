@@ -3,6 +3,9 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ChevronRight, CircleCheck, Flag, MessageCircle, Send } from 'lucide-react-native'
 import { ReportSheet, type ReportTarget } from '../../components/ReportSheet'
+import { PublicCommunity } from '../../components/PublicCommunity'
+import { useAuth } from '../../lib/auth'
+import { ApiError } from '../../lib/api'
 import { useCommunitySpace, useOpenTrainerConversation, useResources } from '../../lib/queries'
 import { formatDate, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
@@ -34,6 +37,14 @@ function SpaceSkeleton() {
  */
 export default function Communaute() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
+  const { status } = useAuth()
+  // Visiteur : la fiche publique, sans appeler l'espace réservé aux membres.
+  if (status !== 'signedIn') return <PublicCommunity slug={slug} />
+  return <MemberSpace slug={slug} />
+}
+
+/** Espace du membre ; la fiche publique pour un compte qui n'en est pas membre. */
+function MemberSpace({ slug }: { slug: string }) {
   const space = useCommunitySpace(slug)
   const resources = useResources()
   const openDm = useOpenTrainerConversation()
@@ -41,6 +52,7 @@ export default function Communaute() {
   const [report, setReport] = useState<ReportTarget | null>(null)
 
   if (space.isLoading) return <SpaceSkeleton />
+  if (space.error instanceof ApiError && space.error.code === 'NOT_MEMBER') return <PublicCommunity slug={slug} />
   if (space.isError || !space.data) {
     return <ErrorState message={(space.error as Error | null)?.message ?? 'Communauté introuvable.'} onRetry={() => space.refetch()} />
   }

@@ -5,6 +5,8 @@ import { Check, Flag, Heart, Lock } from 'lucide-react-native'
 import { useCourse, useFavorites, useResources, useToggleFavorite } from '../../lib/queries'
 import { formatDuration, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
+import { useAuth } from '../../lib/auth'
+import { useRequireAccount } from '../../components/AccountGate'
 import { Text } from '../../ui/Text'
 import { Button } from '../../ui/Button'
 import { Avatar, Card } from '../../ui/Bits'
@@ -43,6 +45,9 @@ export default function Ressource() {
   const [report, setReport] = useState<ReportTarget | null>(null)
   const favorites = useFavorites()
   const toggleFavorite = useToggleFavorite()
+  // Le cœur et le signalement demandent un compte : un visiteur voit pourquoi.
+  const requireAccount = useRequireAccount()
+  const { status } = useAuth()
 
   if (course.isLoading) return <DetailSkeleton />
   if (course.isError || !course.data) {
@@ -61,7 +66,7 @@ export default function Ressource() {
         options={{
           headerRight: () => (
             <Pressable
-              onPress={() => toggleFavorite.mutate(c)}
+              onPress={() => requireAccount('favoris', () => toggleFavorite.mutate(c))}
               hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel={favorited ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -106,6 +111,15 @@ export default function Ressource() {
           <Button label="Ouvrir" onPress={() => router.push(`/lecteur/${c.id}`)} />
         )
       ) : (
+        status !== 'signedIn' ? (
+          // Visiteur : l'ouverture d'un compte, pas un achat. Aucun prix ni
+          // lien de paiement dans l'app (règle 3.1.1 de l'App Store).
+          <Card style={styles.notice}>
+            <Text variant="bodyStrong">Crée ton compte pour la suivre</Text>
+            <Text variant="small">Ta bibliothèque, ta progression et tes favoris te suivent sur ton téléphone comme sur le site.</Text>
+            <Button label="Créer un compte" onPress={() => router.push('/inscription')} style={{ marginTop: 6 }} />
+          </Card>
+        ) : (
         <Card style={styles.notice}>
           <View style={styles.row}>
             <Lock size={18} color={colors.ink2} />
@@ -117,6 +131,7 @@ export default function Ressource() {
               : 'Elle apparaîtra ici dès qu’elle fera partie de ton compte.'}
           </Text>
         </Card>
+        )
       )}
 
       {c.learnPoints?.length ? (
@@ -154,7 +169,7 @@ export default function Ressource() {
       </Card>
       {trainer.description ? <Text variant="body">{trainer.description}</Text> : null}
 
-      <Pressable onPress={() => setReport({ type: 'COURSE', id: c.id, label: 'cette ressource' })} style={styles.report} accessibilityRole="button">
+      <Pressable onPress={() => requireAccount('signaler', () => setReport({ type: 'COURSE', id: c.id, label: 'cette ressource' }))} style={styles.report} accessibilityRole="button">
         <Flag size={15} color={colors.ink3} />
         <Text variant="small" style={{ color: colors.ink3 }}>Signaler cette ressource</Text>
       </Pressable>

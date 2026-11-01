@@ -44,11 +44,14 @@ export default function Bienvenue() {
   const last = index === SLIDES.length - 1
   const imageHeight = Math.min(height * 0.5, width * 1.05)
 
-  async function finish(target: 'inscription' | 'connexion') {
+  /**
+   * Comme Duolingo : « Découvrir » mène droit au catalogue, sans compte ; la
+   * connexion reste à un geste pour qui en a déjà un. L'onboarding quitte la
+   * pile dès qu'il est terminé, et l'accueil du visiteur prend sa place.
+   */
+  async function finish(target: 'decouvrir' | 'connexion') {
     await complete()
-    // L'onboarding disparaît de la pile dès qu'il est terminé, et la connexion
-    // prend sa place. L'inscription se pousse par-dessus au tour suivant.
-    if (target === 'inscription') requestAnimationFrame(() => router.push('/inscription'))
+    if (target === 'connexion') requestAnimationFrame(() => router.push('/connexion'))
   }
 
   function next() {
@@ -61,7 +64,7 @@ export default function Bienvenue() {
       <View style={styles.top}>
         <Image source={require('../../assets/marque/marque-256.png')} style={styles.logo} />
         {!last ? (
-          <Pressable onPress={() => finish('connexion')} hitSlop={12} accessibilityRole="button">
+          <Pressable onPress={() => finish('decouvrir')} hitSlop={12} accessibilityRole="button">
             <Text variant="label" style={{ color: colors.ink3 }}>Passer</Text>
           </Pressable>
         ) : null}
@@ -96,7 +99,7 @@ export default function Bienvenue() {
         </View>
         {last ? (
           <View style={{ gap: 10 }}>
-            <Button label="Créer un compte" onPress={() => finish('inscription')} />
+            <Button label="Découvrir NKAMVA" onPress={() => finish('decouvrir')} />
             <Button label="J’ai déjà un compte" tone="secondary" onPress={() => finish('connexion')} />
           </View>
         ) : (

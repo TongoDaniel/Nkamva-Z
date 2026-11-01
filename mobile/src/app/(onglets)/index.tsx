@@ -12,8 +12,10 @@ import { EmptyState } from '../../ui/States'
 import { colors } from '../../ui/theme'
 import { CourseCard, isUpcoming, LiveCard, ResourceRow } from '../../components/cards'
 import { Bone, CourseCardSkeleton, LiveCardSkeleton, Repeat, ResourceRowSkeleton } from '../../ui/Skeleton'
+import { GuestHome } from '../../components/GuestHome'
+import { useAuth } from '../../lib/auth'
 
-export default function Accueil() {
+function MemberHome() {
   const profile = useProfile()
   const resources = useResources()
   const lives = useLives()
@@ -133,3 +135,9 @@ const styles = StyleSheet.create({
   bell: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   dot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.clay, borderWidth: 2, borderColor: colors.background },
 })
+
+/** Un visiteur sans compte voit ce qu’on propose ; un compte connecté, son espace. */
+export default function Accueil() {
+  const { status } = useAuth()
+  return status === 'signedIn' ? <MemberHome /> : <GuestHome />
+}

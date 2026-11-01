@@ -12,6 +12,8 @@ import { colors, radius } from '../../ui/theme'
 import { Divider } from '../../ui/Bits'
 import { ResourceRow, readingPercent } from '../../components/cards'
 import type { ResourceItem } from '../../lib/types'
+import { AccountGate } from '../../components/AccountGate'
+import { useAuth } from '../../lib/auth'
 
 type Filter = 'all' | 'progress' | 'done'
 
@@ -28,7 +30,7 @@ function matches(item: ResourceItem, filter: Filter) {
   return item.isStarted && p !== 100
 }
 
-export default function Bibliotheque() {
+function MemberLibrary() {
   const resources = useResources()
   const [filter, setFilter] = useState<Filter>('all')
   const items = (resources.data ?? []).filter((r) => r.course && matches(r, filter))
@@ -92,3 +94,9 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
   sep: { height: 1, backgroundColor: colors.line2 },
 })
+
+/** Un visiteur sans compte voit pourquoi créer un compte ; un compte connecté, son espace. */
+export default function Bibliotheque() {
+  const { status } = useAuth()
+  return status === 'signedIn' ? <MemberLibrary /> : <SafeAreaView edges={['top']} style={styles.fill}><AccountGate reason="bibliotheque" icon={<Library color={colors.ink3} size={40} strokeWidth={1.5} />} /></SafeAreaView>
+}

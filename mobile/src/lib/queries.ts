@@ -1,9 +1,20 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
+import { useAuth } from './auth'
 import type {
   AgendaSession, CommunityListItem, CommunitySpace, MyCommunity, ContentAccess, ConversationDetail, ConversationSummary,
-  CourseDetail, CourseListItem, Message, NotificationItem, Profile, ResourceItem,
+  CourseDetail, CourseListItem, Message, NotificationItem, Profile, PublicCommunity, ResourceItem,
 } from './types'
+
+/**
+ * Les requêtes de l'espace personnel (`me/*`, agenda, messages) ne partent que
+ * pour un compte connecté. Un visiteur parcourt le catalogue et les
+ * communautés sans compte : leurs écrans ne doivent pas appeler une route qui
+ * lui répondrait 401.
+ */
+function useSignedIn(): boolean {
+  return useAuth().status === 'signedIn'
+}
 
 export const keys = {
   profile: ['profile'] as const,
@@ -15,6 +26,7 @@ export const keys = {
   myCommunities: ['my-communities'] as const,
   favorites: ['favorites'] as const,
   community: (slug: string) => ['community', slug] as const,
+  publicCommunity: (slug: string) => ['public-community', slug] as const,
   lives: ['lives'] as const,
   conversations: ['conversations'] as const,
   conversation: (id: string) => ['conversation', id] as const,
@@ -22,13 +34,15 @@ export const keys = {
 }
 
 export function useProfile(enabled = true) {
-  return useQuery({ queryKey: keys.profile, enabled, queryFn: ({ signal }) => api.get<Profile>('me/profile', signal) })
+  const signedIn = useSignedIn()
+  return useQuery({ queryKey: keys.profile, enabled: enabled && signedIn, queryFn: ({ signal }) => api.get<Profile>('me/profile', signal) })
 }
 
 /** Toute la bibliothèque : l'API plafonne à 50 par page, on suit les pages. */
 export function useResources() {
   return useQuery({
     queryKey: keys.resources,
+    enabled: useSignedIn(),
     queryFn: async ({ signal }) => {
       const all: ResourceItem[] = []
       for (let page = 1; page < 20; page++) {
@@ -81,14 +95,24 @@ export function useCommunities() {
 }
 
 export function useMyCommunities() {
-  return useQuery({ queryKey: keys.myCommunities, queryFn: ({ signal }) => api.get<MyCommunity[]>('me/communities', signal) })
+  return useQuery({ queryKey: keys.myCommunities, enabled: useSignedIn(), queryFn: ({ signal }) => api.get<MyCommunity[]>('me/communities', signal) })
 }
 
-export function useCommunitySpace(slug: string) {
-  return useQuery({ queryKey: keys.community(slug), queryFn: ({ signal }) => api.get<CommunitySpace>(`me/communities/${encodeURIComponent(slug)}`, signal) })
+export function useCommunitySpace(slug: string, enabled = true) {
+  const signedIn = useSignedIn()
+  return useQuery({ queryKey: keys.community(slug), enabled: enabled && signedIn, queryFn: ({ signal }) => api.get<CommunitySpace>(`me/communities/${encodeURIComponent(slug)}`, signal) })
 }
 
 /** Ouvre le fil privé avec le formateur d'une communauté, ou retrouve celui qui existe. */
+/** Fiche publique d'une communauté : lisible sans compte, comme sur le site. */
+export function usePublicCommunity(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.publicCommunity(slug),
+    enabled,
+    queryFn: ({ signal }) => api.get<PublicCommunity>(`communities/${encodeURIComponent(slug)}`, signal),
+  })
+}
+
 export function useOpenTrainerConversation() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -100,7 +124,7 @@ export function useOpenTrainerConversation() {
 interface Favorites { courses: CourseListItem[]; communities: unknown[] }
 
 export function useFavorites() {
-  return useQuery({ queryKey: keys.favorites, queryFn: ({ signal }) => api.get<Favorites>('me/favorites', signal) })
+  return useQuery({ queryKey: keys.favorites, enabled: useSignedIn(), queryFn: ({ signal }) => api.get<Favorites>('me/favorites', signal) })
 }
 
 /**
@@ -131,12 +155,13 @@ export function useToggleFavorite() {
 }
 
 export function useLives() {
-  return useQuery({ queryKey: keys.lives, queryFn: ({ signal }) => api.get<AgendaSession[]>('lives', signal) })
+  return useQuery({ queryKey: keys.lives, enabled: useSignedIn(), queryFn: ({ signal }) => api.get<AgendaSession[]>('lives', signal) })
 }
 
 export function useConversations() {
   return useQuery({
     queryKey: keys.conversations,
+    enabled: useSignedIn(),
     queryFn: ({ signal }) => api.get<ConversationSummary[]>('me/conversations', signal),
     refetchInterval: 30_000,
   })
@@ -168,6 +193,7 @@ export function useSendMessage(conversationId: string) {
 export function useNotifications() {
   return useQuery({
     queryKey: keys.notifications,
+    enabled: useSignedIn(),
     queryFn: ({ signal }) => api.page<NotificationItem[]>('me/notifications', signal),
     refetchInterval: 60_000,
   })

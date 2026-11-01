@@ -80,6 +80,12 @@ function RootNavigator() {
 
   if (!ready) return null
   const studio = studioMode
+  // Visiteur : l'onboarding est vu, aucun compte n'est ouvert. Il parcourt le
+  // catalogue et les communautés comme sur le site ; le compte ne lui est
+  // demandé qu'au moment où il en a besoin (favori, bibliothèque, messages).
+  // Exiger l'inscription d'emblée fait fuir, et l'App Store le refuse
+  // (règle 5.1.1(v)).
+  const guest = !signedIn && !!onboarded
 
   return (
     <Stack
@@ -94,14 +100,19 @@ function RootNavigator() {
     >
       {/* Une seule des deux barres d'onglets existe à la fois : basculer de
           mode retire l'une et fait apparaître l'autre. */}
-      <Stack.Protected guard={signedIn && !studio}>
+      <Stack.Protected guard={(signedIn && !studio) || guest}>
         <Stack.Screen name="(onglets)" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={studio}>
         <Stack.Screen name="(studio)" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn}>
+      {/* Lisible sans compte : la fiche d'une ressource et celle d'une
+          communauté. */}
+      <Stack.Protected guard={signedIn || guest}>
         <Stack.Screen name="ressource/[slug]" options={{ title: '' }} />
+        <Stack.Screen name="communaute/[slug]" options={{ title: '' }} />
+      </Stack.Protected>
+      <Stack.Protected guard={signedIn}>
         <Stack.Screen name="lecteur/[courseId]" options={{ title: '' }} />
         <Stack.Screen name="conversation/[id]" options={{ title: '' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
@@ -111,7 +122,6 @@ function RootNavigator() {
         <Stack.Screen name="favoris" options={{ title: 'Mes favoris' }} />
         <Stack.Screen name="mot-de-passe" options={{ title: 'Mot de passe' }} />
         <Stack.Screen name="supprimer-compte" options={{ title: '' }} />
-        <Stack.Screen name="communaute/[slug]" options={{ title: '' }} />
         <Stack.Screen name="studio/ventes" options={{ title: 'Ventes' }} />
         <Stack.Screen name="studio/portefeuille" options={{ title: 'Portefeuille' }} />
         <Stack.Screen name="studio/ressource/[id]" options={{ title: '' }} />
@@ -123,7 +133,8 @@ function RootNavigator() {
         <Stack.Screen name="bienvenue" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="connexion" options={{ headerShown: false }} />
+        <Stack.Screen name="rejoindre" options={{ title: '', presentation: 'modal' }} />
+        <Stack.Screen name="connexion" options={{ title: '' }} />
         <Stack.Screen name="inscription" options={{ title: '' }} />
         <Stack.Screen name="verifier-code" options={{ title: '' }} />
         <Stack.Screen name="mot-de-passe-oublie" options={{ title: '' }} />
