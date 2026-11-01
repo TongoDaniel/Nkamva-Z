@@ -67,9 +67,9 @@ export default function Bibliotheque() {
           ListEmptyComponent={
             filter === 'all' ? (
               <EmptyState
-                icon={<Library color={colors.brand} />}
+                icon={<Library color={colors.ink3} size={40} strokeWidth={1.5} />}
                 title="Rien pour l’instant"
-                body="Tes ressources, achetées ou incluses dans tes communautés, se rangent ici."
+                body="Tes ressources et celles incluses dans tes communautés se rangent ici."
                 action={<Button label="Explorer" tone="secondary" onPress={() => router.push('/explorer')} />}
               />
             ) : (
@@ -85,8 +85,9 @@ export default function Bibliotheque() {
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.background },
   head: { paddingHorizontal: 20, paddingTop: 20, gap: 14 },
-  segment: { flexDirection: 'row', backgroundColor: colors.paper, borderRadius: radius.pill, padding: 4 },
-  segmentItem: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill },
+  // Contrôle segmenté à la manière d'iOS : rectangle arrondi, pas pilule.
+  segment: { flexDirection: 'row', backgroundColor: colors.line2, borderRadius: radius.sm, padding: 3 },
+  segmentItem: { flex: 1, minHeight: 34, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm - 2 },
   segmentActive: { backgroundColor: colors.card, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
   sep: { height: 1, backgroundColor: colors.line2 },

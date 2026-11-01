@@ -41,7 +41,7 @@ export default function Favoris() {
       renderItem={({ item }) => <CourseCard course={item} owned={owned.has(item.id)} width={cardWidth} />}
       ListEmptyComponent={
         <EmptyState
-          icon={<Heart color={colors.brand} />}
+          icon={<Heart color={colors.ink3} size={40} strokeWidth={1.5} />}
           title="Aucun favori"
           body="Touche le cœur d’une ressource pour la retrouver ici."
           action={<Button label="Explorer" tone="secondary" onPress={() => router.navigate('/explorer')} />}

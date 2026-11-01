@@ -1,5 +1,6 @@
 import { Linking } from 'react-native'
 import { router } from 'expo-router'
+import * as WebBrowser from 'expo-web-browser'
 import { API_URL } from './config'
 
 /**
@@ -38,4 +39,15 @@ export function openSiteLink(link: string | null | undefined) {
     default:
       void Linking.openURL(`${API_URL}${link.startsWith('/') ? link : `/${link}`}`)
   }
+}
+
+/**
+ * Page d'information du site (aide, conditions, confidentialité) dans le
+ * navigateur intégré, comme le font la plupart des apps : on reste dans l'app
+ * et on revient d'un geste. Jamais pour une page d'achat.
+ */
+export function openSitePage(path: string) {
+  void WebBrowser.openBrowserAsync(`${API_URL}${path}`, {
+    presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+  })
 }

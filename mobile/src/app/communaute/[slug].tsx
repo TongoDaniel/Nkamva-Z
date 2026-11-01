@@ -13,7 +13,7 @@ import { Cover } from '../../ui/Cover'
 import { ErrorState } from '../../ui/States'
 import { Bone } from '../../ui/Skeleton'
 import { colors } from '../../ui/theme'
-import { LiveCard } from '../../components/cards'
+import { isUpcoming, LiveCard } from '../../components/cards'
 
 function SpaceSkeleton() {
   return (
@@ -47,7 +47,7 @@ export default function Communaute() {
 
   const s = space.data
   const owned = new Set(resources.data?.map((r) => r.courseId))
-  const upcoming = s.sessions.filter((l) => l.status === 'SCHEDULED' || l.status === 'LIVE')
+  const upcoming = s.sessions.filter(isUpcoming)
   const m = s.membership
 
   async function writeToTrainer() {

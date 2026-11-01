@@ -5,6 +5,7 @@ import { api, ApiError } from '../lib/api'
 import { Screen } from '../ui/Screen'
 import { Text } from '../ui/Text'
 import { Field } from '../ui/Field'
+import { CodeInput } from '../ui/CodeInput'
 import { Button } from '../ui/Button'
 import { colors } from '../ui/theme'
 
@@ -84,14 +85,7 @@ export default function MotDePasseOublie() {
             <Text variant="title">Nouveau mot de passe</Text>
             <Text variant="body">Code envoyé à {email.trim()}.</Text>
           </View>
-          <Field
-            label="Code reçu"
-            value={code}
-            onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
-            keyboardType="number-pad"
-            autoComplete="one-time-code"
-            textContentType="oneTimeCode"
-          />
+          <CodeInput label="Code reçu" value={code} onChange={setCode} autoFocus />
           <Field label="Nouveau mot de passe" value={password} onChangeText={setPassword} secret autoComplete="new-password" hint="10 caractères minimum." />
           {error ? <Text variant="small" style={{ color: colors.danger }}>{error}</Text> : null}
           <Button label="Changer mon mot de passe" onPress={reset} loading={loading} />

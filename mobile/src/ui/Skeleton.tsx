@@ -33,7 +33,7 @@ export function Bone({ width = '100%', height = 14, style, round }: { width?: Di
 export function ResourceRowSkeleton() {
   return (
     <View style={styles.row}>
-      <Bone width={72} height={72} style={{ borderRadius: radius.md }} />
+      <Bone width={64} height={64} style={{ borderRadius: radius.sm }} />
       <View style={{ flex: 1, gap: 8 }}>
         <Bone width="85%" height={16} />
         <Bone width="55%" />
@@ -48,6 +48,7 @@ export function CourseCardSkeleton({ width }: { width?: number }) {
     <View style={[styles.card, { width, marginBottom: 0 }]}>
       <Bone height={width ? width * 0.62 : 150} style={{ borderRadius: 0 }} />
       <View style={{ padding: 10, gap: 6 }}>
+        <Bone width="35%" height={11} />
         <Bone width="90%" height={14} />
         <Bone width="60%" height={12} />
       </View>
@@ -58,7 +59,7 @@ export function CourseCardSkeleton({ width }: { width?: number }) {
 export function ConversationSkeleton() {
   return (
     <View style={[styles.row, { paddingHorizontal: 20, paddingVertical: 14 }]}>
-      <Bone width={48} height={48} style={{ borderRadius: 16 }} />
+      <Bone width={48} height={48} round />
       <View style={{ flex: 1, gap: 8 }}>
         <Bone width="50%" height={16} />
         <Bone width="85%" />
@@ -69,10 +70,14 @@ export function ConversationSkeleton() {
 
 export function LiveCardSkeleton() {
   return (
-    <View style={[styles.card, { padding: 16, gap: 10 }]}>
-      <Bone width={160} height={22} round />
-      <Bone width="90%" height={16} />
-      <Bone width="65%" />
+    <View style={[styles.card, { padding: 14, gap: 12 }]}>
+      <View style={{ flexDirection: 'row', gap: 14 }}>
+        <Bone width={52} height={54} style={{ borderRadius: radius.sm }} />
+        <View style={{ flex: 1, gap: 8, paddingTop: 2 }}>
+          <Bone width="90%" height={16} />
+          <Bone width="60%" />
+        </View>
+      </View>
     </View>
   )
 }
@@ -83,5 +88,5 @@ export function Repeat({ count, children }: { count: number; children: React.Rea
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
-  card: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line2, overflow: 'hidden', backgroundColor: colors.card, marginBottom: space.md },
+  card: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, overflow: 'hidden', backgroundColor: colors.card, marginBottom: space.md },
 })

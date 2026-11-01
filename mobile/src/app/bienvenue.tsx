@@ -10,7 +10,6 @@ import { colors, radius } from '../ui/theme'
 interface Slide {
   key: string
   image: ImageSourcePropType
-  kicker: string
   title: string
   body: string
 }
@@ -20,21 +19,18 @@ const SLIDES: Slide[] = [
   {
     key: 'apprendre',
     image: require('../../assets/onboarding/apprendre.jpg'),
-    kicker: 'Apprendre',
     title: 'Des savoir-faire concrets, dans ta poche',
     body: 'Vidéos, guides et kits pratiques créés par des formateurs d’Afrique. Tu reprends là où tu t’es arrêté, sur n’importe quel appareil.',
   },
   {
     key: 'formateurs',
     image: require('../../assets/onboarding/formateurs.jpg'),
-    kicker: 'Formateurs',
     title: 'Des formateurs vérifiés, un par un',
     body: 'Chaque formateur est validé par l’équipe NKAMVA avant de publier. Tu sais à qui tu apprends.',
   },
   {
     key: 'communautes',
     image: require('../../assets/onboarding/communautes.jpg'),
-    kicker: 'Communautés',
     title: 'Progresse avec les autres',
     body: 'Rejoins une communauté, pose tes questions dans le groupe et retrouve les lives de ton formateur.',
   },
@@ -85,7 +81,6 @@ export default function Bienvenue() {
           <View style={{ width, paddingHorizontal: 20, gap: 22 }}>
             <Image source={item.image} style={[styles.image, { height: imageHeight }]} resizeMode="cover" accessibilityIgnoresInvertColors />
             <View style={{ gap: 10 }}>
-              <Text variant="caption" style={styles.kicker}>{item.kicker.toUpperCase()}</Text>
               <Text variant="display" style={{ fontSize: 28, lineHeight: 34 }}>{item.title}</Text>
               <Text variant="body">{item.body}</Text>
             </View>
@@ -117,7 +112,6 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
   logo: { width: 36, height: 36, borderRadius: 9 },
   image: { width: '100%', borderRadius: radius.lg, backgroundColor: colors.paper },
-  kicker: { color: colors.brand, letterSpacing: 1.2, fontFamily: 'InstrumentSans_700Bold' },
   bottom: { paddingHorizontal: 20, paddingBottom: 12, gap: 18 },
   dots: { flexDirection: 'row', gap: 6, justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.line },

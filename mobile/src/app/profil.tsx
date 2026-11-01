@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, StyleSheet, Switch, View } from 'react-native'
-import { router } from 'expo-router'
+import { router, usePreventRemove } from 'expo-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '../lib/api'
 import { keys, useProfile } from '../lib/queries'
@@ -38,6 +38,8 @@ export default function Profil() {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [saved, setSaved] = useState(false)
+  const [leaving, setLeaving] = useState(false)
 
   useEffect(() => {
     if (profile.data && !draft) setDraft(toDraft(profile.data))
@@ -55,13 +57,27 @@ export default function Profil() {
       }),
     onSuccess: (p) => {
       queryClient.setQueryData(keys.profile, p)
-      router.back()
+      // Le retour attend le rendu suivant, une fois la garde des
+      // modifications levée.
+      setSaved(true)
     },
     onError: (err) => {
       // Le serveur renvoie le champ fautif dans `details` ; à défaut, le message.
       setErrors({ form: err instanceof ApiError ? err.message : 'Enregistrement impossible.' })
     },
   })
+
+  // Modifications non enregistrées : le retour (flèche, geste ou bouton
+  // Android) demande confirmation, comme dans Contacts. Plus de bouton
+  // « Annuler » en bas de page.
+  const dirty = !saved && !leaving && !!profile.data && !!draft && JSON.stringify(toDraft(profile.data)) !== JSON.stringify(draft)
+  usePreventRemove(dirty, ({ repeat }) => {
+    Alert.alert('Abandonner les modifications ?', 'Tes changements ne seront pas enregistrés.', [
+      { text: 'Continuer', style: 'cancel' },
+      { text: 'Abandonner', style: 'destructive', onPress: () => { setLeaving(true); repeat() } },
+    ])
+  })
+  useEffect(() => { if (saved) router.back() }, [saved])
 
   if (!draft) {
     return (
@@ -116,7 +132,7 @@ export default function Profil() {
         <Card style={{ overflow: 'hidden' }}>
           <View style={styles.toggle}>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="bodyStrong" style={{ fontSize: 15 }}>Messages et communautés</Text>
+              <Text variant="body" style={{ color: colors.ink }}>Messages et communautés</Text>
               <Text variant="caption">Nouveaux messages, membres, annonces.</Text>
             </View>
             <Switch
@@ -129,7 +145,7 @@ export default function Profil() {
           <Divider inset={16} />
           <View style={styles.toggle}>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="bodyStrong" style={{ fontSize: 15 }}>Rappels d’adhésion</Text>
+              <Text variant="body" style={{ color: colors.ink }}>Rappels d’adhésion</Text>
               <Text variant="caption">Renouvellements et échéances de tes communautés.</Text>
             </View>
             <Switch
@@ -145,18 +161,6 @@ export default function Profil() {
 
       {errors.form ? <Text variant="small" style={{ color: colors.danger }}>{errors.form}</Text> : null}
       <Button label="Enregistrer" onPress={submit} loading={save.isPending} />
-      <Button
-        label="Annuler"
-        tone="ghost"
-        onPress={() => {
-          if (profile.data && JSON.stringify(toDraft(profile.data)) !== JSON.stringify(draft)) {
-            Alert.alert('Abandonner les modifications ?', '', [
-              { text: 'Continuer', style: 'cancel' },
-              { text: 'Abandonner', style: 'destructive', onPress: () => router.back() },
-            ])
-          } else router.back()
-        }}
-      />
     </Screen>
   )
 }

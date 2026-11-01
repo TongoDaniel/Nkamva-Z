@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Download, FileText } from 'lucide-react-native'
+import { BookOpen, CheckCircle2, Download, PauseCircle } from 'lucide-react-native'
 import { api, ApiError } from '../../lib/api'
 import { keys, useContent, useResources, useSaveProgress } from '../../lib/queries'
 import { downloadAndOpen } from '../../lib/open-file'
@@ -23,11 +23,7 @@ const ARCHIVES = ['kit', 'notion', 'tableur']
 function DetailSkeleton() {
   return (
     <Screen edges={['bottom']}>
-      <Bone height={200} style={{ borderRadius: 16 }} />
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        <Bone width={60} height={22} round />
-        <Bone width={80} height={22} round />
-      </View>
+      <Bone height={180} style={{ borderRadius: 16 }} />
       <Bone width="90%" height={26} />
       <Bone width="70%" height={26} />
       <Bone width="100%" />
@@ -51,6 +47,16 @@ export default function Lecteur() {
   if (content.isLoading || resources.isLoading) return <DetailSkeleton />
   if (content.isError) {
     const err = content.error as ApiError
+    // Un litige n'est pas une panne : son propre titre, sa propre icône.
+    if (err.code === 'ACCESS_SUSPENDED') {
+      return (
+        <ErrorState
+          icon={<PauseCircle color={colors.ink3} size={40} strokeWidth={1.5} />}
+          title="Accès suspendu"
+          message="Un litige est en cours sur cette ressource. Tu retrouveras l’accès dès sa résolution."
+        />
+      )
+    }
     return <ErrorState message={err.message} onRetry={err.status >= 500 || err.status === 0 ? () => content.refetch() : undefined} />
   }
   if (!content.data) return null
@@ -96,7 +102,12 @@ export default function Lecteur() {
       <Stack.Screen options={{ title: formatLabel(format) }} />
 
       {format === 'video' ? (
-        <VideoLesson courseId={courseId} url={content.data.url} startAt={item?.courseView?.watchedSeconds ?? 0} />
+        <VideoLesson
+          courseId={courseId}
+          url={content.data.url}
+          startAt={item?.courseView?.watchedSeconds ?? 0}
+          poster={course ? <Cover course={course} rounded={false} mark={false} style={styles.poster} /> : undefined}
+        />
       ) : course ? (
         <Cover course={course} height={180} />
       ) : null}
@@ -116,39 +127,36 @@ export default function Lecteur() {
         </View>
       ) : null}
 
+      {/* Les actions d'abord, l'explication en note dessous, comme sous un
+          bouton des Réglages iOS. Plus de carte avec pictogramme bleu. */}
       {format !== 'video' ? (
-        <Card style={styles.panel}>
-          <View style={styles.row}>
-            <FileText color={colors.brand} size={22} />
-            <Text variant="bodyStrong" style={{ flex: 1 }}>
-              {format === 'pdf' ? 'Document PDF' : 'Fichiers à télécharger'}
-            </Text>
-          </View>
-          <Text variant="small">
-            Le fichier s’ouvre dans la visionneuse de ton téléphone. L’ouvrir compte comme un téléchargement.
-          </Text>
+        <View style={{ gap: 10 }}>
           <Button
-            label={format === 'pdf' ? 'Ouvrir le document' : 'Télécharger'}
-            icon={<Download color="#fff" size={18} />}
+            label={format === 'pdf' ? 'Ouvrir le document' : 'Télécharger les fichiers'}
+            icon={format === 'pdf' ? <BookOpen color="#fff" size={18} /> : <Download color="#fff" size={18} />}
             onPress={openFile}
             loading={opening}
           />
           {(ARCHIVES.includes(format) || (format === 'pdf' && course?.pageCount)) ? (
             <Button
-              label={completed ? 'Marqué comme terminé' : 'Marquer comme terminé'}
+              label={completed ? 'Terminé' : 'Marquer comme terminé'}
               tone="secondary"
               icon={<CheckCircle2 color={completed ? colors.success : colors.ink} size={18} />}
               onPress={markDone}
               loading={save.isPending}
             />
           ) : null}
-        </Card>
+          <Text variant="caption" style={{ paddingHorizontal: 4 }}>
+            {format === 'pdf'
+              ? 'Le document s’ouvre dans la visionneuse de ton téléphone. L’ouvrir compte comme un téléchargement.'
+              : 'Les fichiers s’ouvrent avec l’application adaptée de ton téléphone. Les ouvrir compte comme un téléchargement.'}
+          </Text>
+        </View>
       ) : null}
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  panel: { padding: 16, gap: 12 },
+  poster: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, height: '100%' },
 })

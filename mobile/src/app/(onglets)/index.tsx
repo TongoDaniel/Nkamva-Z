@@ -10,7 +10,7 @@ import { Button } from '../../ui/Button'
 import { Divider, SectionTitle } from '../../ui/Bits'
 import { EmptyState } from '../../ui/States'
 import { colors } from '../../ui/theme'
-import { CourseCard, LiveCard, ResourceRow } from '../../components/cards'
+import { CourseCard, isUpcoming, LiveCard, ResourceRow } from '../../components/cards'
 import { Bone, CourseCardSkeleton, LiveCardSkeleton, Repeat, ResourceRowSkeleton } from '../../ui/Skeleton'
 
 export default function Accueil() {
@@ -28,7 +28,7 @@ export default function Accueil() {
     .filter((r) => r.course && !r.accessSuspended)
     .sort((a, b) => (b.courseView?.lastViewedAt ?? b.createdAt).localeCompare(a.courseView?.lastViewedAt ?? a.createdAt))
     .slice(0, 3)
-  const upcoming = (lives.data ?? []).filter((l) => l.status === 'SCHEDULED' || l.status === 'LIVE').slice(0, 2)
+  const upcoming = (lives.data ?? []).filter(isUpcoming).slice(0, 2)
   const suggestions = (discover.data?.pages[0]?.data ?? []).filter((c) => !owned.has(c.id)).slice(0, 6)
 
   const refreshing = resources.isRefetching || lives.isRefetching
@@ -57,7 +57,11 @@ export default function Accueil() {
       </View>
 
       <View>
-        <SectionTitle title="Reprendre" action={resume.length ? <Link href="/bibliotheque"><Text variant="label" style={{ color: colors.brand }}>Tout voir</Text></Link> : undefined} />
+        {/* Rien à reprendre pour un nouveau compte : pas de titre « Reprendre »
+            au-dessus d'un écran vide. */}
+        {resume.length || resources.isLoading ? (
+          <SectionTitle title="Reprendre" action={resume.length ? <Link href="/bibliotheque"><Text variant="label" style={{ color: colors.brand }}>Tout voir</Text></Link> : undefined} />
+        ) : null}
         {resume.length ? (
           resume.map((item, i) => (
             <View key={item.id}>
@@ -69,7 +73,7 @@ export default function Accueil() {
           <Repeat count={3}><ResourceRowSkeleton /></Repeat>
         ) : (
           <EmptyState
-            icon={<BookOpen color={colors.brand} />}
+            icon={<BookOpen color={colors.ink3} size={40} strokeWidth={1.5} />}
             title="Ta bibliothèque est vide"
             body="Les ressources et les communautés que tu rejoins apparaissent ici."
             action={<Button label="Explorer le catalogue" tone="secondary" onPress={() => router.push('/explorer')} />}

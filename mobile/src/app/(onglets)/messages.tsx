@@ -70,7 +70,7 @@ export default function Messages() {
           onRefresh={() => conversations.refetch()}
           ListEmptyComponent={
             <EmptyState
-              icon={<MessageCircle color={colors.brand} />}
+              icon={<MessageCircle color={colors.ink3} size={40} strokeWidth={1.5} />}
               title="Pas encore de conversation"
               body="Les groupes de tes communautés et tes échanges avec les formateurs apparaissent ici."
             />

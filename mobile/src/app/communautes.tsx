@@ -31,7 +31,7 @@ export default function Communautes() {
       renderItem={({ item }) => <CommunityCard item={item} />}
       ListEmptyComponent={
         <EmptyState
-          icon={<Users color={colors.brand} />}
+          icon={<Users color={colors.ink3} size={40} strokeWidth={1.5} />}
           title="Aucune communauté"
           body="Les communautés que tu rejoins apparaissent ici, avec leurs ressources, leurs lives et leur groupe."
         />

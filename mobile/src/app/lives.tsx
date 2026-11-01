@@ -4,7 +4,7 @@ import { useLives } from '../lib/queries'
 import { Text } from '../ui/Text'
 import { EmptyState, ErrorState, Loading } from '../ui/States'
 import { colors } from '../ui/theme'
-import { LiveCard } from '../components/cards'
+import { isUpcoming, LiveCard } from '../components/cards'
 
 /**
  * Agenda des séances de mes communautés. Rejoindre en vidéo arrive en V1.1
@@ -15,7 +15,7 @@ export default function Lives() {
   const lives = useLives()
   if (lives.isLoading) return <Loading />
   if (lives.isError) return <ErrorState message={(lives.error as Error).message} onRetry={() => lives.refetch()} />
-  const upcoming = (lives.data ?? []).filter((l) => l.status === 'SCHEDULED' || l.status === 'LIVE')
+  const upcoming = (lives.data ?? []).filter(isUpcoming)
 
   return (
     <FlatList
@@ -37,7 +37,7 @@ export default function Lives() {
       renderItem={({ item }) => <LiveCard session={item} />}
       ListEmptyComponent={
         <View style={{ flex: 1 }}>
-          <EmptyState icon={<Radio color={colors.brand} />} title="Aucun live prévu" body="Les séances programmées dans tes communautés s’afficheront ici." />
+          <EmptyState icon={<Radio color={colors.ink3} size={40} strokeWidth={1.5} />} title="Aucun live prévu" body="Les séances programmées dans tes communautés s’afficheront ici." />
         </View>
       }
     />
