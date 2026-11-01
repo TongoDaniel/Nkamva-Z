@@ -71,9 +71,10 @@ function Composition({ variant, accent }: { variant: number; accent: string }) {
     default: // Demi-disque posé sur une barre.
       return (
         <>
-          <Rect x={0} y={68} width={100} height={32} fill={DARK} />
-          <Path d="M18 68 A32 32 0 0 1 82 68 Z" fill={LIGHT} />
-          <Rect x={0} y={64} width={100} height={4} fill={accent} />
+          {/* Assez haut pour laisser le coin bas, où se pose la marque du format. */}
+          <Rect x={0} y={52} width={100} height={48} fill={DARK} />
+          <Path d="M20 52 A30 30 0 0 1 80 52 Z" fill={LIGHT} />
+          <Rect x={0} y={48} width={100} height={4} fill={accent} />
         </>
       )
   }
@@ -95,14 +96,16 @@ interface Props {
   height?: number
   style?: ViewStyle
   rounded?: boolean
+  /** Marque du format en bas à gauche. Retirée quand un bouton lecture la remplace. */
+  mark?: boolean
 }
 
-export function Cover({ course, height = 140, style, rounded = true }: Props) {
+export function Cover({ course, height = 140, style, rounded = true, mark = true }: Props) {
   const tone = PALETTE[hash(course.id) % PALETTE.length]
   const variant = hash(`${course.id}:forme`) % 5
   // Sur une vignette de liste, la composition seule : la marque du format y
   // serait illisible, et le format est écrit à côté.
-  const showMark = height >= 100
+  const showMark = mark && height >= 100
   return (
     <View
       style={[styles.box, { height, backgroundColor: tone.bg, borderRadius: rounded ? (height < 100 ? radius.sm : radius.md) : 0 }, style]}

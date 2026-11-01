@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -9,7 +9,7 @@ import { Screen } from '../ui/Screen'
 import { Text } from '../ui/Text'
 import { Field } from '../ui/Field'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Bits'
+import { AlertCircle, Check, X } from 'lucide-react-native'
 import { colors } from '../ui/theme'
 
 const CONFIRM_WORD = 'SUPPRIMER'
@@ -61,13 +61,17 @@ export default function SupprimerCompte() {
         <Text variant="body">Tu disposes de 30 jours pour changer d’avis. Passé ce délai, la suppression est définitive.</Text>
       </View>
 
-      <Card style={styles.card}>
-        <Text variant="bodyStrong">Ce qui disparaît</Text>
-        <Text variant="small">• Ton profil, tes messages et ta progression</Text>
-        <Text variant="small">• L’accès à tes ressources et à tes communautés</Text>
-        <Text variant="bodyStrong" style={{ marginTop: 8 }}>Ce qui est conservé</Text>
-        <Text variant="small">• Les factures et les traces de paiement, que la loi impose de garder</Text>
-      </Card>
+      {/* Deux listes simples, sans encadré beige : la page de suppression
+          d'un compte Google procède de la même façon. */}
+      <View style={styles.section}>
+        <Text variant="heading">Ce qui disparaît</Text>
+        <Point icon={<X size={18} color={colors.danger} />} text="Ton profil, tes messages et ta progression" />
+        <Point icon={<X size={18} color={colors.danger} />} text="L’accès à tes ressources et à tes communautés" />
+      </View>
+      <View style={styles.section}>
+        <Text variant="heading">Ce qui est conservé</Text>
+        <Point icon={<Check size={18} color={colors.ink2} />} text="Les factures et les traces de paiement, que la loi impose de garder" />
+      </View>
 
       <Field
         label={`Pour confirmer, écris ${CONFIRM_WORD}`}
@@ -78,12 +82,15 @@ export default function SupprimerCompte() {
       />
 
       {error ? (
-        <Card style={styles.refusal}>
-          <Text variant="small" style={{ color: colors.danger }}>{error.message}</Text>
+        <View style={styles.refusal}>
+          <View style={styles.point}>
+            <AlertCircle size={18} color={colors.danger} style={{ marginTop: 1 }} />
+            <Text variant="small" style={{ flex: 1, color: colors.ink }}>{error.message}</Text>
+          </View>
           {error.code === 'WALLET_RESIDUE' ? (
             <Button label="Abandonner ce solde et supprimer" tone="danger" onPress={() => submit(true)} loading={loading} />
           ) : null}
-        </Card>
+        </View>
       ) : null}
 
       <Button
@@ -97,7 +104,17 @@ export default function SupprimerCompte() {
   )
 }
 
+function Point({ icon, text }: { icon: ReactNode; text: string }) {
+  return (
+    <View style={styles.point}>
+      {icon}
+      <Text variant="body" style={{ flex: 1 }}>{text}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  card: { padding: 16, gap: 4, backgroundColor: colors.paper, borderColor: colors.line },
-  refusal: { padding: 14, gap: 10, backgroundColor: colors.dangerTint, borderColor: colors.dangerTint },
+  section: { gap: 8 },
+  point: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  refusal: { gap: 10 },
 })

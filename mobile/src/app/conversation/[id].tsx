@@ -114,8 +114,8 @@ function Announcement({ m }: { m: Message }) {
   return (
     <View style={styles.announcement}>
       <View style={styles.annHead}>
-        <Megaphone size={15} color={colors.clayInk} />
-        <Text variant="caption" style={{ color: colors.clayInk, fontFamily: fonts.bodySemi }}>Annonce · {m.authorName}</Text>
+        <Megaphone size={15} color={colors.clay} />
+        <Text variant="caption" style={{ color: colors.ink2, fontFamily: fonts.bodySemi }}>Annonce · {m.authorName}</Text>
       </View>
       <Text variant="body" style={{ color: colors.ink, fontSize: 15, lineHeight: 21 }}>{m.deleted ? 'Message supprimé' : m.body}</Text>
       <Text variant="caption" style={styles.annTime}>{timeLabel(m.createdAt)}</Text>
@@ -295,7 +295,9 @@ const styles = StyleSheet.create({
   metaSpacer: { color: 'transparent', fontSize: 12 },
   meta: { position: 'absolute', right: 8, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 3 },
   time: { fontSize: 11, color: colors.ink3, letterSpacing: 0 },
-  announcement: { alignSelf: 'center', width: '92%', backgroundColor: colors.clayTint, borderRadius: 12, padding: 12, gap: 6, marginVertical: 8 },
+  // Bulle blanche centrée, comme une annonce de communauté WhatsApp : pas de
+  // texte orange sur fond orange pâle. Seule l'icône porte la couleur.
+  announcement: { alignSelf: 'center', width: '92%', backgroundColor: colors.card, borderRadius: 12, padding: 12, gap: 6, marginVertical: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   annHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   annTime: { alignSelf: 'flex-end', fontSize: 11, letterSpacing: 0 },
   composerWrap: { paddingHorizontal: 8, paddingTop: 6, paddingBottom: 8 },

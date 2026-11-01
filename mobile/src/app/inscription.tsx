@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { api, ApiError } from '../lib/api'
 import { pendingSignup } from '../lib/pending-signup'
+import { openSitePage } from '../lib/links'
 import { Screen } from '../ui/Screen'
 import { Text } from '../ui/Text'
 import { Field } from '../ui/Field'
@@ -47,8 +48,8 @@ export default function Inscription() {
   return (
     <Screen keyboard edges={['bottom']}>
       <View style={{ gap: 6 }}>
-        <Text variant="title">Bienvenue</Text>
-        <Text variant="body">Crée ton compte pour apprendre avec les formateurs NKAMVA.</Text>
+        <Text variant="title">Créer ton compte</Text>
+        <Text variant="body">Pour apprendre avec les formateurs NKAMVA et rejoindre leurs communautés.</Text>
       </View>
       <Field label="Prénom et nom" value={fullName} onChangeText={setFullName} autoComplete="name" textContentType="name" error={errors.fullName} />
       <Field
@@ -74,7 +75,11 @@ export default function Inscription() {
       {errors.form ? <Text variant="small" style={{ color: colors.danger }}>{errors.form}</Text> : null}
       <Button label="Créer mon compte" onPress={submit} loading={loading} />
       <Text variant="caption" style={styles.legal}>
-        En créant un compte, tu acceptes les conditions générales et la politique de confidentialité de NKAMVA.
+        En créant un compte, tu acceptes les{' '}
+        <Text variant="caption" style={styles.link} onPress={() => openSitePage('/legal/conditions')}>conditions générales</Text>
+        {' '}et la{' '}
+        <Text variant="caption" style={styles.link} onPress={() => openSitePage('/legal/confidentialite')}>politique de confidentialité</Text>
+        {' '}de NKAMVA.
       </Text>
     </Screen>
   )
@@ -82,4 +87,5 @@ export default function Inscription() {
 
 const styles = StyleSheet.create({
   legal: { textAlign: 'center' },
+  link: { color: colors.ink2, textDecorationLine: 'underline' },
 })

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Search, X } from 'lucide-react-native'
+import { Search, WifiOff, X } from 'lucide-react-native'
 import { useCatalog, useResources } from '../../lib/queries'
 import { FORMAT_LABELS } from '../../lib/format'
 import { Text } from '../../ui/Text'
@@ -83,7 +83,7 @@ export default function Explorer() {
           data={courses}
           keyExtractor={(c) => c.id}
           contentContainerStyle={styles.list}
-          ListHeaderComponent={<Text variant="caption">{total} ressource{total > 1 ? 's' : ''}</Text>}
+          ListHeaderComponent={total ? <Text variant="caption">{total} ressource{total > 1 ? 's' : ''}</Text> : undefined}
           numColumns={2}
           columnWrapperStyle={{ gap: GAP }}
           ItemSeparatorComponent={() => <View style={{ height: GAP }} />}
@@ -91,7 +91,22 @@ export default function Explorer() {
           onEndReached={() => { if (catalog.hasNextPage && !catalog.isFetchingNextPage) void catalog.fetchNextPage() }}
           onEndReachedThreshold={0.4}
           ListFooterComponent={catalog.isFetchingNextPage ? <ActivityIndicator color={colors.brand} style={{ margin: 16 }} /> : undefined}
-          ListEmptyComponent={<EmptyState title="Aucun résultat" body="Essaie un autre mot ou retire le filtre." />}
+          // Comme la recherche d'iOS : la loupe, le mot cherché, et le conseil
+          // qui correspond à ce qui a été tapé ou filtré.
+          ListEmptyComponent={catalog.fetchStatus === 'paused' ? (
+            // Requête en attente du réseau : ce n'est pas « aucun résultat ».
+            <EmptyState
+              icon={<WifiOff color={colors.ink3} size={40} strokeWidth={1.5} />}
+              title="Recherche indisponible hors ligne"
+              body="Elle reprendra d’elle-même dès que le réseau revient."
+            />
+          ) : (
+            <EmptyState
+              icon={<Search color={colors.ink3} size={40} strokeWidth={1.5} />}
+              title={query.trim() ? `Aucun résultat pour « ${query.trim()} »` : 'Aucune ressource'}
+              body={format ? 'Retire le filtre ou essaie un autre mot.' : 'Vérifie l’orthographe ou essaie un autre mot.'}
+            />
+          )}
           refreshing={catalog.isRefetching && !catalog.isFetchingNextPage}
           onRefresh={() => catalog.refetch()}
         />

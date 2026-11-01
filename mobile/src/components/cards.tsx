@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import { PauseCircle, Video } from 'lucide-react-native'
+import { CheckCircle2, PauseCircle, Video } from 'lucide-react-native'
 import * as WebBrowser from 'expo-web-browser'
 import { API_URL } from '../lib/config'
 import { Button } from '../ui/Button'
@@ -79,6 +79,14 @@ export function ResourceRow({ item }: { item: ResourceItem }) {
           </View>
         ) : percent === null ? (
           <Text variant="caption">Commencé</Text>
+        ) : percent === 0 ? (
+          // Comme Apple Books : pas de barre vide à 0 %, une mention.
+          <Text variant="caption">Pas encore commencé</Text>
+        ) : percent === 100 ? (
+          <View style={styles.row}>
+            <CheckCircle2 size={14} color={colors.success} />
+            <Text variant="caption" style={{ color: colors.success }}>Terminé</Text>
+          </View>
         ) : (
           <View style={styles.progressRow}>
             <View style={{ flex: 1 }}><Progress value={percent} /></View>
@@ -92,6 +100,17 @@ export function ResourceRow({ item }: { item: ResourceItem }) {
 
 /** On peut entrer dans la salle un quart d'heure avant le début. */
 const JOIN_WINDOW_MS = 15 * 60 * 1000
+
+/**
+ * À afficher dans « Prochains lives » : en cours, ou programmé et pas encore
+ * terminé. Une séance programmée dont l'heure de fin est passée sans qu'elle
+ * ait démarré n'a plus rien à proposer.
+ */
+export function isUpcoming(session: Pick<AgendaSession, 'status' | 'live' | 'startsAt' | 'durationMinutes'>): boolean {
+  if (session.status === 'LIVE' || session.live) return true
+  if (session.status !== 'SCHEDULED') return false
+  return new Date(session.startsAt).getTime() + session.durationMinutes * 60 * 1000 > Date.now()
+}
 
 /**
  * La vidéo en direct n'est pas encore native (elle demande un build de
@@ -116,6 +135,8 @@ export function LiveCard({ session }: { session: AgendaSession }) {
   const joinable = live || (session.status === 'SCHEDULED' && new Date(session.startsAt).getTime() - Date.now() < JOIN_WINDOW_MS)
   const start = new Date(session.startsAt)
   const time = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`
+  const days = Math.round((new Date(start).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86_400_000)
+  const when = days === 0 ? `Aujourd’hui, ${time}` : days === 1 ? `Demain, ${time}` : time
   return (
     <Card style={styles.live}>
       <View style={styles.liveHead}>
@@ -127,7 +148,7 @@ export function LiveCard({ session }: { session: AgendaSession }) {
           {live ? <Chip label="EN DIRECT" tone="live" /> : null}
           <Text variant="bodyStrong" numberOfLines={2}>{session.title}</Text>
           <Text variant="small" numberOfLines={1}>
-            {live ? 'Maintenant' : time} · {session.durationMinutes} min · {session.community.name}
+            {live ? 'Maintenant' : when} · {session.durationMinutes} min · {session.community.name}
           </Text>
         </View>
       </View>

@@ -73,7 +73,7 @@ function RootNavigator() {
         <Stack.Screen name="lecteur/[courseId]" options={{ title: '' }} />
         <Stack.Screen name="conversation/[id]" options={{ title: '' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
-        <Stack.Screen name="lives" options={{ title: 'Lives à venir' }} />
+        <Stack.Screen name="lives" options={{ title: 'Agenda des lives' }} />
         <Stack.Screen name="communautes" options={{ title: 'Mes communautés' }} />
         <Stack.Screen name="profil" options={{ title: 'Mon profil' }} />
         <Stack.Screen name="favoris" options={{ title: 'Mes favoris' }} />
@@ -86,9 +86,9 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="connexion" options={{ headerShown: false }} />
-        <Stack.Screen name="inscription" options={{ title: 'Créer un compte' }} />
-        <Stack.Screen name="verifier-code" options={{ title: 'Vérifier mon adresse' }} />
-        <Stack.Screen name="mot-de-passe-oublie" options={{ title: 'Mot de passe oublié' }} />
+        <Stack.Screen name="inscription" options={{ title: '' }} />
+        <Stack.Screen name="verifier-code" options={{ title: '' }} />
+        <Stack.Screen name="mot-de-passe-oublie" options={{ title: '' }} />
       </Stack.Protected>
     </Stack>
   )

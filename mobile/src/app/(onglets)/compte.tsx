@@ -1,6 +1,6 @@
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import { Bell, ChevronRight, Globe, Heart, KeyRound, LifeBuoy, LogOut, Pencil, Radio, ShieldCheck, Trash2, Users } from 'lucide-react-native'
+import { AlertTriangle, Bell, ChevronRight, FileText, Heart, KeyRound, LifeBuoy, Lock, LogOut, Pencil, Radio, ShieldCheck, Trash2, Users } from 'lucide-react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/api'
 import { keys } from '../../lib/queries'
@@ -10,6 +10,7 @@ import type { ReactNode } from 'react'
 import { useAuth } from '../../lib/auth'
 import { useProfile } from '../../lib/queries'
 import { API_URL } from '../../lib/config'
+import { openSitePage } from '../../lib/links'
 import { Screen } from '../../ui/Screen'
 import { Text } from '../../ui/Text'
 import { Avatar, Card } from '../../ui/Bits'
@@ -19,7 +20,8 @@ function Item({ icon, label, onPress, danger }: { icon: ReactNode; label: string
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.item, pressed && { backgroundColor: colors.paper }]} accessibilityRole="button">
       {icon}
-      <Text variant="bodyStrong" style={[{ flex: 1 }, danger && { color: colors.danger }]}>{label}</Text>
+      {/* Graisse normale, comme les Réglages iOS : le demi-gras sur chaque ligne alourdissait la liste. */}
+      <Text variant="body" style={[{ flex: 1, color: colors.ink }, danger && { color: colors.danger }]}>{label}</Text>
       {danger ? null : <ChevronRight size={18} color={colors.hairline} />}
     </Pressable>
   )
@@ -63,8 +65,13 @@ export default function Compte() {
       </Card>
 
       {p?.deletionScheduledAt ? (
+        // Encadré blanc et icône d'alerte, comme les avertissements des
+        // Réglages iOS : pas de texte rouge sur fond rose.
         <Card style={styles.deletion}>
-          <Text variant="bodyStrong" style={{ color: colors.danger }}>Suppression programmée le {formatDate(p.deletionScheduledAt)}</Text>
+          <View style={styles.deletionHead}>
+            <AlertTriangle size={20} color={colors.danger} />
+            <Text variant="bodyStrong" style={{ flex: 1 }}>Suppression programmée le {formatDate(p.deletionScheduledAt)}</Text>
+          </View>
           <Text variant="small">Ton compte reste utilisable jusque-là. Tu peux encore changer d’avis.</Text>
           <Button label="Annuler la suppression" tone="secondary" onPress={cancelDeletion} />
         </Card>
@@ -85,9 +92,11 @@ export default function Compte() {
         <View style={styles.sep} />
         <Item icon={<ShieldCheck size={20} color={colors.ink2} />} label="Sécurité et données" onPress={() => openWeb('/mon-compte')} />
         <View style={styles.sep} />
-        <Item icon={<LifeBuoy size={20} color={colors.ink2} />} label="Aide" onPress={() => openWeb('/aide')} />
+        <Item icon={<LifeBuoy size={20} color={colors.ink2} />} label="Aide" onPress={() => openSitePage('/aide')} />
         <View style={styles.sep} />
-        <Item icon={<Globe size={20} color={colors.ink2} />} label="Conditions et confidentialité" onPress={() => openWeb('/legal')} />
+        <Item icon={<FileText size={20} color={colors.ink2} />} label="Conditions générales" onPress={() => openSitePage('/legal/conditions')} />
+        <View style={styles.sep} />
+        <Item icon={<Lock size={20} color={colors.ink2} />} label="Confidentialité" onPress={() => openSitePage('/legal/confidentialite')} />
       </Card>
 
       <Card style={styles.group}>
@@ -108,7 +117,8 @@ const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
   group: { overflow: 'hidden' },
   item: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, minHeight: 56 },
-  deletion: { padding: 16, gap: 8, backgroundColor: colors.dangerTint, borderColor: colors.dangerTint },
+  deletion: { padding: 16, gap: 10 },
+  deletionHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   sep: { height: 1, backgroundColor: colors.line2, marginLeft: 50 },
 })

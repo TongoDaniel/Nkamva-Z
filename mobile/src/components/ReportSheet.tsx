@@ -57,7 +57,7 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
   }
 
   return (
-    <Modal visible={!!target} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={!!target} transparent statusBarTranslucent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Fermer" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
@@ -78,12 +78,13 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
                     <Pressable
                       key={r.value}
                       onPress={() => setReason(r.value)}
-                      style={[styles.reason, active && styles.reasonActive]}
+                      style={styles.reason}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: active }}
                     >
-                      <Text variant="bodyStrong" style={{ fontSize: 15, flex: 1 }}>{r.label}</Text>
-                      {active ? <Check size={18} color={colors.brand} /> : null}
+                      <Text variant="body" style={{ flex: 1, color: colors.ink }}>{r.label}</Text>
+                      {/* La coche seule, comme une liste de choix iOS. */}
+                      {active ? <Check size={20} color={colors.brand} /> : null}
                     </Pressable>
                   )
                 })}
@@ -113,6 +114,5 @@ const styles = StyleSheet.create({
   handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.line, marginBottom: 14 },
   reasons: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line2, overflow: 'hidden' },
   reason: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  reasonActive: { backgroundColor: colors.brandTint },
   detail: { minHeight: 72, maxHeight: 140, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 12, fontFamily: fonts.body, fontSize: 16, color: colors.ink, textAlignVertical: 'top' },
 })
