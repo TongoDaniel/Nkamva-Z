@@ -1,6 +1,9 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import { Radio } from 'lucide-react-native'
+import { Radio, Video } from 'lucide-react-native'
+import * as WebBrowser from 'expo-web-browser'
+import { API_URL } from '../lib/config'
+import { Button } from '../ui/Button'
 import { Cover } from '../ui/Cover'
 import { Text } from '../ui/Text'
 import { Card, Chip, Progress } from '../ui/Bits'
@@ -85,8 +88,23 @@ export function ResourceRow({ item }: { item: ResourceItem }) {
   )
 }
 
+/** On peut entrer dans la salle un quart d'heure avant le début. */
+const JOIN_WINDOW_MS = 15 * 60 * 1000
+
+/**
+ * La vidéo en direct n'est pas encore native (elle demande un build de
+ * développement, docs/application-mobile.md § 4). En attendant, la salle
+ * s'ouvre dans le navigateur intégré, qui partage la connexion au site.
+ */
+function joinLive(sessionId: string) {
+  void WebBrowser.openBrowserAsync(`${API_URL}/mes-lives/live/${sessionId}`, {
+    presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+  })
+}
+
 export function LiveCard({ session }: { session: AgendaSession }) {
   const live = session.status === 'LIVE' || session.live
+  const joinable = live || (session.status === 'SCHEDULED' && new Date(session.startsAt).getTime() - Date.now() < JOIN_WINDOW_MS)
   return (
     <Card style={styles.live}>
       <View style={styles.row}>
@@ -99,6 +117,14 @@ export function LiveCard({ session }: { session: AgendaSession }) {
           {session.community.name} · {session.host.name} · {session.durationMinutes} min
         </Text>
       </View>
+      {joinable ? (
+        <Button
+          label={live ? 'Rejoindre le live' : 'Entrer dans la salle'}
+          icon={<Video size={18} color="#fff" />}
+          onPress={() => joinLive(session.id)}
+          style={{ marginTop: 4 }}
+        />
+      ) : null}
     </Card>
   )
 }

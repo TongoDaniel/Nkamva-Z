@@ -13,6 +13,7 @@ export const keys = {
   content: (courseId: string) => ['content', courseId] as const,
   communities: ['communities'] as const,
   myCommunities: ['my-communities'] as const,
+  favorites: ['favorites'] as const,
   community: (slug: string) => ['community', slug] as const,
   lives: ['lives'] as const,
   conversations: ['conversations'] as const,
@@ -93,6 +94,39 @@ export function useOpenTrainerConversation() {
   return useMutation({
     mutationFn: (communitySlug: string) => api.post<{ id: string }>('me/conversations', { communitySlug }),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: keys.conversations }) },
+  })
+}
+
+interface Favorites { courses: CourseListItem[]; communities: unknown[] }
+
+export function useFavorites() {
+  return useQuery({ queryKey: keys.favorites, queryFn: ({ signal }) => api.get<Favorites>('me/favorites', signal) })
+}
+
+/**
+ * Ajoute ou retire une ressource des favoris. Le cœur change tout de suite, et
+ * revient en arrière si le serveur refuse.
+ */
+export function useToggleFavorite() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (course: CourseListItem) => api.post<{ favorited: boolean }>('me/favorites', { courseId: course.id }),
+    onMutate: async (course) => {
+      await queryClient.cancelQueries({ queryKey: keys.favorites })
+      const previous = queryClient.getQueryData<Favorites>(keys.favorites)
+      if (previous) {
+        const has = previous.courses.some((c) => c.id === course.id)
+        queryClient.setQueryData<Favorites>(keys.favorites, {
+          ...previous,
+          courses: has ? previous.courses.filter((c) => c.id !== course.id) : [course, ...previous.courses],
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _course, context) => {
+      if (context?.previous) queryClient.setQueryData(keys.favorites, context.previous)
+    },
+    onSettled: () => { void queryClient.invalidateQueries({ queryKey: keys.favorites }) },
   })
 }
 

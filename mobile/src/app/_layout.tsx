@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { CACHE_MAX_AGE, persister, shouldPersist } from '../lib/offline'
+import { OfflineBanner } from '../components/OfflineBanner'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useFonts, BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque'
@@ -24,10 +27,17 @@ function makeQueryClient() {
     defaultOptions: {
       queries: {
         staleTime: 30_000,
+        // Gardé au moins aussi longtemps que le cache disque, sinon une donnée
+        // enregistrée serait jetée de la mémoire avant d'avoir pu resservir.
+        gcTime: CACHE_MAX_AGE,
         // Un refus du serveur (403, 404) ne se corrige pas en réessayant ;
         // une coupure réseau, si.
         retry: (count, error) => !(error instanceof ApiError && error.status >= 400 && error.status < 500) && count < 2,
       },
+      // Une action (envoyer un message, enregistrer le profil) part tout de suite
+      // et échoue avec un message clair sans réseau, plutôt que d'attendre en
+      // silence qu'il revienne.
+      mutations: { networkMode: 'always' },
     },
   })
 }
@@ -66,7 +76,9 @@ function RootNavigator() {
         <Stack.Screen name="lives" options={{ title: 'Lives à venir' }} />
         <Stack.Screen name="communautes" options={{ title: 'Mes communautés' }} />
         <Stack.Screen name="profil" options={{ title: 'Mon profil' }} />
+        <Stack.Screen name="favoris" options={{ title: 'Mes favoris' }} />
         <Stack.Screen name="mot-de-passe" options={{ title: 'Mot de passe' }} />
+        <Stack.Screen name="supprimer-compte" options={{ title: '' }} />
         <Stack.Screen name="communaute/[slug]" options={{ title: '' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn && !onboarded}>
@@ -98,14 +110,18 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister, maxAge: CACHE_MAX_AGE, dehydrateOptions: { shouldDehydrateQuery: shouldPersist } }}
+        >
           <OnboardingProvider>
             <AuthProvider>
               <StatusBar style="dark" />
               <RootNavigator />
+              <OfflineBanner />
             </AuthProvider>
           </OnboardingProvider>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )

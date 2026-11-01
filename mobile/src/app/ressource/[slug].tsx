@@ -1,7 +1,8 @@
-import { StyleSheet, View } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
-import { Check, Lock } from 'lucide-react-native'
-import { useCourse, useResources } from '../../lib/queries'
+import { useState } from 'react'
+import { Pressable, StyleSheet, View } from 'react-native'
+import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { Check, Flag, Heart, Lock } from 'lucide-react-native'
+import { useCourse, useFavorites, useResources, useToggleFavorite } from '../../lib/queries'
 import { formatDuration, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
 import { Text } from '../../ui/Text'
@@ -11,6 +12,7 @@ import { Cover } from '../../ui/Cover'
 import { ErrorState } from '../../ui/States'
 import { Bone } from '../../ui/Skeleton'
 import { colors } from '../../ui/theme'
+import { ReportSheet, type ReportTarget } from '../../components/ReportSheet'
 
 /**
  * Fiche d'une ressource. Pas de prix ni de bouton d'achat : la vente passe par
@@ -38,6 +40,9 @@ export default function Ressource() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const course = useCourse(slug)
   const resources = useResources()
+  const [report, setReport] = useState<ReportTarget | null>(null)
+  const favorites = useFavorites()
+  const toggleFavorite = useToggleFavorite()
 
   if (course.isLoading) return <DetailSkeleton />
   if (course.isError || !course.data) {
@@ -48,9 +53,25 @@ export default function Ressource() {
   const owned = resources.data?.find((r) => r.courseId === c.id)
   const duration = formatDuration(c.durationSeconds)
   const trainer = c.trainerProfile
+  const favorited = !!favorites.data?.courses.some((f) => f.id === c.id)
 
   return (
     <Screen edges={['bottom']}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() => toggleFavorite.mutate(c)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={favorited ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              accessibilityState={{ selected: favorited }}
+            >
+              <Heart size={24} color={favorited ? colors.danger : colors.ink} fill={favorited ? colors.danger : 'transparent'} />
+            </Pressable>
+          ),
+        }}
+      />
       <Cover course={c} height={200} />
 
       <View style={{ gap: 10 }}>
@@ -121,6 +142,12 @@ export default function Ressource() {
         </View>
       </Card>
       {trainer.description ? <Text variant="body">{trainer.description}</Text> : null}
+
+      <Pressable onPress={() => setReport({ type: 'COURSE', id: c.id, label: 'cette ressource' })} style={styles.report} accessibilityRole="button">
+        <Flag size={15} color={colors.ink3} />
+        <Text variant="small" style={{ color: colors.ink3 }}>Signaler cette ressource</Text>
+      </Pressable>
+      <ReportSheet target={report} onClose={() => setReport(null)} />
     </Screen>
   )
 }
@@ -129,5 +156,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   notice: { padding: 16, gap: 6, backgroundColor: colors.paper, borderColor: colors.line },
   point: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   trainer: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
 })

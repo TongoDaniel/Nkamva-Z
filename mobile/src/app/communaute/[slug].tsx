@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { ChevronRight, MessageCircle, Send, Users } from 'lucide-react-native'
+import { ChevronRight, Flag, MessageCircle, Send, Users } from 'lucide-react-native'
+import { ReportSheet, type ReportTarget } from '../../components/ReportSheet'
 import { useCommunitySpace, useOpenTrainerConversation, useResources } from '../../lib/queries'
 import { formatDate, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
@@ -37,6 +38,7 @@ export default function Communaute() {
   const resources = useResources()
   const openDm = useOpenTrainerConversation()
   const [expanded, setExpanded] = useState(false)
+  const [report, setReport] = useState<ReportTarget | null>(null)
 
   if (space.isLoading) return <SpaceSkeleton />
   if (space.isError || !space.data) {
@@ -151,6 +153,14 @@ export default function Communaute() {
           ) : null}
         </View>
       ) : null}
+
+      {!s.isTrainer ? (
+        <Pressable onPress={() => setReport({ type: 'COMMUNITY', id: s.communityId, label: 'cette communauté' })} style={styles.report} accessibilityRole="button">
+          <Flag size={15} color={colors.ink3} />
+          <Text variant="small" style={{ color: colors.ink3 }}>Signaler cette communauté</Text>
+        </Pressable>
+      ) : null}
+      <ReportSheet target={report} onClose={() => setReport(null)} />
     </Screen>
   )
 }
@@ -158,5 +168,6 @@ export default function Communaute() {
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: { width: 64, height: 64, borderRadius: radius.lg - 4, backgroundColor: colors.brandTint, alignItems: 'center', justifyContent: 'center' },
+  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   course: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingVertical: 10 },
 })

@@ -1,6 +1,11 @@
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import { Bell, ChevronRight, Globe, KeyRound, LifeBuoy, LogOut, Pencil, Radio, ShieldCheck, Users } from 'lucide-react-native'
+import { Bell, ChevronRight, Globe, Heart, KeyRound, LifeBuoy, LogOut, Pencil, Radio, ShieldCheck, Trash2, Users } from 'lucide-react-native'
+import { useQueryClient } from '@tanstack/react-query'
+import { api } from '../../lib/api'
+import { keys } from '../../lib/queries'
+import { formatDate } from '../../lib/format'
+import { Button } from '../../ui/Button'
 import type { ReactNode } from 'react'
 import { useAuth } from '../../lib/auth'
 import { useProfile } from '../../lib/queries'
@@ -24,6 +29,13 @@ export default function Compte() {
   const { logout } = useAuth()
   const profile = useProfile()
   const p = profile.data
+  const queryClient = useQueryClient()
+
+  function cancelDeletion() {
+    api.del('me/deletion')
+      .then(() => queryClient.invalidateQueries({ queryKey: keys.profile }))
+      .catch((err) => Alert.alert('Annulation impossible', err instanceof Error ? err.message : ''))
+  }
 
   function confirmLogout() {
     Alert.alert('Se déconnecter ?', 'Tu pourras te reconnecter à tout moment.', [
@@ -50,8 +62,18 @@ export default function Compte() {
         <Pencil size={18} color={colors.ink3} />
       </Card>
 
+      {p?.deletionScheduledAt ? (
+        <Card style={styles.deletion}>
+          <Text variant="bodyStrong" style={{ color: colors.danger }}>Suppression programmée le {formatDate(p.deletionScheduledAt)}</Text>
+          <Text variant="small">Ton compte reste utilisable jusque-là. Tu peux encore changer d’avis.</Text>
+          <Button label="Annuler la suppression" tone="secondary" onPress={cancelDeletion} />
+        </Card>
+      ) : null}
+
       <Card style={styles.group}>
         <Item icon={<Users size={20} color={colors.ink2} />} label="Mes communautés" onPress={() => router.push('/communautes')} />
+        <View style={styles.sep} />
+        <Item icon={<Heart size={20} color={colors.ink2} />} label="Mes favoris" onPress={() => router.push('/favoris')} />
         <View style={styles.sep} />
         <Item icon={<Bell size={20} color={colors.ink2} />} label="Notifications" onPress={() => router.push('/notifications')} />
         <View style={styles.sep} />
@@ -71,6 +93,13 @@ export default function Compte() {
       <Card style={styles.group}>
         <Item icon={<LogOut size={20} color={colors.danger} />} label="Se déconnecter" onPress={confirmLogout} danger />
       </Card>
+
+      {p?.deletionScheduledAt ? null : (
+        <Pressable onPress={() => router.push('/supprimer-compte')} style={styles.deleteLink} accessibilityRole="button">
+          <Trash2 size={16} color={colors.ink3} />
+          <Text variant="small" style={{ color: colors.ink3 }}>Supprimer mon compte</Text>
+        </Pressable>
+      )}
     </Screen>
   )
 }
@@ -79,5 +108,7 @@ const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
   group: { overflow: 'hidden' },
   item: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, minHeight: 56 },
+  deletion: { padding: 16, gap: 8, backgroundColor: colors.dangerTint, borderColor: colors.dangerTint },
+  deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   sep: { height: 1, backgroundColor: colors.line2, marginLeft: 50 },
 })

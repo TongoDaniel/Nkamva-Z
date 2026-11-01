@@ -28,6 +28,8 @@ export interface Profile {
   relationalEmails: boolean
   subscriptionNoticeEmails: boolean
   createdAt: string
+  /** Suppression demandée : le compte s'efface à cette date, sauf annulation. */
+  deletionScheduledAt: string | null
 }
 
 export interface TrainerSummary {
