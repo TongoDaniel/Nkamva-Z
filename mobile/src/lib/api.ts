@@ -82,6 +82,7 @@ export const api = {
   page: <T>(path: string, signal?: AbortSignal) => request<T>(path, { signal }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ?? {} }).then((r) => r.data),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body: body ?? {} }).then((r) => r.data),
+  del: <T>(path: string) => request<T>(path, { method: 'DELETE' }).then((r) => r.data),
 }
 
 /** Couverture d'une ressource : la route redirige vers l'image signée. */

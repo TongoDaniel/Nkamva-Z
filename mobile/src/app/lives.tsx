@@ -29,7 +29,7 @@ export default function Lives() {
       ListHeaderComponent={
         upcoming.length ? (
           <Card style={{ padding: 14, backgroundColor: colors.paper, marginBottom: 4 }}>
-            <Text variant="small">Bientôt : rejoindre les lives directement depuis l’app. Pour l’instant, ils se suivent sur nkamva.com.</Text>
+            <Text variant="small">Un quart d’heure avant le début, un bouton te permet d’entrer dans la salle. Elle s’ouvre dans le navigateur ; la vidéo directement dans l’app arrive bientôt.</Text>
           </Card>
         ) : undefined
       }

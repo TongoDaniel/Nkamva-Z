@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useQueryClient } from '@tanstack/react-query'
 import { api, ApiError, setApiToken, setUnauthorizedHandler } from './api'
 import { tokenStore } from './token-store'
+import { clearPersistedCache } from './offline'
 import type { SessionUser } from './types'
 
 type Status = 'loading' | 'signedOut' | 'signedIn'
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setStatus('signedOut')
     queryClient.clear()
-    await tokenStore.clear()
+    await Promise.all([tokenStore.clear(), clearPersistedCache()])
   }, [queryClient])
 
   useEffect(() => {

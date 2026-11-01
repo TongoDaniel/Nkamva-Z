@@ -12,6 +12,7 @@ import { Avatar } from '../../ui/Bits'
 import { ErrorState, Loading } from '../../ui/States'
 import { colors, fonts } from '../../ui/theme'
 import { ChatWallpaper } from '../../components/ChatWallpaper'
+import { ReportSheet, type ReportTarget } from '../../components/ReportSheet'
 import type { ConversationDetail, Message } from '../../lib/types'
 
 /** Bulles envoyées : un bleu de marque très clair, comme le vert pâle de WhatsApp. */
@@ -75,11 +76,14 @@ function Tail({ mine }: { mine: boolean }) {
   )
 }
 
-function Bubble({ m, first, group }: { m: Message; first: boolean; group: boolean }) {
+function Bubble({ m, first, group, onReport }: { m: Message; first: boolean; group: boolean; onReport: () => void }) {
   const read = m.mine && !!m.readAt
   return (
     <View style={[styles.bubbleRow, m.mine ? styles.rowMine : styles.rowTheirs, { marginTop: first ? 8 : 2 }]}>
-      <View
+      {/* Appui long sur le message d'un autre : le signaler. */}
+      <Pressable
+        onLongPress={!m.mine && !m.deleted ? onReport : undefined}
+        delayLongPress={350}
         style={[
           styles.bubble,
           { backgroundColor: m.mine ? MINE_BG : THEIRS_BG },
@@ -101,7 +105,7 @@ function Bubble({ m, first, group }: { m: Message; first: boolean; group: boolea
           <Text variant="caption" style={styles.time}>{timeLabel(m.createdAt)}</Text>
           {m.mine ? (read ? <CheckCheck size={14} color={colors.brand} /> : <Check size={14} color={colors.ink3} />) : null}
         </View>
-      </View>
+      </Pressable>
     </View>
   )
 }
@@ -144,6 +148,7 @@ export default function Conversation() {
   const send = useSendMessage(id)
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [report, setReport] = useState<ReportTarget | null>(null)
 
   const c = conversation.data
   const rows = useMemo(() => buildRows(c?.messages ?? []), [c?.messages])
@@ -182,6 +187,7 @@ export default function Conversation() {
         }}
       />
       <ChatWallpaper />
+      <ReportSheet target={report} onClose={() => setReport(null)} />
       {conversation.isLoading ? (
         <Loading />
       ) : conversation.isError ? (
@@ -201,7 +207,12 @@ export default function Conversation() {
               ) : item.message.announcement ? (
                 <Announcement m={item.message} />
               ) : (
-                <Bubble m={item.message} first={item.first} group={c?.kind === 'GROUP'} />
+                <Bubble
+                  m={item.message}
+                  first={item.first}
+                  group={c?.kind === 'GROUP'}
+                  onReport={() => setReport({ type: 'MESSAGE', id: item.message.id, label: 'ce message' })}
+                />
               )
             }
             ListEmptyComponent={

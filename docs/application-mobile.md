@@ -71,6 +71,11 @@ paiement Apple et le retrait de la vente côté iOS.
 | Notifications | `me/notifications` |
 | Compte : profil, préférences d'e-mail, mot de passe, déconnexion | `me/profile`, `me/password` |
 | Onboarding (premier lancement) | aucune |
+| Supprimer son compte (exigé par Apple et Google), avec annulation pendant 30 jours | `me/deletion` (POST, DELETE) |
+| Signaler un message, une ressource, une communauté (exigé pour le contenu publié par les utilisateurs) | `reports` |
+| Favoris | `me/favorites` |
+| Hors ligne : contenu déjà vu gardé sur le téléphone une semaine, bandeau « Hors ligne » | aucune |
+| Lives : bouton « Entrer dans la salle » un quart d'heure avant, la salle s'ouvre dans le navigateur | page web `/mes-lives/live/[id]` |
 
 Barre d'onglets native, cinq destinations : **Accueil, Explorer, Bibliothèque,
 Messages, Compte**. Sur iOS 26, c'est la barre flottante Liquid Glass du système ;
