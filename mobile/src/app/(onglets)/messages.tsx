@@ -10,6 +10,8 @@ import { EmptyState, ErrorState } from '../../ui/States'
 import { ConversationSkeleton, Repeat } from '../../ui/Skeleton'
 import { colors } from '../../ui/theme'
 import type { ConversationSummary } from '../../lib/types'
+import { AccountGate } from '../../components/AccountGate'
+import { useAuth } from '../../lib/auth'
 
 function preview(c: ConversationSummary): string {
   const m = c.lastMessage
@@ -51,7 +53,7 @@ function Row({ c }: { c: ConversationSummary }) {
   )
 }
 
-export default function Messages() {
+function MemberMessages() {
   const conversations = useConversations()
   return (
     <SafeAreaView edges={['top']} style={styles.fill}>
@@ -88,3 +90,9 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
 })
+
+/** Un visiteur sans compte voit pourquoi créer un compte ; un compte connecté, son espace. */
+export default function Messages() {
+  const { status } = useAuth()
+  return status === 'signedIn' ? <MemberMessages /> : <SafeAreaView edges={['top']} style={styles.fill}><AccountGate reason="messages" icon={<MessageCircle color={colors.ink3} size={40} strokeWidth={1.5} />} /></SafeAreaView>
+}

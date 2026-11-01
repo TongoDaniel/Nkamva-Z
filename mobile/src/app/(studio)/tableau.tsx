@@ -42,7 +42,7 @@ export default function Tableau() {
   // si elle a lieu d'être.
   const todo = p ? [
     p.subscription?.subscriptionStatus === 'PAST_DUE'
-      ? <ListRow key="sub" icon={<AlertTriangle size={20} color={colors.danger} />} label="Abonnement à régler" detail={p.subscription.suspensionAt ? `Suspension le ${formatDate(p.subscription.suspensionAt)}` : undefined} value={formatFcfa(p.subscription.dueTotalFcfa)} onPress={() => openTrainerPage('/formateur/abonnement')} />
+      ? <ListRow key="sub" icon={<AlertTriangle size={20} color={colors.danger} />} label="Abonnement à régler" detail={p.subscription.suspensionAt ? `Suspension le ${formatDate(p.subscription.suspensionAt)}` : undefined} value={formatFcfa(p.subscription.dueTotalFcfa)} />
       : null,
     p.disputesToContest > 0
       ? <ListRow key="disp" icon={<Gavel {...ICON} />} label="Litiges sans réponse" value={String(p.disputesToContest)} onPress={() => router.push('/studio/litiges')} />

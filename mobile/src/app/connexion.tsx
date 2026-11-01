@@ -38,7 +38,7 @@ export default function Connexion() {
   }
 
   return (
-    <Screen keyboard edges={['top', 'bottom']} contentStyle={styles.content}>
+    <Screen keyboard edges={['bottom']} contentStyle={styles.content}>
       <View style={styles.brand}>
         <Image source={require('../../assets/marque/marque-256.png')} style={styles.logo} />
         <Text variant="display">Bon retour sur NKAMVA</Text>

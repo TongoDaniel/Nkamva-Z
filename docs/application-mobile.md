@@ -54,6 +54,30 @@ Mobile Money) pour vendre du contenu numérique dans une app. V1 :
 de son paiement intégré. Si c'est le cas à la revue, on décidera entre le
 paiement Apple et le retrait de la vente côté iOS.
 
+### Parcourir sans compte, payer sur le site
+
+- **Visiteur** : après l'onboarding (« Découvrir NKAMVA »), l'app s'ouvre sur un
+  accueil sans compte (ressources à découvrir, communautés). Le catalogue, la
+  fiche d'une ressource et celle d'une communauté (`GET /api/communities/[slug]`,
+  ajoutée pour l'app) se lisent sans compte. Le compte est demandé au moment
+  utile, avec ce qu'il débloque : favori, bibliothèque, messages, signalement,
+  rejoindre une communauté. Exiger l'inscription d'emblée fait fuir, et l'App
+  Store le refuse (règle 5.1.1(v)).
+- **Payer** : acheter une ressource, adhérer à une communauté, régler
+  l'abonnement formateur se font sur nkamva.com. Hors des États-Unis, Apple
+  interdit tout bouton, lien ou mention qui renverrait vers un paiement
+  extérieur (règle 3.1.1 / 3.1.3) ; Google Play applique la même règle.
+  L'app n'affiche donc ni prix ni lien vers une page de paiement, y compris
+  depuis une notification (`openSiteLink` neutralise `/achat`, `/adhesion`,
+  `/tarifs`, `/formateur/abonnement`). Ce qui est acheté sur le site apparaît
+  dans l'app au rechargement.
+- **Retraits formateur** : ce n'est pas un achat, la règle ne s'applique pas.
+  Ils se demandent dans l'app (écran Portefeuille).
+- **Pour faire connaître le site sans enfreindre la règle** : e-mail de
+  bienvenue, notifications par e-mail, réseaux sociaux. Le jour où l'option
+  existera dans nos pays, l'achat intégré (Apple/Google, 15 à 30 %) ou le
+  lien externe autorisé (entitlement régional) pourront être réétudiés.
+
 ## 4. Périmètre
 
 ### V1 : l'apprenant

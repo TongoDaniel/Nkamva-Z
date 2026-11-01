@@ -36,6 +36,19 @@ export function openSiteLink(link: string | null | undefined) {
       return router.push('/profil')
     case 'notifications':
       return
+    // Pages de paiement (achat, adhésion, abonnement, tarifs) : l'app ne
+    // renvoie jamais vers un moyen de paiement extérieur (règle 3.1.1 de
+    // l'App Store, et équivalent Google Play). Une adhésion mène à la fiche de
+    // la communauté ; le reste ne s'ouvre pas.
+    case 'adhesion':
+      return slug ? router.push({ pathname: '/communaute/[slug]', params: { slug } }) : undefined
+    case 'achat':
+    case 'tarifs':
+      return slug ? router.push({ pathname: '/ressource/[slug]', params: { slug } }) : router.navigate('/explorer')
+    case 'formateur':
+      if (slug === 'abonnement') return
+      void Linking.openURL(`${API_URL}${link.startsWith('/') ? link : `/${link}`}`)
+      return
     default:
       void Linking.openURL(`${API_URL}${link.startsWith('/') ? link : `/${link}`}`)
   }

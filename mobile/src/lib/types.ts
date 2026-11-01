@@ -204,3 +204,20 @@ export interface CommunitySpace {
   membership: { status: string; periodEnd: string; canceledAt: string | null; dueAmountFcfa: number | null } | null
   groupConversationId: string | null
 }
+
+/** Fiche publique d'une communauté (`GET /api/communities/[slug]`). */
+export interface PublicCommunity {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  rules: string | null
+  membersCount: number
+  visibility: 'PUBLIC' | 'PRIVATE'
+  acceptsMembers: boolean
+  forumEnabled: boolean
+  eventsEnabled: boolean
+  resourcesEnabled: boolean
+  trainer: { fullName: string | null; slogan: string | null }
+  courses: Array<{ id: string; slug: string; title: string; format: string; category: string; coverS3Key: string | null }>
+}

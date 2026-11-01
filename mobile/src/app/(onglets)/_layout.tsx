@@ -1,6 +1,7 @@
 import { Platform } from 'react-native'
 import { NativeTabs } from 'expo-router/native-tabs'
 import { useConversations } from '../../lib/queries'
+import { useAuth } from '../../lib/auth'
 import { colors, fonts } from '../../ui/theme'
 
 /**
@@ -30,7 +31,8 @@ const ANDROID = Platform.OS === 'android'
  */
 export default function TabsLayout() {
   const { data: conversations } = useConversations()
-  const unread = conversations?.reduce((n, c) => n + c.unreadCount, 0) ?? 0
+  const { status } = useAuth()
+  const unread = status === 'signedIn' ? conversations?.reduce((n, c) => n + c.unreadCount, 0) ?? 0 : 0
 
   return (
     <NativeTabs tintColor={colors.brand} minimizeBehavior="onScrollDown" {...ANDROID}>
