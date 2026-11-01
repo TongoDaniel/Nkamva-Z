@@ -1,6 +1,6 @@
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import { AlertTriangle, Bell, ChevronRight, FileText, Heart, KeyRound, LifeBuoy, Lock, LogOut, Pencil, Radio, ShieldCheck, Trash2, Users } from 'lucide-react-native'
+import { AlertTriangle, ArrowLeftRight, Bell, ChevronRight, FileText, Heart, KeyRound, LifeBuoy, Lock, LogOut, Pencil, Radio, ShieldCheck, Trash2, Users } from 'lucide-react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/api'
 import { keys } from '../../lib/queries'
@@ -8,6 +8,7 @@ import { formatDate } from '../../lib/format'
 import { Button } from '../../ui/Button'
 import type { ReactNode } from 'react'
 import { useAuth } from '../../lib/auth'
+import { useMode } from '../../lib/mode'
 import { useProfile } from '../../lib/queries'
 import { API_URL } from '../../lib/config'
 import { openSitePage } from '../../lib/links'
@@ -29,6 +30,7 @@ function Item({ icon, label, onPress, danger }: { icon: ReactNode; label: string
 
 export default function Compte() {
   const { logout } = useAuth()
+  const { mode, setMode } = useMode()
   const profile = useProfile()
   const p = profile.data
   const queryClient = useQueryClient()
@@ -63,6 +65,21 @@ export default function Compte() {
         </View>
         <Pencil size={18} color={colors.ink3} />
       </Card>
+
+      {/* Bascule de mode, comme « Passer en mode hôte » chez Airbnb : un seul
+          geste, et la barre d'onglets change. */}
+      {p?.isTrainer ? (
+        <Card style={styles.switch} onPress={() => { void setMode(mode === 'trainer' ? 'learner' : 'trainer') }}>
+          <View style={styles.switchIcon}><ArrowLeftRight size={20} color={colors.ink} /></View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="bodyStrong">{mode === 'trainer' ? 'Passer en mode apprenant' : 'Passer en mode formateur'}</Text>
+            <Text variant="caption">
+              {mode === 'trainer' ? 'Ta bibliothèque, le catalogue et tes communautés.' : 'Tableau de bord, ventes, ressources et lives.'}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={colors.hairline} />
+        </Card>
+      ) : null}
 
       {p?.deletionScheduledAt ? (
         // Encadré blanc et icône d'alerte, comme les avertissements des
@@ -117,6 +134,8 @@ const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
   group: { overflow: 'hidden' },
   item: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, minHeight: 56 },
+  switch: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
+  switchIcon: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   deletion: { padding: 16, gap: 10 },
   deletionHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },

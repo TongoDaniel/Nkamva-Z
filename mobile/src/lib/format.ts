@@ -53,3 +53,13 @@ export function initials(name: string | null | undefined): string {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'N'
 }
+
+/**
+ * « 35 875 FCFA ». Les milliers sont séparés à la main par une espace fine
+ * insécable : `Intl` n'est pas complet sur tous les moteurs Android.
+ */
+export function formatFcfa(amount: number): string {
+  const sign = amount < 0 ? '−' : ''
+  const digits = String(Math.abs(Math.round(amount))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return `${sign}${digits} FCFA`
+}

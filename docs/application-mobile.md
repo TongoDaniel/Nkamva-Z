@@ -103,8 +103,30 @@ Daniel sur iPhone. Routes serveur ajoutées pour l'app : `auth/mobile/token`,
 
 ### V2 : le formateur
 
-Espace formateur (ressources, communautés, portefeuille, retraits). Les écrans
-de saisie longue et le KYC restent sur le site tant que ce n'est pas fait.
+Un formateur garde tout l'espace apprenant et bascule vers son espace depuis
+l'onglet Compte (« Passer en mode formateur », sur le modèle du mode hôte
+d'Airbnb). Le mode formateur a sa propre barre d'onglets : **Accueil,
+Ressources, Lives, Messages, Compte**. Le choix est retenu sur l'appareil et
+revient à « apprenant » à la déconnexion.
+
+| Écran | Routes utilisées |
+|---|---|
+| Tableau de bord : solde retirable, à faire, chiffres, dernières ventes, prochain live | `trainer/overview` (ajoutée pour l'app, mêmes agrégats que `/formateur`), `trainer/sales`, `lives?role=trainer` |
+| Ventes : montants de tête et historique paginé | `trainer/sales` (ajoutée pour l'app) |
+| Portefeuille : détail du solde, demande de retrait, historique | `trainer/overview`, `trainer/payouts` (GET, POST) |
+| Ressources : liste par statut, ventes par ressource, publier, archiver | `trainer/courses`, `trainer/courses/[id]/publish`, `.../archive` |
+| Lives : à venir et passés, programmer (date et heure natives), annuler | `lives?role=trainer`, `lives` (POST), `lives/[id]` (`cancel`) |
+| Ma communauté : membres et état de leur adhésion | `trainer/communities`, `trainer/communities/[id]/members` |
+| Litiges : liste, signalement de ceux sans réponse | `trainer/disputes` |
+
+Restent sur le site, ouverts dans le navigateur intégré depuis l'app : création
+et modification d'une ressource (texte long, téléversement), moyen de paiement
+et KYC, abonnement, invitations et modération des membres, réponse à un
+litige, et la salle du live (console) tant que la vidéo native n'est pas là.
+
+**État au 1er novembre 2026 :** construit et vérifié sur l'émulateur Android
+avec le compte de démonstration de Moussa Traoré (retrait, programmation et
+annulation d'un live testés de bout en bout).
 
 ### Hors app
 
