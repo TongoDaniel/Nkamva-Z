@@ -99,6 +99,21 @@ export function useCatalog(filters: CatalogFilters = NO_FILTERS, enabled = true)
   })
 }
 
+/**
+ * Le nombre de résultats d'une combinaison de filtres, pour le bouton
+ * « Afficher 12 ressources » de la feuille de filtres : une seule ligne
+ * demandée, seul le total sert.
+ */
+export function useCatalogCount(filters: CatalogFilters, enabled: boolean) {
+  return useQuery({
+    queryKey: ['catalog-count', filters],
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+    queryFn: async ({ signal }) => Number((await api.page<CourseListItem[]>(`catalog/courses?${catalogParams(filters, 1, 1)}`, signal)).meta?.total ?? 0),
+  })
+}
+
 /** Thèmes, formats et niveaux proposables, avec leurs effectifs. Change peu. */
 export function useCatalogFacets() {
   return useQuery({
