@@ -1,9 +1,9 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
 import { useAuth } from './auth'
 import type {
-  AgendaSession, CommunityListItem, CommunitySpace, MyCommunity, ContentAccess, ConversationDetail, ConversationSummary,
-  CourseDetail, CourseListItem, Message, NotificationItem, Profile, PublicCommunity, ResourceItem,
+  AgendaSession, CatalogFacets, CatalogFilters, CommunityListItem, CommunitySpace, MyCommunity, ContentAccess, ConversationDetail, ConversationSummary,
+  CourseDetail, CourseListItem, Message, NotificationItem, Profile, PublicCommunity, PublicTrainer, PublicTrainerDetail, ResourceItem,
 } from './types'
 
 /**
@@ -19,10 +19,13 @@ function useSignedIn(): boolean {
 export const keys = {
   profile: ['profile'] as const,
   resources: ['resources'] as const,
-  catalog: (search: string, format: string | null) => ['catalog', search, format] as const,
+  catalog: (filters: CatalogFilters) => ['catalog', filters] as const,
+  facets: ['facets'] as const,
+  trainers: (search: string) => ['trainers', search] as const,
+  trainer: (id: string) => ['trainer', id] as const,
   course: (slug: string) => ['course', slug] as const,
   content: (courseId: string) => ['content', courseId] as const,
-  communities: ['communities'] as const,
+  communities: (search: string) => ['communities', search] as const,
   myCommunities: ['my-communities'] as const,
   favorites: ['favorites'] as const,
   community: (slug: string) => ['community', slug] as const,
@@ -58,21 +61,50 @@ export function useResources() {
 
 const CATALOG_PAGE = 20
 
-export function useCatalog(search: string, format: string | null) {
+export const NO_FILTERS: CatalogFilters = { search: '', category: null, format: null, level: null, sort: 'newest' }
+
+/** Combien de filtres sont posés, hors recherche et hors tri par défaut. */
+export function activeFilterCount(f: CatalogFilters): number {
+  return [f.category, f.format, f.level].filter(Boolean).length + (f.sort !== 'newest' ? 1 : 0)
+}
+
+function catalogParams(f: CatalogFilters, page: number, pageSize: number) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort: f.sort })
+  if (f.search) params.set('search', f.search)
+  if (f.category) params.set('category', f.category)
+  if (f.format) params.set('format', f.format)
+  if (f.level) params.set('level', f.level)
+  return params
+}
+
+/**
+ * Le catalogue filtré, page par page. Changer un filtre garde la liste
+ * précédente à l'écran le temps que la nouvelle arrive (pas de squelette qui
+ * clignote à chaque choix), et chaque combinaison déjà vue revient du cache
+ * sans attendre.
+ */
+export function useCatalog(filters: CatalogFilters = NO_FILTERS, enabled = true) {
   return useInfiniteQuery({
-    queryKey: keys.catalog(search, format),
+    queryKey: keys.catalog(filters),
+    enabled,
     initialPageParam: 1,
-    queryFn: ({ pageParam, signal }) => {
-      const params = new URLSearchParams({ page: String(pageParam), pageSize: String(CATALOG_PAGE) })
-      if (search) params.set('search', search)
-      if (format) params.set('format', format)
-      return api.page<CourseListItem[]>(`catalog/courses?${params}`, signal)
-    },
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+    queryFn: ({ pageParam, signal }) => api.page<CourseListItem[]>(`catalog/courses?${catalogParams(filters, pageParam, CATALOG_PAGE)}`, signal),
     getNextPageParam: (last, pages) => {
       const total = Number(last.meta?.total ?? 0)
       const loaded = pages.reduce((n, p) => n + p.data.length, 0)
       return loaded < total ? pages.length + 1 : undefined
     },
+  })
+}
+
+/** Thèmes, formats et niveaux proposables, avec leurs effectifs. Change peu. */
+export function useCatalogFacets() {
+  return useQuery({
+    queryKey: keys.facets,
+    staleTime: 10 * 60_000,
+    queryFn: ({ signal }) => api.get<CatalogFacets>('catalog/facets', signal),
   })
 }
 
@@ -90,8 +122,37 @@ export function useContent(courseId: string) {
   })
 }
 
-export function useCommunities() {
-  return useQuery({ queryKey: keys.communities, queryFn: ({ signal }) => api.get<CommunityListItem[]>('communities?pageSize=30', signal) })
+/** L'annuaire des communautés, affiné à la frappe, page par page. */
+export function useCommunities(search = '') {
+  return useInfiniteQuery({
+    queryKey: keys.communities(search),
+    initialPageParam: 1,
+    placeholderData: keepPreviousData,
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ page: String(pageParam) })
+      if (search) params.set('search', search)
+      return api.page<CommunityListItem[]>(`communities?${params}`, signal)
+    },
+    getNextPageParam: (last, pages) => {
+      const total = Number(last.meta?.total ?? 0)
+      const loaded = pages.reduce((n, p) => n + p.data.length, 0)
+      return loaded < total && last.data.length > 0 ? pages.length + 1 : undefined
+    },
+  })
+}
+
+/** L'annuaire public des formateurs. */
+export function useTrainers(search = '') {
+  return useQuery({
+    queryKey: keys.trainers(search),
+    placeholderData: keepPreviousData,
+    staleTime: 5 * 60_000,
+    queryFn: ({ signal }) => api.get<PublicTrainer[]>(`trainers${search ? `?search=${encodeURIComponent(search)}` : ''}`, signal),
+  })
+}
+
+export function useTrainer(id: string) {
+  return useQuery({ queryKey: keys.trainer(id), queryFn: ({ signal }) => api.get<PublicTrainerDetail>(`trainers/${encodeURIComponent(id)}`, signal) })
 }
 
 export function useMyCommunities() {
@@ -103,7 +164,6 @@ export function useCommunitySpace(slug: string, enabled = true) {
   return useQuery({ queryKey: keys.community(slug), enabled: enabled && signedIn, queryFn: ({ signal }) => api.get<CommunitySpace>(`me/communities/${encodeURIComponent(slug)}`, signal) })
 }
 
-/** Ouvre le fil privé avec le formateur d'une communauté, ou retrouve celui qui existe. */
 /** Fiche publique d'une communauté : lisible sans compte, comme sur le site. */
 export function usePublicCommunity(slug: string, enabled = true) {
   return useQuery({
@@ -113,6 +173,7 @@ export function usePublicCommunity(slug: string, enabled = true) {
   })
 }
 
+/** Ouvre le fil privé avec le formateur d'une communauté, ou retrouve celui qui existe. */
 export function useOpenTrainerConversation() {
   const queryClient = useQueryClient()
   return useMutation({

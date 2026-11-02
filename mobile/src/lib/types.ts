@@ -221,3 +221,47 @@ export interface PublicCommunity {
   trainer: { fullName: string | null; slogan: string | null }
   courses: Array<{ id: string; slug: string; title: string; format: string; category: string; coverS3Key: string | null }>
 }
+
+export interface CatalogFacet {
+  value: string
+  count: number
+}
+
+/** Les choix des filtres du catalogue, avec le nombre de ressources derrière chacun. */
+export interface CatalogFacets {
+  categories: CatalogFacet[]
+  formats: CatalogFacet[]
+  levels: CatalogFacet[]
+}
+
+export type CatalogSort = 'newest' | 'popular'
+
+export interface CatalogFilters {
+  search: string
+  category: string | null
+  format: string | null
+  level: string | null
+  sort: CatalogSort
+}
+
+/** Un formateur de l'annuaire public (`GET /api/trainers`). */
+export interface PublicTrainer {
+  id: string
+  fullName: string | null
+  avatarUrl: string | null
+  slogan: string | null
+  description: string | null
+  domains: string[]
+  experienceYears: number | null
+  ratingAverage: number
+  ratingCount: number
+  learners: number
+  publishedCount: number
+  communityCount: number
+}
+
+export interface PublicTrainerDetail extends PublicTrainer {
+  websiteUrl: string | null
+  courses: Array<Pick<CourseListItem, 'id' | 'slug' | 'title' | 'blurb' | 'category' | 'format' | 'level' | 'durationSeconds' | 'coverS3Key' | 'publishedAt'>>
+  community: { slug: string; name: string; description: string | null; membersCount: number } | null
+}

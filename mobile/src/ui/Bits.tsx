@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { Text } from './Text'
 import { colors, radius } from './theme'
 import { initials } from '../lib/format'
+import { Image } from 'expo-image'
+import { API_URL } from '../lib/config'
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
   if (!onPress) return <View style={[styles.card, style]}>{children}</View>
@@ -36,7 +38,15 @@ export function Chip({ label, tone = 'neutral' }: { label: string; tone?: 'neutr
   )
 }
 
-export function Avatar({ name, size = 44, tone = colors.navy }: { name: string | null; size?: number; tone?: string }) {
+/**
+ * La photo quand il y en a une (adresse du site relative ou externe), les
+ * initiales sinon.
+ */
+export function Avatar({ name, size = 44, tone = colors.navy, uri }: { name: string | null; size?: number; tone?: string; uri?: string | null }) {
+  if (uri) {
+    const src = uri.startsWith('/') ? `${API_URL}${uri}` : uri
+    return <Image source={src} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.paper }} contentFit="cover" accessibilityIgnoresInvertColors />
+  }
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: tone }]}>
       <Text variant="label" style={{ color: '#fff', fontSize: size * 0.36, lineHeight: size * 0.46 }}>{initials(name)}</Text>

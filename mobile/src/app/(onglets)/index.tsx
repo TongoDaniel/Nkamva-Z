@@ -20,7 +20,7 @@ function MemberHome() {
   const resources = useResources()
   const lives = useLives()
   const notifications = useNotifications()
-  const discover = useCatalog('', null)
+  const discover = useCatalog()
   const communities = useMyCommunities()
 
   const unread = Number(notifications.data?.meta?.unread ?? 0)

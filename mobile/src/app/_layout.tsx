@@ -81,7 +81,7 @@ function RootNavigator() {
   if (!ready) return null
   const studio = studioMode
   // Visiteur : l'onboarding est vu, aucun compte n'est ouvert. Il parcourt le
-  // catalogue et les communautés comme sur le site ; le compte ne lui est
+  // catalogue, les communautés et les formateurs comme sur le site ; le compte ne lui est
   // demandé qu'au moment où il en a besoin (favori, bibliothèque, messages).
   // Exiger l'inscription d'emblée fait fuir, et l'App Store le refuse
   // (règle 5.1.1(v)).
@@ -111,13 +111,14 @@ function RootNavigator() {
       <Stack.Protected guard={signedIn || guest}>
         <Stack.Screen name="ressource/[slug]" options={{ title: '' }} />
         <Stack.Screen name="communaute/[slug]" options={{ title: '' }} />
+        <Stack.Screen name="formateur/[id]" options={{ title: '' }} />
       </Stack.Protected>
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="lecteur/[courseId]" options={{ title: '' }} />
         <Stack.Screen name="conversation/[id]" options={{ title: '' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="lives" options={{ title: 'Agenda des lives' }} />
-        <Stack.Screen name="communautes" options={{ title: 'Mes communautés' }} />
+        <Stack.Screen name="mes-communautes" options={{ title: 'Mes communautés' }} />
         <Stack.Screen name="profil" options={{ title: 'Mon profil' }} />
         <Stack.Screen name="favoris" options={{ title: 'Mes favoris' }} />
         <Stack.Screen name="mot-de-passe" options={{ title: 'Mot de passe' }} />

@@ -95,7 +95,7 @@ function MemberAccount() {
       ) : null}
 
       <Card style={styles.group}>
-        <Item icon={<Users size={20} color={colors.ink2} />} label="Mes communautés" onPress={() => router.push('/communautes')} />
+        <Item icon={<Users size={20} color={colors.ink2} />} label="Mes communautés" onPress={() => router.push('/mes-communautes')} />
         <View style={styles.sep} />
         <Item icon={<Heart size={20} color={colors.ink2} />} label="Mes favoris" onPress={() => router.push('/favoris')} />
         <View style={styles.sep} />

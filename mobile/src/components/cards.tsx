@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { CheckCircle2, PauseCircle, Video } from 'lucide-react-native'
@@ -35,7 +36,7 @@ export function readingPercent(item: ResourceItem): number | null {
  * Carte compacte du catalogue, pensée pour deux colonnes. Jamais de prix :
  * l'achat se fait sur le site (docs/application-mobile.md § 3).
  */
-export function CourseCard({ course, owned, width }: { course: CourseListItem; owned?: boolean; width: number }) {
+export const CourseCard = memo(function CourseCard({ course, owned, width }: { course: CourseListItem; owned?: boolean; width: number }) {
   const duration = formatDuration(course.durationSeconds)
   return (
     <Card style={{ width, overflow: 'hidden' }} onPress={() => router.push(`/ressource/${course.slug}`)}>
@@ -52,7 +53,7 @@ export function CourseCard({ course, owned, width }: { course: CourseListItem; o
       </View>
     </Card>
   )
-}
+})
 
 export function ResourceRow({ item }: { item: ResourceItem }) {
   const course = item.course

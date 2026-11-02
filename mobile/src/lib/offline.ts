@@ -29,7 +29,7 @@ export const persister = createAsyncStoragePersister({
  * plutôt qu'une liste d'exclusion : une requête ajoutée plus tard reste en
  * mémoire tant qu'on ne décide pas qu'elle peut aller sur le disque.
  */
-const PERSISTED = new Set(['resources', 'catalog', 'course', 'communities', 'my-communities', 'community', 'favorites', 'lives'])
+const PERSISTED = new Set(['resources', 'catalog', 'course', 'communities', 'my-communities', 'community', 'favorites', 'lives', 'facets', 'trainers', 'trainer'])
 
 export function shouldPersist(query: Query): boolean {
   if (query.state.status !== 'success') return false
