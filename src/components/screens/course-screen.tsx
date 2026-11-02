@@ -23,6 +23,8 @@ import { getAuthContext } from "@/lib/api";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import { routesOf, type Space } from "@/lib/spaces";
 import { trainerBio, type CourseDetail, type CourseListItem } from "@/lib/dto";
+import { ResumeFavorite } from "@/components/nk/resume-favorite";
+import { Suspense } from "react";
 
 /** Fiche ressource, rendue à l'identique dans l'espace visiteur et connecté. */
 export async function CourseScreen({ slug, space }: { slug: string; space: Space }) {
@@ -78,6 +80,12 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
 
   return (
     <div className="nk-wrap pb-10 sm:pb-16">
+      {/* Retour d'un visiteur qui avait touché le cœur avant d'avoir un compte. */}
+      {space === "app" && auth ? (
+        <Suspense fallback={null}>
+          <ResumeFavorite courseId={course.id} courseTitle={course.title} />
+        </Suspense>
+      ) : null}
       <PageHead
         // Même lignée que `community-screen.tsx` : le parent propre à l'espace,
         // puis l'écran de destination sous le nom qu'il se donne lui-même. Le

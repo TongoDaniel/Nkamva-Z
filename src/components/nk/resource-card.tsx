@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { Chip } from "./chip";
 import { Cover, coverImageUrl, formatLabel } from "./cover";
-import { FavButton } from "./fav-button";
+import { FavButton, GuestFavButton } from "./fav-button";
 import { initials } from "./avatar";
 import { fmtDuration, fmtNumber } from "@/lib/format";
 import { routesOf, type Space } from "@/lib/spaces";
@@ -103,6 +103,8 @@ export function ResourceCard({
       >
         {favoritable ? (
           <FavButton courseTitle={course.title} courseId={course.id} defaultPressed={favorited} />
+        ) : space === "public" ? (
+          <GuestFavButton courseTitle={course.title} resumeHref={routesOf("app").course(course.slug)} />
         ) : null}
       </Cover>
       <div

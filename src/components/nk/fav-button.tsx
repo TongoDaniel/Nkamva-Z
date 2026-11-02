@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Heart } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAction } from "@/hooks/use-action";
@@ -88,6 +89,38 @@ export function FavButton({
         className={cn("size-[18px]", pressed && "fill-current animate-[var(--animate-nk-pop)]")}
         aria-hidden="true"
       />
+    </button>
+  );
+}
+
+/**
+ * Le cœur d'un visiteur, sur le modèle d'Airbnb : il reste visible et propose
+ * de créer un compte, au lieu de disparaître. Il mène à l'inscription avec la
+ * fiche connectée de la ressource pour destination de reprise (F1.6) ;
+ * `ResumeFavorite` y met la ressource de côté au retour.
+ *
+ * Un bouton et non un lien : la carte entière est déjà un lien, et un `<a>`
+ * dans un `<a>` n'est pas du HTML valide.
+ */
+export function GuestFavButton({ courseTitle, resumeHref, className }: { courseTitle: string; resumeHref: string; className?: string }) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      aria-label={`Créer un compte pour ajouter « ${courseTitle} » aux favoris`}
+      title="Créez un compte pour la mettre de côté"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        router.push(`/auth/inscription?callbackUrl=${encodeURIComponent(`${resumeHref}?favori=1`)}`);
+      }}
+      className={cn(
+        "nk-tap absolute right-3 top-3 z-[3] grid size-[38px] cursor-pointer place-items-center rounded-full",
+        "bg-card/90 text-ink-2 shadow-nk-sm backdrop-blur-[3px] transition duration-150 hover:scale-110 hover:text-danger",
+        className,
+      )}
+    >
+      <Heart className="size-[18px]" aria-hidden="true" />
     </button>
   );
 }
