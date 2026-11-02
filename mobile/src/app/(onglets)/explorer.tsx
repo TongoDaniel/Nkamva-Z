@@ -3,23 +3,18 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInp
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useAuth } from '../../lib/auth'
-import { Search, WifiOff, X } from 'lucide-react-native'
+import { Search, SlidersHorizontal, WifiOff, X } from 'lucide-react-native'
 import { activeFilterCount, NO_FILTERS, useCatalog, useCatalogFacets, useResources } from '../../lib/queries'
-import { formatLabel } from '../../lib/format'
-import type { CatalogFilters, CatalogSort, CourseListItem } from '../../lib/types'
+import type { CatalogFilters, CourseListItem } from '../../lib/types'
 import { Text } from '../../ui/Text'
 import { Button } from '../../ui/Button'
 import { EmptyState, ErrorState } from '../../ui/States'
 import { CourseCardSkeleton, Repeat } from '../../ui/Skeleton'
 import { colors, fonts, radius } from '../../ui/theme'
 import { CourseCard } from '../../components/cards'
-import { capitalize, CommunityDirectory, FacetMenu, FilterPill, Segmented, SORT_LABELS, TrainerDirectory, useDebounced, type MenuOption } from '../../components/discovery'
+import { CommunityDirectory, FilterPill, FilterSheet, TrainerDirectory, Segmented, useDebounced } from '../../components/discovery'
 
 const GAP = 12
-
-type Criterion = 'sort' | 'category' | 'format' | 'level'
-
-const MENU_TITLES: Record<Criterion, string> = { sort: 'Trier par', category: 'Thème', format: 'Format', level: 'Niveau' }
 
 type View_ = 'ressources' | 'communautes' | 'formateurs'
 
@@ -105,7 +100,7 @@ export default function Explorer() {
 }
 
 function Resources({ search, filters, setFilters }: { search: string; filters: CatalogFilters; setFilters: (f: CatalogFilters) => void }) {
-  const [menu, setMenu] = useState<Criterion | null>(null)
+  const [sheet, setSheet] = useState(false)
   const applied = useMemo(() => ({ ...filters, search }), [filters, search])
   const catalog = useCatalog(applied)
   const facets = useCatalogFacets()
@@ -123,39 +118,25 @@ function Resources({ search, filters, setFilters }: { search: string; filters: C
     [owned, cardWidth],
   )
 
-  // Une pastille par critère, chacune avec son menu : rien n'apparaît à
-  // deux endroits. Une pastille choisie affiche sa valeur et passe en encre.
-  const f = facets.data
-  const options: Record<Criterion, MenuOption[]> = {
-    sort: (Object.keys(SORT_LABELS) as CatalogSort[]).map((v) => ({ value: v, label: SORT_LABELS[v] })),
-    category: (f?.categories ?? []).map((o) => ({ value: o.value, label: o.value, count: o.count })),
-    format: (f?.formats ?? []).map((o) => ({ value: o.value, label: formatLabel(o.value), count: o.count })),
-    level: (f?.levels ?? []).map((o) => ({ value: o.value, label: capitalize(o.value), count: o.count })),
-  }
-  const pills: { key: Criterion; label: string; active: boolean }[] = [
-    { key: 'sort', label: SORT_LABELS[filters.sort], active: filters.sort !== 'newest' },
-    { key: 'category', label: filters.category ?? 'Thème', active: !!filters.category },
-    { key: 'format', label: filters.format ? formatLabel(filters.format) : 'Format', active: !!filters.format },
-    { key: 'level', label: filters.level ? capitalize(filters.level) : 'Niveau', active: !!filters.level },
-  ]
-  // Un critère sans choix réel (un seul format au catalogue) n'a pas de pastille.
-  const shown = pills.filter((p) => p.active || p.key === 'sort' || options[p.key].length > 1)
-  const select = (key: Criterion, value: string | null) =>
-    setFilters(key === 'sort' ? { ...filters, sort: (value ?? 'newest') as CatalogSort } : { ...filters, [key]: value })
-
-  // Le tri se lit déjà sur sa pastille : le compteur ne le répète pas.
   const summary = `${total} ressource${total > 1 ? 's' : ''}`
 
   return (
     <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} style={styles.filterBar}>
-        {shown.map((p) => <FilterPill key={p.key} label={p.label} active={p.active} menu onPress={() => setMenu(p.key)} />)}
+      {/* Un seul bouton : tous les filtres sont dans sa feuille, rien n'est
+          proposé à deux endroits. Il porte le nombre de filtres posés. */}
+      <View style={styles.filterBar}>
+        <FilterPill
+          label={count ? `Filtres · ${count}` : 'Filtres'}
+          active={count > 0}
+          onPress={() => setSheet(true)}
+          icon={<SlidersHorizontal size={15} color={count ? '#fff' : colors.ink2} />}
+        />
         {count ? (
           <Pressable onPress={() => setFilters(NO_FILTERS)} hitSlop={8} style={styles.clear} accessibilityRole="button">
             <Text variant="label" style={{ color: colors.brand, fontSize: 13 }}>Effacer</Text>
           </Pressable>
         ) : null}
-      </ScrollView>
+      </View>
 
       {catalog.isLoading ? (
         <View style={[styles.list, styles.grid]}><Repeat count={4}><CourseCardSkeleton width={cardWidth} /></Repeat></View>
@@ -209,14 +190,7 @@ function Resources({ search, filters, setFilters }: { search: string; filters: C
         />
       )}
 
-      <FacetMenu
-        title={menu ? MENU_TITLES[menu] : null}
-        options={menu ? options[menu] : []}
-        value={menu ? (menu === 'sort' ? filters.sort : filters[menu]) : null}
-        allLabel={menu === 'category' ? 'Tous les thèmes' : menu === 'format' ? 'Tous les formats' : menu === 'level' ? 'Tous les niveaux' : undefined}
-        onSelect={(v) => { if (menu) select(menu, v) }}
-        onClose={() => setMenu(null)}
-      />
+      <FilterSheet visible={sheet} filters={applied} onClose={() => setSheet(false)} onApply={(f) => setFilters({ ...f, search: '' })} />
     </>
   )
 }
@@ -234,8 +208,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   input: { flex: 1, fontFamily: fonts.body, fontSize: 16, color: colors.ink, paddingVertical: 10 },
-  filterBar: { flexGrow: 0, flexShrink: 0, marginTop: 12 },
-  filters: { gap: 8, paddingHorizontal: 20, paddingVertical: 2, alignItems: 'center' },
+  filterBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginTop: 12 },
   clear: { paddingHorizontal: 6, justifyContent: 'center', minHeight: 36 },
   intro: { marginBottom: 6 },
   list: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40, gap: 8, flexGrow: 1 },
