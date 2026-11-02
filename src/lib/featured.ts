@@ -9,6 +9,12 @@ export interface FeaturedResult {
    * réellement vide : l'écran ne dit pas la même chose dans les deux cas.
    */
   unavailable: boolean;
+  /**
+   * Vrai quand l'ordre vient des ventes réelles (tri « popular »). Faux quand
+   * il n'y en a pas assez pour classer : ce sont alors les nouveautés, et
+   * l'écran ne doit pas les présenter comme les plus populaires.
+   */
+  ranked: boolean;
 }
 
 /**
@@ -27,11 +33,12 @@ export interface FeaturedResult {
 export async function featuredCourses(): Promise<FeaturedResult> {
   try {
     const limit = await getSettingNumber("catalog.featured_limit");
-    const result = await searchCourses({ sort: "newest", page: 1, pageSize: limit });
-    return { courses: result.items as unknown as CourseListItem[], unavailable: false };
+    // Le carrousel s'intitulait « Ressources populaires » en triant par date.
+    const result = await searchCourses({ sort: "popular", page: 1, pageSize: limit });
+    return { courses: result.items as unknown as CourseListItem[], unavailable: false, ranked: result.ranked };
   } catch {
     // Une base injoignable ne doit pas faire tomber toute la page d'accueil,
     // mais elle ne doit pas non plus se faire passer pour un catalogue vide.
-    return { courses: [], unavailable: true };
+    return { courses: [], unavailable: true, ranked: false };
   }
 }

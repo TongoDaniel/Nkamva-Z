@@ -13,10 +13,12 @@ import { cn } from "@/lib/utils";
 export interface Facet {
   value: string;
   label: string;
+  /** Ressources derrière ce choix, sur tout le catalogue. */
+  count?: number;
 }
 
 const SORTS = [
-  { value: "popular", label: "Les plus populaires" },
+  { value: "popular", label: "Les plus suivies" },
   { value: "newest", label: "Les plus récentes" },
   { value: "price_asc", label: "Prix croissant" },
   { value: "price_desc", label: "Prix décroissant" },
@@ -31,6 +33,7 @@ interface CatalogNav {
   search: string;
   category: string;
   format: string;
+  level: string;
   sort: string;
 }
 
@@ -77,6 +80,7 @@ export function CatalogNavProvider({ children }: { children: React.ReactNode }) 
       search: params.get("search") ?? "",
       category: params.get("category") ?? "",
       format: params.get("format") ?? "",
+      level: params.get("level") ?? "",
       sort: params.get("sort") ?? "newest",
     }),
     [push, pending, drawerOpen, params],
@@ -91,15 +95,20 @@ function useCatalogParams(): CatalogNav {
   return ctx;
 }
 
+/** Remet tous les filtres à zéro, recherche comprise. */
+const CLEAR_ALL = { category: null, format: null, level: null, search: null };
+
 function FiltersPanel({
   categories,
   formats,
+  levels,
 }: {
   categories: Facet[];
   formats: Facet[];
+  levels: Facet[];
 }) {
-  const { push, category, format, search } = useCatalogParams();
-  const hasFilters = Boolean(category || format || search);
+  const { push, category, format, level, search } = useCatalogParams();
+  const hasFilters = Boolean(category || format || level || search);
 
   return (
     <>
@@ -108,7 +117,7 @@ function FiltersPanel({
         {hasFilters ? (
           <button
             type="button"
-            onClick={() => push({ category: null, format: null, search: null })}
+            onClick={() => push(CLEAR_ALL)}
             className="cursor-pointer py-2 text-[13px] font-semibold text-brand hover:text-brand-dark"
           >
             Réinitialiser
@@ -125,6 +134,7 @@ function FiltersPanel({
             <CheckOption
               key={c.value}
               label={c.label}
+              count={c.count}
               checked={category === c.value}
               onCheckedChange={(next) => push({ category: next ? c.value : null })}
             />
@@ -134,7 +144,7 @@ function FiltersPanel({
         )}
       </fieldset>
 
-      <fieldset className="pb-4">
+      <fieldset className={cn("pb-4", levels.length > 0 && "mb-3 border-b border-line-2")}>
         <legend className="mb-3 mt-1.5 font-sans text-[13px] font-bold uppercase tracking-[0.1em] text-ink-3">
           Format
         </legend>
@@ -143,6 +153,7 @@ function FiltersPanel({
             <CheckOption
               key={f.value}
               label={f.label}
+              count={f.count}
               checked={format === f.value}
               onCheckedChange={(next) => push({ format: next ? f.value : null })}
             />
@@ -151,6 +162,25 @@ function FiltersPanel({
           <p className="text-[13px] text-ink-3">Aucun format disponible.</p>
         )}
       </fieldset>
+
+      {/* Le niveau était filtrable côté serveur sans être proposé ici. Sans
+          ressource qui en déclare un, la rubrique n'apparaît pas. */}
+      {levels.length > 0 ? (
+        <fieldset className="pb-4">
+          <legend className="mb-3 mt-1.5 font-sans text-[13px] font-bold uppercase tracking-[0.1em] text-ink-3">
+            Niveau
+          </legend>
+          {levels.map((l) => (
+            <CheckOption
+              key={l.value}
+              label={l.label}
+              count={l.count}
+              checked={level === l.value}
+              onCheckedChange={(next) => push({ level: next ? l.value : null })}
+            />
+          ))}
+        </fieldset>
+      ) : null}
     </>
   );
 }
@@ -165,7 +195,7 @@ function FiltersPanel({
  * disputaient le même nom. Ce panneau change de forme, il ne change pas
  * d'arbre.
  */
-export function CatalogFilters(props: { categories: Facet[]; formats: Facet[] }) {
+export function CatalogFilters(props: { categories: Facet[]; formats: Facet[]; levels: Facet[] }) {
   const { drawerOpen, setDrawerOpen } = useCatalogParams();
   const close = React.useCallback(() => setDrawerOpen(false), [setDrawerOpen]);
 
@@ -216,15 +246,16 @@ export function CatalogFilters(props: { categories: Facet[]; formats: Facet[] })
 
 /** Recherche, tri, filtres actifs, et tiroir de filtres sous 900px. */
 export function CatalogToolbar({
-  categories,
-  formats,
+  levels,
   total,
+  unranked,
 }: {
-  categories: Facet[];
-  formats: Facet[];
+  levels: Facet[];
   total: number;
+  /** Tri « popular » sans assez de ventes pour classer : les nouveautés passent d'abord. */
+  unranked: boolean;
 }) {
-  const { push, pending, search, category, format, sort, drawerOpen, setDrawerOpen } = useCatalogParams();
+  const { push, pending, search, category, format, level, sort, drawerOpen, setDrawerOpen } = useCatalogParams();
   const [searchDraft, setSearchDraft] = React.useState(search);
 
   React.useEffect(() => setSearchDraft(search), [search]);
@@ -236,10 +267,13 @@ export function CatalogToolbar({
     return () => clearTimeout(id);
   }, [searchDraft, search, push]);
 
+  // La recherche n'est pas un filtre à rappeler : elle se lit déjà dans son
+  // champ, juste à côté. Le niveau prend le libellé de sa facette.
+  const levelLabel = levels.find((l) => l.value === level)?.label ?? level;
   const activeFilters = [
     category ? { key: "category", value: category, label: category } : null,
     format ? { key: "format", value: format, label: formatLabel(format) } : null,
-    search ? { key: "search", value: search, label: `« ${search} »` } : null,
+    level ? { key: "level", value: level, label: levelLabel } : null,
   ].filter(Boolean) as Array<{ key: string; value: string; label: string }>;
 
   return (
@@ -315,8 +349,16 @@ export function CatalogToolbar({
         </div>
       </div>
 
+      {unranked ? (
+        <p className="-mt-2 mb-4 text-[13px] text-ink-3">
+          Pas encore assez d&apos;achats pour classer : les nouveautés passent d&apos;abord.
+        </p>
+      ) : null}
+
+      {/* Rappel des filtres actifs, sous `lg` seulement : au-delà, les cases
+          cochées de la colonne disent déjà la même chose, juste à côté. */}
       {activeFilters.length > 0 ? (
-        <div className="mb-4.5 flex flex-wrap items-center gap-2">
+        <div className="mb-4.5 flex flex-wrap items-center gap-2 lg:hidden">
           {activeFilters.map((f) => (
             <FilterPill
               key={f.key}
@@ -327,7 +369,7 @@ export function CatalogToolbar({
           ))}
           <button
             type="button"
-            onClick={() => push({ category: null, format: null, search: null })}
+            onClick={() => push({ category: null, format: null, level: null })}
             className="cursor-pointer px-1 text-[13px] font-semibold text-brand hover:text-brand-dark"
           >
             Tout effacer
