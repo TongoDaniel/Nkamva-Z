@@ -49,7 +49,7 @@ export default function Inscription() {
     <Screen keyboard edges={['bottom']}>
       <View style={{ gap: 6 }}>
         <Text variant="title">Créer ton compte</Text>
-        <Text variant="body">Pour apprendre avec les formateurs NKAMVA et rejoindre leurs communautés.</Text>
+        <Text variant="body">Pour apprendre avec les formateurs NKAMVA, rejoindre leurs communautés, ou devenir formateur à ton tour.</Text>
       </View>
       <Field label="Prénom et nom" value={fullName} onChangeText={setFullName} autoComplete="name" textContentType="name" error={errors.fullName} />
       <Field

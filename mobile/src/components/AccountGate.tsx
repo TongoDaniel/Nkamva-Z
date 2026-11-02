@@ -7,7 +7,7 @@ import { Button } from '../ui/Button'
 import { colors } from '../ui/theme'
 
 /** Pourquoi on demande un compte : le texte dit ce que le compte va débloquer. */
-export type AccountReason = 'favoris' | 'bibliotheque' | 'messages' | 'signaler' | 'communaute' | 'compte'
+export type AccountReason = 'favoris' | 'bibliotheque' | 'messages' | 'signaler' | 'communaute' | 'compte' | 'formateur'
 
 export const REASONS: Record<AccountReason, { title: string; body: string }> = {
   favoris: { title: 'Garde cette ressource pour plus tard', body: 'Crée ton compte pour retrouver tes favoris sur tous tes appareils.' },
@@ -15,6 +15,7 @@ export const REASONS: Record<AccountReason, { title: string; body: string }> = {
   messages: { title: 'Échange avec les formateurs', body: 'Les groupes de tes communautés et tes discussions avec les formateurs apparaissent ici.' },
   signaler: { title: 'Connecte-toi pour signaler', body: 'Un signalement est rattaché à un compte : c’est ce qui permet à l’équipe de modération de le traiter.' },
   communaute: { title: 'Rejoins la conversation', body: 'Crée ton compte : une fois membre, tu retrouves ici le groupe, les lives et les ressources incluses.' },
+  formateur: { title: 'Deviens formateur NKAMVA', body: 'Crée d’abord ton compte : ta candidature s’y rattache, et tu la reprends quand tu veux, ici ou sur le site.' },
   compte: { title: 'Ton espace NKAMVA', body: 'Ta progression, tes favoris et tes communautés, sur ton téléphone comme sur le site.' },
 }
 

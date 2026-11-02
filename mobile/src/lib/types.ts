@@ -4,7 +4,7 @@
  * l'app lit y figurent.
  */
 
-export type Role = 'LEARNER' | 'TRAINER' | 'ADMIN'
+export type Role = 'LEARNER' | 'PENDING_TRAINER' | 'TRAINER' | 'ADMIN'
 
 export interface SessionUser {
   id: string

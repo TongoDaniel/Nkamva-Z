@@ -41,6 +41,11 @@ export function openSiteLink(link: string | null | undefined) {
       return router.push('/profil')
     case 'notifications':
       return
+    // Candidature formateur : l'écran de l'app. Son statut payant (`/candidature/statut`)
+    // n'ouvre jamais le règlement.
+    case 'candidature':
+    case 'devenir-formateur':
+      return router.push('/devenir-formateur')
     // Pages de paiement (achat, adhésion, abonnement, tarifs) : l'app ne
     // renvoie jamais vers un moyen de paiement extérieur (règle 3.1.1 de
     // l'App Store, et équivalent Google Play). Une adhésion mène à la fiche de
