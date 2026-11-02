@@ -48,6 +48,21 @@ export const KNOWN_UNREACHABLE: KnownUnreachable[] = [
     path: '/api/me/communities/[slug]',
     reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
   },
+  // Ajoutées le 2 novembre 2026 : filtres du catalogue et annuaire des
+  // formateurs de l'application. Le site lit les mêmes fonctions (`catalog.ts`,
+  // `trainers.ts`) depuis ses composants serveur.
+  {
+    path: '/api/catalog/facets',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
+  {
+    path: '/api/trainers',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
+  {
+    path: '/api/trainers/[id]',
+    reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
+  },
   {
     path: '/api/me/notifications',
     reason: 'Appelée par l’application mobile (mobile/src/lib), hors du périmètre balayé.',
