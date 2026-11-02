@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router'
-import { Heart, Flag, Library, MessageCircle, Users, UserRound } from 'lucide-react-native'
+import { Heart, Flag, GraduationCap, Library, MessageCircle, Users, UserRound } from 'lucide-react-native'
 import { Screen } from '../ui/Screen'
 import { colors } from '../ui/theme'
 import { AccountGate, REASONS, type AccountReason } from '../components/AccountGate'
@@ -11,6 +11,7 @@ const ICONS: Record<AccountReason, typeof Heart> = {
   signaler: Flag,
   communaute: Users,
   compte: UserRound,
+  formateur: GraduationCap,
 }
 
 /**

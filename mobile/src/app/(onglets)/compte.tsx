@@ -1,6 +1,6 @@
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import { AlertTriangle, ArrowLeftRight, Bell, ChevronRight, FileText, Heart, KeyRound, LifeBuoy, Lock, LogOut, Pencil, Radio, ShieldCheck, Trash2, Users } from 'lucide-react-native'
+import { AlertTriangle, ArrowLeftRight, Bell, ChevronRight, FileText, GraduationCap, Heart, KeyRound, LifeBuoy, Lock, LogOut, Pencil, Radio, ShieldCheck, Trash2, Users } from 'lucide-react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/api'
 import { keys } from '../../lib/queries'
@@ -94,6 +94,17 @@ function MemberAccount() {
         </Card>
       ) : null}
 
+      {/* Un apprenant peut candidater d'ici, comme sur le site. */}
+      {p && !p.isTrainer && p.role !== 'ADMIN' ? (
+        <Card style={styles.group}>
+          <Item
+            icon={<GraduationCap size={20} color={colors.ink2} />}
+            label={p.role === 'PENDING_TRAINER' ? 'Ma candidature formateur' : 'Devenir formateur'}
+            onPress={() => router.push('/devenir-formateur')}
+          />
+        </Card>
+      ) : null}
+
       <Card style={styles.group}>
         <Item icon={<Users size={20} color={colors.ink2} />} label="Mes communautés" onPress={() => router.push('/mes-communautes')} />
         <View style={styles.sep} />
@@ -146,6 +157,9 @@ function GuestAccount() {
           <Button label="Créer un compte" onPress={() => router.push('/inscription')} />
           <Button label="J’ai déjà un compte" tone="secondary" onPress={() => router.push('/connexion')} />
         </View>
+      </Card>
+      <Card style={styles.group}>
+        <Item icon={<GraduationCap size={20} color={colors.ink2} />} label="Devenir formateur" onPress={() => router.push({ pathname: '/rejoindre', params: { raison: 'formateur' } })} />
       </Card>
       <Card style={styles.group}>
         <Item icon={<LifeBuoy size={20} color={colors.ink2} />} label="Aide" onPress={() => openSitePage('/aide')} />

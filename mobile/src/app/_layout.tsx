@@ -119,6 +119,7 @@ function RootNavigator() {
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="lives" options={{ title: 'Agenda des lives' }} />
         <Stack.Screen name="mes-communautes" options={{ title: 'Mes communautés' }} />
+        <Stack.Screen name="devenir-formateur" options={{ title: 'Devenir formateur' }} />
         <Stack.Screen name="profil" options={{ title: 'Mon profil' }} />
         <Stack.Screen name="favoris" options={{ title: 'Mes favoris' }} />
         <Stack.Screen name="mot-de-passe" options={{ title: 'Mot de passe' }} />

@@ -149,6 +149,11 @@ export function GuestHome() {
         </View>
       </Card>
 
+      {/* L'autre public de NKAMVA : ceux qui enseignent. */}
+      <Pressable onPress={() => router.push({ pathname: '/rejoindre', params: { raison: 'formateur' } })} style={styles.teach} accessibilityRole="button">
+        <Text variant="small" style={{ color: colors.ink2 }}>Tu enseignes ? <Text variant="small" style={{ color: colors.brand, fontFamily: undefined }}>Deviens formateur</Text></Text>
+      </Pressable>
+
     </Screen>
   )
 }
@@ -161,4 +166,5 @@ const styles = StyleSheet.create({
   personName: { textAlign: 'center' },
   invite: { padding: 18, gap: 6 },
   benefit: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  teach: { alignItems: 'center', paddingVertical: 4 },
 })
