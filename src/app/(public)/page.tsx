@@ -14,7 +14,10 @@ import { Reveal } from "@/components/nk/reveal";
 import { HowItWorksSwitch, ProductTrack } from "./home-mobile";
 import { ScrollCarousel } from "@/components/nk/scroll-carousel";
 import { Kicker, SectionHead } from "@/components/nk/section-head";
-import { featuredCourses } from "@/lib/featured";
+import { featuredCourses, platformShowcase } from "@/lib/featured";
+import { StatStrip } from "@/components/nk/stat-strip";
+import { CommunityCard } from "@/components/nk/community-card";
+import { Avatar } from "@/components/nk/avatar";
 import { getCatalogFacets } from "@/lib/catalog";
 import { listHomepageFaq } from "@/lib/help-content";
 import { payableMarkets } from "@/lib/markets";
@@ -115,13 +118,14 @@ export default async function LandingPage() {
   // fournisseur de paiement (réponse mise en cache dix minutes).
   // La FAQ de l'accueil : les questions de l'aide cochées « accueil » dans
   // /admin/aide, dans l'ordre de l'aide (`lib/help-content.ts`).
-  const [{ courses, unavailable, ranked }, markets, homepageFaq, facets] = await Promise.all([
+  const [{ courses, unavailable, ranked }, markets, homepageFaq, facets, showcase] = await Promise.all([
     featuredCourses(),
     payableMarkets(),
     listHomepageFaq(),
     // Les thèmes sont un raccourci : une base injoignable les retire, elle ne
     // fait pas tomber l'accueil.
     getCatalogFacets().catch(() => null),
+    platformShowcase(),
   ]);
   const themes = facets?.categories.slice(0, 8) ?? [];
 
@@ -176,6 +180,24 @@ export default async function LandingPage() {
       </section>
 
       <PayBand markets={markets} />
+
+      {/* ---- Chiffres ----
+          Comptés en base à chaque affichage, sans arrondi ni « + ». Pas de
+          note ni d'avis : aucun n'est recueilli aujourd'hui. Un chiffre nul
+          ne s'affiche pas : « 0 communauté » ne convainc personne. */}
+      {showcase ? (
+        <section className="pt-10 sm:pt-14" aria-label="NKAMVA en chiffres">
+          <div className="nk-wrap mx-auto max-w-[760px]">
+            <StatStrip
+              items={[
+                showcase.counts.courses ? { value: showcase.counts.courses, label: showcase.counts.courses > 1 ? "ressources en vente" : "ressource en vente" } : null,
+                showcase.counts.trainers ? { value: showcase.counts.trainers, label: showcase.counts.trainers > 1 ? "formateurs validés" : "formateur validé" } : null,
+                showcase.counts.communities ? { value: showcase.counts.communities, label: showcase.counts.communities > 1 ? "communautés ouvertes" : "communauté ouverte" } : null,
+              ].filter((x): x is { value: number; label: string } => x !== null)}
+            />
+          </div>
+        </section>
+      ) : null}
 
       {/* ---- Comment ça marche ---- */}
       <section className="pt-14 sm:pt-[76px]">
@@ -303,6 +325,29 @@ export default async function LandingPage() {
         </section>
       ) : null}
 
+      {/* ---- Communautés ---- de vrais groupes de l'annuaire, pas une illustration. */}
+      {showcase && showcase.communities.length > 0 ? (
+        <section className="pt-14 sm:pt-[76px]" aria-labelledby="communautes-accueil">
+          <div className="nk-wrap">
+            <SectionHead
+              kicker="Communautés"
+              title="Progresser "
+              emphasis="ensemble"
+              lead="Un groupe animé par un formateur : entraide, lives et ressources incluses."
+              id="communautes-accueil"
+            />
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {showcase.communities.map((c) => (
+                <CommunityCard key={c.id} community={c} href={`/communautes/${c.slug}`} />
+              ))}
+            </div>
+            <div className="mt-[26px] flex justify-center">
+              <BtnLink href="/communautes" variant="o">Toutes les communautés</BtnLink>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {/* ---- Carrousel catalogue ---- */}
       <section className="pt-14 sm:pt-[76px]">
         <div className="nk-wrap">
@@ -369,6 +414,36 @@ export default async function LandingPage() {
           )}
         </div>
       </section>
+
+      {/* ---- Les formateurs ----
+          De vraies personnes, dans l'ordre de l'annuaire (apprenants réels,
+          puis nom). Chacune mène à sa fiche publique. */}
+      {showcase && showcase.trainers.length > 0 ? (
+        <section className="pt-14 sm:pt-[76px]" aria-labelledby="formateurs-accueil">
+          <div className="nk-wrap">
+            <SectionHead kicker="Formateurs" title="Ils publient sur " emphasis="NKAMVA" id="formateurs-accueil" />
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {showcase.trainers.map((t) => (
+                <li key={t.id}>
+                  <Link
+                    href={`/formateurs/${t.id}`}
+                    className="nk-tap flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 transition hover:border-ink-3"
+                  >
+                    <Avatar name={t.fullName ?? "Formateur NKAMVA"} src={t.avatarUrl ?? undefined} size="md" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-bold text-ink">{t.fullName ?? "Formateur NKAMVA"}</span>
+                      {t.slogan ? <span className="block truncate text-[13px] text-ink-3">{t.slogan}</span> : null}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-[26px] flex justify-center">
+              <BtnLink href="/formateurs" variant="o">Tous les formateurs</BtnLink>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* ---- Devenir formateur ---- */}
       <section className="pt-14 sm:pt-[76px]">
