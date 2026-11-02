@@ -21,5 +21,8 @@ export async function GET(request: Request) {
   }
 
   const result = await searchCourses(params)
-  return success(result.items, { total: result.total, page: result.page, pageSize: result.pageSize })
+  // `ranked` dit si le tri « popular » a vraiment classé, ou s'il est retombé
+  // sur les nouveautés faute de ventes : l'écran ne doit pas annoncer un
+  // classement qui n'existe pas.
+  return success(result.items, { total: result.total, page: result.page, pageSize: result.pageSize, ranked: result.ranked })
 }
