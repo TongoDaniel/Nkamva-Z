@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { Check, Flag, Heart, Lock } from 'lucide-react-native'
+import { Check, ChevronRight, Flag, Heart, Lock } from 'lucide-react-native'
 import { useCourse, useFavorites, useResources, useToggleFavorite } from '../../lib/queries'
 import { formatDuration, formatLabel } from '../../lib/format'
 import { Screen } from '../../ui/Screen'
@@ -160,12 +160,14 @@ export default function Ressource() {
         </View>
       ) : null}
 
-      <Card style={styles.trainer}>
+      {/* Le formateur mène à sa fiche : ses autres ressources, sa communauté. */}
+      <Card style={styles.trainer} onPress={() => router.push({ pathname: '/formateur/[id]', params: { id: trainer.id } })}>
         <Avatar name={trainer.user.fullName} size={52} />
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="bodyStrong">{trainer.user.fullName ?? 'Formateur NKAMVA'}</Text>
           {trainer.slogan ? <Text variant="small" numberOfLines={2}>{trainer.slogan}</Text> : null}
         </View>
+        <ChevronRight size={18} color={colors.hairline} />
       </Card>
       {trainer.description ? <Text variant="body">{trainer.description}</Text> : null}
 

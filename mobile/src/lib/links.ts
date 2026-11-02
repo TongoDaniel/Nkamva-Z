@@ -23,7 +23,12 @@ export function openSiteLink(link: string | null | undefined) {
     case 'communautes':
       return slug
         ? router.push({ pathname: '/communaute/[slug]', params: { slug } })
-        : router.push('/communautes')
+        : head === 'communautes'
+          ? router.navigate({ pathname: '/explorer', params: { vue: 'communautes' } })
+          : router.push('/mes-communautes')
+    case 'formateurs':
+      if (slug) return router.push({ pathname: '/formateur/[id]', params: { id: slug } })
+      return router.navigate({ pathname: '/explorer', params: { vue: 'formateurs' } })
     case 'messagerie':
       return router.navigate('/messages')
     case 'mes-achats':
