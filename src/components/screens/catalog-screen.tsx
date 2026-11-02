@@ -20,6 +20,7 @@ import { favoritedCourseIds } from "@/lib/favorites";
 import { getAuthContext } from "@/lib/api";
 import { routesOf, type Space } from "@/lib/spaces";
 import type { CourseListItem } from "@/lib/dto";
+import { courseListJsonLd, jsonLdScript } from "@/lib/structured-data";
 
 const PAGE_SIZE = 9;
 const SORTS = ["popular", "newest", "price_asc", "price_desc"] as const;
@@ -89,6 +90,14 @@ async function CatalogBody({
 
   return (
     <div className="grid items-start gap-8 pt-6 lg:grid-cols-[262px_1fr]">
+      {/* Liste de cours schema.org, sur le catalogue public seulement : le
+          jumeau connecté n'est pas indexé (`robots.ts`). */}
+      {space === "public" && items.length > 0 ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(courseListJsonLd(items)) }}
+        />
+      ) : null}
       <CatalogFilters categories={categoryFacets} formats={formatFacets} levels={levelFacets} />
       <section aria-label="Résultats du catalogue">
         <CatalogToolbar
