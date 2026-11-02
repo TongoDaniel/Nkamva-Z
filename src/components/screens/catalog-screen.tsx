@@ -15,7 +15,7 @@ import {
   type Facet,
 } from "./catalog-controls";
 import { LinkPending } from "@/components/nk/nav-link";
-import { searchCourses, getCategories, getFormats } from "@/lib/catalog";
+import { searchCourses, getCatalogFacets } from "@/lib/catalog";
 import { favoritedCourseIds } from "@/lib/favorites";
 import { getAuthContext } from "@/lib/api";
 import { routesOf, type Space } from "@/lib/spaces";
@@ -56,11 +56,10 @@ async function CatalogBody({
     pageSize: PAGE_SIZE,
   };
 
-  const [result, categories, formats] = await Promise.all([
-    searchCourses(query),
-    getCategories(),
-    getFormats(),
-  ]);
+  // Les facettes viennent du catalogue marchand seul, avec leurs effectifs :
+  // les anciennes listes comptaient aussi les ressources réservées aux
+  // communautés, et proposaient des thèmes qui menaient à une liste vide.
+  const [result, facets] = await Promise.all([searchCourses(query), getCatalogFacets()]);
 
   const items = result.items as unknown as CourseListItem[];
 
@@ -72,8 +71,9 @@ async function CatalogBody({
     ? await favoritedCourseIds(auth.user.id, items.map((c) => c.id))
     : new Set<string>();
 
-  const categoryFacets: Facet[] = categories.map((c) => ({ value: c, label: c }));
-  const formatFacets: Facet[] = formats.map((f) => ({ value: f, label: formatLabel(f) }));
+  const categoryFacets: Facet[] = facets.categories.map((c) => ({ ...c, label: c.value }));
+  const formatFacets: Facet[] = facets.formats.map((f) => ({ ...f, label: formatLabel(f.value) }));
+  const levelFacets: Facet[] = facets.levels.map((l) => ({ ...l, label: l.value[0].toUpperCase() + l.value.slice(1) }));
   const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
   const pageHref = (target: number) => {
@@ -89,12 +89,12 @@ async function CatalogBody({
 
   return (
     <div className="grid items-start gap-8 pt-6 lg:grid-cols-[262px_1fr]">
-      <CatalogFilters categories={categoryFacets} formats={formatFacets} />
+      <CatalogFilters categories={categoryFacets} formats={formatFacets} levels={levelFacets} />
       <section aria-label="Résultats du catalogue">
         <CatalogToolbar
-          categories={categoryFacets}
-          formats={formatFacets}
+          levels={levelFacets}
           total={result.total}
+          unranked={sort === "popular" && !result.ranked}
         />
 
         <CatalogResults>

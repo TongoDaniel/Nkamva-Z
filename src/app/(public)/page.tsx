@@ -15,6 +15,7 @@ import { HowItWorksSwitch, ProductTrack } from "./home-mobile";
 import { ScrollCarousel } from "@/components/nk/scroll-carousel";
 import { Kicker, SectionHead } from "@/components/nk/section-head";
 import { featuredCourses } from "@/lib/featured";
+import { getCatalogFacets } from "@/lib/catalog";
 import { listHomepageFaq } from "@/lib/help-content";
 import { payableMarkets } from "@/lib/markets";
 
@@ -114,11 +115,15 @@ export default async function LandingPage() {
   // fournisseur de paiement (réponse mise en cache dix minutes).
   // La FAQ de l'accueil : les questions de l'aide cochées « accueil » dans
   // /admin/aide, dans l'ordre de l'aide (`lib/help-content.ts`).
-  const [{ courses, unavailable }, markets, homepageFaq] = await Promise.all([
+  const [{ courses, unavailable, ranked }, markets, homepageFaq, facets] = await Promise.all([
     featuredCourses(),
     payableMarkets(),
     listHomepageFaq(),
+    // Les thèmes sont un raccourci : une base injoignable les retire, elle ne
+    // fait pas tomber l'accueil.
+    getCatalogFacets().catch(() => null),
   ]);
+  const themes = facets?.categories.slice(0, 8) ?? [];
 
   return (
     <>
@@ -271,13 +276,40 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      {/* ---- Par thème ----
+          Comme l'accueil de l'application : par où commencer, avec le nombre
+          de ressources derrière chaque thème. Chaque tuile ouvre le catalogue
+          déjà filtré. */}
+      {themes.length > 0 ? (
+        <section className="pt-14 sm:pt-[76px]" aria-labelledby="themes">
+          <div className="nk-wrap">
+            <SectionHead kicker="Par où commencer" title="Explorer par " emphasis="thème" id="themes" />
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {themes.map((t) => (
+                <li key={t.value}>
+                  <Link
+                    href={`/ressources?category=${encodeURIComponent(t.value)}`}
+                    className="nk-tap flex flex-col gap-0.5 rounded-2xl border border-line bg-card px-4 py-3.5 transition hover:border-ink-3"
+                  >
+                    <span className="truncate font-bold text-ink">{t.value}</span>
+                    <span className="text-[13px] text-ink-3">
+                      {t.count} ressource{t.count > 1 ? "s" : ""}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+
       {/* ---- Carrousel catalogue ---- */}
       <section className="pt-14 sm:pt-[76px]">
         <div className="nk-wrap">
           {courses.length > 0 ? (
             <>
               <ScrollCarousel
-                label="Ressources populaires"
+                label={ranked ? "Ressources les plus suivies" : "Nouveautés du catalogue"}
                 head={
                   <SectionHead
                     className="mb-0"
