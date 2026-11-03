@@ -28,8 +28,28 @@ export const SUPER_ADMINS = [
   { email: 'jaures.nsotang@nkamva.com', fullName: 'Jaures NSOTANG' },
 ]
 
-/** Mot de passe par défaut, surchargeable sans toucher au dépôt. */
-const DEFAULT_PASSWORD = 'Nkamva!2026'
+// Aucun mot de passe par défaut, et c'est délibéré. Le dépôt est public : une
+// valeur écrite ici est connue de tous, et un déploiement sur une base vide
+// sans BOOTSTRAP_ADMIN_PASSWORD ouvrait l'administration avec elle. Ni repli,
+// ni mot de passe tiré au hasard puis affiché : le déploiement du staging
+// tourne dans GitHub Actions, dont les journaux sont lisibles par tous pour un
+// dépôt public. Sans mot de passe fourni, le script refuse de créer un compte.
+
+/**
+ * Longueur minimale, alignée sur `MIN_PASSWORD_LENGTH` de
+ * `src/lib/validation.ts` : un compte amorcé ne doit pas porter un mot de passe
+ * que l'inscription refuserait.
+ */
+export const MIN_PASSWORD_LENGTH = 10
+
+/** Refus d'amorçage faute de mot de passe utilisable. Rien n'a été écrit. */
+export class BootstrapPasswordError extends Error {
+  /** @param {string} message */
+  constructor(message) {
+    super(message)
+    this.name = 'BootstrapPasswordError'
+  }
+}
 
 // Paramètres alignés sur `src/lib/password.ts` : un hachage produit ici doit
 // être vérifiable par la route de connexion, qui utilise les mêmes. `2` est
@@ -49,6 +69,12 @@ const HASH_OPTIONS = { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism
  * Le rôle, lui, est toujours réaffirmé : un compte homonyme rétrogradé par
  * erreur doit pouvoir être remis d'aplomb par un simple passage.
  *
+ * Un mot de passe n'est exigé que s'il doit être posé : création d'un compte
+ * absent, ou `resetPassword`. Les comptes en place n'en ont pas besoin, si bien
+ * qu'un déploiement ordinaire passe sans BOOTSTRAP_ADMIN_PASSWORD. Quand il en
+ * faut un et qu'il manque, ou qu'il est trop court, la fonction lève une
+ * `BootstrapPasswordError` **avant toute écriture**.
+ *
  * Les types sont annotés en JSDoc : ce module est importé par `prisma/seed.ts`,
  * qui est compilé, et sans annotation TypeScript déduit une signature trop
  * étroite du seul jeu de valeurs par défaut.
@@ -58,17 +84,50 @@ const HASH_OPTIONS = { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism
  * @returns {Promise<Array<{ email: string, action: string }>>}
  */
 export async function bootstrapSuperAdmins(db, { password, resetPassword = false } = {}) {
-  const results = []
+  // La chaîne vide vaut absence. C'est ce que reçoit le script quand le .env du
+  // serveur n'a pas la ligne (`docker run -e VAR="$(grep …)"`), et l'ancien
+  // `password ?? défaut` la gardait telle quelle : il hachait un mot de passe vide.
+  const secret = password || undefined
 
+  // Toutes les lectures d'abord : un refus doit tomber avant la première
+  // écriture, pas au deuxième compte.
+  const accounts = []
   for (const account of SUPER_ADMINS) {
-    // Un hachage par compte, et non un seul partagé : deux comptes au même mot
-    // de passe produiraient sinon deux hachés identiques, ce qui le dit à qui
-    // lit la table. Le sel est tiré à chaque appel.
-    const passwordHash = await hash(password ?? DEFAULT_PASSWORD, HASH_OPTIONS)
     const existing = await db.user.findUnique({
       where: { email: account.email },
       select: { id: true, role: true, adminRole: true, deletedAt: true },
     })
+    accounts.push({ account, existing })
+  }
+
+  const missing = accounts.filter((a) => !a.existing).map((a) => a.account.email)
+  const needsPassword = missing.length > 0 || resetPassword
+  if (needsPassword) {
+    const target = resetPassword
+      ? `réinitialiser le mot de passe de ${SUPER_ADMINS.map((a) => a.email).join(', ')}`
+      : `créer ${missing.join(', ')}`
+    if (!secret) {
+      throw new BootstrapPasswordError(
+        `BOOTSTRAP_ADMIN_PASSWORD n'est pas défini : impossible de ${target}.\n` +
+        "   Le script n'a plus de mot de passe par défaut. Renseignez BOOTSTRAP_ADMIN_PASSWORD\n" +
+        `   (au moins ${MIN_PASSWORD_LENGTH} caractères) dans le .env du serveur, puis relancez. Rien n'a été écrit.`,
+      )
+    }
+    if (secret.length < MIN_PASSWORD_LENGTH) {
+      throw new BootstrapPasswordError(
+        `BOOTSTRAP_ADMIN_PASSWORD est trop court pour ${target} : ` +
+        `au moins ${MIN_PASSWORD_LENGTH} caractères. Rien n'a été écrit.`,
+      )
+    }
+  }
+
+  const results = []
+
+  for (const { account, existing } of accounts) {
+    // Un hachage par compte, et non un seul partagé : deux comptes au même mot
+    // de passe produiraient sinon deux hachés identiques, ce qui le dit à qui
+    // lit la table. Le sel est tiré à chaque appel.
+    const passwordHash = needsPassword ? await hash(/** @type {string} */ (secret), HASH_OPTIONS) : undefined
 
     if (!existing) {
       const created = await db.user.create({
@@ -142,16 +201,16 @@ if (invokedDirectly) {
   const db = new PrismaClient()
 
   try {
-    if (!password) {
-      console.warn(
-        "⚠  BOOTSTRAP_ADMIN_PASSWORD n'est pas défini : le mot de passe par défaut du dépôt est utilisé.\n" +
-        '   Il est lisible par quiconque a accès au code. À changer dès la première connexion.',
-      )
-    }
     const results = await bootstrapSuperAdmins(db, { password, resetPassword })
     console.log('\nComptes Super-admin :')
     for (const r of results) console.log(`  · ${r.email} — ${r.action}`)
     console.log('')
+  } catch (error) {
+    if (!(error instanceof BootstrapPasswordError)) throw error
+    // Un refus attendu : le message suffit, la pile n'apprendrait rien. Le code
+    // de sortie non nul arrête le déploiement (`set -e`) avant `compose up`.
+    console.error(`\n✗ ${error.message}\n`)
+    process.exitCode = 1
   } finally {
     await db.$disconnect()
   }
