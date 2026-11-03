@@ -170,6 +170,25 @@ EOF
   exit 0
 fi
 
+# --- Garde-fou : un mot de passe pour les Super-admins --------------------
+# `bootstrap-admins.mjs` n'a plus de mot de passe par défaut : sans
+# BOOTSTRAP_ADMIN_PASSWORD, il refuse de recréer les comptes. Découvert à
+# l'étape 4, ce refus laisserait une base purgée sans aucun administrateur. On
+# le vérifie donc avant de toucher à quoi que ce soit : ici, ou à défaut dans
+# l'environnement du conteneur applicatif (le .env du serveur).
+if [ -z "${BOOTSTRAP_ADMIN_PASSWORD:-}" ]; then
+  echo "==> BOOTSTRAP_ADMIN_PASSWORD absent ici : vérification dans $APP_CONTAINER"
+  remote "$APP_CONTAINER" <<'REMOTE'
+set -euo pipefail
+APP=$1
+if ! docker exec "$APP" sh -c 'test -n "${BOOTSTRAP_ADMIN_PASSWORD:-}"'; then
+  echo "✗ BOOTSTRAP_ADMIN_PASSWORD n'est défini ni localement ni dans $APP (ou le conteneur est arrêté)." >&2
+  echo "  Sans lui, les Super-admins ne seraient pas recréés après la purge. Rien n'a été touché." >&2
+  exit 1
+fi
+REMOTE
+fi
+
 STAMP=$(date +%Y%m%d-%H%M%S)
 
 # --- 2. Sauvegarde --------------------------------------------------------
