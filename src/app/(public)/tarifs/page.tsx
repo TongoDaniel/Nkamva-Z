@@ -6,6 +6,7 @@ import { Chip } from "@/components/nk/chip";
 import { COMMISSION_LABEL, PRO_COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
 import { PRO_BREAK_EVEN_FCFA, PRO_MONTHLY_PRICE_FCFA, PRO_OPEN_TO_ALL_AT } from "@/lib/trainer-plans";
 import { fmtDate } from "@/lib/format";
+import { COMMUNITY_GRID_AT } from "@/lib/community-plans";
 import { fmtFcfa } from "@/lib/format";
 import {
   CONSUMPTION_THRESHOLD_LABEL,
@@ -111,6 +112,13 @@ export default async function TarifsPage() {
     {
       q: "Puis-je être remboursé ?",
       a: `Oui, intégralement, frais compris, quand la faute n'est pas la vôtre : accès non reçu, double paiement, live annulé, contenu différent de sa description. La demande se fait sous ${DISPUTE_OPENING_WINDOW_DAYS} jours, et la décision tombe sous 72 h ouvrées. Un simple changement d'avis n'est plus remboursable après l'accès au contenu (plus de ${CONSUMPTION_THRESHOLD_LABEL} consultés, ou fichier téléchargé).`,
+    },
+    {
+      // Modèle v1.1 : la grille Community s'annonce aux formateurs avec un
+      // préavis de 30 jours (plan d'action 2.2) ; ses prix ne s'écrivent pas
+      // ici avant cette annonce.
+      q: "Ouvrir une communauté coûte-t-il quelque chose ?",
+      a: `Pas jusqu'au ${fmtDate(COMMUNITY_GRID_AT)} : chaque communauté peut tenir jusqu'à 3 lives par semaine, de 2 h au plus, avec des replays en audio. À partir de cette date, une petite communauté (jusqu'à 20 membres) reste à 0 FCFA, et les plus grandes passent à un plan mensuel selon leur nombre de membres. La grille sera annoncée aux formateurs au moins 30 jours avant.`,
     },
     {
       q: "Quand un formateur touche-t-il son argent ?",

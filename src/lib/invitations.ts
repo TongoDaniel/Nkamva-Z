@@ -33,6 +33,7 @@
 // écrite.
 // ==========================================================================
 
+import { assertCommunityCanGrow } from './community-plans'
 import { createHash, randomBytes } from 'crypto'
 import type {
   CommunityInvitation, CommunityVisibility, InvitationGrant, InvitationKind,
@@ -716,6 +717,9 @@ export async function acceptGiftInvitation(token: string, userId: string): Promi
 
   const blocker = await blockerFor(invitation, userId)
   if (blocker) throw new Error(blocker)
+  // Modèle v1.1 : une invitation n'agrandit pas une communauté arrivée à la
+  // taille de son plan.
+  await assertCommunityCanGrow(invitation.communityId)
 
   const giftMonths = invitation.giftMonths ?? 1
   const periodStart = new Date()

@@ -70,7 +70,7 @@ export async function getCustomerCard(userId: string) {
     select: {
       id: true, email: true, fullName: true, phone: true, countryCode: true, role: true,
       emailVerifiedAt: true, createdAt: true, suspendedAt: true, deletedAt: true,
-      trainerProfile: { select: { id: true, plan: true, founder: true, commissionRate: true } },
+      trainerProfile: { select: { id: true, plan: true, founder: true, commissionRate: true, inactivityArchivedAt: true } },
     },
   })
   if (!user || user.role === 'ADMIN') return null

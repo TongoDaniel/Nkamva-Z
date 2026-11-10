@@ -2,6 +2,7 @@
 // Lot 4 — Gestion des cours côté formateur : CRUD, upload R2, publication
 // ==========================================================================
 
+import { communityStorageBytes } from './community-plans'
 import { db } from './db'
 import { auditStandalone } from './audit'
 import { presignUpload, headObject, validateMagicNumber, deleteObject, isS3Configured } from './s3'
@@ -181,14 +182,23 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
  * base, 5 Go plus 1 Go par tranche de 50 000 FCFA de ventes cumulées (ventes
  * réglées et non remboursées, au prix fixé par le formateur).
  */
-export async function trainerIncludedStorageBytes(trainerId: string): Promise<number> {
-  const profile = await db.trainerProfile.findUnique({ where: { id: trainerId }, select: { plan: true } })
-  if (profile?.plan === 'PRO') return includedStorageBytes({ plan: 'PRO', cumulativeSalesFcfa: 0 })
+export async function trainerIncludedStorageBytes(trainerId: string, at = new Date()): Promise<number> {
+  const [profile, communities] = await Promise.all([
+    db.trainerProfile.findUnique({ where: { id: trainerId }, select: { plan: true } }),
+    // Modèle v1.1 : à partir du 1er mars 2027, chaque communauté apporte le
+    // stockage de son plan (2 à 50 Go), où vont ses replays.
+    db.community.findMany({
+      where: { trainerId, status: 'active' },
+      select: { plan: true, maxPlan: true, planUnpaidAt: true },
+    }),
+  ])
+  const fromCommunities = communityStorageBytes(communities, at)
+  if (profile?.plan === 'PRO') return includedStorageBytes({ plan: 'PRO', cumulativeSalesFcfa: 0 }) + fromCommunities
   const sales = await db.purchase.aggregate({
     where: { trainerId, providerStatus: 'SUCCEEDED', refundedAt: null },
     _sum: { amountFcfa: true },
   })
-  return includedStorageBytes({ plan: 'BASE', cumulativeSalesFcfa: sales._sum.amountFcfa ?? 0 })
+  return includedStorageBytes({ plan: 'BASE', cumulativeSalesFcfa: sales._sum.amountFcfa ?? 0 }) + fromCommunities
 }
 
 export async function trainerStorage(trainerId: string) {

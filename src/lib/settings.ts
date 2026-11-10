@@ -106,6 +106,15 @@ export const SETTING_SPECS = {
     max: 10_000_000,
     effect: 'Lives : à 80 % de ce dépassement mensuel, alerte ; à 100 %, les nouveaux lives partent en audio jusqu’à la fin du mois.',
   },
+  // Plan d'action 1.1 : taille de la base de formateurs prospectée (150 à
+  // 600 entre décembre 2026 et mai 2027), tenue par le commercial. Sert au
+  // premier indicateur du modèle : la part de la base devenue active.
+  'pilotage.trainer_base_size': {
+    fallback: 0,
+    min: 0,
+    max: 100_000,
+    effect: 'Tableau de pilotage : la part de la base de formateurs devenue active se calcule sur ce nombre.',
+  },
   'invitations.share_link_max_uses': {
     fallback: 25,
     min: 1,

@@ -31,6 +31,10 @@ import { fmtCount } from './format'
 import { auditStandalone } from './audit'
 import type { PrismaTransaction } from './types'
 
+const COMMUNITY_PLAN_LABEL: Record<string, string> = {
+  DECOUVERTE: 'Découverte', ESSENTIEL: 'Essentiel', CROISSANCE: 'Croissance', PREMIUM: 'Premium',
+}
+
 /** Préfixe des numéros. `NK-2026-000001`, lisible et triable. */
 const PREFIX = 'NK'
 
@@ -156,7 +160,7 @@ export async function issueInvoiceForSubscriptionCharge(chargeId: string) {
     where: { id: chargeId },
     select: {
       id: true, amountDueFcfa: true, periodStart: true, periodEnd: true,
-      storageTiers: true, status: true,
+      storageTiers: true, status: true, plan: true, communityPlans: true,
       trainerProfile: { select: { userId: true } },
     },
   })
@@ -168,11 +172,18 @@ export async function issueInvoiceForSubscriptionCharge(chargeId: string) {
 
   const period = `${charge.periodStart.toLocaleDateString('fr-FR')} – ${charge.periodEnd.toLocaleDateString('fr-FR')}`
   const storage = charge.storageTiers > 0 ? ` · ${fmtCount(charge.storageTiers, 'palier de stockage', 'paliers de stockage')}` : ''
+  // Modèle v1.1 : le plan Pro et les plans Community se lisent sur la facture.
+  const pro = charge.plan === 'PRO' ? ' · Plan Pro' : ''
+  const lines = Array.isArray(charge.communityPlans) ? (charge.communityPlans as Array<{ name?: string; plan?: string; priceFcfa?: number }>) : []
+  const paidLines = lines.filter((l) => (l.priceFcfa ?? 0) > 0)
+  const communities = paidLines.length
+    ? ` · Community : ${paidLines.map((l) => `${l.name ?? 'communauté'} (${COMMUNITY_PLAN_LABEL[l.plan ?? ''] ?? l.plan})`).join(', ')}`
+    : ''
 
   return issueInvoice({
     kind: 'SUBSCRIPTION',
     userId: charge.trainerProfile.userId,
-    label: `Abonnement NKAMVA · ${period}${storage}`,
+    label: `Abonnement NKAMVA · ${period}${pro}${storage}${communities}`,
     amountFcfa: charge.amountDueFcfa,
     subscriptionChargeId: charge.id,
     issuedAt: charge.periodStart,

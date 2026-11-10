@@ -85,6 +85,11 @@ export async function authorizeCredentials(
   // fautes de frappe rattrapées bloquent la reconnexion suivante.
   for (const counter of counters) clearRateLimit(counter, LOGIN_ACTION)
 
+  // Plan d'action 2.4 : la dernière connexion fonde l'archivage pour
+  // inactivité (6 mois sans connexion ni vente). Une écriture qui échoue ne
+  // doit pas refuser la connexion.
+  await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => undefined)
+
   return { id: user.id, email: user.email, role: user.role, adminRole: user.adminRole, adminRoles: user.adminRoles, trainerId: user.trainerProfile?.id ?? null, sessionsValidAfter: user.sessionsValidAfter.toISOString() }
 }
 

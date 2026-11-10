@@ -433,6 +433,8 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   ROLE_UNCHANGED: { message: 'Ce compte a déjà ce sous-rôle', status: 409 },
   LIVE_TOO_LONG: { message: 'Un live dure 2 heures au plus.', status: 422 },
   LIVE_WEEKLY_LIMIT: { message: 'Trois lives par semaine au plus pour une communauté.', status: 422 },
+  LIVE_FULL: { message: 'Ce live a atteint le nombre de participants de la communauté. Le replay sera disponible après la séance.', status: 409 },
+  COMMUNITY_FULL: { message: "Cette communauté a atteint sa taille maximale et n'accueille plus de nouveaux membres pour le moment.", status: 409 },
   TOO_MANY_OWNERS: { message: 'Deux Propriétaires au plus : retirez d\'abord un accès Propriétaire.', status: 409 },
   ROLES_REQUIRED: { message: 'Choisissez au moins un rôle.', status: 422 },
   PRO_NOT_YET_AVAILABLE: { message: 'Le plan Pro ouvre à tous les formateurs le 1er mars 2027.', status: 403 },

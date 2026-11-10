@@ -14,6 +14,25 @@ import { AvatarPanel } from "@/components/screens/avatar-panel";
 import { CommunityTabs } from "./community-tabs";
 import { InvitationsPanel } from "./invitations-panel";
 import { MembersPanel } from "./members-panel";
+import { CommunityPlanPanel, type CommunityPlanRow } from "./plan-panel";
+import { COMMUNITY_PLANS, COMMUNITY_PLAN_ORDER, describeCommunityPlan } from "@/lib/community-plans";
+
+/** La grille du modèle v1.1, telle que le formateur la lit. */
+const PLAN_GRID: CommunityPlanRow[] = COMMUNITY_PLAN_ORDER.map((plan) => {
+  const t = COMMUNITY_PLANS[plan];
+  return {
+    plan,
+    label: t.label,
+    members: `${fmtNumber(t.minMembers)}-${fmtNumber(t.maxMembers)}`,
+    priceFcfa: t.priceFcfa,
+    participants:
+      t.liveParticipantsVideo === t.liveParticipantsAudio
+        ? fmtNumber(t.liveParticipantsVideo)
+        : `~${fmtNumber(t.liveParticipantsVideo)} en vidéo, ${fmtNumber(t.liveParticipantsAudio)} en audio`,
+    replays: t.videoReplays ? "Audio et vidéo" : "Audio",
+    storage: `${Math.round(t.storageBytes / 1024 ** 3)} Go`,
+  };
+});
 
 export const dynamic = "force-dynamic";
 
@@ -162,6 +181,25 @@ export default async function MaCommunautePage({
             {/* Après le formulaire, et non avant : on décide de fermer un salon
                 une fois qu'on a vu ce qu'il montre. */}
             <VisibilityToggle communityId={community.id} visibility={community.visibility} />
+
+            <CommunityPlanPanel
+              view={(() => {
+                const d = describeCommunityPlan(community);
+                return {
+                  communityId: community.id,
+                  inForce: d.inForce,
+                  gridAt: d.gridAt.toISOString(),
+                  plan: d.plan,
+                  effective: d.effective,
+                  billedNext: d.billedNext,
+                  billedNextFcfa: d.billedNextFcfa,
+                  maxPlan: d.maxPlan,
+                  unpaid: d.unpaid,
+                  members: d.members,
+                  grid: PLAN_GRID,
+                };
+              })()}
+            />
           </>
         }
         salons={

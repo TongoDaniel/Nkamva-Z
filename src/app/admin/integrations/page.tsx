@@ -15,6 +15,7 @@ import {
   type IntegrationState,
 } from "@/lib/integrations";
 import { RefreshButton } from "./refresh-button";
+import { TestErrorButton } from "./test-error-button";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +143,12 @@ export default async function IntegrationsPage() {
       <AdminHead
         title="Intégrations"
         lead="« La variable est posée » ne veut pas dire « ça marche ». Chaque ligne ci-dessous vient d'un appel réel au fournisseur, fait à l'instant, jamais d'une simple lecture de la configuration."
-        actions={<RefreshButton />}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <TestErrorButton />
+            <RefreshButton />
+          </div>
+        }
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-nk-lg border border-line bg-card px-5 py-4 shadow-nk-sm">

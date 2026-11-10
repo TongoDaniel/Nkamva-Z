@@ -48,7 +48,11 @@ export function ReplayPlayer({
   // Arbitrage 94 — la même séance en audio seul, ~60 Mo pour deux heures contre
   // ~1,3 Go. Sur les connexions que sert la plateforme, c'est la différence
   // entre écouter le replay et ne jamais le charger.
-  const [variant, setVariant] = React.useState<"video" | "audio">("video");
+  // Modèle v1.1 : les replays du lancement, et ceux du plan Découverte, sont
+  // enregistrés en audio seul. Il n'y a alors pas de vidéo à proposer.
+  const [variant, setVariant] = React.useState<"video" | "audio">(
+    replay.hasVideo ? "video" : "audio",
+  );
   // La date d'enregistrement est celle du live : sans fuseau, le serveur
   // l'écrivait dans le sien, et une séance du soir à Toronto changeait de jour
   // à l'hydratation. Même règle que `ReplayRow`, sans rappel de l'heure de
@@ -115,9 +119,13 @@ export function ReplayPlayer({
             </span>
             {url && variant === "audio" ? (
               <div className="w-full px-6">
-                <p className="text-[13.5px] font-bold text-white">Version audio seule</p>
+                <p className="text-[13.5px] font-bold text-white">
+                  {replay.hasVideo ? "Version audio seule" : "Replay audio"}
+                </p>
                 <p className="mt-1 text-[13px] text-[#b9c9dd]">
-                  L&apos;image n&apos;est pas chargée, seule la parole l&apos;est.
+                  {replay.hasVideo
+                    ? "L'image n'est pas chargée, seule la parole l'est."
+                    : "Cette séance a été enregistrée en audio : il n'y a pas d'image."}
                 </p>
               </div>
             ) : null}
@@ -141,7 +149,9 @@ export function ReplayPlayer({
                 {loading ? (
                   <>
                     <Loader2 className="mx-auto size-8 animate-spin text-white" aria-hidden="true" />
-                    <p className="mt-4 text-[13.5px] text-[#b9c9dd]">Chargement de la vidéo…</p>
+                    <p className="mt-4 text-[13.5px] text-[#b9c9dd]">
+                      {replay.hasVideo ? "Chargement de la vidéo…" : "Chargement de l'audio…"}
+                    </p>
                   </>
                 ) : (
                   <p className="text-[13.5px] leading-relaxed text-[#b9c9dd]">
@@ -200,7 +210,7 @@ export function ReplayPlayer({
               {/* Arbitrage 94 — proposé seulement quand la variante existe :
                   les replays antérieurs à la bascule, et ceux hébergés
                   ailleurs, n'en ont pas. */}
-              {replay.hasAudioVariant ? (
+              {replay.hasAudioVariant && replay.hasVideo ? (
                 <button
                   type="button"
                   onClick={() => setVariant((v) => (v === "audio" ? "video" : "audio"))}
@@ -280,7 +290,7 @@ export function ReplayPlayer({
           </p>
           {url ? (
             <Btn asChild variant="o" block>
-              <a href={url} download={`${replay.title}.mp4`}>
+              <a href={url} download={`${replay.title}.${variant === "audio" ? "ogg" : "mp4"}`}>
                 <Download aria-hidden="true" />
                 Télécharger le replay
               </a>

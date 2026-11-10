@@ -21,8 +21,9 @@
 // reste APPROVED jusqu'au versement.
 // ==========================================================================
 
-import type { PlanCadence, TrainerPlan } from '@prisma/client'
+import type { PlanCadence, Prisma, TrainerPlan } from '@prisma/client'
 import { applySettledChargePlan, downgradeToBase, resolveRenewalPlan } from './trainer-plans'
+import { applyCommunityPlans, chargeIsPlansOnly, communityPlanChargeFor, markCommunityPlansUnpaid } from './community-plans'
 import { db } from './db'
 import { addMonthsUtc } from './months'
 import { audit, auditStandalone } from './audit'
@@ -118,6 +119,10 @@ export async function openFirstPeriod(
   // Il est fait quand même, pour que l'ouverture et le renouvellement calculent
   // la même chose — une divergence entre les deux serait invisible longtemps.
   const storage = await storageChargeFor(trainerProfileId, cadence, now)
+  // Modèle v1.1 : un formateur qui vient d'être approuvé n'a pas encore de
+  // communauté ; même remarque que pour le stockage.
+  const communityPlans = await communityPlanChargeFor(trainerProfileId, cadence, now)
+  const firstDue = quote.payableFcfa + storage.amountFcfa + communityPlans.amountFcfa
 
   await tx.subscriptionCharge.create({
     data: {
@@ -130,7 +135,9 @@ export async function openFirstPeriod(
       discountLabel: quote.discountLabel,
       storageTiers: storage.tiers,
       storageFcfa: storage.amountFcfa,
-      amountDueFcfa: quote.payableFcfa + storage.amountFcfa,
+      communityPlansFcfa: communityPlans.amountFcfa,
+      communityPlans: communityPlans.lines.length ? (communityPlans.lines as unknown as Prisma.InputJsonValue) : undefined,
+      amountDueFcfa: firstDue,
       // Trois cas, et non deux depuis que le premier abonnement se règle avant
       // l'ouverture de l'espace :
       // - déjà encaissé → SETTLED, avec la date du versement ;
@@ -139,8 +146,8 @@ export async function openFirstPeriod(
       //   cohorte de lancement ;
       // - sinon DUE. Le stockage entre dans ce total : un abonnement offert
       //   avec des paliers payants reste dû.
-      status: prepaid ? 'SETTLED' : quote.payableFcfa + storage.amountFcfa === 0 ? 'WAIVED' : 'DUE',
-      settledAt: prepaid ? prepaid.paidAt : quote.payableFcfa + storage.amountFcfa === 0 ? now : null,
+      status: prepaid ? 'SETTLED' : firstDue === 0 ? 'WAIVED' : 'DUE',
+      settledAt: prepaid ? prepaid.paidAt : firstDue === 0 ? now : null,
     },
   })
 
@@ -154,7 +161,7 @@ export async function openFirstPeriod(
     },
   })
 
-  return { periodEnd, amountDueFcfa: quote.payableFcfa + storage.amountFcfa }
+  return { periodEnd, amountDueFcfa: firstDue }
 }
 
 interface RenewalResult {
@@ -325,12 +332,15 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
     // cadence. Ils n'ont donc pas leur propre échéance, et le formateur n'a
     // qu'une ligne à régler.
     const storage = await storageChargeFor(profile.id, cadence, periodStart)
-    const dueFcfa = quote.payableFcfa + storage.amountFcfa
+    // Modèle v1.1 : les plans Community s'ajoutent à la même échéance (à partir
+    // du 1er mars 2027), chacun au plan qu'impose la taille de la communauté.
+    const communityPlans = await communityPlanChargeFor(profile.id, cadence, periodStart)
+    const dueFcfa = quote.payableFcfa + storage.amountFcfa + communityPlans.amountFcfa
     const waived = dueFcfa === 0
 
     try {
       await db.$transaction(async (tx) => {
-        await tx.subscriptionCharge.create({
+        const created = await tx.subscriptionCharge.create({
           data: {
             trainerId: profile.id,
             plan,
@@ -343,11 +353,16 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
             tariffDeferred: quote.deferred,
             storageTiers: storage.tiers,
             storageFcfa: storage.amountFcfa,
+            communityPlansFcfa: communityPlans.amountFcfa,
+            communityPlans: communityPlans.lines.length ? (communityPlans.lines as unknown as Prisma.InputJsonValue) : undefined,
             amountDueFcfa: dueFcfa,
             status: waived ? 'WAIVED' : 'DUE',
             settledAt: waived ? periodStart : null,
           },
         })
+        // Une communauté qui redescend à Découverte n'a rien à régler : son
+        // plan change tout de suite. Les plans payants attendent le règlement.
+        await applyCommunityPlans(tx, created.id, 'FREE')
 
         await tx.trainerProfile.update({
           where: { id: profile.id },
@@ -372,6 +387,7 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
             cadence, periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(),
             amountDueFcfa: dueFcfa, storageTiers: storage.tiers,
             storageFcfa: storage.amountFcfa, discountLabel: quote.discountLabel,
+            communityPlansFcfa: communityPlans.amountFcfa,
           },
         })
       })
@@ -562,9 +578,41 @@ export async function suspendOverdueSubscriptions(now = new Date()): Promise<{
   for (const profile of overdue) {
     // Modèle v1.1, principe 5 : un Pro impayé ne retire rien du catalogue : le
     // formateur repasse au plan de base (0 FCFA, 10 %), sans dette.
-    const onlyProDue = await db.subscriptionCharge.count({
-      where: { trainerId: profile.id, status: 'DUE', plan: 'BASE' },
-    }) === 0
+    // Même règle pour les plans Community : la communauté repasse aux droits
+    // Découverte, sans perdre un membre. Seule une échéance qui contient autre
+    // chose que des plans (stockage acheté, ancien abonnement) suspend.
+    const dueCharges = await db.subscriptionCharge.findMany({
+      where: { trainerId: profile.id, status: 'DUE' },
+      select: { id: true, plan: true, amountDueFcfa: true, storageFcfa: true, communityPlansFcfa: true },
+    })
+    const plansOnly = dueCharges.length > 0 && dueCharges.every(chargeIsPlansOnly)
+    const hasCommunityPlans = dueCharges.some((c) => c.communityPlansFcfa > 0)
+    if (plansOnly && hasCommunityPlans) {
+      const downgraded = await db.$transaction(async (tx) => {
+        const count = await markCommunityPlansUnpaid(tx, dueCharges.map((c) => c.id), now)
+        if (profile.plan === 'PRO' || profile.pendingPlan === 'PRO') await downgradeToBase(tx, profile.id, 'UNPAID')
+        // Ces périodes ne sont pas une dette : leurs droits ont été retirés.
+        await tx.subscriptionCharge.updateMany({
+          where: { id: { in: dueCharges.map((c) => c.id) }, status: 'DUE' },
+          data: { status: 'WAIVED', settledAt: now },
+        })
+        await tx.trainerProfile.update({
+          where: { id: profile.id },
+          data: { subscriptionStatus: 'ACTIVE', subscriptionPastDueAt: null },
+        })
+        return count
+      })
+      await deliverSideEffects('COMMUNITY_PLANS_UNPAID', { type: 'TrainerProfile', id: profile.id }, () =>
+        notify(profile.userId, {
+          type: 'COMMUNITY_PLANS_UNPAID',
+          title: 'Vos communautés repassent au plan Découverte',
+          body: `Votre échéance est restée impayée ${SUBSCRIPTION_GRACE_DAYS} jours. ${fmtCount(downgraded, 'communauté garde', 'communautés gardent')} tous ses membres, mais n'en accepte plus au-delà de 20, et les replays repassent en audio. Régler votre prochaine échéance rétablit le plan.`,
+          link: '/formateur/portefeuille',
+        }),
+      )
+      continue
+    }
+    const onlyProDue = dueCharges.every((c) => c.plan === 'PRO')
     if ((profile.plan === 'PRO' || profile.pendingPlan === 'PRO') && onlyProDue) {
       await db.$transaction((tx) => downgradeToBase(tx, profile.id, 'UNPAID'))
       await deliverSideEffects('TRAINER_PLAN_DOWNGRADED', { type: 'TrainerProfile', id: profile.id }, () =>

@@ -100,6 +100,11 @@ export function isProductionRuntime(): boolean {
  */
 export const ADMIN_ACCESS = {
   analytics: ['PILOTAGE'],
+  // Plan d'action, phase 1. Finances lit le pilotage (recettes, files) et
+  // exporte les transactions ; personne n'y agit sur un dossier.
+  pilotage: ['PILOTAGE', 'FINANCES'],
+  trainerFollowUp: ['SUPPORT', 'SALES'],
+  trends: ['COMMUNICATION', 'PILOTAGE'],
   trainerApplications: ['MODERATION'],
   // Le service client instruit, Finances décide (séparation, règle 1).
   disputes: ['SUPPORT', 'FINANCES'],

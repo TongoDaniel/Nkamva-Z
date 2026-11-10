@@ -30,6 +30,7 @@
 import type { TrainerPlan } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
+import { applyCommunityPlans } from './community-plans'
 import { PLATFORM_COMMISSION_RATE, PRO_COMMISSION_RATE } from './commission'
 import type { PrismaTransaction } from './types'
 
@@ -82,7 +83,10 @@ export async function applySettledChargePlan(tx: PrismaTransaction, chargeId: st
     where: { id: chargeId },
     select: { plan: true, trainerId: true, status: true },
   })
-  if (!charge || charge.status !== 'SETTLED' || charge.plan !== 'PRO') return
+  if (!charge || charge.status !== 'SETTLED') return
+  // Les plans Community de la période prennent effet au même règlement.
+  await applyCommunityPlans(tx, chargeId, 'ALL')
+  if (charge.plan !== 'PRO') return
 
   const profile = await tx.trainerProfile.findUnique({
     where: { id: charge.trainerId },

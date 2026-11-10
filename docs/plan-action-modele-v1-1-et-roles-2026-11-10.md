@@ -24,7 +24,29 @@ Le code de la phase 0 est écrit. Les valeurs « à trancher » sont des réglag
 | 0.14 | « Commissions sur les ventes » | Fait |
 | 0.15 | Recette complète | **À faire** (Jephte), après application des migrations |
 
-Non fait, signalé : les replays restent enregistrés en vidéo et en audio (le modèle prévoit l'audio seul au lancement) ; le changer touche la chaîne des replays et mérite un test dédié.
+Replays : en audio seul jusqu'au 1er mars 2027 (règles du lancement), puis selon le plan Community (Découverte : audio ; les autres : audio et vidéo). Le lecteur sert l'audio quand il n'y a pas d'image.
+
+### Phases 1 à 3 (code écrit le 10 novembre 2026)
+
+| # | Action | État |
+|---|---|---|
+| 1.1 | Tableau de pilotage | Fait : `/admin/pilotage` (Pilotage, Finances). Part de la base devenue active (taille de la base : réglage `pilotage.trainer_base_size`, **à renseigner**), formateurs actifs et nouveaux, départs, ventes moyennes, apprenants par formateur, face aux trois scénarios ; recettes par source et par mois. **Définitions de mesure à valider par Jaurès** (formateur actif = au moins une vente dans le mois) |
+| 1.2 | Période et export CSV | Fait : choix du mois de début et de fin, exports recettes, transactions, files (tracés au journal) |
+| 1.3 | Ancienneté des files | Fait : litiges (avec le délai de 72 h ouvrées), signalements, candidatures, retraits, moyens de retrait |
+| 1.4 | Formateurs sans vente à 30 jours | Fait : `/admin/suivi-formateurs` (Service client), avec la trace de chaque contact |
+| 1.5 | Signal « passez en Pro » | Fait : tâche du 1er de chaque mois, notification et e-mail avec le calcul, au plus une fois tous les deux mois |
+| 1.6 | Suivi des lives | Fait : lives, h-participants, présents moyens, dépassement et données estimés, par mois. Les présences mesurées par Merveille et Jaurès restent à faire en direct |
+| 1.7 | Tableaux par rôle | Fait : Commercial (entonnoir, fondateurs, proches du seuil Pro, notes de suivi), Communication (`/admin/tendances` : plus consultées, plus vendues, filières, audience, nouveaux formateurs ; sans donnée personnelle ni montant) |
+| 1.8 | Enquête de consentement à payer | Hors code (Jaurès, Obama) |
+| 2.1, 2.2 | Option A ou B, grille définitive | **À décider** (au plus tard le 29 janvier 2027) |
+| 2.3 | Plans Community | Fait avec la grille du modèle v1.1 (`lib/community-plans.ts`), en vigueur au 1er mars 2027 : facturés sur l'échéance mensuelle du formateur, plafond au choix du formateur, droits au règlement, impayé ramené aux droits Découverte. **À reprendre si la grille définitive change** |
+| 2.4 | Archivage pour inactivité | Fait : préavis à 5 mois sans connexion ni vente, archivage 30 jours après (ressources retirées du catalogue, rien de supprimé, accès des acheteurs gardé), restauration en un clic par le formateur ou le service client |
+| 3.1 | Pro pour tous, grille Community | Automatique au 1er mars 2027 (dates dans le code) |
+| 3.2 | Marketing payant | Fait : saisie mensuelle dans le pilotage, coût par nouveau formateur actif |
+| 3.3 | Modèle v2 | Hors code (Jaurès) |
+| 3.4 | Revue trimestrielle des accès | Fait : rappel aux Propriétaires les 1er mars, juin, septembre et décembre, avec la liste des rôles et des doubles authentifications manquantes |
+
+Point à trancher, apparu en construisant 2.3 : à partir du 1er mars 2027, l'adhésion des membres garde-t-elle son prix fixé par le formateur et sa commission, en plus du plan payé par le formateur ? Le code garde les deux, comme aujourd'hui.
 
 ## 1. Où en est le code par rapport au modèle v1.1
 

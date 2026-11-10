@@ -29,6 +29,7 @@
 // courant. Aucun modèle de facturation supplémentaire n'a été nécessaire.
 // ==========================================================================
 
+import { assertCommunityCanGrow } from './community-plans'
 import type {
   CommunitySubscriptionStatus,
   CommunityVisibility,
@@ -479,6 +480,10 @@ export async function initiateMembershipPayment(
   if (!open && !trainerAcceptsMembers(community.trainerProfile)) {
     throw new Error('COMMUNITY_CLOSED_TO_NEW_MEMBERS')
   }
+  // Modèle v1.1 : à partir du 1er mars 2027, une communauté arrivée à la
+  // taille de son plan (plafond voulu par le formateur, plan impayé, ou
+  // 3 000 membres) n'accueille plus. Le membre qui renouvelle passe toujours.
+  if (!open) await assertCommunityCanGrow(communityId)
 
   const now = new Date()
   // Une adhésion en impayé règle **le mois déjà entamé**, celui qui court

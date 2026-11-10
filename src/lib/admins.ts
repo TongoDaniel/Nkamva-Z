@@ -300,3 +300,45 @@ export async function reactivateAdmin(targetId: string, actorId: string): Promis
     })
   })
 }
+
+/**
+ * Plan d'action, règle 6 et action 3.4 : chaque trimestre, les deux
+ * Propriétaires revoient les accès. Le job leur envoie la liste du moment :
+ * qui a quels rôles, qui n'a pas activé la double authentification.
+ */
+export async function remindAccessReview(now = new Date()): Promise<{ owners: number; admins: number }> {
+  const admins = await db.user.findMany({
+    where: { role: 'ADMIN', deletedAt: null, suspendedAt: null },
+    select: { id: true, email: true, fullName: true, adminRole: true, adminRoles: true, twoFactorEnabledAt: true },
+  })
+  const owners = admins.filter((a) => a.adminRoles.includes('SUPER_ADMIN') || a.adminRole === 'SUPER_ADMIN')
+  const lines = admins.map((a) => {
+    const roles = (a.adminRoles.length ? a.adminRoles : a.adminRole ? [a.adminRole] : []).map((r) => ROLE_LABELS[r] ?? r).join(', ')
+    return `${a.fullName ?? a.email} : ${roles}${a.twoFactorEnabledAt ? '' : ' (double authentification non activée)'}`
+  })
+  const quarter = `${Math.floor(now.getUTCMonth() / 3) + 1}e trimestre ${now.getUTCFullYear()}`
+  for (const owner of owners) {
+    await db.notification.create({
+      data: {
+        userId: owner.id, type: 'ACCESS_REVIEW',
+        title: `Revue des accès du ${quarter}`,
+        body: `${admins.length} administrateurs actifs. Retirez tout rôle qui ne sert plus.`,
+        link: '/admin/administrateurs',
+      },
+    })
+    await sendEmail({
+      to: owner.email,
+      subject: `NKAMVA · Revue des accès du ${quarter}`,
+      ...renderSimpleEmail({
+        title: `Revue des accès du ${quarter}`,
+        paragraphs: [
+          'Chaque trimestre, les deux Propriétaires revoient ensemble qui a accès à quoi. Voici les accès actuels :',
+          ...lines,
+          'Retirez tout rôle qui ne sert plus, et le compte de toute personne partie.',
+        ],
+        cta: { label: 'Gérer les administrateurs', url: absoluteUrl('/admin/administrateurs') },
+      }),
+    }).catch(() => undefined)
+  }
+  return { owners: owners.length, admins: admins.length }
+}

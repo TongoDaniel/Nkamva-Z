@@ -44,6 +44,7 @@ import {
 } from './mux'
 import { userAvatarSrc } from './avatars'
 import { assertLaunchLiveRules, newLivesAudioOnly } from './live-budget'
+import { liveParticipantCap, replayRecordsVideo } from './community-plans'
 import { LIVE_NEVER_STARTED_CLOSE_HOURS, LIVE_SCHEDULE_HORIZON_DAYS, LIVE_SCHEDULE_PAST_TOLERANCE_MINUTES } from './rules'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts restent alignées. */
@@ -136,7 +137,7 @@ async function assertIsHost(sessionId: string, userId: string) {
     where: { id: sessionId },
     select: {
       id: true, communityId: true, roomName: true, status: true,
-      community: { select: { trainerProfile: { select: { userId: true } } } },
+      community: { select: { plan: true, maxPlan: true, planUnpaidAt: true, trainerProfile: { select: { userId: true } } } },
     },
   })
   if (!session) throw new Error('LIVE_SESSION_NOT_FOUND')
@@ -346,16 +347,20 @@ export async function startLiveSession(sessionId: string, userId: string) {
   // Modèle v1.1 : plafond mensuel atteint : la séance part en audio. Décidé ici,
   // au lancement, et jamais après : un live en cours n'est jamais coupé.
   const audioOnly = await newLivesAudioOnly(startedAt)
+  // Modèle v1.1 : replays en audio pendant le lancement (décembre-février),
+  // puis selon le plan Community (Découverte : audio ; les autres : audio et
+  // vidéo). Une séance passée en audio n'a pas d'image à enregistrer.
+  const recordVideo = !audioOnly && replayRecordsVideo(session.community, startedAt)
 
   // Arbitrage 94 — l'enregistrement va dans le seau, et Mux se demande.
   // L'inverse était le cas avant : Mux enregistrait dès qu'il était configuré,
   // et la seule présence de clés dans l'environnement décidait d'un coût
   // treize fois supérieur sur vingt-quatre mois.
-  const stream = usesMux() ? await createLiveStream() : null
+  const stream = recordVideo && usesMux() ? await createLiveStream() : null
   const [egressId, audioEgressId] = stream
     ? [await startStreamRecording(session.roomName, stream.rtmpUrl), null]
     : await Promise.all([
-        startRecording(session.roomName, replayVideoKey(sessionId)),
+        recordVideo ? startRecording(session.roomName, replayVideoKey(sessionId)) : Promise.resolve(null),
         startAudioRecording(session.roomName, replayAudioKey(sessionId)),
       ])
 
@@ -372,9 +377,10 @@ export async function startLiveSession(sessionId: string, userId: string) {
       action: 'LIVE_SESSION_STARTED', targetType: 'LiveSession', targetId: sessionId,
       meta: {
         communityId: session.communityId,
-        recording: Boolean(egressId),
-        recorder: stream ? 'MUX' : egressId ? 'STORAGE' : null,
+        recording: Boolean(egressId || audioEgressId),
+        recorder: stream ? 'MUX' : egressId || audioEgressId ? 'STORAGE' : null,
         audioVariant: Boolean(audioEgressId),
+        videoReplay: recordVideo,
       },
     })
   })
@@ -450,14 +456,16 @@ async function finalizeLiveSession(
         // webhook qui apportera son identifiant de lecture.
         s3Key: full.egressId && !full.muxStreamId ? replayVideoKey(sessionId) : null,
         audioS3Key: full.audioEgressId ? replayAudioKey(sessionId) : null,
-        status: full.egressId ? 'PROCESSING' : 'FAILED',
+        // Un replay audio seul (lancement, plan Découverte) n'a que l'egress
+        // audio : il se résout comme les autres.
+        status: full.egressId || full.audioEgressId ? 'PROCESSING' : 'FAILED',
         purgeAt,
       },
     })
     await audit(tx, {
       actorId: actor.id, actorRole: actor.role,
       action: 'LIVE_SESSION_ENDED', targetType: 'LiveSession', targetId: sessionId,
-      meta: { communityId: full.communityId, recorded: Boolean(full.egressId), by: actor.role },
+      meta: { communityId: full.communityId, recorded: Boolean(full.egressId || full.audioEgressId), by: actor.role },
     })
     return { ended: true }
   })
@@ -693,7 +701,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
       scheduledStartAt: true, timeZone: true, durationMinutes: true, startedAt: true, roomName: true, audioOnly: true,
       community: {
         select: {
-          name: true, slug: true,
+          name: true, slug: true, plan: true, maxPlan: true, planUnpaidAt: true,
           trainerProfile: {
             select: {
               userId: true, slogan: true,
@@ -709,6 +717,23 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
 
   const viewer = await resolveViewer(session.communityId, userId)
   assertCanAttend(viewer)
+
+  // Modèle v1.1 : à partir du 1er mars 2027, un live accueille au plus le
+  // nombre de participants de son plan Community. Qui est déjà dans la salle
+  // y revient toujours ; l'animateur entre toujours.
+  if (session.status === 'LIVE' && !viewer.isTrainer) {
+    const cap = liveParticipantCap(session.community, session.audioOnly)
+    if (cap !== null) {
+      const here = await db.liveParticipant.findUnique({
+        where: { sessionId_userId: { sessionId, userId } },
+        select: { leftAt: true },
+      })
+      if (!here || here.leftAt !== null) {
+        const present = await db.liveParticipant.count({ where: { sessionId, leftAt: null, userId: { not: userId } } })
+        if (present >= cap) throw new Error('LIVE_FULL')
+      }
+    }
+  }
 
   const muted = mutedReason(viewer)
 
@@ -1338,6 +1363,8 @@ export interface ReplayView {
    * partout, il doit la lire ici.
    */
   hasAudioVariant: boolean
+  /** Modèle v1.1 : un replay du lancement, ou du plan Découverte, est audio seul. */
+  hasVideo: boolean
   purgeAt: Date
   /**
    * Le spectateur est-il le formateur de la communauté qui a produit ce replay ?
@@ -1385,7 +1412,7 @@ export async function hasReplayAccess(
 
 const REPLAY_SELECT = {
   id: true, sessionId: true, title: true, recordedAt: true, durationSeconds: true,
-  status: true, purgeAt: true, communityId: true, s3Key: true, audioS3Key: true,
+  status: true, purgeAt: true, communityId: true, s3Key: true, audioS3Key: true, muxPlaybackId: true,
   session: { select: { description: true, timeZone: true } },
   community: {
     select: {
@@ -1405,6 +1432,8 @@ function toReplay(r: {
   id: string; sessionId: string; title: string; recordedAt: Date
   durationSeconds: number | null; status: string; purgeAt: Date
   audioS3Key: string | null
+  s3Key: string | null
+  muxPlaybackId: string | null
   session: { description: string | null; timeZone: string | null }
   community: {
     name: string; slug: string
@@ -1438,6 +1467,7 @@ function toReplay(r: {
     // uniforme, et il n'y a **pas** de case « téléchargeable » par séance.
     downloadable: r.status === 'READY',
     hasAudioVariant: r.status === 'READY' && r.audioS3Key !== null,
+    hasVideo: r.status === 'READY' && (r.s3Key !== null || r.muxPlaybackId !== null),
     purgeAt: r.purgeAt,
   }
 }
@@ -1624,7 +1654,10 @@ export async function getReplayUrl(
   // Mux, c'est son lecteur adaptatif qui joue ce rôle. Demander l'audio d'un
   // replay qui n'en a pas est une erreur d'appel, pas un repli silencieux vers
   // 1,3 Go de vidéo sur une connexion qui vient d'en demander 60 Mo.
-  if (variant === 'audio') {
+  // Un replay audio seul n'a rien d'autre à servir : demander « la vidéo » ne
+  // peut rendre que l'audio, qui pèse ~60 Mo.
+  const audioOnlyReplay = !replay.s3Key && !replay.muxPlaybackId && replay.audioS3Key
+  if (variant === 'audio' || audioOnlyReplay) {
     if (!replay.audioS3Key) throw new Error('REPLAY_AUDIO_UNAVAILABLE')
     return presignDownload(replay.audioS3Key)
   }
@@ -1810,7 +1843,10 @@ export async function reconcileProcessingReplays(): Promise<{
   stillProcessing: number
 }> {
   const pending = await db.replay.findMany({
-    where: { status: 'PROCESSING', session: { egressId: { not: null }, muxStreamId: null } },
+    where: {
+      status: 'PROCESSING',
+      session: { muxStreamId: null, OR: [{ egressId: { not: null } }, { audioEgressId: { not: null } }] },
+    },
     select: {
       id: true, sessionId: true,
       session: { select: { egressId: true, audioEgressId: true } },
@@ -1823,7 +1859,29 @@ export async function reconcileProcessingReplays(): Promise<{
 
   for (const replay of pending) {
     const egressId = replay.session.egressId
-    if (!egressId) continue
+    if (!egressId) {
+      // Replay audio seul : l'egress audio fait foi.
+      const audioEgressId = replay.session.audioEgressId
+      if (!audioEgressId) continue
+      const audio = await getEgressOutcome(audioEgressId)
+      if (!audio.done) {
+        stillProcessing++
+        continue
+      }
+      if (audio.ok) {
+        await markReplayReady(replay.sessionId, {
+          sizeBytes: 0,
+          durationSeconds: audio.durationSeconds,
+          audioS3Key: audio.s3Key,
+          audioSizeBytes: audio.sizeBytes,
+        })
+        resolved++
+      } else {
+        await markReplayFailed(replay.sessionId, audio.reason)
+        failed++
+      }
+      continue
+    }
 
     const outcome = await getEgressOutcome(egressId)
     if (!outcome.done) {

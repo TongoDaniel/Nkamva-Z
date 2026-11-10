@@ -7,6 +7,9 @@
 // ==========================================================================
 
 import { alertLiveBudget } from './live-budget'
+import { signalProCandidates } from './trainer-follow-up'
+import { runInactivityArchive } from './inactivity-archive'
+import { remindAccessReview } from './admins'
 import cron from 'node-cron'
 import { auditStandalone } from './audit'
 import { autoCloseDisputes } from './disputes'
@@ -37,6 +40,27 @@ export interface ScheduledJob {
 }
 
 export const SCHEDULED_JOBS: ScheduledJob[] = [
+  {
+    // Plan d'action 1.5 : signal « passez en Pro » après 2 mois au-dessus du
+    // seuil, le 1er de chaque mois.
+    name: 'PRO_SIGNAL',
+    schedule: '0 8 1 * *',
+    run: async () => signalProCandidates(),
+  },
+  {
+    // Plan d'action 2.4 : préavis à 5 mois sans connexion ni vente, archivage
+    // 30 jours plus tard.
+    name: 'INACTIVITY_ARCHIVE',
+    schedule: '0 7 * * *',
+    run: async () => runInactivityArchive(),
+  },
+  {
+    // Plan d'action, règle 6 et action 3.4 : revue trimestrielle des accès par
+    // les deux Propriétaires (1er mars, juin, septembre, décembre).
+    name: 'ACCESS_REVIEW_REMINDER',
+    schedule: '0 9 1 3,6,9,12 *',
+    run: async () => remindAccessReview(),
+  },
   {
     // Modèle v1.1 : plafond mensuel des lives : alerte à 80 %, audio à 100 %.
     name: 'LIVE_BUDGET_ALERT',

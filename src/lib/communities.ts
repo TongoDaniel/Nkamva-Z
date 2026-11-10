@@ -800,6 +800,7 @@ export async function getMyCommunity(trainerProfileId: string) {
       id: true, slug: true, name: true, description: true, rules: true,
       coverS3Key: true, avatarS3Key: true,
       priceFcfa: true, visibility: true, membersCount: true, messagesPerDay: true,
+      plan: true, maxPlan: true, planUnpaidAt: true,
       // Le compte derrière le profil : la carte pose sa photo en tête, comme
       // pour n'importe quelle autre communauté.
       trainerProfile: {

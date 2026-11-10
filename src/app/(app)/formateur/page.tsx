@@ -23,6 +23,7 @@ import type { CourseListItem, ResourceItem } from "@/lib/dto";
 import { COURSE_STATUS } from "./ressources/course-status";
 import { TRAINER_SECTIONS } from "./sections";
 import { VisibilityNotice } from "./visibility-notice";
+import { ArchiveNotice } from "./archive-notice";
 import { walletTileLabel } from "./wallet-label";
 import {
   BANNER_TONES,
@@ -253,6 +254,12 @@ export default async function FormateurPage({
         ? "Une chose vous attend aujourd'hui."
         : `${tasks.length} choses vous attendent aujourd'hui.`;
 
+  // Plan d'action 2.4 : ressources archivées pour inactivité.
+  const archive = await db.trainerProfile.findUnique({
+    where: { id: trainerId },
+    select: { inactivityArchivedAt: true },
+  });
+
   return (
     <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
@@ -278,6 +285,9 @@ export default async function FormateurPage({
 
       {/* Avant les chiffres : un formateur invisible des visiteurs doit
           l'apprendre en arrivant, pas après avoir lu son solde. */}
+      {archive?.inactivityArchivedAt ? (
+        <ArchiveNotice archivedAt={archive.inactivityArchivedAt.toISOString()} />
+      ) : null}
       {visibility ? <VisibilityNotice visibility={visibility} /> : null}
 
       {shownBanners.length > 0 ? (

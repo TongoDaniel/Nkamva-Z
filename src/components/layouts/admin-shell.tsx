@@ -11,6 +11,7 @@ import {
   TicketPercent, UserCog, Users, Wallet, X,
   LifeBuoy,
   Contact,
+  Gauge, Megaphone, Handshake,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Wordmark } from "@/components/nk/logo";
@@ -40,6 +41,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
       { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: ["PILOTAGE"] },
+      // Plan d'action, phase 1 : le tableau du modèle v1.1, le suivi des
+      // formateurs (Service client, Commercial) et les tendances
+      // (Communication), sans données personnelles pour cette dernière.
+      { href: "/admin/pilotage", label: "Pilotage du modèle", icon: Gauge, roles: ["PILOTAGE", "FINANCES"] },
+      { href: "/admin/suivi-formateurs", label: "Suivi des formateurs", icon: Handshake, roles: ["SUPPORT", "SALES"] },
+      { href: "/admin/tendances", label: "Tendances", icon: Megaphone, roles: ["COMMUNICATION", "PILOTAGE"] },
     ],
   },
   {

@@ -11,6 +11,7 @@ import { fmtDate, fmtFcfa } from "@/lib/format";
 import { PLAN_LABELS } from "@/lib/trainer-plans";
 import { RecheckButton } from "./recheck-button";
 import { FounderToggle } from "./founder-toggle";
+import { RestoreArchiveButton } from "./restore-archive-button";
 import { hasAdminRole } from "@/lib/admin-roles";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,12 @@ export default async function ClientCardPage({ params }: { params: Promise<{ use
                 Formateur · {PLAN_LABELS[user.trainerProfile.plan]}
                 {user.trainerProfile.founder ? " · fondateur" : ""}
               </StPill>
+            ) : null}
+            {user.trainerProfile?.inactivityArchivedAt ? (
+              <>
+                <StPill tone="warn">Archivé pour inactivité le {fmtDate(user.trainerProfile.inactivityArchivedAt)}</StPill>
+                {hasAdminRole(auth?.user, "SUPPORT") ? <RestoreArchiveButton trainerId={user.trainerProfile.id} /> : null}
+              </>
             ) : null}
           </span>
         }
