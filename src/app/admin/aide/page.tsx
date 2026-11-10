@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { redirect } from "next/navigation";
 import { AdminHead } from "@/components/layouts/admin-shell";
 import { getAuthContext } from "@/lib/api";
@@ -9,12 +10,11 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Aide & FAQ" };
 
-/** Qui rédige l'aide : le Super-admin et la Modération, pas les Finances. */
-const EDITOR_ROLES = ["SUPER_ADMIN", "MODERATION"];
+/** Qui rédige l'aide : Modération, Service client et Communication (plan d'action, section 2). */
 
 export default async function AdminHelpPage() {
   const auth = await getAuthContext();
-  if (!auth?.user.adminRole || !EDITOR_ROLES.includes(auth.user.adminRole)) redirect("/admin");
+  if (!canOpen(auth?.user, "help")) redirect("/admin");
 
   const [categories, values] = await Promise.all([listHelpForAdmin(), loadHelpValues()]);
   const homepageCount = categories.reduce(

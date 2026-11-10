@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -38,7 +39,7 @@ export default async function MoyensDePaiementPage({
   const auth = await getAuthContext();
   // Décision 20 — Modération n'a aucun accès aux moyens de paiement, symétrique
   // de la décision 7 qui lui réserve les pièces d'identité.
-  if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "payoutMethods")) {
     redirect("/admin");
   }
 

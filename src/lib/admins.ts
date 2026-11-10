@@ -25,29 +25,49 @@
 // l'inscription). Personne ici ne choisit ni ne transmet de secret.
 // ==========================================================================
 
+import { ADMIN_ROLE_LABELS as ROLE_LABELS } from './admin-roles'
 import type { AdminRole } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
 import { sendEmail, renderSimpleEmail } from './email'
 import { absoluteUrl } from './notification'
 
-export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
-  SUPER_ADMIN: 'Super-admin',
-  FINANCES: 'Finances',
-  MODERATION: 'Modération',
-}
+export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = ROLE_LABELS
 
 export interface AdminAccount {
   id: string
   email: string
   fullName: string | null
   adminRole: AdminRole
+  /** Rôles cumulés (plan d'action, section 2). Le premier est le principal. */
+  adminRoles: AdminRole[]
   suspendedAt: Date | null
   createdAt: Date
 }
 
+/** Plan d'action : « deux personnes au plus » ont le rôle Propriétaire. */
+export const MAX_OWNERS = 2
+
+/** Normalise une liste de rôles : sans doublon, dans l'ordre du registre, jamais vide. */
+function normalizeRoles(roles: AdminRole[]): AdminRole[] {
+  const unique = Array.from(new Set(roles))
+  if (unique.length === 0) throw new Error('ROLES_REQUIRED')
+  return unique
+}
+
+async function assertOwnerSeatAvailable(excludeUserId?: string) {
+  const owners = await db.user.count({
+    where: {
+      role: 'ADMIN', deletedAt: null, suspendedAt: null,
+      OR: [{ adminRoles: { has: 'SUPER_ADMIN' } }, { adminRole: 'SUPER_ADMIN' }],
+      ...(excludeUserId ? { NOT: { id: excludeUserId } } : {}),
+    },
+  })
+  if (owners >= MAX_OWNERS) throw new Error('TOO_MANY_OWNERS')
+}
+
 const ADMIN_SELECT = {
-  id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true, adminRole: true, suspendedAt: true, createdAt: true,
+  id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true, adminRole: true, adminRoles: true, suspendedAt: true, createdAt: true,
 } as const
 
 export async function listAdmins(): Promise<AdminAccount[]> {
@@ -56,13 +76,15 @@ export async function listAdmins(): Promise<AdminAccount[]> {
     select: ADMIN_SELECT,
     orderBy: [{ adminRole: 'asc' }, { createdAt: 'asc' }],
   })
-  return rows.map((r) => ({ ...r, adminRole: r.adminRole! }))
+  return rows.map((r) => ({ ...r, adminRole: r.adminRole!, adminRoles: r.adminRoles.length ? r.adminRoles : [r.adminRole!] }))
 }
 
 export interface CreateAdminInput {
   email: string
   fullName: string
-  adminRole: AdminRole
+  /** Rôle unique (ancien formulaire) ou rôles cumulés. */
+  adminRole?: AdminRole
+  adminRoles?: AdminRole[]
   actorId: string
 }
 
@@ -80,13 +102,17 @@ export async function createAdmin(input: CreateAdminInput): Promise<AdminAccount
   const existing = await db.user.findUnique({ where: { email }, select: { id: true } })
   if (existing) throw new Error('EMAIL_ALREADY_USED')
 
+  const roles = normalizeRoles(input.adminRoles ?? (input.adminRole ? [input.adminRole] : []))
+  if (roles.includes('SUPER_ADMIN')) await assertOwnerSeatAvailable()
+
   const created = await db.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
         email,
         fullName,
         role: 'ADMIN',
-        adminRole: input.adminRole,
+        adminRole: roles[0],
+        adminRoles: roles,
         passwordHash: null,
       },
       select: ADMIN_SELECT,
@@ -94,7 +120,7 @@ export async function createAdmin(input: CreateAdminInput): Promise<AdminAccount
     await audit(tx, {
       actorId: input.actorId, actorRole: 'SUPER_ADMIN',
       action: 'ADMIN_ACCOUNT_CREATED', targetType: 'User', targetId: user.id,
-      meta: { email, adminRole: input.adminRole },
+      meta: { email, adminRoles: roles },
     })
     return user
   })
@@ -103,7 +129,7 @@ export async function createAdmin(input: CreateAdminInput): Promise<AdminAccount
     title: 'Un accès administrateur vous a été ouvert',
     paragraphs: [
       'Bonjour,',
-      `Un compte ${ADMIN_ROLE_LABELS[input.adminRole]} vous a été ouvert sur NKAMVA.`,
+      `Un compte d’administration (${roles.map((r) => ADMIN_ROLE_LABELS[r]).join(', ')}) vous a été ouvert sur NKAMVA.`,
       'Pour l’activer, choisissez votre mot de passe depuis « Mot de passe oublié », avec cette adresse e-mail. Vous recevrez un code à saisir avant de le définir.',
     ],
     cta: { label: 'Choisir mon mot de passe', url: absoluteUrl('/auth/mot-de-passe-oublie') },
@@ -117,7 +143,45 @@ export async function createAdmin(input: CreateAdminInput): Promise<AdminAccount
     tags: ['admin-invitation'],
   })
 
-  return { ...created, adminRole: created.adminRole! }
+  return { ...created, adminRole: created.adminRole!, adminRoles: created.adminRoles }
+}
+
+/**
+ * Fixe les rôles cumulés d'un administrateur. Le rôle Propriétaire ne se donne
+ * ni ne se retire ici : comme pour `changeAdminRole`, c'est le garde-fou qui
+ * empêche de fermer la console d'un clic. Un Propriétaire peut en revanche
+ * recevoir d'autres rôles (Jaurès : Propriétaire, Pilotage, Finances).
+ */
+export async function setAdminRoles(
+  targetId: string,
+  nextRoles: AdminRole[],
+  actorId: string,
+): Promise<AdminAccount> {
+  const target = await db.user.findUnique({
+    where: { id: targetId },
+    select: { id: true, role: true, adminRole: true, adminRoles: true, deletedAt: true },
+  })
+  if (!target || target.deletedAt || target.role !== 'ADMIN') throw new Error('ADMIN_NOT_FOUND')
+  const current = target.adminRoles.length ? target.adminRoles : target.adminRole ? [target.adminRole] : []
+  const roles = normalizeRoles(nextRoles)
+  if (current.includes('SUPER_ADMIN') !== roles.includes('SUPER_ADMIN')) throw new Error('SUPER_ADMIN_IMMUTABLE')
+  // Le rôle principal reste en tête : le Propriétaire le reste.
+  const ordered = roles.includes('SUPER_ADMIN') ? ['SUPER_ADMIN' as AdminRole, ...roles.filter((r) => r !== 'SUPER_ADMIN')] : roles
+
+  const updated = await db.$transaction(async (tx) => {
+    const user = await tx.user.update({
+      where: { id: targetId },
+      data: { adminRole: ordered[0], adminRoles: ordered },
+      select: ADMIN_SELECT,
+    })
+    await audit(tx, {
+      actorId, actorRole: 'SUPER_ADMIN',
+      action: 'ADMIN_ROLES_CHANGED', targetType: 'User', targetId,
+      meta: { from: current, to: ordered },
+    })
+    return user
+  })
+  return { ...updated, adminRole: updated.adminRole!, adminRoles: updated.adminRoles }
 }
 
 /**
@@ -143,7 +207,7 @@ export async function changeAdminRole(
   const updated = await db.$transaction(async (tx) => {
     const user = await tx.user.update({
       where: { id: targetId },
-      data: { adminRole: nextRole },
+      data: { adminRole: nextRole, adminRoles: [nextRole] },
       select: ADMIN_SELECT,
     })
     await audit(tx, {
@@ -154,7 +218,7 @@ export async function changeAdminRole(
     return user
   })
 
-  return { ...updated, adminRole: updated.adminRole! }
+  return { ...updated, adminRole: updated.adminRole!, adminRoles: updated.adminRoles }
 }
 
 /**

@@ -10,6 +10,7 @@ import { MobileMoneyFields, type MobileMoneyValue } from "@/components/nk/mobile
 import { operatorsLabel, phoneNumberError, type PayableProvider } from "@/lib/payment-input";
 import { api, ApiError } from "@/lib/client";
 import { fmtDuration, fmtFcfa } from "@/lib/format";
+import { REFUND_RULE_SUMMARY } from "@/lib/rules";
 import type { InitiatePurchaseResult, PaymentProvider } from "@/lib/dto";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ export function CheckoutForm({
   durationSeconds,
   trainerName,
   providers,
+  feeQuotes,
 }: {
   courseId: string;
   title: string;
@@ -58,6 +60,12 @@ export function CheckoutForm({
   trainerName: string | null;
   /** Opérateurs distribués dans le pays de l'apprenant, établis côté serveur. */
   providers: PayableProvider[];
+  /**
+   * Modèle v1.1 : frais payés par l'acheteur, par moyen : la clé est le code
+   * opérateur, ou `CARD`. Calculés côté serveur, par la même fonction que celle
+   * qui facture.
+   */
+  feeQuotes: Record<string, { buyerFeeFcfa: number; totalFcfa: number }>;
 }) {
   const router = useRouter();
   const [provider, setProvider] = React.useState<PaymentProvider>("PAWAPAY");
@@ -68,6 +76,8 @@ export function CheckoutForm({
   const [showPayerErrors, setShowPayerErrors] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
+  const quote = feeQuotes[provider === "STRIPE" ? "CARD" : payer.provider] ?? null;
+  const totalFcfa = quote?.totalFcfa ?? priceFcfa;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -201,17 +211,27 @@ export function CheckoutForm({
               <dd className="font-bold">{fmtFcfa(priceFcfa)}</dd>
             </div>
             <div className="flex justify-between gap-3">
+              <dt className="text-ink-2">Frais de paiement</dt>
+              <dd className="font-bold">
+                {quote ? fmtFcfa(quote.buyerFeeFcfa) : "Selon l'opérateur"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
               <dt className="text-ink-2">Accès</dt>
               <dd className="font-bold">À vie</dd>
             </div>
             <div className="flex justify-between gap-3 text-base">
               <dt className="font-bold">Total</dt>
-              <dd className="font-display text-[19px] font-extrabold">{fmtFcfa(priceFcfa)}</dd>
+              <dd className="font-display text-[19px] font-extrabold">{fmtFcfa(totalFcfa)}</dd>
             </div>
           </dl>
           <Btn type="submit" size="lg" block loading={pending}>
-            Payer {fmtFcfa(priceFcfa)}
+            Payer {fmtFcfa(totalFcfa)}
           </Btn>
+          <p className="mt-4 text-[12.5px] leading-relaxed text-ink-2">
+            Les frais couvrent l&apos;encaissement et le versement au formateur, sans marge pour
+            NKAMVA. {REFUND_RULE_SUMMARY}
+          </p>
         </div>
       </aside>
     </form>

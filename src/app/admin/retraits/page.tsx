@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -40,7 +41,7 @@ export default async function RetraitsPage({
 }) {
   const auth = await getAuthContext();
   // Décision 20 — Modération n'a aucun accès aux finances.
-  if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "payouts")) {
     redirect("/admin");
   }
 

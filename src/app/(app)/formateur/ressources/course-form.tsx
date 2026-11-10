@@ -10,6 +10,8 @@ import { FormError } from "@/components/layouts/auth-shell";
 import { useAction } from "@/hooks/use-action";
 import { api, ApiError } from "@/lib/client";
 import { cn } from "@/lib/utils";
+import { fmtFcfa } from "@/lib/format";
+import { PLATFORM_COMMISSION_RATE, trainerShareFor } from "@/lib/commission";
 import {
   COURSE_FORMATS,
   COURSE_LEVELS,
@@ -169,6 +171,20 @@ function toPayload(values: CourseFormValues) {
   };
 }
 
+/**
+ * Modèle v1.1, « Ce que voit chacun » : le formateur lit ce qu'il recevra dès
+ * la saisie du prix. Les frais de paiement sont payés par l'acheteur, en plus :
+ * ils ne réduisent jamais ce montant.
+ */
+function netHint(raw: string, commissionRate: number): string {
+  const price = Number.parseInt(raw, 10);
+  if (!Number.isFinite(price) || price < MIN_PRICE_FCFA) {
+    return `Minimum ${MIN_PRICE_FCFA} FCFA. Vous fixez librement ce montant.`;
+  }
+  const net = trainerShareFor(price, commissionRate);
+  return `Vous recevrez ${fmtFcfa(net)} par vente (commission de ${Math.round(commissionRate * 100)}\u00a0%). Les frais de paiement sont payés par l'acheteur, en plus du prix.`;
+}
+
 export function CourseForm({
   mode,
   courseId,
@@ -176,6 +192,7 @@ export function CourseForm({
   aside,
   community,
   circuitLocked,
+  commissionRate = PLATFORM_COMMISSION_RATE,
 }: {
   mode: "create" | "edit";
   courseId?: string;
@@ -195,6 +212,11 @@ export function CourseForm({
    * champ qu'on peut changer pour se voir opposer un refus n'est pas un champ.
    */
   circuitLocked?: boolean;
+  /**
+   * Modèle v1.1 : le taux de commission du formateur (10 % sur le plan de base,
+   * 3 % en Pro), pour annoncer dès la saisie ce qu'il recevra.
+   */
+  commissionRate?: number;
 }) {
   const router = useRouter();
   const [values, setValues] = React.useState<CourseFormValues>(initial ?? EMPTY_COURSE);
@@ -472,7 +494,7 @@ export function CourseForm({
               value={values.priceFcfa}
               onChange={(e) => set("priceFcfa", e.target.value)}
               error={fieldErrors.priceFcfa}
-              hint={`Minimum ${MIN_PRICE_FCFA} FCFA. Vous fixez librement ce montant.`}
+              hint={netHint(values.priceFcfa, commissionRate)}
             />
           )}
 

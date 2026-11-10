@@ -18,6 +18,7 @@ import type {
   DisputeResolution,
   DisputeStatus,
   Prisma,
+  RefundFault,
 } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
@@ -45,7 +46,54 @@ import {
   DISPUTE_OPENING_WINDOW_DAYS,
   CONSUMPTION_THRESHOLD,
   ATTACHMENT_MAX_SIZE_BYTES,
+  REFUND_ABUSE_THRESHOLD,
+  REFUND_ABUSE_WINDOW_DAYS,
 } from './rules'
+
+/**
+ * Modèle v1.1 : les motifs où la faute revient à l'acheteur. Eux seuls se
+ * ferment à l'accès au contenu (« pas de remboursement pour un simple
+ * changement d'avis après l'accès »). `OTHER` y est rangé par prudence : un
+ * motif que l'acheteur ne qualifie pas n'ouvre pas plus de droits qu'un
+ * changement d'avis, et l'agent garde la main pour requalifier.
+ */
+export const BUYER_DRIVEN_REASONS: DisputeReason[] = ['CHANGE_OF_MIND', 'OTHER']
+
+export function reasonClosesOnAccess(reason: DisputeReason): boolean {
+  return BUYER_DRIVEN_REASONS.includes(reason)
+}
+
+/**
+ * La faute proposée par défaut à la décision, d'après le motif déclaré.
+ * L'administrateur financier la confirme ou la corrige : c'est elle qui décide
+ * qui porte les frais non récupérables.
+ */
+export function defaultFaultFor(reason: DisputeReason): RefundFault {
+  switch (reason) {
+    case 'CONTENT_MISMATCH':
+    case 'LIVE_CANCELED':
+      return 'TRAINER'
+    case 'DOUBLE_CHARGE':
+    case 'ACCESS_ISSUE':
+    case 'UNAUTHORIZED_CHARGE':
+      return 'TECHNICAL'
+    default:
+      return 'BUYER'
+  }
+}
+
+/**
+ * Remboursements déjà obtenus par un acheteur sur la fenêtre d'abus. Au-delà
+ * du seuil, le prochain dossier passe en examen manuel.
+ */
+export async function recentRefundCount(learnerId: string, at = new Date()): Promise<number> {
+  return db.purchase.count({
+    where: {
+      learnerId,
+      refundedAt: { gte: new Date(at.getTime() - REFUND_ABUSE_WINDOW_DAYS * 86_400_000) },
+    },
+  })
+}
 // Réexportés depuis `commission.ts` : les écrans publics ont besoin du taux
 // sans embarquer Prisma ni le fournisseur de paiement que ce module importe.
 export { PLATFORM_COMMISSION_RATE, TRAINER_SHARE_RATE }
@@ -66,8 +114,26 @@ export const TERMINAL_DISPUTE_STATUSES: DisputeStatus[] = ['RESOLVED_REFUNDED', 
 // Dispute.refundStatus est un String libre au schéma : on en fixe le vocabulaire ici.
 export type RefundStatus = 'PENDING' | 'MANUAL_PENDING' | 'COMPLETED' | 'FAILED' | 'NOT_APPLICABLE'
 
-export function trainerShareOf(amountFcfa: number): number {
-  return Math.round(amountFcfa * TRAINER_SHARE_RATE)
+/**
+ * Part du formateur dans un montant contesté ou remboursé.
+ *
+ * Le taux est celui **figé sur l'achat** (décision 11), et non plus le taux
+ * annoncé : depuis le modèle v1.1, deux ventes du même jour peuvent porter 10 %
+ * (plan de base) ou 3 % (plan Pro). Réserver ou débiter à un taux fixe aurait
+ * retenu au formateur Pro une part qu'il n'a jamais touchée, ou l'inverse.
+ * Sans taux, le repli reste le taux annoncé, pour les appelants historiques.
+ */
+export function trainerShareOf(amountFcfa: number, commissionRate = 1 - TRAINER_SHARE_RATE): number {
+  return Math.round(amountFcfa * (1 - commissionRate))
+}
+
+/** Taux de commission figé sur l'achat d'un litige. */
+async function disputeCommissionRate(tx: PrismaTransaction | typeof db, disputeId: string): Promise<number> {
+  const row = await tx.dispute.findUnique({
+    where: { id: disputeId },
+    select: { purchase: { select: { commissionRate: true } } },
+  })
+  return row?.purchase.commissionRate ?? 1 - TRAINER_SHARE_RATE
 }
 
 function daysAgo(days: number): Date {
@@ -210,7 +276,10 @@ async function createReservation(
   params: { disputeId: string; trainerId: string; disputedAmountFcfa: number },
 ) {
   const wallet = await getOrCreateWallet(tx, params.trainerId)
-  const reservedAmountFcfa = trainerShareOf(params.disputedAmountFcfa)
+  const reservedAmountFcfa = trainerShareOf(
+    params.disputedAmountFcfa,
+    await disputeCommissionRate(tx, params.disputeId),
+  )
 
   const reservation = await tx.fundReservation.create({
     data: { disputeId: params.disputeId, walletId: wallet.id, reservedAmountFcfa, status: 'ACTIVE' },
@@ -270,13 +339,15 @@ async function debitReservations(
   const reservations = await tx.fundReservation.findMany({ where: { disputeId, status: 'ACTIVE' } })
   let debitedTotal = 0
   let releasedTotal = 0
+  const commissionRate = await disputeCommissionRate(tx, disputeId)
 
   for (const reservation of reservations) {
     // FULL : le formateur est débité de toute la réservation.
-    // PARTIAL : prorata — 85 % du montant remboursé, le reste est libéré (décision 12).
+    // PARTIAL : prorata : la part formateur du montant remboursé, au taux figé
+    // sur l'achat ; le reste est libéré (décision 12).
     const debitedAmount = params.full
       ? reservation.reservedAmountFcfa
-      : Math.min(reservation.reservedAmountFcfa, trainerShareOf(params.refundAmountFcfa))
+      : Math.min(reservation.reservedAmountFcfa, trainerShareOf(params.refundAmountFcfa, commissionRate))
     const releasedAmount = reservation.reservedAmountFcfa - debitedAmount
 
     await tx.fundReservation.update({
@@ -379,7 +450,12 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
   if (purchase.createdAt < daysAgo(DISPUTE_OPENING_WINDOW_DAYS)) throw new Error('DISPUTE_WINDOW_EXPIRED')
 
   const consumption = await computeConsumptionSnapshot(purchase)
-  if (consumption.blocked) throw new Error(consumption.blocked)
+  // Modèle v1.1 : l'accès au contenu ne ferme que le changement d'avis. Un
+  // accès non reçu, un double paiement ou un contenu non conforme restent
+  // remboursables, même vidéo commencée.
+  if (consumption.blocked && reasonClosesOnAccess(input.reason)) throw new Error(consumption.blocked)
+
+  const abuseReview = (await recentRefundCount(learnerId)) >= REFUND_ABUSE_THRESHOLD
 
   const dispute = await db.$transaction(async (tx) => {
     const created = await tx.dispute.create({
@@ -390,6 +466,7 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
         source: 'LEARNER_REQUEST',
         reason: input.reason,
         reasonDetail: input.reasonDetail ?? null,
+        abuseReview,
         status: 'OPEN',
         disputedAmountFcfa: purchase.amountFcfa,
         amountEur: purchase.amountEur,
@@ -458,6 +535,17 @@ export async function openDispute(learnerId: string, input: OpenDisputeInput) {
 
     return withSnapshot
   })
+
+  if (abuseReview) {
+    await deliverSideEffects('DISPUTE_ABUSE_REVIEW', { type: 'Dispute', id: dispute.id }, () =>
+      notifyAdminSubRole('FINANCES', {
+        type: 'DISPUTE_ABUSE_REVIEW',
+        title: 'Demande de remboursement à examiner',
+        body: `Cet acheteur a déjà été remboursé ${REFUND_ABUSE_THRESHOLD} fois ou plus en 3 mois : examen manuel avant décision.`,
+        link: `/admin/litiges/${dispute.id}`,
+      }),
+    )
+  }
 
   await deliverSideEffects('DISPUTE_OPENED', { type: 'Dispute', id: dispute.id }, () =>
     notifyDisputeOpened(dispute.id, {
@@ -674,9 +762,72 @@ export interface ResolveDisputeInput {
   refundAmountFcfa?: number | null
   policyOverride?: boolean
   overrideJustification?: string | null
+  /**
+   * Modèle v1.1 : à qui revient la faute. Sans valeur, celle que le motif
+   * déclaré propose (`defaultFaultFor`).
+   */
+  faultParty?: RefundFault | null
   expectedUpdatedAt: string
   actorId: string
   actorAdminRole: 'SUPER_ADMIN' | 'FINANCES' | 'MODERATION'
+}
+
+/**
+ * Plan d'action, règle 1 : le service client **propose** une décision ; c'est
+ * Finances qui la prend (`resolveDispute`), par une autre personne. La
+ * proposition n'engage aucun argent : ni réservation, ni remboursement.
+ */
+export async function proposeDisputeResolution(
+  disputeId: string,
+  input: {
+    resolution: 'FULL_REFUND' | 'PARTIAL_REFUND' | 'REJECT'
+    refundAmountFcfa?: number | null
+    faultParty?: RefundFault | null
+    note: string
+    actorId: string
+  },
+) {
+  const dispute = await db.dispute.findUnique({
+    where: { id: disputeId },
+    select: { id: true, status: true, reason: true, disputedAmountFcfa: true },
+  })
+  if (!dispute) throw new Error('DISPUTE_NOT_FOUND')
+  if (TERMINAL_DISPUTE_STATUSES.includes(dispute.status)) throw new Error('DISPUTE_ALREADY_RESOLVED')
+  if (input.resolution === 'PARTIAL_REFUND') {
+    const amount = input.refundAmountFcfa ?? 0
+    if (amount <= 0 || amount >= dispute.disputedAmountFcfa) throw new Error('INVALID_REFUND_AMOUNT')
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.dispute.update({
+      where: { id: disputeId },
+      data: {
+        proposedResolution: input.resolution,
+        proposedRefundFcfa: input.resolution === 'PARTIAL_REFUND' ? input.refundAmountFcfa ?? null : null,
+        proposedFaultParty: input.resolution === 'REJECT' ? null : input.faultParty ?? defaultFaultFor(dispute.reason),
+        proposedNote: input.note,
+        proposedById: input.actorId,
+        proposedAt: new Date(),
+        lastActivityAt: new Date(),
+      },
+    })
+    await audit(tx, {
+      actorId: input.actorId, actorRole: 'SUPPORT',
+      action: 'DISPUTE_RESOLUTION_PROPOSED', targetType: 'Dispute', targetId: disputeId,
+      meta: { resolution: input.resolution, refundAmountFcfa: input.refundAmountFcfa ?? null, faultParty: input.faultParty ?? null },
+    })
+  })
+
+  await deliverSideEffects('DISPUTE_RESOLUTION_PROPOSED', { type: 'Dispute', id: disputeId }, () =>
+    notifyAdminSubRole('FINANCES', {
+      type: 'DISPUTE_RESOLUTION_PROPOSED',
+      title: 'Décision de remboursement à valider',
+      body: `Le service client propose : ${RESOLUTION_LABELS[input.resolution]}. Décision attendue sous 72 h ouvrées.`,
+      link: `/admin/litiges/${disputeId}`,
+    }),
+  )
+
+  return db.dispute.findUnique({ where: { id: disputeId } })
 }
 
 export async function resolveDispute(disputeId: string, input: ResolveDisputeInput) {
@@ -732,7 +883,9 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
     )
     const withinWindow = dispute.openedAt <= openingDeadline
     const snapshot = dispute.consumptionSnapshot
+    // Modèle v1.1 : la consultation ne compte que pour un changement d'avis.
     const consumptionOk = !snapshot
+      || !reasonClosesOnAccess(dispute.reason)
       || (snapshot.ruleApplies
         ? snapshot.consumptionPercent < CONSUMPTION_THRESHOLD * 100
         : snapshot.downloaded !== true)
@@ -745,6 +898,7 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
       data: {
         status: 'RESOLVED_REFUNDED',
         resolution: input.resolution,
+        faultParty: input.faultParty ?? defaultFaultFor(dispute.reason),
         resolutionNote: input.resolutionNote ?? null,
         overrideJustification: input.policyOverride ? input.overrideJustification : null,
         resolvedById: input.actorId,
@@ -769,6 +923,7 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
       action: 'DISPUTE_RESOLVED_REFUNDED', targetType: 'Dispute', targetId: disputeId,
       meta: {
         resolution: input.resolution, refundAmountFcfa,
+        faultParty: input.faultParty ?? defaultFaultFor(dispute.reason),
         policyOverride: Boolean(input.policyOverride),
         overrideJustification: input.overrideJustification ?? null,
       },
@@ -1067,7 +1222,7 @@ async function createManualRefundTask(
   provider: string,
   errorMessage: string,
 ) {
-  const trainerDebitFcfa = trainerShareOf(refundAmountFcfa)
+  const trainerDebitFcfa = trainerShareOf(refundAmountFcfa, await disputeCommissionRate(db, disputeId))
   await db.$transaction(async (tx) => {
     await tx.manualRefundTask.upsert({
       where: { disputeId },
@@ -1102,7 +1257,7 @@ export async function completeRefund(
   const applied = await db.$transaction(async (tx) => {
     const dispute = await tx.dispute.findUnique({
       where: { id: disputeId },
-      include: { purchase: { select: { id: true, refundAmountFcfa: true } } },
+      include: { purchase: { select: { id: true, refundAmountFcfa: true, buyerFeeFcfa: true } } },
     })
     if (!dispute) throw new Error('DISPUTE_NOT_FOUND')
     // Idempotent : un rejeu (confirmation provider dupliquée, tâche manuelle
@@ -1115,6 +1270,24 @@ export async function completeRefund(
     const { debited, released } = await debitReservations(tx, disputeId, {
       full, refundAmountFcfa, actorId,
     })
+
+    // Modèle v1.1, « Qui paie » : faute du formateur, les frais non
+    // récupérables sont à sa charge. PawaPay ne rend pas les frais d'origine et
+    // facture le remboursement ; on retient au formateur les frais payés par
+    // l'acheteur, au prorata du montant remboursé. Si son solde ne suffit pas,
+    // il passe en négatif et la somme se retient sur ses prochaines ventes
+    // (`negativeSince`). Faute technique ou de l'acheteur : NKAMVA absorbe.
+    const feeDebitFcfa = dispute.faultParty === 'TRAINER' && dispute.purchase.buyerFeeFcfa > 0
+      ? Math.round(dispute.purchase.buyerFeeFcfa * Math.min(1, refundAmountFcfa / Math.max(1, dispute.disputedAmountFcfa)))
+      : 0
+    if (feeDebitFcfa > 0) {
+      const wallet = await getOrCreateWallet(tx, dispute.trainerId)
+      await tx.walletDebit.create({
+        data: { walletId: wallet.id, trainerId: dispute.trainerId, amountFcfa: feeDebitFcfa, reason: 'REFUND_FEES', disputeId },
+      })
+      await tx.wallet.update({ where: { id: wallet.id }, data: { balance: { decrement: feeDebitFcfa } } })
+      await syncNegativeSince(tx, wallet.id)
+    }
 
     await tx.dispute.update({
       where: { id: disputeId },
@@ -1131,7 +1304,7 @@ export async function completeRefund(
     await audit(tx, {
       actorId, actorRole: actorId ? 'ADMIN' : 'SYSTEM',
       action: 'DISPUTE_REFUND_COMPLETED', targetType: 'Dispute', targetId: disputeId,
-      meta: { refundAmountFcfa, trainerDebitedFcfa: debited, releasedFcfa: released, providerRefundId },
+      meta: { refundAmountFcfa, trainerDebitedFcfa: debited, releasedFcfa: released, feeDebitFcfa, faultParty: dispute.faultParty, providerRefundId },
     })
     return true
   })
@@ -1722,7 +1895,16 @@ export const REASON_LABELS: Record<DisputeReason, string> = {
   DOUBLE_CHARGE: 'Double prélèvement',
   ACCESS_ISSUE: "Problème d'accès à la ressource",
   UNAUTHORIZED_CHARGE: 'Paiement non autorisé',
+  LIVE_CANCELED: 'Live annulé et non reprogrammé',
+  CHANGE_OF_MIND: "Changement d'avis",
   OTHER: 'Autre motif',
+}
+
+/** Modèle v1.1 : à qui revient la faute, tel que la décision l'affiche. */
+export const FAULT_LABELS: Record<RefundFault, string> = {
+  TECHNICAL: 'Faute technique (NKAMVA absorbe les frais)',
+  TRAINER: 'Faute du formateur (frais à sa charge)',
+  BUYER: "Changement d'avis avant accès (NKAMVA absorbe les frais)",
 }
 
 /** Libellés des décisions, tels que le formateur les lit dans l'avis de clôture. */
@@ -1741,6 +1923,11 @@ export interface EligibilityVerdict {
   reason?: string
   daysSincePurchase: number
   assessment: { consumptionPercent: number; ruleApplies: boolean; downloaded: boolean | null }
+  /**
+   * Modèle v1.1 : non nul quand le contenu a déjà été consulté ou téléchargé :
+   * le changement d'avis n'est plus proposé, les autres motifs le restent.
+   */
+  changeOfMindBlocked?: 'RESOURCE_CONSUMED' | 'RESOURCE_DOWNLOADED' | null
 }
 
 /**
@@ -1785,7 +1972,14 @@ export async function getDisputeEligibility(purchaseId: string, learnerId: strin
   if (active) return refuse('DISPUTE_ALREADY_ACTIVE')
 
   if (purchase.createdAt < daysAgo(DISPUTE_OPENING_WINDOW_DAYS)) return refuse('DISPUTE_WINDOW_EXPIRED')
-  if (consumption.blocked) return refuse(consumption.blocked)
 
-  return { purchase, verdict: { eligible: true, daysSincePurchase, assessment } as EligibilityVerdict }
+  // Modèle v1.1 : un contenu consulté reste contestable pour une faute qui
+  // n'est pas celle de l'acheteur ; seul le changement d'avis se ferme.
+  return {
+    purchase,
+    verdict: {
+      eligible: true, daysSincePurchase, assessment,
+      changeOfMindBlocked: consumption.blocked,
+    } as EligibilityVerdict,
+  }
 }

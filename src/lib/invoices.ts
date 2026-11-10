@@ -26,6 +26,7 @@
 import type { InvoiceKind } from '@prisma/client'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { db } from './db'
+import { REFUND_RULE_RECEIPT_LINE } from './rules'
 import { fmtCount } from './format'
 import { auditStandalone } from './audit'
 import type { PrismaTransaction } from './types'
@@ -53,6 +54,8 @@ export interface IssueInvoiceInput {
   userId: string
   label: string
   amountFcfa: number
+  /** Frais de paiement payés par l'acheteur, en plus du prix (modèle v1.1). */
+  feeFcfa?: number
   purchaseId?: string | null
   subscriptionChargeId?: string | null
   issuedAt?: Date
@@ -79,6 +82,7 @@ export async function issueInvoice(input: IssueInvoiceInput) {
           userId: input.userId,
           label: input.label,
           amountFcfa: input.amountFcfa,
+          feeFcfa: input.feeFcfa ?? 0,
           purchaseId: input.purchaseId ?? null,
           subscriptionChargeId: input.subscriptionChargeId ?? null,
           issuedAt,
@@ -119,7 +123,7 @@ export async function issueInvoiceForPurchase(purchaseId: string) {
   const purchase = await db.purchase.findUnique({
     where: { id: purchaseId },
     select: {
-      id: true, learnerId: true, amountFcfa: true, providerStatus: true, createdAt: true,
+      id: true, learnerId: true, amountFcfa: true, buyerFeeFcfa: true, providerStatus: true, createdAt: true,
       course: { select: { title: true } },
       community: { select: { name: true } },
       periodStart: true, periodEnd: true,
@@ -140,6 +144,7 @@ export async function issueInvoiceForPurchase(purchaseId: string) {
     userId: purchase.learnerId,
     label,
     amountFcfa: purchase.amountFcfa,
+    feeFcfa: purchase.buyerFeeFcfa,
     purchaseId: purchase.id,
     issuedAt: purchase.createdAt,
   })
@@ -313,6 +318,12 @@ export async function renderInvoicePdf(invoiceId: string, userId: string): Promi
   y -= 20
   text(invoice.label, { size: 11 })
   text(`${FCFA.format(invoice.amountFcfa)} FCFA`, { size: 11, x: 470 })
+  // Modèle v1.1 : « Le reçu : le prix, les frais et le total, séparément. »
+  if (invoice.feeFcfa > 0) {
+    y -= 18
+    text('Frais de paiement (encaissement et versement au formateur)', { size: 10, color: ink2 })
+    text(`${FCFA.format(invoice.feeFcfa)} FCFA`, { size: 11, x: 470 })
+  }
 
   y -= 30
   page.drawLine({
@@ -324,7 +335,7 @@ export async function renderInvoicePdf(invoiceId: string, userId: string): Promi
 
   y -= 26
   text('Total', { size: 13, font: bold })
-  text(`${FCFA.format(invoice.amountFcfa)} FCFA`, { size: 13, font: bold, x: 470 })
+  text(`${FCFA.format(invoice.amountFcfa + invoice.feeFcfa)} FCFA`, { size: 13, font: bold, x: 470 })
 
   y -= 60
   text('Montants exprimés en francs CFA, toutes taxes comprises le cas échéant.', {
@@ -334,6 +345,10 @@ export async function renderInvoicePdf(invoiceId: string, userId: string): Promi
   text('Document généré par NKAMVA. Sa conservation vaut justificatif de paiement.', {
     size: 9, color: ink2,
   })
+  if (invoice.kind === 'PURCHASE') {
+    y -= 13
+    text(winAnsi(REFUND_RULE_RECEIPT_LINE), { size: 9, color: ink2 })
+  }
 
   return pdf.save()
 }

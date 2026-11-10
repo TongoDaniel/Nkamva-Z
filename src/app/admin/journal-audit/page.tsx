@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileClock, Inbox } from "lucide-react";
@@ -53,7 +54,7 @@ export default async function JournalAuditPage({
   // alors même que les actions des trois rôles y sont écrites. Finances et
   // Modération n'y ont aucun accès, pas même en lecture sur leur propre
   // périmètre.
-  if (auth?.user.adminRole !== "SUPER_ADMIN") redirect("/admin");
+  if (!canOpen(auth?.user, "auditLog")) redirect("/admin");
 
   const sp = await searchParams;
   const group = AUDIT_ACTION_GROUPS.some((g) => g.value === sp.groupe) ? sp.groupe! : "all";

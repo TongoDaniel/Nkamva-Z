@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hasAdminRole } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import { redirect } from "next/navigation";
 import { UserCog } from "lucide-react";
@@ -23,7 +24,7 @@ export default async function AdministrateursPage() {
   const auth = await getAuthContext();
   // Toute la console de gestion des administrateurs est réservée au
   // Super-admin : c'est lui seul qui décide qui entre dans l'équipe.
-  if (auth?.user.adminRole !== "SUPER_ADMIN") redirect("/admin");
+  if (!hasAdminRole(auth?.user, "SUPER_ADMIN")) redirect("/admin");
 
   const admins = await listAdmins();
 
@@ -54,9 +55,13 @@ export default async function AdministrateursPage() {
                     <small className="block truncate text-[13px] text-ink-3">{admin.email}</small>
                   </div>
 
-                  <StPill tone={admin.adminRole === "SUPER_ADMIN" ? "info" : "muted"}>
-                    {ADMIN_ROLE_LABELS[admin.adminRole]}
-                  </StPill>
+                  <span className="flex flex-wrap gap-1.5">
+                    {admin.adminRoles.map((role) => (
+                      <StPill key={role} tone={role === "SUPER_ADMIN" ? "info" : "muted"}>
+                        {ADMIN_ROLE_LABELS[role]}
+                      </StPill>
+                    ))}
+                  </span>
 
                   {active ? null : <StPill tone="bad">Compte fermé</StPill>}
 
@@ -64,16 +69,12 @@ export default async function AdministrateursPage() {
                     Depuis le {fmtDate(admin.createdAt)}
                   </span>
 
-                  {admin.adminRole === "SUPER_ADMIN" ? (
-                    <span className="text-[13px] text-ink-3">Sous-rôle immuable</span>
-                  ) : (
-                    <AdminActions
-                      userId={admin.id}
-                      userName={name}
-                      currentRole={admin.adminRole}
-                      suspended={!active}
-                    />
-                  )}
+                  <AdminActions
+                    userId={admin.id}
+                    userName={name}
+                    currentRoles={admin.adminRoles}
+                    suspended={!active}
+                  />
                 </li>
               );
             })}

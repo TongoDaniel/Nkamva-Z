@@ -13,6 +13,7 @@
 //   - décision 25 : le premier retrait est TOUJOURS en revue manuelle
 // ==========================================================================
 
+import { getSettingNumber } from './settings'
 import type { PayoutStatus, Prisma } from '@prisma/client'
 import { db } from './db'
 import { audit, auditStandalone } from './audit'
@@ -265,6 +266,37 @@ export async function approvePayout(payoutId: string, input: ReviewPayoutInput) 
 
   const { method, reason } = await getWithdrawableMethod(payout.trainerId)
   if (!method) throw new Error(reason)
+
+  // Plan d'action, règle 2 : au-delà du seuil, deux validations par deux
+  // personnes différentes. La première est consignée et le retrait reste en
+  // revue ; seule la seconde déclenche le virement.
+  const threshold = await getSettingNumber('payouts.dual_approval_threshold_fcfa')
+  if (threshold > 0 && payout.amountFcfa > threshold) {
+    if (!payout.firstApprovedById) {
+      await db.$transaction(async (tx) => {
+        const guard = await tx.payout.updateMany({
+          where: { id: payoutId, updatedAt: new Date(input.expectedUpdatedAt), status: 'IN_REVIEW' },
+          data: { firstApprovedById: input.actorId, firstApprovedAt: new Date() },
+        })
+        if (guard.count === 0) throw new Error('STALE_PAYOUT')
+        await audit(tx, {
+          actorId: input.actorId, actorRole: input.actorRole,
+          action: 'PAYOUT_FIRST_APPROVAL', targetType: 'Payout', targetId: payoutId,
+          meta: { amountFcfa: payout.amountFcfa, thresholdFcfa: threshold },
+        })
+      })
+      await deliverSideEffects('PAYOUT_SECOND_APPROVAL', { type: 'Payout', id: payoutId }, () =>
+        notifyAdminSubRole('FINANCES', {
+          type: 'PAYOUT_SECOND_APPROVAL',
+          title: 'Retrait à valider une seconde fois',
+          body: `${payout.amountFcfa} FCFA dépassent le seuil de double validation : un second membre de Finances doit approuver.`,
+          link: `/admin/retraits/${payoutId}`,
+        }),
+      )
+      return db.payout.findUnique({ where: { id: payoutId } })
+    }
+    if (payout.firstApprovedById === input.actorId) throw new Error('SAME_APPROVER')
+  }
 
   await db.$transaction(async (tx) => {
     const guard = await tx.payout.updateMany({

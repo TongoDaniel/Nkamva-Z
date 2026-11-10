@@ -82,6 +82,30 @@ export const SETTING_SPECS = {
     effect:
       'Nombre d’adhésions offertes qu’une communauté peut émettre sur 30 jours glissants.',
   },
+  // Plan d'action, règle 2 : seuil de double validation des retraits, fixé par
+  // le Propriétaire. 0 = aucune double validation (décision en attente).
+  'payouts.dual_approval_threshold_fcfa': {
+    fallback: 0,
+    min: 0,
+    max: 100_000_000,
+    effect: 'Retraits : au-delà de ce montant, deux membres de Finances différents doivent approuver. 0 désactive la règle.',
+  },
+  // Plan d'action : plafond des remises créées par le rôle Commercial.
+  'discounts.sales_cap_fcfa': {
+    fallback: 0,
+    min: 0,
+    max: 1_000_000,
+    effect: 'Remises : montant maximal qu’un administrateur Commercial peut accorder. 0 interdit au Commercial d’en créer.',
+  },
+  // Modèle v1.1 : plafond mensuel de dépassement des lives, pour toute la
+  // plateforme, fixé par les fondateurs. 0 = pas encore fixé (aucune
+  // restriction, l'écran le signale).
+  'lives.monthly_overrun_cap_fcfa': {
+    fallback: 0,
+    min: 0,
+    max: 10_000_000,
+    effect: 'Lives : à 80 % de ce dépassement mensuel, alerte ; à 100 %, les nouveaux lives partent en audio jusqu’à la fin du mois.',
+  },
   'invitations.share_link_max_uses': {
     fallback: 25,
     min: 1,

@@ -14,18 +14,21 @@
 // ==========================================================================
 
 /** Date de mise à jour affichée en tête des conditions d'utilisation. */
-export const LEGAL_TERMS_UPDATED_AT = '1er août 2026'
+export const LEGAL_TERMS_UPDATED_AT = '30 novembre 2026'
 
 /** Commission telle qu'elle est écrite à l'article 5 des conditions. */
-export const LEGAL_COMMISSION_LABEL = '15 %'
+export const LEGAL_COMMISSION_LABEL = '10 %'
 
 /** Part formateur telle qu'elle est écrite au même article. */
-export const LEGAL_TRAINER_SHARE_LABEL = '85 %'
+export const LEGAL_TRAINER_SHARE_LABEL = '90 %'
+
+/** Commission du plan Pro, au même article (modèle v1.1). */
+export const LEGAL_PRO_COMMISSION_LABEL = '3 %'
 
 // --- Conditions d'utilisation, article 4 (remboursement) et 7 (résiliation) ---
 
 /** Délai de contestation écrit à l'article 4. */
-export const LEGAL_DISPUTE_WINDOW_DAYS = 14
+export const LEGAL_DISPUTE_WINDOW_DAYS = 7
 
 /** Seuil de consultation écrit à l'article 4. */
 export const LEGAL_CONSUMPTION_THRESHOLD_LABEL = '30 %'

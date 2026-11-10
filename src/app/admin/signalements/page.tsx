@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -38,7 +39,7 @@ export default async function SignalementsPage({
   const auth = await getAuthContext();
   // Décision 7 — les signalements relèvent de la Modération. Finances n'y a
   // aucun accès, symétrique de son monopole sur les moyens de paiement.
-  if (!auth?.user.adminRole || !["MODERATION", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "reports")) {
     redirect("/admin");
   }
 

@@ -10,8 +10,10 @@ import { listAdmins, createAdmin } from '@/lib/admins'
 const CreateAdminSchema = z.object({
   email: z.string().trim().toLowerCase().email('Adresse e-mail invalide').max(254),
   fullName: z.string().trim().min(2, 'Nom requis').max(120),
-  adminRole: z.enum(['SUPER_ADMIN', 'FINANCES', 'MODERATION']),
-})
+  adminRole: z.enum(['SUPER_ADMIN', 'FINANCES', 'MODERATION', 'PILOTAGE', 'SUPPORT', 'SALES', 'COMMUNICATION', 'TECHNICAL', 'QA']).optional(),
+  // Plan d'action, section 2 : un administrateur peut cumuler plusieurs rôles.
+  adminRoles: z.array(z.enum(['SUPER_ADMIN', 'FINANCES', 'MODERATION', 'PILOTAGE', 'SUPPORT', 'SALES', 'COMMUNICATION', 'TECHNICAL', 'QA'])).min(1).max(9).optional(),
+}).refine((v) => v.adminRole || v.adminRoles?.length, { message: 'Au moins un rôle' })
 
 export async function GET() {
   const ctx = await requireAdminSubRole('SUPER_ADMIN')

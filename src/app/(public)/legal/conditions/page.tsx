@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LegalPage, ToProvide } from "../legal-page";
 import {
   LEGAL_COMMISSION_LABEL,
+  LEGAL_PRO_COMMISSION_LABEL,
   LEGAL_CONSUMPTION_THRESHOLD_LABEL,
   LEGAL_DELETION_GRACE_DAYS,
   LEGAL_DISPUTE_WINDOW_DAYS,
@@ -47,24 +48,41 @@ export default function ConditionsPage() {
         de durée.
       </p>
       <p>
+        Les frais de paiement s&apos;ajoutent au prix et sont à la charge de l&apos;acheteur. Ils
+        sont calculés selon son pays et son moyen de paiement, sans marge pour NKAMVA, et le
+        montant exact est affiché avant la confirmation. Le reçu sépare le prix, les frais et le
+        total.
+      </p>
+      <p>
         En mobile money, la confirmation peut prendre quelques minutes. Aucun accès n&apos;est
         ouvert avant elle, et aucun montant n&apos;est dû si le paiement échoue.
       </p>
 
       <h2>4. Remboursement</h2>
       {/* Valeurs contractuelles, comme celles de l'article 5 : voir `lib/legal-terms`. */}
-      <p>Un achat peut être contesté aux conditions cumulatives suivantes :</p>
+      <p>
+        Une demande de remboursement se fait dans les {LEGAL_DISPUTE_WINDOW_DAYS} jours suivant
+        l&apos;achat (pour un live, dans les {LEGAL_DISPUTE_WINDOW_DAYS} jours suivant la date
+        prévue). Elle est intégralement remboursée, frais de paiement compris, quand la faute
+        n&apos;est pas celle de l&apos;acheteur :
+      </p>
       <ul>
-        <li>dans les {LEGAL_DISPUTE_WINDOW_DAYS} jours suivant l&apos;achat ;</li>
+        <li>accès non reçu et non rétabli par le support sous 48 h ;</li>
+        <li>double paiement ou montant erroné ;</li>
         <li>
-          pour une ressource consultée en ligne, si moins de {LEGAL_CONSUMPTION_THRESHOLD_LABEL} en
-          a été consulté au moment de la contestation ;
+          live payant annulé et non reprogrammé dans les 7 jours, ou reprogrammé à une date qui
+          ne convient pas à l&apos;acheteur ;
         </li>
-        <li>
-          pour une ressource téléchargeable, si elle n&apos;a pas été téléchargée (une fois le
-          fichier récupéré, il ne peut plus être restitué.
-        </li>
+        <li>contenu manifestement différent de sa description, après vérification par NKAMVA.</li>
       </ul>
+      <p>
+        Un simple changement d&apos;avis n&apos;est remboursable qu&apos;avant l&apos;accès au
+        contenu : une ressource consultée en ligne à plus de {LEGAL_CONSUMPTION_THRESHOLD_LABEL}, ou
+        un fichier téléchargé, ne l&apos;est plus. La décision, motivée, est rendue sous 72 heures
+        ouvrées ; le remboursement intervient sous 5 jours ouvrés sur le moyen de paiement
+        d&apos;origine, et l&apos;accès au produit est retiré. Au-delà de 2 remboursements en 3
+        mois pour un même acheteur, la demande est examinée manuellement.
+      </p>
       <p>
         Pendant l&apos;examen, l&apos;accès à la ressource est suspendu. Si la contestation
         n&apos;est pas retenue, il est rétabli. Si aucune réponse n&apos;est apportée à une
@@ -86,9 +104,15 @@ export default function ConditionsPage() {
       <p>
         {/* Valeurs contractuelles : elles ne suivent pas la configuration, elles
             se modifient avec le document. Voir `lib/legal-terms`. */}
-        NKAMVA retient {LEGAL_COMMISSION_LABEL} du prix de vente ; {LEGAL_TRAINER_SHARE_LABEL}{" "}
-        reviennent au formateur, crédités à chaque vente confirmée. En cas de remboursement, la
-        part correspondante est débitée de son solde.
+        Sur le plan « Vous ne payez que quand vous vendez », NKAMVA retient{" "}
+        {LEGAL_COMMISSION_LABEL} du prix fixé par le formateur ; {LEGAL_TRAINER_SHARE_LABEL}{" "}
+        lui reviennent, crédités à chaque vente confirmée. Sur le plan Pro, la commission est de{" "}
+        {LEGAL_PRO_COMMISSION_LABEL}, en plus de l&apos;abonnement mensuel. Les frais de paiement,
+        payés par l&apos;acheteur, ne réduisent jamais la part du formateur. En cas de
+        remboursement, la vente est annulée sur son solde et NKAMVA ne garde pas sa commission ;
+        si la faute revient au formateur (live annulé, contenu non conforme), les frais de
+        paiement non récupérables sont aussi à sa charge. Si son solde ne suffit pas, la somme
+        est retenue sur ses prochaines ventes.
       </p>
 
       <h2>6. Contenus interdits</h2>

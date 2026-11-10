@@ -10,6 +10,7 @@
 // la retouche pas ici : une remise déjà appliquée est snapshotée sur
 // l'abonnement (décision 57), la modifier après coup ne changerait rien à ce
 // qui a été facturé et laisserait croire le contraire.
+import { canOpen } from "@/lib/admin-roles";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { TicketPercent } from "lucide-react";
@@ -38,8 +39,9 @@ export default async function RemisesPage() {
   const auth = await getAuthContext();
   // Décision 60 — Finances accorde les remises, elle doit donc les relire.
   // La Modération n'a rien à faire dans les finances (décision 7).
-  const role = auth?.user.adminRole;
-  if (role !== "FINANCES" && role !== "SUPER_ADMIN") redirect("/admin");
+  // Plan d'action : le Commercial crée des remises dans un plafond : il relit
+  // donc le registre, comme Finances.
+  if (!canOpen(auth?.user, "discounts")) redirect("/admin");
 
   const rows = await listDiscountRegister();
   const now = new Date();

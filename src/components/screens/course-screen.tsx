@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { REFUND_RULE_SUMMARY } from "@/lib/rules";
 import {
   Check,
   Clock,
@@ -284,10 +285,12 @@ export async function CourseScreen({ slug, space }: { slug: string; space: Space
                 <p className="mb-1">
                   <Price amountFcfa={course.priceFcfa} className="!text-[32px]" />
                 </p>
+                <p className="mb-1 text-[13px] font-semibold text-ink-2">+ frais de paiement</p>
                 <p className="mb-4.5 text-[13px] font-semibold text-ink-3">
                   Paiement à l&apos;unité · accès à vie
                 </p>
                 <BtnLink href={`/achat/${course.slug}`} size="lg" block>Acheter maintenant</BtnLink>
+                <p className="mt-3 text-[12px] leading-relaxed text-ink-3">{REFUND_RULE_SUMMARY}</p>
               </>
             )}
 

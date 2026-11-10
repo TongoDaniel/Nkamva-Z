@@ -25,6 +25,10 @@
 > message épinglé qui notifie. Touche F5, F12, §4.2, §7, §13, §14 et le
 > glossaire.
 >
+> **Mis à jour le 10 novembre 2026** sur le modèle économique v1.1 et le plan
+> d'action du même jour : sections 2.2 (modèle économique) et 3.2 (rôles
+> d'administration cumulables et séparation des tâches).
+>
 > **Hiérarchie des sources en cas de divergence** : le code du dépôt, puis
 > `docs/decisions-nkamva.md`, puis ce document, puis les autres documents
 > `docs/`. Une divergence constatée est un défaut à corriger, pas une
@@ -102,16 +106,30 @@ dossiers. Il suppose la lecture de `docs/decisions-nkamva.md` pour le
 
 ### 2.2 Modèle économique
 
-| Source | Règle | Référence |
+Source qui fait foi depuis le 10 novembre 2026 : **modèle économique v1.1** du
+22 octobre 2026 (`NKAMVA_Modele_economique_v1_1.pdf`), appliqué par le plan
+d'action `docs/plan-action-modele-v1-1-et-roles-2026-11-10.md`. Lancement le
+30 novembre 2026.
+
+| Source | Règle | Où dans le code |
 |---|---|---|
-| Commission | **15 %** du prix payé, prélevée à la vente ; le formateur est crédité de **85 %**. Taux porté par formateur (`TrainerProfile.commissionRate`, défaut 0,15) et **figé sur chaque achat** | Arbitrage 11 |
-| Abonnement formateur | Un seul abonnement de plateforme, **deux cadences** (mensuelle, annuelle) aux droits identiques. Peut valoir **zéro** (gratuité de lancement, bornée au 31 décembre 2026, préavis de 60 jours) | Arbitrages 49, 56, 96 |
-| Stockage | **40 Go inclus**, extension par tranches de **50 Go** à **3 000 FCFA/mois** ou **30 000 FCFA/an**, facturée à la cadence de l'abonnement | Arbitrages 54, 69, 95 |
-| Adhésion communauté | Prix **unique** fixé par le formateur (`Community.priceFcfa`), encaissé par la plateforme, commissionné comme une vente | Arbitrage 58 |
+| Plan « Vous ne payez que quand vous vendez » | **0 FCFA par mois**, **10 %** du prix fixé par le formateur, retenus à la vente ; le formateur reçoit **90 %**. Plan de chaque formateur à son inscription | `lib/commission.ts`, tarif `SUBSCRIPTION` à 0 FCFA |
+| Plan Pro | **15 000 FCFA par mois + 3 %** par vente, 100 Go. Ouvert aux **formateurs fondateurs** dès le 30 novembre 2026 (liste fixée par Jaurès), à tous au **1er mars 2027**. Prend effet au règlement de sa période ; retour au plan de base sans pénalité en fin de période ; un Pro impayé repasse au plan de base au lieu d'être suspendu | `lib/trainer-plans.ts`, tarif `PRO_SUBSCRIPTION` |
+| Taux figé | Le taux du formateur suit son plan (`TrainerProfile.commissionRate`) et se **fige sur chaque achat** (`Purchase.commissionRate`) : réservations et débits d'un litige lisent le taux de l'achat | Arbitrage 11, `lib/disputes.ts` |
+| Frais de paiement | **Payés par l'acheteur**, ajoutés au prix, calculés selon son moyen (MTN 1,75 %, Orange 1,77 %, carte 3,15 % + 164 FCFA + 2 %) et le futur retrait du formateur (MTN 1,3 %, Orange 1 %). NKAMVA n'y gagne ni n'y perd. Le reçu sépare prix, frais et total (`Purchase.buyerFeeFcfa`, `Invoice.feeFcfa`) | `lib/payment-fees.ts` |
+| Stockage | **5 Go** sur le plan de base, **+1 Go par tranche de 50 000 FCFA** de ventes cumulées (hypothèse du modèle), **100 Go** en Pro. À la limite, l'ajout est bloqué, rien n'est supprimé | `lib/rules.ts` (`includedStorageBytes`), `lib/courses.ts` |
+| Remboursement | Demande sous **7 jours** ; intégral, frais compris, si la faute n'est pas celle de l'acheteur (accès, double paiement, live annulé, contenu non conforme) ; **pas de remboursement pour un changement d'avis après l'accès**. Décision de Finances sous 72 h ouvrées, sur proposition du service client. « Qui paie » : faute technique, NKAMVA absorbe les frais ; faute du formateur, frais non récupérables à sa charge. Examen manuel au-delà de 2 remboursements en 3 mois | `lib/disputes.ts`, `lib/rules.ts` |
+| Lives (lancement) | 3 lives par semaine et par communauté au plus, 2 h au plus. Plafond mensuel de dépassement pour toute la plateforme (`lives.monthly_overrun_cap_fcfa`) : alerte à 80 %, nouveaux lives en audio à 100 %, jamais de coupure d'un live en cours | `lib/live-budget.ts` |
+| Community (1er mars 2027) | 4 plans payés par le formateur selon le nombre de membres (Découverte 0, Essentiel 10 000, Croissance 25 000, Premium 50 000 FCFA/mois), après le choix de l'option A ou B des lives | **À construire** (phase 2 du plan d'action) |
+| Adhésion communauté (jusqu'au 1er mars 2027) | Prix fixé par le formateur, commissionné comme une vente | Arbitrage 58 |
+
+Vocabulaire : le mot « gratuit » est retiré ; on écrit « 0 FCFA » ou « Vous ne
+payez que quand vous vendez ».
 
 Aucun montant n'est écrit deux fois : l'abonnement passe par `lib/pricing.ts`,
-la commission par `lib/commission.ts`, le stockage par `lib/storage-tiers.ts`.
-Un écran qui affiche un montant le lit à la source.
+la commission par `lib/commission.ts`, les frais par `lib/payment-fees.ts`, le
+stockage par `lib/rules.ts` et `lib/storage-tiers.ts`. Un écran qui affiche un
+montant le lit à la source.
 
 ### 2.3 Marchés et devises
 
@@ -136,17 +154,42 @@ injoignable, la vitrine n'annonce **rien** plutôt qu'une liste périmée.
 | **Formateur** | `TRAINER` | Publie et vend, anime une communauté et des lives, gère son portefeuille et ses retraits. **Garde tous les privilèges de l'apprenant** (arbitrage 89). |
 | **Administrateur** | `ADMIN` + `adminRole` | Voir 3.2. **N'achète rien, n'adhère à rien, ne candidate pas** (arbitrages 87-88). |
 
-### 3.2 Les trois sous-rôles d'administration
+### 3.2 Les rôles d'administration (cumulables)
 
-| Sous-rôle | Périmètre | Interdits |
-|---|---|---|
-| `SUPER_ADMIN` | Tout : équipe, configuration, tarification, journal d'audit, escalades, réconciliation de portefeuille, sanction `BANNED` | — |
-| `FINANCES` | Transactions, retraits, moyens de paiement, remboursements, abonnements, remises, registre des remises, rapports. **Lecture seule** sur les utilisateurs | Aucun accès à la modération, ni à l'image d'une pièce d'identité |
-| `MODERATION` | Signalements, modération des ressources et des interactions, validation des formateurs et de leurs documents, sanction `RESTRICTED` | Aucun accès aux finances ni aux moyens de paiement |
+Depuis le plan d'action du 10 novembre 2026, un administrateur peut avoir
+**plusieurs rôles** (`User.adminRoles`) et reçoit la somme de leurs
+permissions. La carte des accès vit dans `lib/admin-roles.ts` (`ADMIN_ACCESS`),
+lue par les routes (`requireAdminSubRole`), les pages et la navigation.
 
-Le **journal d'audit** est lisible par le seul Super-admin, mais **toutes** les
-actions des trois rôles y sont écrites. Il n'expose aucune action de
-modification : un journal qu'on peut retoucher ne prouve rien.
+| Rôle | Enum | Périmètre | Interdits |
+|---|---|---|---|
+| Propriétaire | `SUPER_ADMIN` | Tout ; administrateurs et rôles ; tarifs, commission, plans, taux de change, formateurs fondateurs. Deux personnes au plus | Aucun |
+| Pilotage | `PILOTAGE` | Analytics et transactions, en lecture | Agir sur un dossier |
+| Finances | `FINANCES` | Transactions, portefeuilles, retraits, moyens de paiement, abonnements, remises ; **décide** des remboursements | Changer les tarifs |
+| Modération | `MODERATION` | Candidatures, signalements, contenus, sanctions `RESTRICTED` | Toucher à l'argent (les litiges passent au service client et à Finances) |
+| Service client | `SUPPORT` | Fiche client (`/admin/clients`), litiges : instruit, **propose** une décision, relance la vérification d'un paiement ; aide en ligne | Valider un remboursement, approuver un retrait |
+| Commercial | `SALES` | Remises dans le plafond `discounts.sales_cap_fcfa` | Valider une candidature |
+| Communication | `COMMUNICATION` | Aide en ligne et annonces | Données personnelles, montants individuels |
+| Technique | `TECHNICAL` | Intégrations, journal d'audit, alertes d'erreur serveur | Approuver un retrait ou un remboursement |
+| Recette | `QA` | Tous les rôles, **hors production** (`APP_ENV`) | La production |
+
+**Séparation des tâches** (opposable) :
+
+1. Un remboursement est **proposé** par le service client et **validé** par
+   Finances, jamais par la personne qui l'a proposé, Propriétaire compris.
+2. Un retrait au-delà de `payouts.dual_approval_threshold_fcfa` demande deux
+   approbations par deux membres de Finances différents.
+3. Personne n'agit sur son propre dossier : un administrateur n'est jamais
+   formateur ni acheteur (3.3).
+4. Un administrateur qui a le rôle Commercial ne tranche pas une candidature,
+   même s'il a aussi la Modération.
+5. Les changements de prix sont réservés au Propriétaire et tracés.
+6. Revue des accès chaque trimestre par les deux Propriétaires.
+7. Double authentification obligatoire pour tout administrateur, imposée par
+   `REQUIRE_ADMIN_2FA=1` une fois chacun enrôlé.
+
+Le **journal d'audit** est lisible par le Propriétaire et la Technique ; toutes
+les actions y sont écrites. Il n'expose aucune action de modification.
 
 ### 3.3 Cloisonnement — règles opposables
 

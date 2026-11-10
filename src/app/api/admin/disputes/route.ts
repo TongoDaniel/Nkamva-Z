@@ -4,7 +4,7 @@ import { listDisputes } from '@/lib/disputes'
 import type { DisputeStatus } from '@prisma/client'
 
 export async function GET(request: Request) {
-  const ctx = await requireAdminSubRole('MODERATION', 'SUPER_ADMIN')
+  const ctx = await requireAdminSubRole('SUPPORT', 'FINANCES')
   if (ctx instanceof Response) return ctx
 
   const url = new URL(request.url)

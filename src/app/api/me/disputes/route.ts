@@ -6,7 +6,7 @@ import { openDispute, listMyDisputes, DISPUTE_MESSAGE_MAX_LENGTH } from '@/lib/d
 
 const OpenDisputeSchema = z.object({
   purchaseId: z.string().uuid(),
-  reason: z.enum(['CONTENT_MISMATCH', 'DOUBLE_CHARGE', 'ACCESS_ISSUE', 'UNAUTHORIZED_CHARGE', 'OTHER']),
+  reason: z.enum(['CONTENT_MISMATCH', 'DOUBLE_CHARGE', 'ACCESS_ISSUE', 'UNAUTHORIZED_CHARGE', 'LIVE_CANCELED', 'CHANGE_OF_MIND', 'OTHER']),
   reasonDetail: z.string().max(DISPUTE_MESSAGE_MAX_LENGTH).optional(),
   attachments: z.array(z.string()).max(5).optional(),
 })

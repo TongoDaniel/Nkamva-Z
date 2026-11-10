@@ -20,6 +20,7 @@ import {
   PDF_MAX_BYTES,
   STORAGE_TIER_BYTES,
   TRAINER_STORAGE_QUOTA_BYTES,
+  includedStorageBytes,
 } from './rules'
 
 export const COURSE_UPLOAD_LIMITS = {
@@ -175,16 +176,32 @@ export async function trainerStorageUsedBytes(trainerId: string): Promise<number
  * rend l'extension réelle — sinon un formateur paierait de l'espace sans jamais
  * pouvoir s'en servir.
  */
+/**
+ * Modèle v1.1 : stockage inclus selon le plan : 100 Go en Pro ; sur le plan de
+ * base, 5 Go plus 1 Go par tranche de 50 000 FCFA de ventes cumulées (ventes
+ * réglées et non remboursées, au prix fixé par le formateur).
+ */
+export async function trainerIncludedStorageBytes(trainerId: string): Promise<number> {
+  const profile = await db.trainerProfile.findUnique({ where: { id: trainerId }, select: { plan: true } })
+  if (profile?.plan === 'PRO') return includedStorageBytes({ plan: 'PRO', cumulativeSalesFcfa: 0 })
+  const sales = await db.purchase.aggregate({
+    where: { trainerId, providerStatus: 'SUCCEEDED', refundedAt: null },
+    _sum: { amountFcfa: true },
+  })
+  return includedStorageBytes({ plan: 'BASE', cumulativeSalesFcfa: sales._sum.amountFcfa ?? 0 })
+}
+
 export async function trainerStorage(trainerId: string) {
-  const [usedBytes, profile] = await Promise.all([
+  const [usedBytes, profile, includedBytes] = await Promise.all([
     trainerStorageUsedBytes(trainerId),
     db.trainerProfile.findUnique({
       where: { id: trainerId },
       select: { storageTiers: true },
     }),
+    trainerIncludedStorageBytes(trainerId),
   ])
   const quotaBytes =
-    TRAINER_STORAGE_QUOTA_BYTES + (profile?.storageTiers ?? 0) * STORAGE_TIER_BYTES
+    includedBytes + (profile?.storageTiers ?? 0) * STORAGE_TIER_BYTES
   return {
     usedBytes,
     quotaBytes,

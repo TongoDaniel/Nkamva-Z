@@ -9,7 +9,7 @@ const SetSchema = z.object({
   // le palier de stockage de 50 Go. `setTariff` les borne séparément — sans ce
   // champ, le prix du palier n'était atteignable par aucun écran, et restait
   // donc nul à vie en production.
-  kind: z.enum(['SUBSCRIPTION', 'STORAGE_TIER']).default('SUBSCRIPTION'),
+  kind: z.enum(['SUBSCRIPTION', 'PRO_SUBSCRIPTION', 'STORAGE_TIER']).default('SUBSCRIPTION'),
   cadence: z.enum(['MONTHLY', 'YEARLY']),
   // Zéro est une valeur légitime : c'est la gratuité de lancement (décision 56).
   amountFcfa: z.number().int().min(0),

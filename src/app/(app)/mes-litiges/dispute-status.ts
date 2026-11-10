@@ -44,6 +44,8 @@ export const DISPUTE_REASONS = [
   { value: "ACCESS_ISSUE", label: "Je n'arrive pas à accéder à la ressource" },
   { value: "DOUBLE_CHARGE", label: "J'ai été prélevé deux fois" },
   { value: "UNAUTHORIZED_CHARGE", label: "Je n'ai pas autorisé ce paiement" },
+  { value: "LIVE_CANCELED", label: "Le live a été annulé et n'a pas été reprogrammé" },
+  { value: "CHANGE_OF_MIND", label: "J'ai changé d'avis (avant d'avoir ouvert le contenu)" },
   { value: "OTHER", label: "Autre motif" },
 ] as const;
 

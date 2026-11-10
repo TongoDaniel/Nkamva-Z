@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen, hasAdminRole } from "@/lib/admin-roles";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, FileText, ShieldAlert } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -37,7 +38,7 @@ export default async function MoyenDePaiementDetailPage({
   params: Promise<{ payoutMethodId: string }>;
 }) {
   const auth = await getAuthContext();
-  if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "payoutMethods")) {
     redirect("/admin");
   }
   const { payoutMethodId } = await params;
@@ -45,7 +46,7 @@ export default async function MoyenDePaiementDetailPage({
   const method = await getPayoutMethodDetail(payoutMethodId).catch(() => null);
   if (!method) notFound();
 
-  const isSuperAdmin = auth.user.adminRole === "SUPER_ADMIN";
+  const isSuperAdmin = hasAdminRole(auth?.user, "SUPER_ADMIN");
   const state = METHOD_STATUS[method.verificationStatus] ?? {
     label: method.verificationStatus,
     tone: "muted" as const,

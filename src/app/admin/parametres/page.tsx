@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hasAdminRole } from "@/lib/admin-roles";
 import type { PlanCadence, PlatformTariff, TariffKind } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { Lock } from "lucide-react";
@@ -34,7 +35,8 @@ const DISCOUNT_KIND_LABELS: Record<string, string> = {
  * baisse de l'abonnement.
  */
 const TARIFF_KIND_LABELS: Record<TariffKind, string> = {
-  SUBSCRIPTION: "Abonnement",
+  SUBSCRIPTION: "Plan de base",
+  PRO_SUBSCRIPTION: "Plan Pro",
   STORAGE_TIER: "Palier stockage",
 };
 
@@ -85,7 +87,7 @@ export default async function ParametresPage() {
   const auth = await getAuthContext();
   // Décision 60 — la grille tarifaire et la bascule gratuit ⇄ payant sont au
   // Super-admin. Finances n'a que les remises, qui ne vivent pas sur cet écran.
-  if (auth?.user.adminRole !== "SUPER_ADMIN") redirect("/admin");
+  if (!hasAdminRole(auth?.user, "SUPER_ADMIN")) redirect("/admin");
 
   const [current, storageCurrent, history, discounts, settings] = await Promise.all([
     getCurrentTariffs(),

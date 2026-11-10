@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -51,7 +52,7 @@ export default async function AbonnementsPage({
 }) {
   const auth = await getAuthContext();
   // Décision 7 — les abonnements relèvent de Finances.
-  if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "subscriptions")) {
     redirect("/admin");
   }
 

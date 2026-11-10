@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ADMIN_ROLE_LABELS, canOpen, rolesOf } from "@/lib/admin-roles";
 import * as React from "react";
 import { BadgeCheck, CreditCard, Gavel, ShieldAlert, Undo2, Wallet } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -60,9 +61,9 @@ export default async function AdminHomePage() {
 
   // Mêmes bornes que `navForSubRole` et que les gardes de chaque page : le
   // tableau de bord ne doit annoncer que des files réellement ouvrables.
-  const role = auth.user.adminRole;
-  const canModerate = role === "MODERATION" || role === "SUPER_ADMIN";
-  const canFinance = role === "FINANCES" || role === "SUPER_ADMIN";
+  const role = rolesOf(auth.user).map((r) => ADMIN_ROLE_LABELS[r]).join(", ") || null;
+  const canModerate = canOpen(auth.user, "trainerApplications");
+  const canFinance = canOpen(auth.user, "payouts");
 
   const [applications, disputes, reports, payouts, payoutMethods, refundTasks] =
     await Promise.all([
@@ -78,7 +79,7 @@ export default async function AdminHomePage() {
     <>
       <AdminHead
         title="Administration"
-        lead={`Vous êtes connecté avec le sous-rôle ${role ?? "non défini"}.`}
+        lead={`Vous êtes connecté avec ${role ? `les rôles : ${role}` : "aucun rôle défini"}.`}
       />
 
       {canModerate && applications && disputes && reports ? (

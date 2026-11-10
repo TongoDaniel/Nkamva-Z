@@ -146,7 +146,7 @@ export async function markNotificationsRead(userId: string, id?: string): Promis
 }
 
 export async function notifyAdminSubRole(subRole: string, params: NotifyParams): Promise<void> {
-  const admins = await db.user.findMany({ where: { role: 'ADMIN', adminRole: subRole as any, deletedAt: null, suspendedAt: null }, select: { id: true } })
+  const admins = await db.user.findMany({ where: { role: 'ADMIN', OR: [{ adminRoles: { has: subRole as any } }, { adminRole: subRole as any }], deletedAt: null, suspendedAt: null }, select: { id: true } })
   if (admins.length === 0) return
   await db.notification.createMany({ data: admins.map(a => ({ userId: a.id, type: params.type, title: params.title, body: params.body, link: params.link ?? null })) })
 }

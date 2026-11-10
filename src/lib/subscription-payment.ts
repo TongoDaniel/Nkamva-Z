@@ -29,6 +29,7 @@ import { quotePrice } from './pricing'
 import { storageChargeFor } from './storage-tiers'
 import { periodEndFor, periodRestartAfterSuspension } from './subscriptions'
 import { fmtNumber } from './format'
+import { applySettledChargePlan } from './trainer-plans'
 
 /** Libellé porté sur le relevé du payeur. PawaPay le borne à 22 caractères. */
 const PAYMENT_LABEL = 'Abonnement NKAMVA'
@@ -305,6 +306,8 @@ export async function settleSubscriptionPayment(
       where: { id: { in: payment.chargeIds }, status: 'DUE' },
       data: { status: 'SETTLED', settledAt: paidAt },
     })
+    // Modèle v1.1 : une période Pro réglée fait passer au Pro.
+    for (const chargeId of payment.chargeIds) await applySettledChargePlan(tx, chargeId)
 
     // Reste-t-il une période impayée ? Une période ouverte après l'ouverture du
     // règlement n'est pas couverte, et le formateur reste alors en impayé.

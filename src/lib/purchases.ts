@@ -28,6 +28,79 @@ import {
   resolveProvider, requestDeposit, toMsisdn, PawaPayError, PLATFORM_CURRENCY,
 } from './pawapay'
 import { settleAmount } from './fx'
+import { quoteBuyerFees, type BuyerFeeQuote, type BuyerPaymentMethod, type TrainerPayoutTarget } from './payment-fees'
+
+/**
+ * Le moyen de retrait par défaut d'un formateur, tel que les frais de vente
+ * le prennent en compte (modèle v1.1 : « Frais de retrait payés par l'acheteur
+ * au moment de la vente, calculés avec le moyen de retrait par défaut du
+ * formateur »). Le dernier moyen actif fait foi ; sans moyen, `null`, et le
+ * calcul retient le taux de retrait le plus élevé.
+ */
+export async function trainerPayoutTarget(trainerProfileId: string): Promise<TrainerPayoutTarget> {
+  const method = await db.payoutMethod.findFirst({
+    where: { trainerId: trainerProfileId, isActive: true, archivedAt: null },
+    orderBy: { createdAt: 'desc' },
+    select: { type: true, mobileOperator: true },
+  })
+  if (!method) return null
+  if (method.type === 'BANK_IBAN') return { kind: 'BANK' }
+  return { kind: 'MOBILE_MONEY', operator: method.mobileOperator }
+}
+
+/** Le moyen de l'acheteur, tel que le calcul des frais le lit. */
+export function buyerMethodOf(provider: PaymentProvider, payer?: MobileMoneyPayer): BuyerPaymentMethod {
+  if (provider === 'PAWAPAY') return { kind: 'MOBILE_MONEY', provider: payer?.provider ?? '' }
+  return { kind: 'CARD' }
+}
+
+/**
+ * Les frais d'une ressource pour chaque moyen proposé à l'acheteur : la clé est
+ * le code opérateur PawaPay, ou `CARD`. L'écran de paiement affiche le total
+ * du moyen sélectionné avant que l'acheteur confirme (modèle v1.1).
+ */
+export async function quoteCourseForMethods(
+  courseId: string,
+  operatorCodes: string[],
+): Promise<Record<string, BuyerFeeQuote>> {
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    select: { priceFcfa: true, trainerProfile: { select: { id: true, commissionRate: true } } },
+  })
+  if (!course) throw new Error('COURSE_NOT_FOUND')
+  const payoutTarget = await trainerPayoutTarget(course.trainerProfile.id)
+  const base = { priceFcfa: course.priceFcfa, commissionRate: course.trainerProfile.commissionRate, payoutTarget }
+  const quotes: Record<string, BuyerFeeQuote> = {
+    CARD: quoteBuyerFees({ ...base, method: { kind: 'CARD' } }),
+  }
+  for (const code of operatorCodes) {
+    quotes[code] = quoteBuyerFees({ ...base, method: { kind: 'MOBILE_MONEY', provider: code } })
+  }
+  return quotes
+}
+
+/**
+ * Le détail exact d'un achat avant confirmation : prix, frais, total, et ce
+ * que le formateur recevra. C'est ce que l'écran de paiement affiche, et ce
+ * que `initiatePurchase` facture : les deux lisent le même calcul.
+ */
+export async function quoteCoursePurchase(
+  courseId: string,
+  provider: PaymentProvider,
+  payer?: MobileMoneyPayer,
+): Promise<BuyerFeeQuote> {
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    select: { priceFcfa: true, trainerProfile: { select: { id: true, commissionRate: true } } },
+  })
+  if (!course) throw new Error('COURSE_NOT_FOUND')
+  return quoteBuyerFees({
+    priceFcfa: course.priceFcfa,
+    commissionRate: course.trainerProfile.commissionRate,
+    method: buyerMethodOf(provider, payer),
+    payoutTarget: await trainerPayoutTarget(course.trainerProfile.id),
+  })
+}
 
 /**
  * Devise **de la carte**, chez Stripe. À zéro décimale : `amountFcfa` part tel
@@ -459,10 +532,21 @@ export async function initiatePurchase(
         throw new Error('PAYMENT_IN_PROGRESS')
       }
     }
+    // Les frais suivent le moyen choisi : un apprenant qui passe de la carte au
+    // mobile money ne paie pas les frais de la carte.
+    const reopenedFees = quoteBuyerFees({
+      priceFcfa: existing.amountFcfa,
+      commissionRate: existing.commissionRate,
+      method: buyerMethodOf(provider, payer),
+      payoutTarget: await trainerPayoutTarget(existing.trainerId),
+    })
+    if (reopenedFees.buyerFeeFcfa !== existing.buyerFeeFcfa) {
+      await db.purchase.update({ where: { id: existing.id }, data: { buyerFeeFcfa: reopenedFees.buyerFeeFcfa } })
+    }
     const reopened = await openProviderPayment({
       subject: purchaseSubject(existing.id),
       provider,
-      amountFcfa: existing.amountFcfa,
+      amountFcfa: reopenedFees.totalFcfa,
       label: course.title,
       learnerId,
       countryCode: learner?.countryCode ?? null,
@@ -483,9 +567,18 @@ export async function initiatePurchase(
     }
   }
 
+  // `amountFcfa` reste le prix fixé par le formateur : la commission et la part
+  // du formateur portent sur lui seul. Les frais de paiement s'y ajoutent, à la
+  // charge de l'acheteur (modèle v1.1), et se gardent à part pour le reçu.
   const amountFcfa = course.priceFcfa
   const commissionRate = course.trainerProfile.commissionRate
-  const trainerShareFcfa = Math.round(amountFcfa * (1 - commissionRate))
+  const fees = quoteBuyerFees({
+    priceFcfa: amountFcfa,
+    commissionRate,
+    method: buyerMethodOf(provider, payer),
+    payoutTarget: await trainerPayoutTarget(course.trainerProfile.id),
+  })
+  const trainerShareFcfa = fees.trainerNetFcfa
   const platformShareFcfa = amountFcfa - trainerShareFcfa
 
   // Le contrôle d'achat existant ci-dessus lit avant d'écrire : deux requêtes
@@ -510,6 +603,7 @@ export async function initiatePurchase(
         commissionRate,
         trainerShareFcfa,
         platformShareFcfa,
+        buyerFeeFcfa: fees.buyerFeeFcfa,
         provider,
         providerStatus: 'PENDING',
       },
@@ -543,7 +637,7 @@ export async function initiatePurchase(
   await auditStandalone({
     actorId: learnerId, actorRole: 'LEARNER',
     action: 'PURCHASE_INITIATED', targetType: 'Purchase', targetId: purchase.id,
-    meta: { courseId, amountFcfa, provider },
+    meta: { courseId, amountFcfa, buyerFeeFcfa: fees.buyerFeeFcfa, provider },
   })
 
   // L'échec d'ouverture annule l'achat : le laisser en attente le rendrait
@@ -554,7 +648,7 @@ export async function initiatePurchase(
     opened = await openProviderPayment({
       subject: purchaseSubject(purchase.id),
       provider,
-      amountFcfa,
+      amountFcfa: fees.totalFcfa,
       label: course.title,
       learnerId,
       countryCode: learner?.countryCode ?? null,

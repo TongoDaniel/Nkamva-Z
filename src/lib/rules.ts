@@ -21,10 +21,40 @@ const GO = 1024 ** 3
 
 // --- Litiges et remboursements ----------------------------------------------
 
-/** Délai pour contester un achat, compté depuis la date d'achat. */
-export const DISPUTE_OPENING_WINDOW_DAYS = 14
-/** Part consultée au-delà de laquelle un format streamé n'est plus remboursable. */
+/**
+ * Délai pour demander un remboursement, compté depuis la date d'achat.
+ * Modèle v1.1, « Règle de remboursement » : 7 jours (14 jusqu'au modèle v1.1).
+ */
+export const DISPUTE_OPENING_WINDOW_DAYS = 7
+/**
+ * Part consultée au-delà de laquelle un format streamé n'est plus remboursable
+ * **pour un simple changement d'avis**. Quand la faute n'est pas celle de
+ * l'acheteur (accès non reçu, double paiement, contenu non conforme, live
+ * annulé), la consultation ne ferme plus le droit au remboursement.
+ */
 export const CONSUMPTION_THRESHOLD = 0.3
+/** Décision motivée de l'administrateur financier, en heures ouvrées. */
+export const REFUND_DECISION_BUSINESS_HOURS = 72
+/** Remboursement effectif sur le moyen d'origine, en jours ouvrés. */
+export const REFUND_EXECUTION_BUSINESS_DAYS = 5
+/** Au-delà de ce nombre de remboursements sur la fenêtre, examen manuel. */
+export const REFUND_ABUSE_THRESHOLD = 2
+export const REFUND_ABUSE_WINDOW_DAYS = 90
+
+/**
+ * La règle telle qu'elle s'affiche sur chaque page produit, à l'écran de
+ * paiement et sur le reçu (modèle v1.1, « Affichage »).
+ */
+export const REFUND_RULE_SUMMARY =
+  `Remboursement intégral si l'accès n'est pas reçu, en cas de double paiement, de live annulé ` +
+  `ou de contenu différent de sa description. Pas de remboursement pour un simple changement d'avis ` +
+  `après l'accès au contenu. Demande sous ${DISPUTE_OPENING_WINDOW_DAYS} jours, décision sous ` +
+  `${REFUND_DECISION_BUSINESS_HOURS} h ouvrées.`
+
+/** La même règle, en une ligne, pour le pied du reçu PDF. */
+export const REFUND_RULE_RECEIPT_LINE =
+  `Remboursement : demande sous ${DISPUTE_OPENING_WINDOW_DAYS} jours, intégral si la faute n'est pas la vôtre, ` +
+  `jamais pour un changement d'avis après l'accès.`
 /** Délai laissé à l'apprenant pour répondre à une demande de précision. */
 export const LEARNER_RESPONSE_DEADLINE_DAYS = 7
 export const ATTACHMENT_MAX_SIZE_BYTES = 5 * MO
@@ -79,8 +109,29 @@ export const LARGE_FILE_MAX_BYTES = 2 * GO
 
 // --- Stockage formateur ------------------------------------------------------
 
-/** Arbitrage 54 — inclus pour chaque formateur. */
-export const TRAINER_STORAGE_QUOTA_BYTES = 40 * GO
+/**
+ * Modèle v1.1 : inclus sur le plan « Vous ne payez que quand vous vendez »,
+ * avant les Go gagnés avec les ventes (40 Go jusqu'au modèle v1.1).
+ */
+export const TRAINER_STORAGE_QUOTA_BYTES = 5 * GO
+/**
+ * Modèle v1.1, HYPOTHÈSE du document : +1 Go par tranche de 50 000 FCFA de
+ * ventes cumulées, sur le plan de base.
+ */
+export const STORAGE_EARNED_BYTES_PER_STEP = 1 * GO
+export const STORAGE_EARNED_STEP_FCFA = 50_000
+/** Modèle v1.1 : inclus sur le plan Pro. */
+export const PRO_STORAGE_QUOTA_BYTES = 100 * GO
+
+/**
+ * Stockage inclus d'un formateur, avant paliers achetés. Fonction pure : le
+ * portefeuille, le dépôt de fichier et l'écran Paramètres lisent la même règle.
+ */
+export function includedStorageBytes(input: { plan: 'BASE' | 'PRO'; cumulativeSalesFcfa: number }): number {
+  if (input.plan === 'PRO') return PRO_STORAGE_QUOTA_BYTES
+  const steps = Math.floor(Math.max(0, input.cumulativeSalesFcfa) / STORAGE_EARNED_STEP_FCFA)
+  return TRAINER_STORAGE_QUOTA_BYTES + steps * STORAGE_EARNED_BYTES_PER_STEP
+}
 /** Arbitrage 69 — au-delà, le stockage s'achète par tranches de cette taille. */
 export const STORAGE_TIER_BYTES = 50 * GO
 

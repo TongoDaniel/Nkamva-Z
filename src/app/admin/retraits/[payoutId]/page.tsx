@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen, hasAdminRole } from "@/lib/admin-roles";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Check, Minus, TriangleAlert } from "lucide-react";
@@ -35,7 +36,7 @@ export default async function RetraitDetailPage({
   params: Promise<{ payoutId: string }>;
 }) {
   const auth = await getAuthContext();
-  if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "payouts")) {
     redirect("/admin");
   }
   const { payoutId } = await params;
@@ -43,7 +44,7 @@ export default async function RetraitDetailPage({
   const payout = await getPayoutDetail(payoutId).catch(() => null);
   if (!payout) notFound();
 
-  const isSuperAdmin = auth.user.adminRole === "SUPER_ADMIN";
+  const isSuperAdmin = hasAdminRole(auth?.user, "SUPER_ADMIN");
   const state = PAYOUT_STATUS[payout.status] ?? {
     label: payout.status,
     tone: "muted" as const,

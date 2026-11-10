@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { redirect } from "next/navigation";
 import { CheckCheck } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -25,7 +26,7 @@ const TASK_STATUS: Record<string, { label: string; tone: "ok" | "warn" | "bad" |
 export default async function RemboursementsPage() {
   const auth = await getAuthContext();
   // Décision 7 : la modération décide du remboursement, les finances l'exécutent.
-  if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "refunds")) {
     redirect("/admin");
   }
 

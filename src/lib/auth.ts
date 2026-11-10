@@ -51,7 +51,7 @@ export async function authorizeCredentials(
 
   const user = await db.user.findUnique({
     where: { email },
-    select: { id: true, email: true, passwordHash: true, role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, twoFactorEnabledAt: true, trainerProfile: { select: { id: true } } },
+    select: { id: true, email: true, passwordHash: true, role: true, adminRole: true, adminRoles: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, twoFactorEnabledAt: true, trainerProfile: { select: { id: true } } },
   })
   // Compte absent ou supprimé : Argon2 tourne quand même, pour que la durée de
   // la réponse ne dise pas si l'adresse est inscrite.
@@ -85,7 +85,7 @@ export async function authorizeCredentials(
   // fautes de frappe rattrapées bloquent la reconnexion suivante.
   for (const counter of counters) clearRateLimit(counter, LOGIN_ACTION)
 
-  return { id: user.id, email: user.email, role: user.role, adminRole: user.adminRole, trainerId: user.trainerProfile?.id ?? null, sessionsValidAfter: user.sessionsValidAfter.toISOString() }
+  return { id: user.id, email: user.email, role: user.role, adminRole: user.adminRole, adminRoles: user.adminRoles, trainerId: user.trainerProfile?.id ?? null, sessionsValidAfter: user.sessionsValidAfter.toISOString() }
 }
 
 export const authOptions: NextAuthOptions = {
@@ -109,7 +109,7 @@ export const authOptions: NextAuthOptions = {
     // l'app ne peut pas rattraper puisqu'elle ne reçoit jamais la requête.
     async jwt({ token, user }) {
       if (user) {
-        token.userId = (user as any).id; token.role = (user as any).role; token.adminRole = (user as any).adminRole; token.trainerId = (user as any).trainerId; token.sessionsValidAfter = (user as any).sessionsValidAfter
+        token.userId = (user as any).id; token.role = (user as any).role; token.adminRole = (user as any).adminRole; token.adminRoles = (user as any).adminRoles ?? []; token.trainerId = (user as any).trainerId; token.sessionsValidAfter = (user as any).sessionsValidAfter
         // `iat` est réémis par NextAuth à chaque requête : il ne peut pas servir
         // de date d'ouverture de session. On fige la nôtre à la connexion, sinon
         // la révocation par `sessionsValidAfter` ne se déclenche jamais.
@@ -126,9 +126,9 @@ export const authOptions: NextAuthOptions = {
       // Rafraîchissement périodique depuis la base : c'est ce qui fait remonter
       // un changement de rôle, une suspension, ou un bump de sessionsValidAfter.
       if (tokenAge > 300) {
-        const dbUser = await db.user.findUnique({ where: { id: token.userId as string }, select: { role: true, adminRole: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } } })
+        const dbUser = await db.user.findUnique({ where: { id: token.userId as string }, select: { role: true, adminRole: true, adminRoles: true, suspendedAt: true, deletedAt: true, sessionsValidAfter: true, trainerProfile: { select: { id: true } } } })
         if (!dbUser || dbUser.deletedAt || dbUser.suspendedAt) return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
-        token.role = dbUser.role; token.adminRole = dbUser.adminRole; token.trainerId = dbUser.trainerProfile?.id ?? null; token.sessionsValidAfter = dbUser.sessionsValidAfter.toISOString()
+        token.role = dbUser.role; token.adminRole = dbUser.adminRole; token.adminRoles = dbUser.adminRoles; token.trainerId = dbUser.trainerProfile?.id ?? null; token.sessionsValidAfter = dbUser.sessionsValidAfter.toISOString()
       }
 
       // Révocation ciblée : toute session ouverte avant le dernier bump tombe.
@@ -137,7 +137,7 @@ export const authOptions: NextAuthOptions = {
         return { ...session, user: undefined as any, expires: '1970-01-01T00:00:00.000Z' }
       }
 
-      return { ...session, user: { ...session.user, id: token.userId as string, role: token.role as Role, adminRole: token.adminRole as AdminRole | null, trainerId: token.trainerId as string | null } }
+      return { ...session, user: { ...session.user, id: token.userId as string, role: token.role as Role, adminRole: token.adminRole as AdminRole | null, adminRoles: (token.adminRoles as AdminRole[] | undefined) ?? [], trainerId: token.trainerId as string | null } }
     },
   },
   // Aucun repli en dur : le secret deviné d'autrefois

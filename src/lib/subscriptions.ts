@@ -21,7 +21,8 @@
 // reste APPROVED jusqu'au versement.
 // ==========================================================================
 
-import type { PlanCadence } from '@prisma/client'
+import type { PlanCadence, TrainerPlan } from '@prisma/client'
+import { applySettledChargePlan, downgradeToBase, resolveRenewalPlan } from './trainer-plans'
 import { db } from './db'
 import { addMonthsUtc } from './months'
 import { audit, auditStandalone } from './audit'
@@ -229,17 +230,29 @@ interface DeferredQuote extends PriceQuote {
  * nominative, code promo) reste calculée sur la période en cours : elle a sa
  * propre fenêtre de validité, et la reconduire ferait vivre une remise expirée.
  */
-async function deferTariffChange(trainerProfileId: string, quote: PriceQuote): Promise<DeferredQuote> {
+async function deferTariffChange(
+  trainerProfileId: string,
+  quote: PriceQuote,
+  plan: TrainerPlan = 'BASE',
+): Promise<DeferredQuote> {
   const previous = await db.subscriptionCharge.findFirst({
     where: { trainerId: trainerProfileId },
     orderBy: { periodStart: 'desc' },
-    select: { listPriceFcfa: true, tariffDeferred: true },
+    select: { listPriceFcfa: true, tariffDeferred: true, plan: true },
   })
 
   const unchanged = { ...quote, deferred: false, postponedListPriceFcfa: null }
 
   // Première période, ou grille inchangée : rien à reporter.
   if (!previous || previous.listPriceFcfa === quote.listPriceFcfa) return unchanged
+  // Modèle v1.1 : le report protège le formateur d'une **hausse** dont il
+  // n'aurait pas été prévenu. Une baisse s'applique tout de suite : reconduire
+  // l'ancien prix ferait payer encore un mois d'abonnement à la fin de la
+  // gratuité... dans l'autre sens, après le passage du plan de base à 0 FCFA.
+  if (quote.listPriceFcfa < previous.listPriceFcfa) return unchanged
+  // Un changement de plan n'est pas un changement de grille : le formateur l'a
+  // choisi, il connaît le prix.
+  if (previous.plan !== plan) return unchanged
   // Le report a déjà eu lieu au tour précédent : c'est ce renouvellement-ci qui
   // applique la grille. C'est le 2e, celui qu'on avait annoncé.
   if (previous.tariffDeferred) return unchanged
@@ -290,10 +303,17 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
     const cadence = profile.pendingCadence ?? profile.subscriptionCadence
     const periodStart = profile.subscriptionCurrentPeriodEnd ?? now
     const periodEnd = periodEndFor(periodStart, cadence)
-    const quoted = await quotePrice(cadence, { trainerId: profile.id, at: periodStart })
+    // Modèle v1.1 : le plan de la période qui s'ouvre : un retour au plan de
+    // base demandé prend effet ici, et le Pro se facture au tarif Pro, en
+    // mensuel seulement.
+    const plan = await db.$transaction((tx) => resolveRenewalPlan(tx, profile.id))
+    const quoted = await quotePrice(cadence, {
+      trainerId: profile.id, at: periodStart,
+      kind: plan === 'PRO' ? 'PRO_SUBSCRIPTION' : 'SUBSCRIPTION',
+    })
     // Un formateur déjà abonné encaisse une modification tarifaire à son 2e
     // renouvellement : la période qui s'ouvre ici reconduit le prix précédent.
-    const quote = await deferTariffChange(profile.id, quoted)
+    const quote = await deferTariffChange(profile.id, quoted, plan)
     // Arbitrage 19 — **le seul moment** où l'appartenance au contenu sous
     // obligation bouge. Ici et pas ailleurs : un remboursement ne doit pas
     // rendre l'espace au quota le jour même, sans quoi il bloquerait les
@@ -313,6 +333,7 @@ export async function renewDueSubscriptions(now = new Date()): Promise<RenewalRe
         await tx.subscriptionCharge.create({
           data: {
             trainerId: profile.id,
+            plan,
             cadence,
             periodStart,
             periodEnd,
@@ -533,12 +554,30 @@ export async function suspendOverdueSubscriptions(now = new Date()): Promise<{
       subscriptionStatus: 'PAST_DUE',
       subscriptionPastDueAt: { lte: deadline },
     },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, plan: true, pendingPlan: true },
   })
 
   let coursesArchived = 0
 
   for (const profile of overdue) {
+    // Modèle v1.1, principe 5 : un Pro impayé ne retire rien du catalogue : le
+    // formateur repasse au plan de base (0 FCFA, 10 %), sans dette.
+    const onlyProDue = await db.subscriptionCharge.count({
+      where: { trainerId: profile.id, status: 'DUE', plan: 'BASE' },
+    }) === 0
+    if ((profile.plan === 'PRO' || profile.pendingPlan === 'PRO') && onlyProDue) {
+      await db.$transaction((tx) => downgradeToBase(tx, profile.id, 'UNPAID'))
+      await deliverSideEffects('TRAINER_PLAN_DOWNGRADED', { type: 'TrainerProfile', id: profile.id }, () =>
+        notify(profile.userId, {
+          type: 'TRAINER_PLAN_DOWNGRADED',
+          title: 'Vous êtes revenu au plan « Vous ne payez que quand vous vendez »',
+          body: `Votre abonnement Pro est resté impayé ${SUBSCRIPTION_GRACE_DAYS} jours. Vos ressources restent en vente ; la commission repasse à 10 % par vente, sans abonnement. Vous pouvez reprendre le Pro quand vous voulez.`,
+          link: '/formateur/portefeuille',
+        }),
+      )
+      continue
+    }
+
     const archived = await db.$transaction(async (tx) => {
       // Arbitrage 12 — la sortie est **marquée**, pas seulement effectuée.
       // `archived` est la même valeur que celle qu'un formateur pose lui-même
@@ -603,6 +642,8 @@ export async function settleSubscriptionCharge(
       where: { id: chargeId },
       data: { status: 'SETTLED', settledAt: new Date() },
     })
+    // Modèle v1.1 : une période Pro réglée fait passer au Pro.
+    await applySettledChargePlan(tx, chargeId)
 
     // Reste-t-il une période impayée ? Régler la dernière ne solde pas un
     // arriéré plus ancien.

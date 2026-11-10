@@ -24,15 +24,33 @@ export function DisputeActions({
   disputedAmountFcfa,
   withinPolicy,
   isSuperAdmin,
+  canDecide,
+  canPropose,
+  proposal,
+  defaultFault,
+  abuseReview,
   providerDisputeActive,
 }: {
   disputeId: string;
   status: string;
   updatedAt: string;
   disputedAmountFcfa: number;
-  /** Le dossier respecte-t-il le barème 14 jours / 30 % tel que figé à l'ouverture ? */
+  /** Le dossier respecte-t-il la règle de remboursement (7 jours, changement d'avis) ? */
   withinPolicy: boolean;
   isSuperAdmin: boolean;
+  /** Finances : prend la décision (modèle v1.1). */
+  canDecide: boolean;
+  /** Service client : propose la décision (séparation des tâches, règle 1). */
+  canPropose: boolean;
+  proposal: {
+    resolution: string;
+    refundAmountFcfa: number | null;
+    faultParty: string | null;
+    note: string | null;
+    byMe: boolean;
+  } | null;
+  defaultFault: "TECHNICAL" | "TRAINER" | "BUYER";
+  abuseReview: boolean;
   providerDisputeActive: boolean;
 }) {
   const [dialog, setDialog] = React.useState<Dialog | null>(null);
@@ -44,12 +62,21 @@ export function DisputeActions({
   const [partial, setPartial] = React.useState(false);
   const [amount, setAmount] = React.useState("");
   const [override, setOverride] = React.useState("");
+  const [fault, setFault] = React.useState<"TECHNICAL" | "TRAINER" | "BUYER">(
+    (proposal?.faultParty as "TECHNICAL" | "TRAINER" | "BUYER" | null) ?? defaultFault,
+  );
+  // Finances décide ; le service client, s'il n'a pas aussi Finances, propose.
+  const mode: "decide" | "propose" = canDecide ? "decide" : "propose";
+  const refundBlockedByRule =
+    mode === "decide" && proposal?.resolution !== "REJECT" && (!proposal || proposal.byMe);
 
   const openable = ["OPEN", "IN_REVIEW", "WAITING_LEARNER"].includes(status);
   const askable = ["OPEN", "IN_REVIEW"].includes(status);
   // Hors barème, seul un super-administrateur peut rembourser, et il doit motiver.
   const overrideNeeded = !withinPolicy;
-  const canRefund = openable && !providerDisputeActive && (!overrideNeeded || isSuperAdmin);
+  const canRefund =
+    openable && !providerDisputeActive && (!overrideNeeded || isSuperAdmin || mode === "propose") &&
+    (canDecide || canPropose) && !refundBlockedByRule;
 
   function call(path: string, body: unknown, label: string, reset: () => void) {
     void action.run(path, () => api.post(`/api/admin/disputes/${disputeId}/${path}`, body), {
@@ -88,13 +115,30 @@ export function DisputeActions({
         ) : null}
         <Btn onClick={() => setDialog("refund")} disabled={!canRefund}>
           <Scale aria-hidden="true" />
-          Rembourser
+          {mode === "decide" ? "Valider un remboursement" : "Proposer un remboursement"}
         </Btn>
-        <Btn variant="danger" onClick={() => setDialog("reject")}>
+        <Btn variant="danger" onClick={() => setDialog("reject")} disabled={!canDecide && !canPropose}>
           <ThumbsDown aria-hidden="true" />
-          Écarter
+          {mode === "decide" ? "Écarter" : "Proposer d'écarter"}
         </Btn>
       </div>
+
+      {abuseReview ? (
+        <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-danger">
+          Examen manuel : cet acheteur a déjà été remboursé au moins 2 fois en 3 mois.
+        </p>
+      ) : null}
+      {proposal ? (
+        <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-ink-2">
+          Proposition du service client : <b>{proposal.resolution === "REJECT" ? "écarter" : proposal.resolution === "PARTIAL_REFUND" ? `rembourser ${fmtFcfa(proposal.refundAmountFcfa ?? 0)}` : "rembourser intégralement"}</b>
+          {proposal.note ? ` (${proposal.note})` : ""}.
+          {proposal.byMe && canDecide ? " Vous l'avez proposée : un autre membre de Finances doit la valider." : ""}
+        </p>
+      ) : mode === "decide" ? (
+        <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-ink-2">
+          Un remboursement se valide sur proposition du service client, par une autre personne.
+        </p>
+      ) : null}
 
       {providerDisputeActive ? (
         <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-danger">
@@ -103,7 +147,7 @@ export function DisputeActions({
         </p>
       ) : overrideNeeded && !isSuperAdmin ? (
         <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-gold-ink">
-          Ce dossier est hors barème ({DISPUTE_OPENING_WINDOW_DAYS} jours / {CONSUMPTION_THRESHOLD_LABEL}). Seul un super-administrateur peut le
+          Ce dossier sort de la règle de remboursement ({DISPUTE_OPENING_WINDOW_DAYS} jours, changement d&apos;avis après accès). Seul un Propriétaire peut le
           rembourser, avec justification.
         </p>
       ) : null}
@@ -181,15 +225,28 @@ export function DisputeActions({
         footer={
           <>
             <Btn
-              loading={action.isRunning("resolve")}
+              loading={action.isRunning(mode === "decide" ? "resolve" : "propose")}
               disabled={!canSubmitRefund}
               onClick={() =>
-                call(
+                mode === "propose"
+                  ? call(
+                      "propose",
+                      {
+                        resolution: partial ? "PARTIAL_REFUND" : "FULL_REFUND",
+                        note: note.trim(),
+                        faultParty: fault,
+                        ...(partial ? { refundAmountFcfa: partialAmount } : {}),
+                      },
+                      "Proposition transmise à Finances.",
+                      () => { setNote(""); setAmount(""); setPartial(false); },
+                    )
+                  : call(
                   "resolve",
                   {
                     expectedUpdatedAt: updatedAt,
                     resolution: partial ? "PARTIAL_REFUND" : "FULL_REFUND",
                     resolutionNote: note.trim(),
+                    faultParty: fault,
                     ...(partial ? { refundAmountFcfa: partialAmount } : {}),
                     // `policyOverride` est ce qui active la dérogation côté
                     // service : sans lui, la justification seule ne suffit pas
@@ -203,7 +260,7 @@ export function DisputeActions({
                 )
               }
             >
-              Valider le remboursement
+              {mode === "decide" ? "Valider le remboursement" : "Proposer à Finances"}
             </Btn>
             <Btn variant="o" onClick={() => setDialog(null)}>Annuler</Btn>
           </>
@@ -241,6 +298,20 @@ export function DisputeActions({
           />
         ) : null}
 
+        <label htmlFor="refund-fault" className="mb-1.5 block text-[13.5px] font-bold text-ink">
+          À qui revient la faute ?
+        </label>
+        <select
+          id="refund-fault"
+          value={fault}
+          onChange={(e) => setFault(e.target.value as typeof fault)}
+          className="mb-4 w-full rounded-xl border-[1.5px] border-line bg-card px-3.5 py-2.5 text-[14px]"
+        >
+          <option value="TECHNICAL">Technique (accès, double paiement) : NKAMVA absorbe les frais</option>
+          <option value="TRAINER">Formateur (live annulé, contenu non conforme) : frais à sa charge</option>
+          <option value="BUYER">Changement d&apos;avis avant l&apos;accès : NKAMVA absorbe les frais</option>
+        </select>
+
         <label htmlFor="refund-note" className="mb-1.5 block text-[13.5px] font-bold text-ink">
           Motif communiqué à l&apos;apprenant
         </label>
@@ -256,7 +327,7 @@ export function DisputeActions({
         {overrideNeeded ? (
           <>
             <p className="mb-2 rounded-nk border border-line bg-card border-l-4 border-l-gold px-4 py-3 text-[13px] leading-relaxed text-gold-ink rounded-l-sm">
-              Ce dossier sort du barème {DISPUTE_OPENING_WINDOW_DAYS} jours / {CONSUMPTION_THRESHOLD_LABEL}. La dérogation sera enregistrée au journal
+              Ce dossier sort de la règle de remboursement ({DISPUTE_OPENING_WINDOW_DAYS} jours, pas de changement d&apos;avis après {CONSUMPTION_THRESHOLD_LABEL} consultés). La dérogation sera enregistrée au journal
               d&apos;audit avec votre justification.
             </p>
             <label htmlFor="refund-override" className="mb-1.5 block text-[13.5px] font-bold text-ink">
@@ -283,10 +354,12 @@ export function DisputeActions({
           <>
             <Btn
               variant="danger"
-              loading={action.isRunning("resolve")}
+              loading={action.isRunning(mode === "decide" ? "resolve" : "propose")}
               disabled={note.trim().length < 10}
               onClick={() =>
-                call(
+                mode === "propose"
+                  ? call("propose", { resolution: "REJECT", note: note.trim() }, "Proposition transmise à Finances.", () => setNote(""))
+                  : call(
                   "resolve",
                   { expectedUpdatedAt: updatedAt, resolution: "REJECT", resolutionNote: note.trim() },
                   "Contestation écartée.",

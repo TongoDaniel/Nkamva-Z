@@ -44,6 +44,8 @@ export interface LiveKitJoinGrant {
   canShareScreen: boolean
   /** Vrai pour l'animateur : lui seul pilote la salle. */
   isHost: boolean
+  /** Modèle v1.1 : séance en audio (plafond mensuel atteint) : micro seul. */
+  audioOnly?: boolean
 }
 
 /**
@@ -60,10 +62,11 @@ export interface LiveKitJoinGrant {
  * « autoriser l'écran » une réouverture de micro déguisée, que personne n'a
  * demandée.
  */
-function publishableSources(canSpeak: boolean, canShareScreen: boolean): TrackSource[] {
+function publishableSources(canSpeak: boolean, canShareScreen: boolean, audioOnly = false): TrackSource[] {
   const sources: TrackSource[] = []
-  if (canSpeak) sources.push(TrackSource.CAMERA, TrackSource.MICROPHONE)
-  if (canShareScreen) sources.push(TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO)
+  // En audio, le serveur refuse caméra et écran : la règle vit dans le jeton.
+  if (canSpeak) sources.push(...(audioOnly ? [TrackSource.MICROPHONE] : [TrackSource.CAMERA, TrackSource.MICROPHONE]))
+  if (canShareScreen && !audioOnly) sources.push(TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO)
   return sources
 }
 
@@ -150,7 +153,7 @@ export async function mintJoinToken(grant: LiveKitJoinGrant): Promise<string | n
   // serveur qui l'ouvre. Un client qui appellerait `setScreenShareEnabled` sans
   // autorisation se voit refuser la piste, sans qu'aucun écran n'ait à deviner
   // l'état : la règle vit dans le jeton, comme le verrou de micro.
-  const sources = publishableSources(grant.canPublish, grant.canShareScreen)
+  const sources = publishableSources(grant.canPublish, grant.canShareScreen, grant.audioOnly)
 
   token.addGrant({
     roomJoin: true,

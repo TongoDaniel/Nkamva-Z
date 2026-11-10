@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { canOpen, rolesOf } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import { AdminShell } from "@/components/layouts/admin-shell";
 import { getAuthContext } from "@/lib/api";
@@ -8,7 +9,6 @@ import { getApplicationStats } from "@/lib/trainer-application-review";
 export const dynamic = "force-dynamic";
 
 /** Sous-rôles autorisés à voir la file de validation des formateurs. */
-const MODERATION_ROLES = ["MODERATION", "SUPER_ADMIN"];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuthContext();
@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Le décor de la pastille et le filtrage par sous-rôle (décision 7) sont donc
   // tous deux appliqués par `AdminShell`, là où les icônes existent vraiment.
   let pendingApplications = 0;
-  if (auth.user.adminRole && MODERATION_ROLES.includes(auth.user.adminRole)) {
+  if (canOpen(auth.user, "trainerApplications")) {
     const stats = await getApplicationStats();
     pendingApplications = stats.submitted;
   }
@@ -45,6 +45,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           "Administrateur",
         email: auth.user.email,
         adminRole: auth.user.adminRole,
+        adminRoles: rolesOf(auth.user),
         avatarUrl: profile ? userAvatarSrc(profile) : null,
       }}
     >

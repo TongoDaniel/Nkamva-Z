@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen, hasAdminRole } from "@/lib/admin-roles";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, TriangleAlert } from "lucide-react";
@@ -40,7 +41,7 @@ export default async function SignalementDetailPage({
   params: Promise<{ reportId: string }>;
 }) {
   const auth = await getAuthContext();
-  if (!auth?.user.adminRole || !["MODERATION", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "reports")) {
     redirect("/admin");
   }
   const { reportId } = await params;
@@ -174,7 +175,7 @@ export default async function SignalementDetailPage({
                 userId={report.targetId}
                 userLabel={report.target.label}
                 currentLevel={report.target.sanctionLevel ?? "NONE"}
-                isSuperAdmin={auth.user.adminRole === "SUPER_ADMIN"}
+                isSuperAdmin={hasAdminRole(auth?.user, "SUPER_ADMIN")}
               />
             ) : null}
           </AdminCard>

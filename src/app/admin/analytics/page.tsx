@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BookOpen, Coins, ShieldAlert, Users } from "lucide-react";
@@ -30,7 +31,7 @@ export default async function AnalyticsPage() {
   // Décision 7 — cette vue croise modération et finances. Elle est donc
   // réservée au Super-admin : Finances y verrait des chiffres de modération
   // que son périmètre lui refuse ailleurs.
-  if (auth?.user.adminRole !== "SUPER_ADMIN") redirect("/admin");
+  if (!canOpen(auth?.user, "analytics")) redirect("/admin");
 
   const overview = await getPlatformOverview();
 
@@ -95,7 +96,7 @@ export default async function AnalyticsPage() {
           <dl>
             <Row label="Ventes encaissées">{fmtNumber(overview.sales.count)}</Row>
             <Row label="Montant encaissé">{fmtFcfa(overview.sales.grossFcfa)}</Row>
-            <Row label="Part NKAMVA">{fmtFcfa(overview.sales.platformShareFcfa)}</Row>
+            <Row label="Commissions sur les ventes">{fmtFcfa(overview.sales.platformShareFcfa)}</Row>
             <Row label="Sur 30 jours">{fmtFcfa(overview.sales.last30DaysFcfa)}</Row>
           </dl>
           <p className="mt-4 text-[13px] leading-relaxed text-ink-3">

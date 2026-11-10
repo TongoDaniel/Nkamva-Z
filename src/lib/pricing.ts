@@ -29,10 +29,14 @@ export const CADENCE_LABELS: Record<PlanCadence, string> = {
  * partagent cette table (arbitrage 69), l'omettre ferait facturer l'abonnement
  * au prix d'un palier — ou l'inverse — selon lequel a été posé en dernier.
  */
-export async function getCurrentTariff(cadence: PlanCadence, at = new Date()) {
+export async function getCurrentTariff(
+  cadence: PlanCadence,
+  at = new Date(),
+  kind: 'SUBSCRIPTION' | 'PRO_SUBSCRIPTION' = 'SUBSCRIPTION',
+) {
   return db.platformTariff.findFirst({
     where: {
-      kind: 'SUBSCRIPTION',
+      kind,
       cadence,
       validFrom: { lte: at },
       OR: [{ validUntil: null }, { validUntil: { gt: at } }],
@@ -204,7 +208,7 @@ export async function setTariff(input: {
   amountFcfa: number
   validFrom: Date
   /** Ce que ce tarif facture — l'abonnement par défaut (arbitrage 69). */
-  kind?: 'SUBSCRIPTION' | 'STORAGE_TIER'
+  kind?: 'SUBSCRIPTION' | 'PRO_SUBSCRIPTION' | 'STORAGE_TIER'
   label?: string | null
   actorId: string
 }) {
@@ -285,7 +289,7 @@ export async function setTariff(input: {
  * personne — on ne notifie que sur un écart réel.
  */
 async function announceTariffChange(input: {
-  kind: 'SUBSCRIPTION' | 'STORAGE_TIER'
+  kind: 'SUBSCRIPTION' | 'PRO_SUBSCRIPTION' | 'STORAGE_TIER'
   cadence: PlanCadence
   amountFcfa: number
   previousAmountFcfa: number | null
@@ -524,10 +528,16 @@ export interface PriceQuote {
  */
 export async function quotePrice(
   cadence: PlanCadence,
-  options: { trainerId?: string | null; promoCode?: string | null; at?: Date } = {},
+  options: {
+    trainerId?: string | null
+    promoCode?: string | null
+    at?: Date
+    /** Modèle v1.1 : le plan Pro a son propre tarif. */
+    kind?: 'SUBSCRIPTION' | 'PRO_SUBSCRIPTION'
+  } = {},
 ): Promise<PriceQuote> {
   const at = options.at ?? new Date()
-  const tariff = await getCurrentTariff(cadence, at)
+  const tariff = await getCurrentTariff(cadence, at, options.kind)
   const listPrice = tariff?.amountFcfa ?? 0
 
   const validWindow = {

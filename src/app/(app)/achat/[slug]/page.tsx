@@ -8,6 +8,7 @@ import { getPublicCourse } from "@/lib/catalog";
 import { checkCourseAccess } from "@/lib/access";
 import { getAuthContext } from "@/lib/api";
 import { payableProvidersForUser } from "@/lib/fx";
+import { quoteCourseForMethods } from "@/lib/purchases";
 import type { CourseDetail } from "@/lib/dto";
 import { CheckoutForm } from "./checkout-form";
 import { routesOf } from "@/lib/spaces";
@@ -66,6 +67,15 @@ export default async function AchatPage({ params }: { params: Promise<{ slug: st
     );
   }
 
+  const providers = await payableProvidersForUser(auth.user.id);
+  // Modèle v1.1 : les frais de paiement, payés par l'acheteur, sont calculés
+  // pour chaque moyen proposé : le total affiché est celui qui sera facturé.
+  const feeQuotes = Object.fromEntries(
+    Object.entries(await quoteCourseForMethods(course.id, providers.map((p) => p.provider))).map(
+      ([key, q]) => [key, { buyerFeeFcfa: q.buyerFeeFcfa, totalFcfa: q.totalFcfa }],
+    ),
+  );
+
   return (
     <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
@@ -74,7 +84,8 @@ export default async function AchatPage({ params }: { params: Promise<{ slug: st
         lead="Paiement à l'unité, en FCFA. L'accès est immédiat une fois le paiement confirmé."
       />
       <CheckoutForm
-        providers={await payableProvidersForUser(auth.user.id)}
+        providers={providers}
+        feeQuotes={feeQuotes}
         courseId={course.id}
         title={course.title}
         category={course.category}

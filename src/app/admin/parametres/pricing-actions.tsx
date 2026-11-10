@@ -32,7 +32,7 @@ export function PricingActions() {
   // Deux natures de tarif partagent la grille (arbitrage 69). Elles sont bornées
   // séparément côté service : poser un prix de palier ne clôt pas l'abonnement
   // en vigueur.
-  const [tariffKind, setTariffKind] = React.useState<"SUBSCRIPTION" | "STORAGE_TIER">(
+  const [tariffKind, setTariffKind] = React.useState<"SUBSCRIPTION" | "PRO_SUBSCRIPTION" | "STORAGE_TIER">(
     "SUBSCRIPTION",
   );
   const [cadence, setCadence] = React.useState<"MONTHLY" | "YEARLY">("MONTHLY");
@@ -162,7 +162,8 @@ export function PricingActions() {
             onChange={(e) => setTariffKind(e.target.value as typeof tariffKind)}
             className="w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 text-[15px] font-medium text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25"
           >
-            <option value="SUBSCRIPTION">Abonnement formateur</option>
+            <option value="SUBSCRIPTION">Plan « Vous ne payez que quand vous vendez »</option>
+            <option value="PRO_SUBSCRIPTION">Plan Pro (mensuel)</option>
             <option value="STORAGE_TIER">Palier de stockage ({TIER_LABEL})</option>
           </select>
           <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">

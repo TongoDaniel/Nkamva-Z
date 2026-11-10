@@ -68,6 +68,8 @@ export async function getDisputeForReview(disputeId: string) {
       id: true, status: true, source: true, reason: true, reasonDetail: true,
       disputedAmountFcfa: true, resolution: true, resolutionNote: true,
       overrideJustification: true, refundStatus: true, refundProcessedAt: true,
+      faultParty: true, abuseReview: true, proposedResolution: true, proposedRefundFcfa: true,
+      proposedFaultParty: true, proposedNote: true, proposedById: true, proposedAt: true,
       openedAt: true, lastActivityAt: true, learnerDeadlineAt: true, resolvedAt: true,
       updatedAt: true,
       learner: { select: { id: true, email: true, fullName: true, avatarS3Key: true, avatarUrl: true } },

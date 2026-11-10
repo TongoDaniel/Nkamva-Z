@@ -10,12 +10,16 @@ import {
   LogOut, Menu, PiggyBank, Plug, Receipt, RefreshCw, Settings, ShieldAlert, ShieldCheck, Undo2,
   TicketPercent, UserCog, Users, Wallet, X,
   LifeBuoy,
+  Contact,
 } from "lucide-react";
 import { Avatar } from "@/components/nk/avatar";
 import { Wordmark } from "@/components/nk/logo";
 import { NavLink } from "@/components/nk/nav-link";
 import { useHistoryLayer } from "@/hooks/use-history-layer";
 import { cn } from "@/lib/utils";
+import { ADMIN_ROLE_LABELS, type AdminRoleCode } from "@/lib/admin-roles";
+
+const EMPTY_ROLES: string[] = [];
 
 import { navForSubRole, type AdminNavGroup } from "./admin-nav";
 
@@ -35,22 +39,22 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     title: "Pilotage",
     items: [
       { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
-      { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: [] },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: ["PILOTAGE"] },
     ],
   },
   {
     title: "Modération",
     items: [
       { href: "/admin/validation-formateurs", label: "Validation formateurs", icon: BadgeCheck, roles: ["MODERATION"] },
-      { href: "/admin/litiges", label: "Litiges", icon: Gavel, roles: ["MODERATION"] },
+      { href: "/admin/litiges", label: "Litiges", icon: Gavel, roles: ["SUPPORT", "FINANCES"] },
       { href: "/admin/signalements", label: "Signalements", icon: ShieldAlert, roles: ["MODERATION"] },
-      { href: "/admin/aide", label: "Aide & FAQ", icon: LifeBuoy, roles: ["MODERATION"] },
+      { href: "/admin/aide", label: "Aide & FAQ", icon: LifeBuoy, roles: ["MODERATION", "SUPPORT", "COMMUNICATION"] },
     ],
   },
   {
     title: "Finances",
     items: [
-      { href: "/admin/transactions", label: "Transactions", icon: Receipt, roles: ["FINANCES"] },
+      { href: "/admin/transactions", label: "Transactions", icon: Receipt, roles: ["FINANCES", "PILOTAGE"] },
       { href: "/admin/remboursements", label: "Remboursements", icon: Undo2, roles: ["FINANCES"] },
       { href: "/admin/moyens-de-paiement", label: "Moyens de paiement", icon: CreditCard, roles: ["FINANCES"] },
       { href: "/admin/retraits", label: "Retraits", icon: Wallet, roles: ["FINANCES"] },
@@ -62,7 +66,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       // premier se consulte pour travailler, le second pour contrôler ; seul le
       // second est réservé au Super-admin (décision 7). Sans cet écran, un admin
       // Finances accordait des remises qu'il ne pouvait plus relire.
-      { href: "/admin/remises", label: "Remises", icon: TicketPercent, roles: ["FINANCES"] },
+      { href: "/admin/remises", label: "Remises", icon: TicketPercent, roles: ["FINANCES", "SALES"] },
       // Un taux décide de ce que paie réellement un apprenant hors zone franc :
       // même porte que la grille tarifaire.
       { href: "/admin/taux-de-change", label: "Taux de change", icon: Coins, roles: ["FINANCES"] },
@@ -73,13 +77,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       // Décision 7 — Finances a une lecture seule sur les utilisateurs ; le
       // journal d'audit et les paramètres restent au Super-admin.
-      { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users, roles: ["FINANCES"] },
+      { href: "/admin/clients", label: "Fiche client", icon: Contact, roles: ["SUPPORT", "FINANCES"] },
+      { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users, roles: ["FINANCES", "SUPPORT"] },
       { href: "/admin/administrateurs", label: "Administrateurs", icon: UserCog, roles: [] },
-      { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock, roles: [] },
+      { href: "/admin/journal-audit", label: "Journal d'audit", icon: FileClock, roles: ["TECHNICAL"] },
       { href: "/admin/parametres", label: "Paramètres", icon: Settings, roles: [] },
       // Nomme les variables d'environnement du déploiement et le mode réel de
       // chaque fournisseur — Super-admin, au même titre que les paramètres.
-      { href: "/admin/integrations", label: "Intégrations", icon: Plug, roles: [] },
+      { href: "/admin/integrations", label: "Intégrations", icon: Plug, roles: ["TECHNICAL"] },
     ],
   },
   {
@@ -102,6 +107,8 @@ export interface AdminUser {
   name: string;
   email: string;
   adminRole: string | null;
+  /** Rôles cumulés (plan d'action, section 2). */
+  adminRoles?: string[];
   /** Sa photo, comme dans l'espace connecté : la coquille admin n'en avait pas. */
   avatarUrl: string | null;
 }
@@ -132,6 +139,7 @@ export function AdminShell({
   // Le retour d'Android referme le panneau au lieu de quitter l'écran.
   useHistoryLayer(open, React.useCallback(() => setOpen(false), []));
   const { name, email, adminRole, avatarUrl } = user;
+  const adminRoles = user.adminRoles ?? EMPTY_ROLES;
 
   // Décision 7 — le filtrage se fait ici, pas dans le layout : la navigation
   // porte des icônes, qui ne peuvent pas traverser la frontière serveur. La
@@ -148,8 +156,8 @@ export function AdminShell({
             ),
           }))
         : ADMIN_NAV;
-    return navForSubRole(decorated, adminRole);
-  }, [pendingApplications, adminRole]);
+    return navForSubRole(decorated, adminRole, adminRoles);
+  }, [pendingApplications, adminRole, adminRoles]);
 
   React.useEffect(() => {
     setOpen(false);
@@ -289,7 +297,7 @@ export function AdminShell({
             <div className="min-w-0">
               <b className="block truncate text-[13.3px] text-white">{name}</b>
               <small className="block truncate text-[13px] text-[#98a49b]">
-                {adminRole ?? email}
+                {adminRoles.length ? adminRoles.map((r) => ADMIN_ROLE_LABELS[r as AdminRoleCode] ?? r).join(" · ") : adminRole ?? email}
               </small>
             </div>
           </Link>

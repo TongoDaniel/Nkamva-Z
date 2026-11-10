@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { redirect } from "next/navigation";
 import { Lock } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -130,7 +131,7 @@ export default async function IntegrationsPage() {
   // Cet écran nomme les variables d'environnement du déploiement et le mode
   // réel de chaque fournisseur. Ce n'est ni une affaire de finances ni de
   // modération : il reste au Super-admin, comme les paramètres (décision 7).
-  if (auth?.user.adminRole !== "SUPER_ADMIN") redirect("/admin");
+  if (!canOpen(auth?.user, "integrations")) redirect("/admin");
 
   const report = await probeIntegrations();
   const counts = countByState(report.integrations);

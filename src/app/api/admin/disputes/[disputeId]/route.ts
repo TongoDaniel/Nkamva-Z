@@ -3,7 +3,7 @@ import { requireAdminSubRole, success, errorFromException } from '@/lib/api'
 import { getDisputeForAdmin } from '@/lib/disputes'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ disputeId: string }> }) {
-  const ctx = await requireAdminSubRole('MODERATION', 'SUPER_ADMIN')
+  const ctx = await requireAdminSubRole('SUPPORT', 'FINANCES')
   if (ctx instanceof Response) return ctx
   const { disputeId } = await params
 

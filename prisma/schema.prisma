@@ -46,10 +46,26 @@ enum Role {
   ADMIN
 }
 
+/// Rôles d'administration (plan d'action du 10 novembre 2026, section 2). Un
+/// administrateur peut en cumuler plusieurs (`User.adminRoles`) ; il reçoit la
+/// somme de leurs permissions, sous les règles de séparation des tâches.
 enum AdminRole {
+  /// Propriétaire : tout voir, attribuer les rôles, changer les prix.
   SUPER_ADMIN
   FINANCES
   MODERATION
+  /// Tableau de pilotage et recettes, en lecture.
+  PILOTAGE
+  /// Service client : fiche client, litiges (propose un remboursement).
+  SUPPORT
+  /// Commercial : suivi des formateurs, remises dans un plafond.
+  SALES
+  /// Communication : tendances, aide en ligne, annonces.
+  COMMUNICATION
+  /// Technique : intégrations, santé des services, journal d'audit.
+  TECHNICAL
+  /// Recette : environnement de test uniquement.
+  QA
 }
 
 // Décision 49 — un seul abonnement plateforme, deux cadences aux droits
@@ -58,6 +74,16 @@ enum AdminRole {
 enum PlanCadence {
   MONTHLY
   YEARLY
+}
+
+/// Modèle économique v1.1 : les deux plans Marketplace du formateur.
+enum TrainerPlan {
+  /// « Vous ne payez que quand vous vendez » : 0 FCFA par mois, 10 % par vente,
+  /// 5 Go plus 1 Go par tranche de 50 000 FCFA de ventes cumulées.
+  BASE
+  /// Pro : 15 000 FCFA par mois, 3 % par vente, 100 Go. Ouvert aux formateurs
+  /// fondateurs dès le 30 novembre 2026, à tous au 1er mars 2027.
+  PRO
 }
 
 enum TrainerSubscriptionStatus {
@@ -203,7 +229,24 @@ enum DisputeReason {
   DOUBLE_CHARGE
   ACCESS_ISSUE
   UNAUTHORIZED_CHARGE
+  /// Modèle v1.1 : live payant annulé et non reprogrammé dans les 7 jours.
+  LIVE_CANCELED
+  /// Modèle v1.1 : simple changement d'avis : remboursable seulement avant
+  /// l'accès au contenu (vidéo commencée ou fichier téléchargé).
+  CHANGE_OF_MIND
   OTHER
+}
+
+/// Modèle v1.1, « Qui paie » : la faute décide de qui porte les frais de
+/// paiement non récupérables d'un remboursement.
+enum RefundFault {
+  /// Accès, double paiement : NKAMVA absorbe les frais.
+  TECHNICAL
+  /// Live annulé, contenu non conforme : frais à la charge du formateur.
+  TRAINER
+  /// Changement d'avis avant l'accès. HYPOTHÈSE : NKAMVA absorbe les frais,
+  /// le modèle ne tranchant pas ce cas.
+  BUYER
 }
 
 enum DisputeStatus {
@@ -261,6 +304,9 @@ model User {
   bio                        String?
   role                       Role                    @default(LEARNER)
   adminRole                  AdminRole?
+  /// Rôles cumulés. `adminRole` reste le rôle principal (affiché, compatible
+  /// avec les écrans existants) ; c'est ce tableau qui décide des accès.
+  adminRoles                 AdminRole[]               @default([])
   payoutMethodRejectionCount Int                     @default(0)
   trainerApplications        TrainerApplication[]
   trainerProfile             TrainerProfile?
@@ -347,7 +393,16 @@ model TrainerProfile {
   domains                      String[]
   experienceYears              Int?
   verifiedLegalName            String?
-  commissionRate               Float                     @default(0.15)
+  commissionRate               Float                     @default(0.1)
+  /// Modèle v1.1 : plan Marketplace en vigueur. Le taux de commission suit le
+  /// plan (`lib/trainer-plans`) et se fige sur chaque vente (décision 11).
+  plan                         TrainerPlan               @default(BASE)
+  /// Plan demandé, appliqué au règlement de la période Pro (montée) ou à la fin
+  /// de la période payée (retour au plan de base, sans pénalité).
+  pendingPlan                  TrainerPlan?
+  /// Modèle v1.1 : formateur fondateur (liste fixée par Jaurès) : accès au Pro
+  /// dès le lancement du 30 novembre 2026.
+  founder                      Boolean                   @default(false)
   subscriptionCadence          PlanCadence               @default(MONTHLY)
   /**
    * Prix réellement consenti, snapshoté à la souscription (décision 57).
@@ -506,6 +561,11 @@ model Purchase {
   commissionRate        Float
   trainerShareFcfa      Int
   platformShareFcfa     Int
+  /// Modèle v1.1 : frais de paiement ajoutés au prix, payés par l'acheteur
+  /// (encaissement et futur retrait du formateur, `lib/payment-fees`). Ce qui
+  /// est encaissé vaut `amountFcfa + buyerFeeFcfa` ; la commission et la part
+  /// du formateur ne portent que sur `amountFcfa`.
+  buyerFeeFcfa          Int                    @default(0)
   amountEur             Decimal?               @db.Decimal(10, 2)
   eurRate               Decimal?               @db.Decimal(10, 4)
   provider              PaymentProvider
@@ -573,7 +633,7 @@ model Community {
   /// Dernier changement de `priceFcfa`. Une hausse ne s'applique pas à
   /// l'échéance qui suit l'avis aux membres (`renewalAmount`, audit A6).
   priceChangedAt   DateTime?
-  commissionRate   Float                   @default(0.15)
+  commissionRate   Float                   @default(0.1)
   /// Arbitrage 126 — le fil collectif est désormais un **groupe** de la
   /// messagerie. L'interrupteur garde son nom en base : c'est lui qui ouvre
   /// ou ferme ce groupe.
@@ -965,6 +1025,10 @@ model LiveSession {
   /// différence entre un replay écoutable en 3G et un replay inaccessible.
   /// Nul quand c'est Mux qui enregistre : il produit ses propres variantes.
   audioEgressId    String?
+  /// Modèle v1.1 : plafond mensuel des lives atteint au lancement : la séance
+  /// part en audio (aucune caméra ni partage d'écran). Fixé au démarrage, il
+  /// ne change plus pendant la séance : un live en cours n'est jamais coupé.
+  audioOnly        Boolean           @default(false)
   /// Flux d'ingestion Mux, quand c'est lui qui enregistre. Nul si le repli
   /// fichier vers le stockage objet a été retenu.
   muxStreamId      String?
@@ -1123,6 +1187,9 @@ model Wallet {
 
 /// Ce qui fait baisser un solde autrement qu'un retrait ou un remboursement.
 enum WalletDebitReason {
+  /// Modèle v1.1 : frais de paiement non récupérables d'un remboursement dont
+  /// la faute revient au formateur (live annulé, contenu non conforme).
+  REFUND_FEES
   /// Prélèvement de l'échéance d'abonnement, sur consentement (arbitrage 8).
   SUBSCRIPTION_RENEWAL
   /// Dette d'une période consommée, récupérée à la résiliation (arbitrage 10).
@@ -1158,6 +1225,9 @@ model WalletDebit {
   /// dépend : il repasse chaque nuit sur les mêmes périodes.
   subscriptionChargeId String?             @unique
   subscriptionCharge   SubscriptionCharge? @relation(fields: [subscriptionChargeId], references: [id], onDelete: SetNull)
+  /// Le litige dont ce prélèvement porte les frais (REFUND_FEES). Unique :
+  /// un remboursement ne se facture qu'une fois au formateur.
+  disputeId            String?             @unique
   createdAt            DateTime            @default(now())
 
   @@index([trainerId, createdAt])
@@ -1256,6 +1326,11 @@ model Payout {
   reviewedById        String?
   reviewedAt          DateTime?
   approvedById        String?
+  /// Plan d'action, règle 2 : au-delà du seuil de double validation, la
+  /// première approbation est gardée ici ; le virement ne part qu'à la seconde,
+  /// par une autre personne.
+  firstApprovedById    String?
+  firstApprovedAt      DateTime?
   approvedAt          DateTime?
   rejectedById        String?
   rejectedAt          DateTime?
@@ -1352,6 +1427,9 @@ model Invoice {
   /// facture émise ne change pas avec lui (décision 57).
   label                String
   amountFcfa           Int
+  /// Frais de paiement payés par l'acheteur, séparés du prix (modèle v1.1).
+  /// Le total payé vaut `amountFcfa + feeFcfa`.
+  feeFcfa              Int                 @default(0)
   issuedAt             DateTime            @default(now())
   createdAt            DateTime            @default(now())
 
@@ -1640,6 +1718,20 @@ model Dispute {
   disputedAmountFcfa    Int
   amountEur             Decimal?             @db.Decimal(10, 2)
   resolution            DisputeResolution?
+  /// Modèle v1.1 : à qui revient la faute, posé à la décision de remboursement.
+  faultParty            RefundFault?
+  /// Modèle v1.1 : plus de 2 remboursements en 3 mois pour cet acheteur :
+  /// examen manuel par Finances avant toute décision.
+  abuseReview           Boolean              @default(false)
+  /// Plan d'action, séparation des tâches (règle 1) : le service client
+  /// propose, Finances valide. La proposition est gardée telle quelle ; la
+  /// décision reste celle de Finances, par une autre personne.
+  proposedResolution    DisputeResolution?
+  proposedRefundFcfa    Int?
+  proposedFaultParty    RefundFault?
+  proposedNote          String?
+  proposedById          String?
+  proposedAt            DateTime?
   resolutionNote        String?
   overrideJustification String?
   resolvedById          String?
@@ -1906,8 +1998,11 @@ model Report {
 // cas particulier codé en dur, c'est un tarif à 0 avec une date de fin.
 
 enum TariffKind {
-  /// Abonnement du formateur à la plateforme (décisions 49, 59).
+  /// Abonnement du formateur à la plateforme (décisions 49, 59). Depuis le
+  /// modèle v1.1, c'est le plan de base, à 0 FCFA.
   SUBSCRIPTION
+  /// Modèle v1.1 : abonnement du plan Pro (15 000 FCFA par mois).
+  PRO_SUBSCRIPTION
   /// Palier de 50 Go de stockage au-delà des 40 Go inclus (arbitrages 54, 69).
   STORAGE_TIER
 }
@@ -2023,6 +2118,9 @@ model SubscriptionCharge {
   id             String                   @id @default(uuid())
   trainerId      String
   trainerProfile TrainerProfile           @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  /// Modèle v1.1 : plan facturé par cette période. Une période PRO réglée fait
+  /// passer le formateur au plan Pro.
+  plan          TrainerPlan  @default(BASE)
   cadence        PlanCadence
   periodStart    DateTime
   periodEnd      DateTime

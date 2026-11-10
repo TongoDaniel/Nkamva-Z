@@ -9,6 +9,7 @@ declare module 'next-auth' {
       id: string
       role: Role
       adminRole: AdminRole | null
+      adminRoles?: AdminRole[]
       trainerId: string | null
     } & DefaultSession['user']
   }
@@ -19,6 +20,7 @@ declare module 'next-auth' {
     email: string
     role: Role
     adminRole: AdminRole | null
+    adminRoles?: AdminRole[]
     trainerId: string | null
     sessionsValidAfter: string
   }
@@ -29,6 +31,7 @@ declare module 'next-auth/jwt' {
     userId: string
     role: Role
     adminRole: AdminRole | null
+    adminRoles?: AdminRole[]
     trainerId: string | null
     // Sérialisé en ISO : comparé à `issuedAt` pour invalider les sessions révoquées.
     sessionsValidAfter: string

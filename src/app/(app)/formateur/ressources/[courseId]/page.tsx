@@ -42,6 +42,10 @@ export default async function EditCoursePage({
   if (!course || course.trainerId !== auth.user.trainerId) notFound();
 
   const sales = (await getSalesByCourse(auth.user.trainerId)).get(course.id);
+  const profile = await db.trainerProfile.findUnique({
+    where: { id: auth.user.trainerId },
+    select: { commissionRate: true },
+  });
   const state = COURSE_STATUS[course.status] ?? COURSE_STATUS.draft;
 
   const initial: CourseFormValues = {
@@ -123,6 +127,7 @@ export default async function EditCoursePage({
           celle-ci, ce panneau haut étirait la rangée des chiffres clés. */}
       <CourseForm
         mode="edit"
+        commissionRate={profile?.commissionRate}
         courseId={course.id}
         initial={initial}
         circuitLocked={circuitLocked}

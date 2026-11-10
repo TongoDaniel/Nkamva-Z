@@ -6,6 +6,7 @@
 // Démarrés depuis src/instrumentation.ts.
 // ==========================================================================
 
+import { alertLiveBudget } from './live-budget'
 import cron from 'node-cron'
 import { auditStandalone } from './audit'
 import { autoCloseDisputes } from './disputes'
@@ -36,6 +37,12 @@ export interface ScheduledJob {
 }
 
 export const SCHEDULED_JOBS: ScheduledJob[] = [
+  {
+    // Modèle v1.1 : plafond mensuel des lives : alerte à 80 %, audio à 100 %.
+    name: 'LIVE_BUDGET_ALERT',
+    schedule: '15 * * * *',
+    run: async () => alertLiveBudget(),
+  },
   {
     // T8 — litiges WAITING_LEARNER dont le délai de réponse a expiré.
     name: 'DISPUTE_AUTO_TIMEOUT',
@@ -278,6 +285,10 @@ export async function runJob(job: ScheduledJob): Promise<void> {
       targetType: 'ScheduledJob', targetId: job.name,
       meta: { job: job.name, durationMs: Date.now() - startedAt, error: String(err) },
     })
+    // Plan d'action 0.4 : un job en échec (rapprochement des portefeuilles,
+    // renouvellements…) alerte comme une erreur de requête.
+    const { reportServerError } = await import('./error-monitor')
+    await reportServerError(err, { source: `job:${job.name}` })
   }
 }
 

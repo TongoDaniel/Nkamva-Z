@@ -43,6 +43,7 @@ import {
   isMuxConfigured, createLiveStream, disableLiveStream, playbackUrl, downloadUrl,
 } from './mux'
 import { userAvatarSrc } from './avatars'
+import { assertLaunchLiveRules, newLivesAudioOnly } from './live-budget'
 import { LIVE_NEVER_STARTED_CLOSE_HOURS, LIVE_SCHEDULE_HORIZON_DAYS, LIVE_SCHEDULE_PAST_TOLERANCE_MINUTES } from './rules'
 
 /** Voir `memberships.ts` — les listes de statuts ouverts restent alignées. */
@@ -213,6 +214,8 @@ export async function scheduleLiveSession(
   if (!community) throw new Error('COMMUNITY_NOT_FOUND')
   if (community.trainerId !== trainerProfileId) throw new Error('NOT_OWNER')
   if (!community.eventsEnabled) throw new Error('SALON_DISABLED')
+  // Modèle v1.1, règles du lancement : 3 lives par semaine, 2 h au plus.
+  await assertLaunchLiveRules(community.id, input.scheduledStartAt, durationMinutes)
 
   // Le nom de salle est tiré ici et enregistré : le deviner plus tard à partir
   // de l'identifiant est exactement l'erreur qui a rompu la chaîne de contenu
@@ -340,6 +343,9 @@ export async function startLiveSession(sessionId: string, userId: string) {
   await ensureRoom(session.roomName)
 
   const startedAt = new Date()
+  // Modèle v1.1 : plafond mensuel atteint : la séance part en audio. Décidé ici,
+  // au lancement, et jamais après : un live en cours n'est jamais coupé.
+  const audioOnly = await newLivesAudioOnly(startedAt)
 
   // Arbitrage 94 — l'enregistrement va dans le seau, et Mux se demande.
   // L'inverse était le cas avant : Mux enregistrait dès qu'il était configuré,
@@ -357,7 +363,7 @@ export async function startLiveSession(sessionId: string, userId: string) {
     await tx.liveSession.update({
       where: { id: sessionId },
       data: {
-        status: 'LIVE', startedAt, egressId, audioEgressId,
+        status: 'LIVE', startedAt, egressId, audioEgressId, audioOnly,
         muxStreamId: stream?.streamId ?? null,
       },
     })
@@ -684,7 +690,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
     where: { id: sessionId },
     select: {
       id: true, communityId: true, title: true, description: true, status: true,
-      scheduledStartAt: true, timeZone: true, durationMinutes: true, startedAt: true, roomName: true,
+      scheduledStartAt: true, timeZone: true, durationMinutes: true, startedAt: true, roomName: true, audioOnly: true,
       community: {
         select: {
           name: true, slug: true,
@@ -794,6 +800,7 @@ export async function joinLiveSession(sessionId: string, userId: string): Promis
         canPublish,
         canShareScreen,
         isHost: viewer.isTrainer,
+        audioOnly: session.audioOnly,
       })
     : null
 

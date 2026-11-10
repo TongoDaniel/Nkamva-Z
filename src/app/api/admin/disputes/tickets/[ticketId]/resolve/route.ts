@@ -12,7 +12,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ ticketId: string }> },
 ) {
-  const ctx = await requireAdminSubRole('MODERATION', 'SUPER_ADMIN')
+  const ctx = await requireAdminSubRole('SUPPORT', 'FINANCES')
   if (ctx instanceof Response) return ctx
 
   const { ticketId } = await params

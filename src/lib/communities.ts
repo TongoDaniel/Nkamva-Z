@@ -326,7 +326,7 @@ export const COMMUNITY_RULES_MAX = 2000
 
 /**
  * Plancher du prix d'adhésion, aligné sur celui d'une ressource
- * (`createCourse`). En dessous, la commission de 15 % n'a plus de sens : elle
+ * (`createCourse`). En dessous, la commission n'a plus de sens : elle
  * arrondirait à zéro.
  */
 export const COMMUNITY_MIN_PRICE_FCFA = 500

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { defaultFaultFor, reasonClosesOnAccess } from "@/lib/disputes";
+import { canOpen, hasAdminRole } from "@/lib/admin-roles";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -40,7 +42,7 @@ export default async function DisputeReviewPage({
   params: Promise<{ disputeId: string }>;
 }) {
   const auth = await getAuthContext();
-  if (!auth?.user.adminRole || !["MODERATION", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "disputes")) {
     redirect("/admin");
   }
 
@@ -55,8 +57,10 @@ export default async function DisputeReviewPage({
   // Le barème s'apprécie tel qu'il était à l'ouverture : c'est à cet instant
   // que le droit de l'apprenant s'est constitué.
   const withinWindow =
-    (dispute.openedAt.getTime() - dispute.purchase.createdAt.getTime()) / DAY <= 14;
+    (dispute.openedAt.getTime() - dispute.purchase.createdAt.getTime()) / DAY <= DISPUTE_OPENING_WINDOW_DAYS;
+  // Modèle v1.1 : la consultation ne ferme que le changement d'avis.
   const withinConsumption =
+    !reasonClosesOnAccess(dispute.reason) ||
     !snapshot || (!snapshot.downloaded && (!snapshot.ruleApplies || snapshot.consumptionPercent < 30));
   const withinPolicy = withinWindow && withinConsumption;
 
@@ -103,7 +107,22 @@ export default async function DisputeReviewPage({
             updatedAt={dispute.updatedAt.toISOString()}
             disputedAmountFcfa={dispute.disputedAmountFcfa}
             withinPolicy={withinPolicy}
-            isSuperAdmin={auth.user.adminRole === "SUPER_ADMIN"}
+            isSuperAdmin={hasAdminRole(auth?.user, "SUPER_ADMIN")}
+            canDecide={hasAdminRole(auth?.user, "FINANCES")}
+            canPropose={hasAdminRole(auth?.user, "SUPPORT")}
+            proposal={
+              dispute.proposedResolution
+                ? {
+                    resolution: dispute.proposedResolution,
+                    refundAmountFcfa: dispute.proposedRefundFcfa,
+                    faultParty: dispute.proposedFaultParty,
+                    note: dispute.proposedNote,
+                    byMe: dispute.proposedById === auth?.user.id,
+                  }
+                : null
+            }
+            defaultFault={defaultFaultFor(dispute.reason)}
+            abuseReview={dispute.abuseReview}
             providerDisputeActive={dispute.purchase.providerDisputeActive}
           />
         }

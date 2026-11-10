@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen, hasAdminRole } from "@/lib/admin-roles";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink, FileWarning } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -27,7 +28,7 @@ export default async function ApplicationDetailPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const auth = await getAuthContext();
-  if (!auth?.user.adminRole || !["MODERATION", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "trainerApplications")) {
     redirect("/admin");
   }
 
@@ -67,7 +68,7 @@ export default async function ApplicationDetailPage({
             status={application.status}
             updatedAt={application.updatedAt.toISOString()}
             candidateName={candidateName}
-            isSuperAdmin={auth.user.adminRole === "SUPER_ADMIN"}
+            isSuperAdmin={hasAdminRole(auth?.user, "SUPER_ADMIN")}
             maxResubmissions={MAX_RESUBMISSIONS}
             activationAmountFcfa={activationQuote.payableFcfa}
             documents={application.documents.map((d) => ({

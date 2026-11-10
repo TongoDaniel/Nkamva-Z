@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen, hasAdminRole } from "@/lib/admin-roles";
 import { redirect } from "next/navigation";
 import { Lock, Wallet } from "lucide-react";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
@@ -28,9 +29,8 @@ export default async function PortefeuillesPage() {
   // alerte ; seul le Super-admin **corrige**. Les deux routes exigent déjà le
   // Super-admin : cet écran ne fait qu'accorder l'affichage avec elles, plutôt
   // que de montrer à Finances un bouton qui lui renverrait un 403.
-  const role = auth?.user.adminRole;
-  if (role !== "SUPER_ADMIN" && role !== "FINANCES") redirect("/admin");
-  const canCorrect = role === "SUPER_ADMIN";
+  if (!canOpen(auth?.user, "wallets")) redirect("/admin");
+  const canCorrect = hasAdminRole(auth?.user, "SUPER_ADMIN");
 
   const { rows, checked, discrepancyCount, reconciliations } = await getWalletOverview();
 

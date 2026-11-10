@@ -16,7 +16,12 @@ interface Eligibility {
   reason?: string;
   daysSincePurchase: number;
   assessment: { consumptionPercent: number; ruleApplies: boolean; downloaded: boolean | null };
+  /** Modèle v1.1 : contenu déjà ouvert : le changement d'avis n'est plus proposé. */
+  changeOfMindBlocked?: string | null;
 }
+
+/** Les motifs qui se ferment dès que le contenu a été ouvert (modèle v1.1). */
+const CLOSES_ON_ACCESS = new Set(["CHANGE_OF_MIND", "OTHER"]);
 
 const MIN_DETAIL = 20;
 
@@ -58,11 +63,18 @@ export function DisputeButton({
     }
   }
 
+  const reasons = eligibility?.changeOfMindBlocked
+    ? DISPUTE_REASONS.filter((option) => !CLOSES_ON_ACCESS.has(option.value))
+    : DISPUTE_REASONS;
+  // Le motif retenu doit rester dans la liste affichée : on le dérive, sans
+  // effet, plutôt que de le corriger après coup.
+  const effectiveReason = reasons.some((option) => option.value === reason) ? reason : reasons[0].value;
+
   const submit = useAction(
     async () => {
       const { data } = await api.post<{ id: string }>("/api/me/disputes", {
         purchaseId,
-        reason,
+        reason: effectiveReason,
         reasonDetail: detail.trim(),
         // Les clés sont consommées dans la transaction qui crée le litige :
         // si l'ouverture échoue, aucune pièce n'est brûlée sans porteur.
@@ -142,16 +154,22 @@ export function DisputeButton({
               correspondante du formateur est gelée. Si la contestation n&apos;est pas retenue,
               l&apos;accès vous est rendu.
             </p>
+            {eligibility.changeOfMindBlocked ? (
+              <p className="mb-5 text-[13px] leading-relaxed text-ink-2">
+                Vous avez déjà ouvert ce contenu : un simple changement d&apos;avis n&apos;est plus
+                remboursable. Les autres motifs restent possibles.
+              </p>
+            ) : null}
 
             <fieldset className="mb-[18px]">
               <legend className="mb-2.5 text-[13.5px] font-bold text-ink">Motif</legend>
               <div className="grid gap-2">
-                {DISPUTE_REASONS.map((option) => (
+                {reasons.map((option) => (
                   <label
                     key={option.value}
                     className={cn(
                       "flex cursor-pointer items-center gap-3 rounded-nk border-[1.5px] px-4 py-2.5 text-[14px] transition",
-                      reason === option.value
+                      effectiveReason === option.value
                         ? "border-brand ring-1 ring-brand"
                         : "border-line hover:border-ink-3",
                     )}
@@ -160,7 +178,7 @@ export function DisputeButton({
                       type="radio"
                       name="dispute-reason"
                       value={option.value}
-                      checked={reason === option.value}
+                      checked={effectiveReason === option.value}
                       onChange={() => setReason(option.value)}
                       className="size-4 shrink-0 accent-brand"
                     />

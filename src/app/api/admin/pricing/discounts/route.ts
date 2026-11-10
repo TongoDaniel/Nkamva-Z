@@ -4,6 +4,8 @@
 import { z } from 'zod'
 import { success, requireAdminSubRole, parseBody, errorFromException } from '@/lib/api'
 import { createDiscount } from '@/lib/pricing'
+import { hasAdminRole } from '@/lib/admin-roles'
+import { getSettingNumber } from '@/lib/settings'
 
 const CreateSchema = z.object({
   kind: z.enum(['CAMPAIGN', 'TRAINER', 'PROMO_CODE']),
@@ -18,11 +20,18 @@ const CreateSchema = z.object({
 })
 
 export async function POST(request: Request) {
-  const ctx = await requireAdminSubRole('FINANCES', 'SUPER_ADMIN')
+  // Plan d'action : le Commercial crée des remises, dans un plafond fixé par le
+  // Propriétaire (`discounts.sales_cap_fcfa`).
+  const ctx = await requireAdminSubRole('FINANCES', 'SALES')
   if (ctx instanceof Response) return ctx
 
   const parsed = await parseBody(request, CreateSchema)
   if (parsed instanceof Response) return parsed
+
+  if (!hasAdminRole(ctx.user, 'FINANCES')) {
+    const cap = await getSettingNumber('discounts.sales_cap_fcfa')
+    if (parsed.data.amountFcfa > cap) return errorFromException(new Error('DISCOUNT_ABOVE_SALES_CAP'))
+  }
 
   try {
     return success(
@@ -31,7 +40,7 @@ export async function POST(request: Request) {
         validFrom: new Date(parsed.data.validFrom),
         validUntil: parsed.data.validUntil ? new Date(parsed.data.validUntil) : null,
         actorId: ctx.user.id,
-        actorRole: ctx.user.adminRole ?? 'FINANCES',
+        actorRole: hasAdminRole(ctx.user, 'FINANCES') ? (ctx.user.adminRole ?? 'FINANCES') : 'SALES',
       }),
       undefined,
       201,

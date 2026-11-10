@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen, hasAdminRole } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -45,12 +46,12 @@ export default async function UtilisateursPage({
   const auth = await getAuthContext();
   // Décision 7 — Finances a une **lecture seule** sur les utilisateurs, le
   // Super-admin a tout. Modération n'est pas citée : elle n'y a pas accès.
-  if (!auth?.user.adminRole || !["FINANCES", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "users")) {
     redirect("/admin");
   }
   // Finances lit, le Super-admin agit : les actions de sanction ne sont rendues
   // que pour lui.
-  const isSuperAdmin = auth.user.adminRole === "SUPER_ADMIN";
+  const isSuperAdmin = hasAdminRole(auth?.user, "SUPER_ADMIN");
 
   const sp = await searchParams;
   const tab = TABS.some((t) => t.value === sp.role) ? sp.role! : "all";

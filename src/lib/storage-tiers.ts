@@ -1,8 +1,10 @@
 // ==========================================================================
 // Extension de stockage — arbitrages 54 et 69
 // ==========================================================================
-// 40 Go sont inclus par formateur (arbitrage 54). Au-delà, le stockage s'achète
-// par tranches de 50 Go, **facturées avec l'abonnement** (arbitrage 69).
+// Modèle v1.1 : 5 Go inclus sur le plan de base, plus 1 Go par tranche de
+// 50 000 FCFA de ventes cumulées ; 100 Go en Pro (40 Go pour tous avant). Au-delà,
+// le stockage s'achète par tranches de 50 Go, **facturées avec l'abonnement**
+// (arbitrage 69).
 //
 // Le pas était tranché, le prix ne l'était pas — et c'est ce qui bloquait ce
 // chantier depuis deux relevés. Il n'avait pas à l'être : la décision 59 dit
@@ -19,15 +21,19 @@
 import type { PlanCadence } from '@prisma/client'
 import { db } from './db'
 import { audit } from './audit'
-import { trainerStorageUsedBytes } from './courses'
+import { trainerIncludedStorageBytes, trainerStorageUsedBytes } from './courses'
 import { STORAGE_TIER_BYTES, TRAINER_STORAGE_QUOTA_BYTES } from './rules'
 
 /** Arbitrage 69 — le pas est tranché : 50 Go. Défini dans `rules.ts`. */
 export { STORAGE_TIER_BYTES }
 
-/** Quota effectif : l'inclus, plus ce qui a été acheté. */
-export function quotaBytesFor(tiers: number): number {
-  return TRAINER_STORAGE_QUOTA_BYTES + Math.max(0, tiers) * STORAGE_TIER_BYTES
+/**
+ * Quota effectif : l'inclus, plus ce qui a été acheté. L'inclus dépend du plan
+ * et des ventes (modèle v1.1, `trainerIncludedStorageBytes`) ; sans valeur,
+ * le socle du plan de base.
+ */
+export function quotaBytesFor(tiers: number, includedBytes = TRAINER_STORAGE_QUOTA_BYTES): number {
+  return includedBytes + Math.max(0, tiers) * STORAGE_TIER_BYTES
 }
 
 /**
@@ -87,19 +93,20 @@ export async function getTrainerStorage(trainerProfileId: string): Promise<Train
   })
   if (!profile) throw new Error('TRAINER_NOT_FOUND')
 
-  const [usedBytes, tierPriceFcfa] = await Promise.all([
+  const [usedBytes, tierPriceFcfa, includedBytes] = await Promise.all([
     trainerStorageUsedBytes(trainerProfileId),
     storageTierPriceFcfa(profile.subscriptionCadence),
+    trainerIncludedStorageBytes(trainerProfileId),
   ])
 
-  const quotaBytes = quotaBytesFor(profile.storageTiers)
-  const overflow = Math.max(0, usedBytes - TRAINER_STORAGE_QUOTA_BYTES)
+  const quotaBytes = quotaBytesFor(profile.storageTiers, includedBytes)
+  const overflow = Math.max(0, usedBytes - includedBytes)
 
   return {
     usedBytes,
     quotaBytes,
     remainingBytes: Math.max(0, quotaBytes - usedBytes),
-    includedBytes: TRAINER_STORAGE_QUOTA_BYTES,
+    includedBytes,
     tiers: profile.storageTiers,
     tierBytes: STORAGE_TIER_BYTES,
     tierPriceFcfa,
@@ -141,8 +148,11 @@ export async function setTrainerStorageTiers(
   }
 
   if (tiers < profile.storageTiers) {
-    const usedBytes = await trainerStorageUsedBytes(trainerProfileId)
-    if (usedBytes > quotaBytesFor(tiers)) throw new Error('STORAGE_IN_USE')
+    const [usedBytes, includedBytes] = await Promise.all([
+      trainerStorageUsedBytes(trainerProfileId),
+      trainerIncludedStorageBytes(trainerProfileId),
+    ])
+    if (usedBytes > quotaBytesFor(tiers, includedBytes)) throw new Error('STORAGE_IN_USE')
   }
 
   await db.$transaction(async (tx) => {

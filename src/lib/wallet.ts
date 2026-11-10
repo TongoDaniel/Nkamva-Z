@@ -1,4 +1,5 @@
 import { db } from './db'
+import { applySettledChargePlan } from './trainer-plans'
 import { audit } from './audit'
 import { activateMembershipForPurchase } from './memberships'
 import { markCourseObligation } from './course-obligation'
@@ -129,6 +130,8 @@ export async function debitWalletForSubscriptionCharge(
         where: { id: charge.id },
         data: { status: 'SETTLED', settledAt: new Date() },
       })
+      // Modèle v1.1 : une période Pro réglée fait passer au Pro.
+      await applySettledChargePlan(tx, charge.id)
 
       // Régler la dernière période ne solde pas un arriéré plus ancien : c'est
       // la même précaution que `settleSubscriptionCharge`.

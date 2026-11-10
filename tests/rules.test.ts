@@ -26,7 +26,7 @@ describe('sizeLimitLabel', () => {
     expect(sizeLimitLabel(COVER_IMAGE_MAX_BYTES)).toBe('5 Mo')
     expect(sizeLimitLabel(PDF_MAX_BYTES)).toBe('10 Mo')
     expect(sizeLimitLabel(LARGE_FILE_MAX_BYTES)).toBe('2 Go')
-    expect(sizeLimitLabel(TRAINER_STORAGE_QUOTA_BYTES)).toBe('40 Go')
+    expect(sizeLimitLabel(TRAINER_STORAGE_QUOTA_BYTES)).toBe('5 Go')
     expect(sizeLimitLabel(STORAGE_TIER_BYTES)).toBe('50 Go')
   })
 

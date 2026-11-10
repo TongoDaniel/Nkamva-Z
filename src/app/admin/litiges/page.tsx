@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { userAvatarSrc } from "@/lib/avatars";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -38,7 +39,7 @@ export default async function AdminLitigesPage({
   searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const auth = await getAuthContext();
-  if (!auth?.user.adminRole || !["MODERATION", "SUPER_ADMIN"].includes(auth.user.adminRole)) {
+  if (!canOpen(auth?.user, "disputes")) {
     redirect("/admin");
   }
 

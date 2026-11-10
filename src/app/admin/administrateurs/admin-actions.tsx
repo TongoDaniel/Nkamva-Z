@@ -5,10 +5,12 @@ import { Btn } from "@/components/nk/button";
 import { Modal } from "@/components/nk/modal";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
-
-type SubRole = "FINANCES" | "MODERATION";
-
-const LABELS: Record<SubRole, string> = { FINANCES: "Finances", MODERATION: "Modération" };
+import {
+  ADMIN_ROLE_CODES,
+  ADMIN_ROLE_DESCRIPTIONS,
+  ADMIN_ROLE_LABELS,
+  type AdminRoleCode,
+} from "@/lib/admin-roles";
 
 /**
  * Actions sur un administrateur non Super-admin. Un Super-admin n'a jamais
@@ -29,23 +31,29 @@ const LABELS: Record<SubRole, string> = { FINANCES: "Finances", MODERATION: "Mod
 export function AdminActions({
   userId,
   userName,
-  currentRole,
+  currentRoles,
   suspended,
 }: {
   userId: string;
   userName: string;
-  currentRole: SubRole;
+  /** Rôles cumulés (plan d'action, section 2). */
+  currentRoles: AdminRoleCode[];
   suspended: boolean;
 }) {
   const [confirmClose, setConfirmClose] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [roles, setRoles] = React.useState<AdminRoleCode[]>(currentRoles);
   const action = useKeyedAction();
+  const isOwner = currentRoles.includes("SUPER_ADMIN");
 
-  const otherRole: SubRole = currentRole === "FINANCES" ? "MODERATION" : "FINANCES";
+  const toggle = (role: AdminRoleCode) =>
+    setRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
 
-  const switchRole = () =>
-    void action.run("role", () => api.patch(`/api/admin/admins/${userId}`, { adminRole: otherRole }), {
-      success: `${userName} passe en ${LABELS[otherRole]}.`,
+  const saveRoles = () =>
+    void action.run("role", () => api.patch(`/api/admin/admins/${userId}`, { adminRoles: roles }), {
+      success: `Rôles de ${userName} mis à jour.`,
       error: "Le changement a échoué.",
+      onSuccess: () => setEditing(false),
     });
 
   const closeAccount = () =>
@@ -75,12 +83,57 @@ export function AdminActions({
 
   return (
     <div className="flex flex-wrap gap-2">
-      <Btn size="sm" variant="o" onClick={switchRole} loading={action.isRunning("role")}>
-        Passer en {LABELS[otherRole]}
+      <Btn size="sm" variant="o" onClick={() => { setRoles(currentRoles); setEditing(true); }}>
+        Modifier les rôles
       </Btn>
-      <Btn size="sm" variant="danger" onClick={() => setConfirmClose(true)}>
-        Fermer le compte
-      </Btn>
+      {isOwner ? null : (
+        <Btn size="sm" variant="danger" onClick={() => setConfirmClose(true)}>
+          Fermer le compte
+        </Btn>
+      )}
+
+      <Modal
+        open={editing}
+        onOpenChange={setEditing}
+        size="lg"
+        title={`Rôles de ${userName}`}
+        description="Les rôles se cumulent : la personne reçoit la somme de leurs permissions. Les règles de séparation des tâches s'appliquent quand même (personne ne propose et ne valide le même remboursement, le Commercial ne valide pas les candidatures)."
+        footer={
+          <>
+            <Btn onClick={saveRoles} loading={action.isRunning("role")} disabled={roles.length === 0}>
+              Enregistrer
+            </Btn>
+            <Btn variant="o" disabled={action.busy} onClick={() => setEditing(false)}>
+              Annuler
+            </Btn>
+          </>
+        }
+      >
+        <div className="grid gap-2">
+          {ADMIN_ROLE_CODES.map((role) => {
+            // Le Propriétaire ne se donne ni ne se retire ici (garde-fou de la console).
+            const locked = role === "SUPER_ADMIN";
+            return (
+              <label
+                key={role}
+                className={`flex items-start gap-3 rounded-nk border border-line px-3.5 py-3 text-[13.5px] ${locked ? "opacity-60" : "cursor-pointer"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={roles.includes(role)}
+                  disabled={locked}
+                  onChange={() => toggle(role)}
+                />
+                <span>
+                  <b className="block text-ink">{ADMIN_ROLE_LABELS[role]}</b>
+                  <span className="text-ink-2">{ADMIN_ROLE_DESCRIPTIONS[role]}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </Modal>
 
       <Modal
         open={confirmClose}

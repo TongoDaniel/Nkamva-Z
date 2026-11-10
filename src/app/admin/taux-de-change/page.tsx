@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canOpen } from "@/lib/admin-roles";
 import { redirect } from "next/navigation";
 import { AdminHead, AdminCard } from "@/components/layouts/admin-shell";
 import { getAuthContext } from "@/lib/api";
@@ -22,7 +23,7 @@ export default async function TauxDeChangePage() {
   const auth = await getAuthContext();
   // Même porte que la grille tarifaire : un taux décide de ce que paie
   // réellement un apprenant, Finances et Super-admin y ont accès.
-  if (auth?.user.adminRole !== "SUPER_ADMIN" && auth?.user.adminRole !== "FINANCES") {
+  if (!canOpen(auth?.user, "fxRates")) {
     redirect("/admin");
   }
 

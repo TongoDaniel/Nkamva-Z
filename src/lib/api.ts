@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { hasAdminRole } from './admin-roles'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
 import { readBearerToken, sessionUserFromMobileToken } from './mobile-auth'
@@ -15,7 +16,7 @@ import type { Role, AdminRole } from '@prisma/client'
 const ADMIN_ACT_MESSAGE =
   "Un compte d'administration ne peut ni acheter, ni adhérer à une communauté, ni candidater comme formateur."
 
-export interface AuthContext { user: { id: string; email: string; role: Role; adminRole: AdminRole | null; trainerId: string | null } }
+export interface AuthContext { user: { id: string; email: string; role: Role; adminRole: AdminRole | null; adminRoles: AdminRole[]; trainerId: string | null } }
 
 /**
  * `NextResponse.json` sérialise avec `JSON.stringify`, qui **jette** sur un
@@ -59,7 +60,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     ? await sessionUserFromMobileToken(bearer)
     : (await getServerSession(authOptions))?.user
   if (!user?.id) return null
-  return { user: { id: user.id, email: user.email || '', role: user.role, adminRole: user.adminRole, trainerId: user.trainerId } }
+  return { user: { id: user.id, email: user.email || '', role: user.role, adminRole: user.adminRole, adminRoles: user.adminRoles ?? (user.adminRole ? [user.adminRole] : []), trainerId: user.trainerId } }
 }
 
 export async function requireAuth(): Promise<AuthContext | NextResponse> {
@@ -78,7 +79,9 @@ export async function requireRole(...roles: Role[]): Promise<AuthContext | NextR
 export async function requireAdminSubRole(...subRoles: AdminRole[]): Promise<AuthContext | NextResponse> {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (ctx.user.role !== 'ADMIN' || !ctx.user.adminRole || !subRoles.includes(ctx.user.adminRole)) {
+  // Rôles cumulables (plan d'action, section 2) : il suffit d'en avoir un. Le
+  // Propriétaire passe partout, la Recette partout hors production.
+  if (ctx.user.role !== 'ADMIN' || !hasAdminRole(ctx.user, ...subRoles)) {
     const labels = subRoles.join(' ou ')
     return error('FORBIDDEN_SUBROLE', `Accès réservé au sous-rôle ${labels}`, 403)
   }
@@ -270,7 +273,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   DISPUTE_ALREADY_ACTIVE: { message: 'Un litige est déjà en cours sur cet achat', status: 409 },
   DISPUTE_ALREADY_RESOLVED: { message: 'Litige déjà résolu', status: 409 },
   DISPUTE_CLOSED: { message: 'Litige clos', status: 409 },
-  DISPUTE_WINDOW_EXPIRED: { message: 'Le délai de 14 jours est dépassé', status: 422 },
+  DISPUTE_WINDOW_EXPIRED: { message: 'Le délai de 7 jours pour demander un remboursement est dépassé', status: 422 },
   RESOURCE_CONSUMED: { message: 'Ressource consultée à plus de 30 %', status: 422 },
   RESOURCE_DOWNLOADED: { message: 'Ressource déjà téléchargée', status: 403 },
   STALE_DISPUTE: { message: 'Le litige a été modifié entre-temps', status: 409 },
@@ -281,7 +284,7 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   PROVIDER_DISPUTE_ACTIVE: { message: 'Un chargeback provider est en cours sur cet achat', status: 409 },
   OVERRIDE_FORBIDDEN: { message: 'Bypass réservé au Super-admin', status: 403 },
   OVERRIDE_JUSTIFICATION_REQUIRED: { message: 'Justification obligatoire pour un bypass', status: 400 },
-  REFUND_RULE_NOT_MET: { message: 'La règle 14 jours / 30 % n\'est pas satisfaite', status: 422 },
+  REFUND_RULE_NOT_MET: { message: 'La règle de remboursement n\'est pas satisfaite (7 jours, pas de changement d\'avis après l\'accès)', status: 422 },
   CONTEST_ALREADY_OPEN: { message: 'Une contestation est déjà ouverte', status: 409 },
   ATTACHMENT_INVALID: { message: 'Pièce jointe invalide ou expirée', status: 400 },
   MIME_NOT_ALLOWED: { message: 'Type MIME non autorisé', status: 400 },
@@ -426,8 +429,19 @@ const DOMAIN_ERRORS: Record<string, { message: string; status: number }> = {
   EMAIL_ALREADY_USED: { message: 'Un compte existe déjà avec cette adresse', status: 409 },
   NAME_REQUIRED: { message: 'Nom requis', status: 400 },
   ADMIN_NOT_FOUND: { message: 'Administrateur introuvable', status: 404 },
-  SUPER_ADMIN_IMMUTABLE: { message: 'Le sous-rôle Super-admin ne se modifie pas depuis cette console', status: 403 },
+  SUPER_ADMIN_IMMUTABLE: { message: 'Le rôle Propriétaire ne se donne ni ne se retire depuis cette console', status: 403 },
   ROLE_UNCHANGED: { message: 'Ce compte a déjà ce sous-rôle', status: 409 },
+  LIVE_TOO_LONG: { message: 'Un live dure 2 heures au plus.', status: 422 },
+  LIVE_WEEKLY_LIMIT: { message: 'Trois lives par semaine au plus pour une communauté.', status: 422 },
+  TOO_MANY_OWNERS: { message: 'Deux Propriétaires au plus : retirez d\'abord un accès Propriétaire.', status: 409 },
+  ROLES_REQUIRED: { message: 'Choisissez au moins un rôle.', status: 422 },
+  PRO_NOT_YET_AVAILABLE: { message: 'Le plan Pro ouvre à tous les formateurs le 1er mars 2027.', status: 403 },
+  REFUND_PROPOSAL_REQUIRED: { message: 'Le service client doit d\'abord proposer ce remboursement.', status: 409 },
+  SAME_PERSON_PROPOSED: { message: 'Vous avez proposé ce remboursement : un autre membre de Finances doit le valider.', status: 403 },
+  SALES_CANNOT_DECIDE_APPLICATION: { message: 'Le rôle Commercial ne valide pas les candidatures (conflit d\'intérêts avec le recrutement).', status: 403 },
+  SECOND_APPROVAL_REQUIRED: { message: 'Ce retrait dépasse le seuil de double validation : un second membre de Finances doit l\'approuver.', status: 409 },
+  SAME_APPROVER: { message: 'Vous avez déjà approuvé ce retrait : la seconde validation revient à une autre personne.', status: 403 },
+  DISCOUNT_ABOVE_SALES_CAP: { message: 'Cette remise dépasse le plafond fixé pour le rôle Commercial.', status: 403 },
   REVOKE_SELF_FORBIDDEN: { message: 'On ne ferme pas son propre compte d’administration', status: 422 },
   ADMIN_ALREADY_DEACTIVATED: { message: 'Ce compte est déjà fermé', status: 409 },
   ADMIN_NOT_DEACTIVATED: { message: 'Ce compte est déjà ouvert', status: 409 },
@@ -504,6 +518,9 @@ export function errorFromException(err: unknown): NextResponse {
   const translated = domainErrorResponse(err)
   if (translated) return translated
   console.error('[API:UNEXPECTED_ERROR]', err)
+  // Plan d'action 0.4 : une erreur imprévue alerte le rôle Technique. Lancé
+  // sans attendre : la réponse 500 part tout de suite.
+  void import('./error-monitor').then(({ reportServerError }) => reportServerError(err, { source: 'api' }))
   return error('INTERNAL_ERROR', 'Erreur interne', 500)
 }
 

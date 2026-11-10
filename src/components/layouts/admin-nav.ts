@@ -11,7 +11,9 @@
 // des deux côtés.
 // ==========================================================================
 
-export type AdminSubRole = "SUPER_ADMIN" | "FINANCES" | "MODERATION";
+import { hasAdminRole, type AdminRoleCode } from "@/lib/admin-roles";
+
+export type AdminSubRole = AdminRoleCode;
 
 export interface AdminNavItem {
   href: string;
@@ -36,13 +38,18 @@ export interface AdminNavGroup {
  * tableau de bord sans explication : la navigation lui promettait une page à
  * laquelle la décision 7 lui interdit l'accès.
  */
-export function navForSubRole(nav: AdminNavGroup[], adminRole: string | null): AdminNavGroup[] {
-  if (adminRole === "SUPER_ADMIN") return nav;
+export function navForSubRole(
+  nav: AdminNavGroup[],
+  adminRole: string | null,
+  adminRoles: readonly string[] = [],
+): AdminNavGroup[] {
+  // Rôles cumulables : une entrée est visible dès qu'un des rôles l'ouvre.
+  const holder = { adminRole, adminRoles };
   return nav
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => !item.roles || item.roles.includes(adminRole as AdminSubRole),
+        (item) => !item.roles || hasAdminRole(holder, ...item.roles),
       ),
     }))
     .filter((group) => group.items.length > 0);

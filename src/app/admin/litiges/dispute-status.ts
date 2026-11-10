@@ -27,6 +27,8 @@ export const REASON_LABELS: Record<string, string> = {
   DOUBLE_CHARGE: "Double prélèvement",
   ACCESS_ISSUE: "Problème d'accès",
   UNAUTHORIZED_CHARGE: "Paiement non autorisé",
+  LIVE_CANCELED: "Live annulé",
+  CHANGE_OF_MIND: "Changement d'avis",
   OTHER: "Autre motif",
 };
 

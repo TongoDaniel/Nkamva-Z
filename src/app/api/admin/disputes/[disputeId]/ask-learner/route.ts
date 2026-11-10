@@ -9,7 +9,7 @@ const AskLearnerSchema = z.object({
 })
 
 export async function POST(request: Request, { params }: { params: Promise<{ disputeId: string }> }) {
-  const ctx = await requireAdminSubRole('MODERATION', 'SUPER_ADMIN')
+  const ctx = await requireAdminSubRole('SUPPORT', 'FINANCES')
   if (ctx instanceof Response) return ctx
   const { disputeId } = await params
 

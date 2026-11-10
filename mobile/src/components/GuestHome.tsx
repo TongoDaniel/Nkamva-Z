@@ -144,7 +144,7 @@ export function GuestHome() {
           ))}
         </View>
         <View style={{ gap: 10, marginTop: 10 }}>
-          <Button label="Créer un compte gratuit" onPress={() => router.push('/inscription')} />
+          <Button label="Créer un compte" onPress={() => router.push('/inscription')} />
           <Button label="J’ai déjà un compte" tone="ghost" onPress={() => router.push('/connexion')} />
         </View>
       </Card>

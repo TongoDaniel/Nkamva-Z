@@ -6,34 +6,31 @@ import { Field } from "@/components/nk/input";
 import { Modal } from "@/components/nk/modal";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
+import {
+  ADMIN_ROLE_CODES,
+  ADMIN_ROLE_DESCRIPTIONS,
+  ADMIN_ROLE_LABELS,
+  type AdminRoleCode,
+} from "@/lib/admin-roles";
 
-type AdminRole = "SUPER_ADMIN" | "FINANCES" | "MODERATION";
-
-const ROLE_OPTIONS: Array<{ value: AdminRole; label: string; hint: string }> = [
-  { value: "MODERATION", label: "Modération", hint: "Candidatures formateur, litiges, signalements." },
-  { value: "FINANCES", label: "Finances", hint: "Transactions, retraits, moyens de paiement, lecture des comptes." },
-  {
-    value: "SUPER_ADMIN",
-    label: "Super-admin",
-    hint: "Accès complet. Une fois créé, ce sous-rôle ne peut plus être changé ni retiré depuis cette console.",
-  },
-];
-
+/** Plan d'action, section 2 : rôles cumulables, décrits par leur périmètre. */
 export function CreateAdminForm() {
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [fullName, setFullName] = React.useState("");
-  const [adminRole, setAdminRole] = React.useState<AdminRole>("MODERATION");
+  const [adminRoles, setAdminRoles] = React.useState<AdminRoleCode[]>(["SUPPORT"]);
+  const toggle = (role: AdminRoleCode) =>
+    setAdminRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
 
   const create = useAction(
     () =>
       api.post("/api/admin/admins", {
         email: email.trim().toLowerCase(),
         fullName: fullName.trim(),
-        adminRole,
+        adminRoles,
       }),
     {
-      success: `Compte ${ROLE_OPTIONS.find((r) => r.value === adminRole)?.label} créé. Un e-mail invite ${fullName.trim()} à choisir son mot de passe.`,
+      success: `Compte créé (${adminRoles.map((r) => ADMIN_ROLE_LABELS[r]).join(", ")}). Un e-mail invite ${fullName.trim()} à choisir son mot de passe.`,
       // L'échec s'affiche au fil du formulaire, à côté des champs fautifs,
       // plutôt qu'en pastille au bas de l'écran.
       error: null,
@@ -41,7 +38,7 @@ export function CreateAdminForm() {
         setOpen(false);
         setEmail("");
         setFullName("");
-        setAdminRole("MODERATION");
+        setAdminRoles(["SUPPORT"]);
       },
     },
   );
@@ -93,24 +90,25 @@ export function CreateAdminForm() {
         />
 
         <fieldset className="mb-[18px]">
-          <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Sous-rôle</legend>
+          <legend className="mb-1.5 text-[13.5px] font-bold text-ink">Rôles (cumulables)</legend>
           <div className="grid gap-2">
-            {ROLE_OPTIONS.map((option) => (
+            {ADMIN_ROLE_CODES.map((role) => (
               <label
-                key={option.value}
+                key={role}
                 className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-line bg-card px-3.5 py-3 has-[:checked]:border-brand has-[:checked]:ring-1 has-[:checked]:ring-brand"
               >
                 <input
-                  type="radio"
-                  name="adminRole"
-                  value={option.value}
-                  checked={adminRole === option.value}
-                  onChange={() => setAdminRole(option.value)}
+                  type="checkbox"
+                  checked={adminRoles.includes(role)}
+                  onChange={() => toggle(role)}
                   className="mt-1"
                 />
                 <span>
-                  <span className="block text-[14px] font-bold text-ink">{option.label}</span>
-                  <span className="block text-[13px] leading-relaxed text-ink-2">{option.hint}</span>
+                  <span className="block text-[14px] font-bold text-ink">{ADMIN_ROLE_LABELS[role]}</span>
+                  <span className="block text-[13px] leading-relaxed text-ink-2">
+                    {ADMIN_ROLE_DESCRIPTIONS[role]}
+                    {role === "SUPER_ADMIN" ? " Deux personnes au plus ; ne se retire plus depuis cette console." : ""}
+                  </span>
                 </span>
               </label>
             ))}

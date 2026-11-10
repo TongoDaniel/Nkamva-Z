@@ -3,7 +3,9 @@ import { Check } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { BtnLink } from "@/components/nk/button-link";
 import { Chip } from "@/components/nk/chip";
-import { COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
+import { COMMISSION_LABEL, PRO_COMMISSION_LABEL, TRAINER_SHARE_LABEL } from "@/lib/commission";
+import { PRO_BREAK_EVEN_FCFA, PRO_MONTHLY_PRICE_FCFA, PRO_OPEN_TO_ALL_AT } from "@/lib/trainer-plans";
+import { fmtDate } from "@/lib/format";
 import { fmtFcfa } from "@/lib/format";
 import {
   CONSUMPTION_THRESHOLD_LABEL,
@@ -11,7 +13,7 @@ import {
   PAYOUT_METHOD_CARENCE_HOURS,
   PAYOUT_MIN_AMOUNT_FCFA,
 } from "@/lib/rules";
-import { publicPricingCopy, publicSubscriptionPlans, subscriptionAnnouncement } from "@/lib/pricing";
+import { getCurrentTariff, publicPricingCopy, publicSubscriptionPlans } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 // La grille d'abonnement est datée et modifiable depuis l'administration : la
@@ -21,7 +23,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Tarifs",
   description:
-    "Payez à l'unité en FCFA, par mobile money. Compte apprenant gratuit, sans abonnement obligatoire.",
+    "Payez à l'unité en FCFA, par mobile money. Formateurs : 0 FCFA par mois et 10 % seulement quand vous vendez, ou le plan Pro.",
 };
 
 /**
@@ -35,51 +37,72 @@ export default async function TarifsPage() {
   // Chapeau, prix et note sont dérivés des montants en vigueur : la page ne
   // peut plus dire « pas d'abonnement pour publier » au-dessus d'un tarif (M9).
   const copy = publicPricingCopy(plans, COMMISSION_LABEL);
-  const subscriptionSentence = subscriptionAnnouncement(plans);
+  // Modèle v1.1 : le prix du Pro vient de la grille en vigueur.
+  const proPrice = (await getCurrentTariff("MONTHLY", new Date(), "PRO_SUBSCRIPTION"))?.amountFcfa ?? PRO_MONTHLY_PRICE_FCFA;
 
+  // Modèle économique v1.1 : le mot « gratuit » est retiré du vocabulaire ;
+  // le plan de base s'appelle « Vous ne payez que quand vous vendez ».
   const PLANS = [
     {
       name: "Apprenant",
-      description: "Un compte gratuit, des ressources à l'unité.",
-      price: "Gratuit",
-      note: "Aucun abonnement, aucune carte à enregistrer.",
+      description: "Des ressources à l'unité, sans abonnement.",
+      price: "0 FCFA",
+      note: "Vous ne payez que ce que vous achetez, frais de paiement en plus.",
       features: [
-        "Compte gratuit, sans abonnement",
+        "Aucun abonnement pour apprendre",
         "Chaque ressource s'achète à l'unité, en FCFA",
         "Accès à vie à ce que vous avez acheté",
-        "Paiement mobile money ou carte bancaire",
-        `Contestation possible sous ${DISPUTE_OPENING_WINDOW_DAYS} jours`,
+        "Frais de paiement calculés selon votre moyen, affichés avant de payer",
+        `Remboursement intégral si la faute n'est pas la vôtre, demande sous ${DISPUTE_OPENING_WINDOW_DAYS} jours`,
       ],
       cta: { href: "/auth/inscription", label: "Créer mon compte" },
       variant: "o" as const,
       featured: false,
+      chip: null as string | null,
     },
     {
-      name: "Formateur",
-      description: "Pour publier votre savoir et en vivre.",
-      price: copy.trainerPrice,
-      note: copy.trainerNote,
+      name: "Vous ne payez que quand vous vendez",
+      description: "Le plan de chaque formateur, dès son inscription.",
+      price: "0 FCFA par mois",
+      note: `${COMMISSION_LABEL} sur vos ventes, rien d'autre.`,
       features: [
         "Publication de ressources illimitée",
         "Vous fixez librement vos prix, en FCFA",
-        `${TRAINER_SHARE_LABEL} de chaque vente vous reviennent`,
-        "Tableau de bord des ventes et des revenus",
+        `${TRAINER_SHARE_LABEL} du prix vous reviennent : les frais de paiement sont payés par l'acheteur`,
+        "5 Go de stockage, plus 1 Go par tranche de 50 000 FCFA vendus",
         "Retraits par mobile money",
       ],
       cta: { href: "/devenir-formateur", label: "Devenir formateur" },
       variant: "p" as const,
       featured: true,
+      chip: "Pour publier",
+    },
+    {
+      name: "Pro",
+      description: "Pour les formateurs qui vendent beaucoup.",
+      price: `${fmtFcfa(proPrice)} par mois`,
+      note: `Plus ${PRO_COMMISSION_LABEL} sur vos ventes. Ouvert aux formateurs fondateurs, à tous le ${fmtDate(PRO_OPEN_TO_ALL_AT)}.`,
+      features: [
+        `${PRO_COMMISSION_LABEL} de commission au lieu de ${COMMISSION_LABEL}`,
+        "100 Go de stockage",
+        `Plus avantageux au-delà d'environ ${fmtFcfa(PRO_BREAK_EVEN_FCFA)} de ventes par mois`,
+        "Retour au plan de base quand vous voulez, sans pénalité",
+      ],
+      cta: { href: "/devenir-formateur", label: "Devenir formateur" },
+      variant: "o" as const,
+      featured: false,
+      chip: null as string | null,
     },
   ];
 
   const FAQ = [
     {
       q: "Y a-t-il un abonnement obligatoire ?",
-      a: `Pas pour apprendre : le compte apprenant est gratuit et chaque ressource s'achète à l'unité, au prix fixé par son formateur. ${subscriptionSentence}`,
+      a: `Non. Pour apprendre, chaque ressource s'achète à l'unité, au prix fixé par son formateur. Pour publier, le plan « Vous ne payez que quand vous vendez » coûte 0 FCFA par mois : seule une commission de ${COMMISSION_LABEL} est retenue sur les ventes. Le plan Pro (${fmtFcfa(proPrice)} par mois + ${PRO_COMMISSION_LABEL}) est un choix, jamais une obligation.`,
     },
     {
       q: "Comment la commission est-elle calculée ?",
-      a: `NKAMVA retient ${COMMISSION_LABEL} du prix de vente ; ${TRAINER_SHARE_LABEL} reviennent au formateur. La commission est prélevée à la vente, il n'y a pas de frais d'entrée. ${subscriptionSentence}`,
+      a: `Sur le plan de base, NKAMVA retient ${COMMISSION_LABEL} du prix fixé par le formateur ; ${TRAINER_SHARE_LABEL} lui reviennent. En Pro, la commission est de ${PRO_COMMISSION_LABEL}. Les frais de paiement sont payés par l'acheteur, en plus du prix, et calculés selon son pays et son moyen de paiement : le formateur reçoit exactement ce qui est annoncé.`,
     },
     {
       q: "Quels moyens de paiement acceptez-vous ?",
@@ -87,7 +110,7 @@ export default async function TarifsPage() {
     },
     {
       q: "Puis-je être remboursé ?",
-      a: `Oui, dans les ${DISPUTE_OPENING_WINDOW_DAYS} jours suivant l'achat et si vous avez consulté moins de ${CONSUMPTION_THRESHOLD_LABEL} de la ressource. Un format téléchargeable, une fois récupéré, ne peut plus être remboursé : le fichier est chez vous.`,
+      a: `Oui, intégralement, frais compris, quand la faute n'est pas la vôtre : accès non reçu, double paiement, live annulé, contenu différent de sa description. La demande se fait sous ${DISPUTE_OPENING_WINDOW_DAYS} jours, et la décision tombe sous 72 h ouvrées. Un simple changement d'avis n'est plus remboursable après l'accès au contenu (plus de ${CONSUMPTION_THRESHOLD_LABEL} consultés, ou fichier téléchargé).`,
     },
     {
       q: "Quand un formateur touche-t-il son argent ?",
@@ -103,7 +126,7 @@ export default async function TarifsPage() {
         lead={copy.lead}
       />
 
-      <div className="mx-auto mt-6 grid max-w-[860px] gap-5 md:grid-cols-2">
+      <div className="mx-auto mt-6 grid max-w-[1180px] gap-5 md:grid-cols-3">
         {PLANS.map((plan) => (
           <section
             key={plan.name}
@@ -113,7 +136,7 @@ export default async function TarifsPage() {
               plan.featured ? "border-brand shadow-nk" : "border-line",
             )}
           >
-            {plan.featured ? <Chip className="mb-3 self-start">Pour publier</Chip> : null}
+            {plan.chip ? <Chip className="mb-3 self-start">{plan.chip}</Chip> : null}
             <h2 className="text-[21px] font-extrabold">{plan.name}</h2>
             <p className="mt-1 text-[14px] text-ink-2">{plan.description}</p>
 

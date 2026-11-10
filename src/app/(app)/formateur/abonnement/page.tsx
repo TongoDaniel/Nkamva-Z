@@ -14,6 +14,9 @@ import { payableProvidersForUser } from "@/lib/fx";
 import { fmtFcfa, fmtDate } from "@/lib/format";
 import { db } from "@/lib/db";
 import { SubscriptionSettings } from "./subscription-settings";
+import { PlanPanel } from "./plan-panel";
+import { getMyPlan, PRO_MONTHLY_PRICE_FCFA } from "@/lib/trainer-plans";
+import { getCurrentTariff } from "@/lib/pricing";
 import { PaymentPanel } from "./payment-panel";
 import { SUBSCRIPTION_STATUS } from "./status";
 
@@ -47,6 +50,19 @@ export default async function AbonnementPage() {
   ]);
   if (!subscription) return null;
 
+  // Modèle v1.1 : le plan et la comparaison chiffrée sur les ventes du mois.
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const [plan, proTariff, monthSales] = await Promise.all([
+    getMyPlan(trainerId),
+    getCurrentTariff("MONTHLY", new Date(), "PRO_SUBSCRIPTION"),
+    db.purchase.aggregate({
+      where: { trainerId, providerStatus: "SUCCEEDED", refundedAt: null, createdAt: { gte: monthStart } },
+      _sum: { amountFcfa: true },
+    }),
+  ]);
+
   const status = SUBSCRIPTION_STATUS[subscription.subscriptionStatus];
   const canceled = subscription.subscriptionCanceledAt !== null;
   const ended = subscription.subscriptionStatus === "CANCELED";
@@ -56,7 +72,7 @@ export default async function AbonnementPage() {
       <PageHead
         crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Mon abonnement" }]}
         title="Mon abonnement"
-        lead="Votre formule, vos échéances et vos règlements. Le stockage supplémentaire est facturé avec l'abonnement, sur la même ligne."
+        lead="Votre plan, vos échéances et vos règlements. Le stockage supplémentaire est facturé avec l'abonnement, sur la même ligne."
       />
 
       {/*
@@ -71,6 +87,21 @@ export default async function AbonnementPage() {
         bande de deux colonnes, sous l'état qu'elles expliquent.
         ======================================================================
       */}
+      <PlanPanel
+        view={{
+          plan: plan.plan,
+          pendingPlan: plan.pendingPlan,
+          founder: plan.founder,
+          proAvailable: plan.proAvailable,
+          proOpensAt: plan.proOpensAt.toISOString(),
+          periodEnd: plan.periodEnd?.toISOString() ?? null,
+          proPriceFcfa: proTariff?.amountFcfa ?? PRO_MONTHLY_PRICE_FCFA,
+          proDueFcfa: plan.proDue?.amountDueFcfa ?? null,
+          breakEvenFcfa: plan.breakEvenFcfa,
+          monthSalesFcfa: monthSales._sum.amountFcfa ?? 0,
+        }}
+      />
+
       <section
         aria-labelledby="etat-titre"
         className="mb-5 rounded-nk-lg border border-line bg-card p-4 shadow-nk-sm sm:mb-8 sm:p-6"

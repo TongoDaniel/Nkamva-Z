@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PageHead } from "@/components/nk/page-head";
 import { getAuthContext } from "@/lib/api";
 import { getMyCommunity } from "@/lib/communities";
+import { db } from "@/lib/db";
 import { CourseForm } from "../course-form";
 
 export const metadata: Metadata = {
@@ -17,6 +18,9 @@ export default async function NouvelleRessourcePage() {
   // raison. Lue ici plutôt que dans le formulaire, qui est un composant client.
   const auth = await getAuthContext();
   const community = auth?.user.trainerId ? await getMyCommunity(auth.user.trainerId) : null;
+  const profile = auth?.user.trainerId
+    ? await db.trainerProfile.findUnique({ where: { id: auth.user.trainerId }, select: { commissionRate: true } })
+    : null;
 
   return (
     <div className="nk-wrap pb-10 sm:pb-16">
@@ -31,6 +35,7 @@ export default async function NouvelleRessourcePage() {
       />
       <CourseForm
         mode="create"
+        commissionRate={profile?.commissionRate}
         community={
           community ? { name: community.name, resourcesEnabled: community.resourcesEnabled } : null
         }
