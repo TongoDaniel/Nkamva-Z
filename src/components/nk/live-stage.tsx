@@ -336,7 +336,11 @@ export function LiveStage({
     body = (
       <div
         className={cn(
-          "grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3",
+          // `pt-14` : la barre des dispositions, en haut à droite, recouvrait
+          // la vignette de ce coin, son visage et son nom (essai du 19
+          // novembre 2026). En intervenant et en présentation, elle ne couvre
+          // que le coin de la grande image, comme les commandes d'un lecteur.
+          "grid gap-3 p-3 pt-14 sm:grid-cols-2 lg:grid-cols-3",
           // En plein écran, les rangées se partagent la hauteur au lieu de la
           // déduire du format 16/9 : sans cela, deux tuiles doubles suffisaient
           // à pousser la grille hors de la fenêtre.
