@@ -82,6 +82,8 @@ export async function purgeAccount(userId: string, cutoff: Date): Promise<boolea
       tx.notification.deleteMany({ where: { userId } }),
       tx.emailOtp.deleteMany({ where: { userId } }),
       tx.favorite.deleteMany({ where: { userId } }),
+      // Les notes de replay : écrites par la personne, sans valeur pour personne d'autre.
+      tx.replayNote.deleteMany({ where: { userId } }),
     ])
 
     // Le reliquat abandonné à la demande (A3) sort du portefeuille ici, et non

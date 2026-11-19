@@ -11,7 +11,8 @@ import { FormatGlyph } from "@/components/nk/cover";
 import { getAuthContext } from "@/lib/api";
 import { listTrainerSales, getTrainerSalesSummary, type TrainerSaleRow } from "@/lib/trainer-stats";
 import { fmtDate, fmtFcfa } from "@/lib/format";
-import { COMMISSION_LABEL } from "@/lib/commission";
+import { PLATFORM_COMMISSION_RATE } from "@/lib/commission";
+import { db } from "@/lib/db";
 import { routesOf } from "@/lib/spaces";
 
 const routes = routesOf("app");
@@ -64,10 +65,18 @@ export default async function MesVentesPage({
   const { page: rawPage } = await searchParams;
   const page = Math.max(1, Number.parseInt(rawPage ?? "1", 10) || 1);
 
-  const [result, summary] = await Promise.all([
+  const [result, summary, profile] = await Promise.all([
     listTrainerSales(auth.user.trainerId, page, PAGE_SIZE),
     getTrainerSalesSummary(auth.user.trainerId),
+    // Le taux du plan en cours (modèle v1.1 : 10 % sur le plan de base, 3 % sur
+    // le Pro). L'en-tête annonçait 10 % à tout le monde, au-dessus de lignes
+    // qui en affichaient 3.
+    db.trainerProfile.findUnique({
+      where: { id: auth.user.trainerId },
+      select: { commissionRate: true },
+    }),
   ]);
+  const currentRate = `${Math.round((profile?.commissionRate ?? PLATFORM_COMMISSION_RATE) * 100)}\u00a0%`;
   const pages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
   const columns: Column<TrainerSaleRow>[] = [
@@ -191,7 +200,7 @@ export default async function MesVentesPage({
       <PageHead
         crumbs={[{ label: "Espace formateur", href: "/formateur" }, { label: "Mes ventes" }]}
         title="Mes ventes"
-        lead={`Chaque vente encaissée, avec le détail de ce qui vous revient. La commission de la plateforme est de ${COMMISSION_LABEL}, retenue à la vente.`}
+        lead={`Chaque vente encaissée, avec le détail de ce qui vous revient. La commission est celle de votre plan au jour de la vente : ${currentRate} aujourd'hui.`}
         actions={<BtnLink href="/formateur/portefeuille" variant="o">Mon portefeuille</BtnLink>}
       />
 

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { PageHead } from "@/components/nk/page-head";
 import { getAuthContext } from "@/lib/api";
-import { joinLiveSession } from "@/lib/lives";
+import { getLiveSessionCard, joinLiveSession } from "@/lib/lives";
 import { LiveRoom } from "./live-room";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: session ? session.title : "Session introuvable", robots: { index: false } };
 }
 
+/** Ce que devient un refus de la salle : une page introuvable, ou l'agenda. */
+function refuse(err: unknown): never {
+  const code = err instanceof Error ? err.message : "";
+  if (code === "LIVE_SESSION_NOT_FOUND" || code === "LIVE_CANCELED") notFound();
+  if (code === "NOT_MEMBER") redirect("/mes-lives");
+  throw err;
+}
+
 export default async function LivePage({ params }: { params: Params }) {
   const auth = await getAuthContext();
   if (!auth) return null;
@@ -28,15 +36,17 @@ export default async function LivePage({ params }: { params: Params }) {
   // La garde d'accès est celle de l'adhésion (arbitrage 32) : `joinLiveSession`
   // la porte, et enregistre la présence au passage. Qui n'est pas membre est
   // renvoyé à la fiche de la communauté plutôt qu'à une page d'erreur.
-  let session;
-  try {
-    session = await joinLiveSession(sessionId, auth.user.id);
-  } catch (err) {
-    const code = err instanceof Error ? err.message : "";
-    if (code === "LIVE_SESSION_NOT_FOUND" || code === "LIVE_CANCELED") notFound();
-    if (code === "NOT_MEMBER") redirect("/mes-lives");
-    throw err;
-  }
+  // La fiche d'abord (revue du 16 novembre 2026) : tant que la salle d'attente
+  // n'est pas ouverte, on lit le programme sans entrer. `joinLiveSession` écrit
+  // une présence, et « Voir » une séance prévue dans quatre jours y inscrivait
+  // déjà un participant.
+  //
+  // Le renvoi est **hors** du `try` : `redirect` se signale par une exception,
+  // qu'un `catch` avalerait.
+  const card = await getLiveSessionCard(sessionId, auth.user.id).catch(refuse);
+  if (!card.roomOpen) redirect(`/mes-lives/seance/${sessionId}`);
+
+  const session = await joinLiveSession(sessionId, auth.user.id).catch(refuse);
 
   return (
     /*

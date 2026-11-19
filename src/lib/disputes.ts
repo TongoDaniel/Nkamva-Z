@@ -12,7 +12,7 @@
 //     contesté auprès du provider au lieu d'ouvrir un litige (décision 17)
 // ==========================================================================
 
-import { fmtFcfa } from './format'
+import { fmtDate, fmtFcfa } from './format'
 import type {
   DisputeReason,
   DisputeResolution,
@@ -710,7 +710,7 @@ export async function askLearner(disputeId: string, input: AskLearnerInput) {
       data: {
         disputeId,
         authorRole: 'SYSTEM',
-        body: `Une réponse est attendue avant le ${deadline.toISOString().slice(0, 10)}. Sans réponse, le litige sera clos automatiquement.`,
+        body: `Une réponse est attendue avant le ${fmtDate(deadline)}. Sans réponse, le litige sera clos automatiquement.`,
       },
     })
 
@@ -731,7 +731,7 @@ export async function askLearner(disputeId: string, input: AskLearnerInput) {
     await notify(dispute.learnerId, {
       type: 'DISPUTE_WAITING_LEARNER',
       title: 'Le support attend votre réponse',
-      body: `Merci de répondre avant le ${deadline.toISOString().slice(0, 10)}, faute de quoi le litige sera clos automatiquement.`,
+      body: `Merci de répondre avant le ${fmtDate(deadline)}, faute de quoi le litige sera clos automatiquement.`,
       link: `/mes-litiges/${disputeId}`,
     })
     await sendEmail({
@@ -741,7 +741,7 @@ export async function askLearner(disputeId: string, input: AskLearnerInput) {
         title: 'Le support attend votre réponse',
         paragraphs: [
           'Notre équipe vous a posé une question sur votre litige.',
-          `Merci d'y répondre avant le ${deadline.toISOString().slice(0, 10)}. Sans réponse de votre part, le litige sera clos automatiquement.`,
+          `Merci d'y répondre avant le ${fmtDate(deadline)}. Sans réponse de votre part, le litige sera clos automatiquement.`,
         ],
         cta: { label: 'Répondre', url: absoluteUrl(`/mes-litiges/${disputeId}`) },
       }),

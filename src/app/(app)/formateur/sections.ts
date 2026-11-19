@@ -13,6 +13,8 @@
 export interface TrainerSection {
   href: string;
   label: string;
+  /** Le mot court de la barre de sous-navigation, où « Mes » ne distingue rien. */
+  nav: string;
   /** Une phrase, affichée sur la carte de la page d'accueil de l'espace. */
   description: string;
 }
@@ -25,11 +27,13 @@ export const TRAINER_SECTIONS: TrainerSection[] = [
   {
     href: "/formateur/ressources",
     label: "Mes publications",
+    nav: "Publications",
     description: "Vos ressources, leurs ventes et vos brouillons en préparation.",
   },
   {
     href: "/formateur/communaute",
     label: "Ma communauté",
+    nav: "Communauté",
     description: "Le salon d'abonnés, ses membres, ses invitations et ses réglages.",
   },
   // Seule section qui sort de `/formateur` : l'agenda des directs est commun à
@@ -38,28 +42,33 @@ export const TRAINER_SECTIONS: TrainerSection[] = [
   // d'espace ne soit pas une surprise au clic.
   {
     href: "/mes-lives",
-    label: "Mes sessions",
+    label: "Mes lives",
+    nav: "Lives",
     description:
       "Les directs que vous animez, dans le même agenda que ceux de vos communautés.",
   },
   {
     href: "/formateur/ventes",
     label: "Mes ventes",
+    nav: "Ventes",
     description: "Chaque vente encaissée, avec sa commission et ce qui vous revient.",
   },
   {
     href: "/formateur/portefeuille",
     label: "Portefeuille",
+    nav: "Portefeuille",
     description: "Votre solde, vos retraits, votre stockage et votre score de confiance.",
   },
   {
     href: "/formateur/abonnement",
     label: "Mon abonnement",
+    nav: "Abonnement",
     description: "Votre formule, vos échéances, vos règlements et votre résiliation.",
   },
   {
     href: "/formateur/litiges",
     label: "Litiges",
+    nav: "Litiges",
     description: "Les achats contestés et les éléments à fournir à la modération.",
   },
 ];

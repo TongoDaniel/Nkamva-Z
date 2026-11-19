@@ -28,6 +28,9 @@ import { StPill } from "@/components/nk/status-pill";
 import { Hint } from "@/components/nk/hint";
 import { LiveControlButton } from "@/components/nk/live-control";
 import { LiveStage, SharingNotice } from "@/components/nk/live-stage";
+import { DeviceCheck } from "@/components/nk/device-check";
+import { DeviceMenu, HostPollButton, ReactionFeed, useQuickPoll, useReactions } from "@/components/nk/live-interactions";
+import { NetworkNotice, useRoomRefresh } from "@/components/nk/live-network";
 import { Tabs } from "@/components/nk/tabs";
 import { useKeyedAction } from "@/hooks/use-action";
 import { api } from "@/lib/client";
@@ -74,10 +77,17 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
   const [clock, setClock] = React.useState<number | null>(null);
 
   const live = room.live;
+  // Un participant vient d'écrire ou de lever la main : il le signale sur le
+  // canal de données, et la vue se relit tout de suite au lieu d'attendre le
+  // prochain passage du rafraîchissement périodique (revue du 16 novembre
+  // 2026). Une seconde de retenue : dix mains levées d'un coup ne font pas dix
+  // relectures.
+  const relire = useRoomRefresh();
   const transport = useLiveRoom(
     live ? room.serverUrl : null,
     live ? room.token : null,
     live ? room.id : null,
+    relire,
   );
 
   React.useEffect(() => {
@@ -125,6 +135,9 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
             ? "En attente de la salle."
             : null;
 
+  const reactions = useReactions(transport, room.host.name);
+  const poll = useQuickPoll(transport, true);
+
   const others = room.participants.filter((p) => !p.isHost);
   const lockedCount = others.filter((p) => p.mutedByHost).length;
 
@@ -154,7 +167,11 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
     void action.run(key, () => api.post(`/api/lives/${room.id}`, body), {
       success: message ?? null,
       error: "L'action n'a pas abouti.",
-      onSuccess: after,
+      onSuccess: () => {
+        // Ce que l'animateur vient de décider se lit chez les autres sans délai.
+        transport.signal();
+        after?.();
+      },
     });
   }
 
@@ -187,6 +204,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
       {
         success: "Tous les micros sont rendus à leurs propriétaires.",
         error: "L'action n'a pas abouti.",
+        onSuccess: () => transport.signal(),
       },
     );
   }
@@ -209,7 +227,10 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
         error: "L'action n'a pas abouti.",
         // La sélection ne se vide qu'à l'arrivée de la salle relue : la vider
         // plus tôt afficherait des micros encore ouverts comme désélectionnés.
-        onSuccess: () => setSelected(new Set()),
+        onSuccess: () => {
+          transport.signal();
+          setSelected(new Set());
+        },
       },
     );
   }
@@ -406,6 +427,10 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
       >
         {transport.screenEnabled ? <MonitorX /> : <MonitorUp />}
       </LiveControlButton>
+      {/* Le sondage éclair et le choix des périphériques (revue du 16 novembre
+          2026). L'animateur ne réagit pas : il reçoit les réactions. */}
+      <HostPollButton poll={poll} disabled={!transport.connected} />
+      <DeviceMenu transport={transport} />
       <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-[var(--live-line)] sm:block lg:hidden" />
       {volets}
       {/* Un bouton gris sans motif se lit comme une panne. Le dire ici, et
@@ -419,6 +444,7 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           {transport.deviceError}
         </p>
       ) : null}
+      <NetworkNotice reconnecting={transport.reconnecting} weak={transport.weakNetwork} camOn={transport.camEnabled} />
     </div>
   );
 
@@ -515,7 +541,12 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
           tiles={transport.tiles}
           people={stagePeople}
           hostUserId={room.viewerId}
-          controls={controls}
+          controls={
+            <div className="relative">
+              <ReactionFeed shown={reactions.shown} />
+              {controls}
+            </div>
+          }
           empty={
             <div>
               <span
@@ -535,17 +566,25 @@ export function LiveConsole({ room }: { room: LiveRoomView }) {
                       ? "En attente du flux"
                       : "Diffusion non configurée"}
               </p>
+              {/* Avant l'ouverture, le test d'avant-séance prend la place de la
+                  phrase : « Ouvrir la séance » lance l'enregistrement, et rien
+                  ne permettait de vérifier son image et son son avant. */}
+              {!live && room.status !== "ENDED" ? (
+                <DeviceCheck
+                  className="mt-3"
+                  intro="Ouvrez-la quand vous êtes prêt : l'enregistrement démarrera en même temps. Vérifiez d'abord votre image et votre son."
+                />
+              ) : (
               <p className="mx-auto mt-1.5 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--live-muted)]">
                 {!live
-                  ? room.status === "ENDED"
-                    ? "Son replay apparaîtra dans vos sessions dès la fin de l'encodage."
-                    : "Ouvrez-la quand vous êtes prêt : l'enregistrement démarrera en même temps."
+                  ? "Son replay apparaîtra dans vos sessions dès la fin de l'encodage."
                   : room.transportConfigured
                     ? transport.error
                       ? "La connexion au serveur temps réel a échoué. La modération et le salon restent utilisables."
                       : "Activez votre micro ou votre caméra pour ouvrir le plateau."
                     : "Le serveur temps réel n'est pas renseigné sur cette instance. La modération et le salon fonctionnent."}
               </p>
+              )}
             </div>
           }
         />

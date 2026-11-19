@@ -35,6 +35,12 @@ import {
 export interface NavEntry {
   href: string;
   label: string;
+  /**
+   * Le libellé resserré de la barre de bureau entre `lg` et `xl`. Un formateur
+   * y a cinq entrées, trois gestes et son avatar : à 1024 px, les libellés
+   * longs faisaient déborder l'en-tête d'une centaine de pixels.
+   */
+  compact?: string;
   icon: LucideIcon;
   /**
    * Routes rattachées à cette entrée : elles l'allument faute d'avoir une entrée
@@ -80,7 +86,10 @@ export const VISITOR_TABS: NavEntry[] = [
     a rejoint l'en-tête, à droite (voir `app-shell.tsx`).
   · Les libellés ne sont plus rendus (`labels={false}`), mais ils restent ici :
     ce sont eux que la barre pose en `aria-label`, et que la feuille du compte
-    affiche en toutes lettres.
+    affiche en toutes lettres. Les réécrire sous les icônes a été essayé le 16
+    novembre 2026 : au plancher de 13 px (arbitrage 116), « Communauté »
+    demande 85 px et une case en offre 66 sur un écran de 360 px. Tronqué, le
+    mot renseigne moins que l'icône seule.
 */
 
 /**
@@ -145,10 +154,25 @@ export const TRAINER_TABS: NavEntry[] = [
  * Barre haute de bureau, espace connecté. Elle garde les libellés longs de la
  * maquette — la place n'y manque pas.
  */
+
+/*
+  Revue du 16 novembre 2026 : la barre de bureau montre les mêmes destinations
+  que la barre d'onglets du téléphone, plus les lives.
+
+  Elle portait « Mes achats », qu'on ouvre quelques fois par an, et laissait la
+  messagerie et les lives dans le menu de l'avatar, alors qu'on y va toutes les
+  semaines. Les achats, leurs factures et leurs contestations restent dans le
+  menu du compte (`ACCOUNT_LINKS`).
+
+  `/formateur/lives` est rattaché aux lives : la console d'un direct se trouve
+  sous `/formateur`, mais c'est bien un live qu'on y anime, et c'est cette
+  entrée-là qui doit rester allumée.
+*/
 export const LEARNER_BAR: NavEntry[] = [
-  { href: "/mes-ressources", label: "Mes ressources", icon: Library, related: ["/catalogue"] },
-  { href: "/mes-communautes", label: "Mes communautés", icon: Users },
-  { href: "/mes-achats", label: "Mes achats", icon: ShoppingBag, related: ["/mes-factures", "/mes-litiges"] },
+  { href: "/mes-ressources", label: "Mes ressources", compact: "Ressources", icon: Library, related: ["/catalogue"] },
+  { href: "/mes-communautes", label: "Mes communautés", compact: "Communautés", icon: Users },
+  { href: "/mes-lives", label: "Mes lives", compact: "Lives", icon: Radio, related: ["/formateur/lives"] },
+  { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
 ];
 
 export const TRAINER_BAR: NavEntry[] = [

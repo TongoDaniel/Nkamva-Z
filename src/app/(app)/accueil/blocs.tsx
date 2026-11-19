@@ -340,6 +340,67 @@ function ReadingProgress({ item }: { item: ResourceItem }) {
 }
 
 /**
+ * « Reprendre », en tête de l'accueil — revue du 16 novembre 2026.
+ *
+ * La rangée « Mes ressources » range déjà les commencées en tête, mais elle
+ * vient après les communautés et les événements : le geste le plus fréquent
+ * d'un apprenant, rouvrir ce qu'il lisait hier, demandait de faire défiler la
+ * page. Ce bandeau le met à un appui, et seulement quand il y a quelque chose
+ * à reprendre : une ressource ouverte et pas terminée. Sinon il ne rend rien,
+ * et la page garde l'ordre de l'arbitrage 142.
+ *
+ * Une seule ressource, la dernière ouverte : deux bandeaux feraient une liste,
+ * et la liste existe déjà plus bas.
+ */
+export function ResumeBanner({ items, className }: { items: ResourceItem[]; className?: string }) {
+  const item = forResume(items).find((candidate) => {
+    if (!candidate.isStarted || candidate.courseView?.completedAt) return false;
+    const course = candidate.course!;
+    const percent = readingPercent(
+      candidate.courseView, course.format, course.durationSeconds, course.pageCount,
+    );
+    return percent === null || percent < 100;
+  });
+  if (!item) return null;
+
+  const course = item.course!;
+  const percent = readingPercent(
+    item.courseView, course.format, course.durationSeconds, course.pageCount,
+  );
+  const trainer = course.trainerProfile.user.fullName;
+
+  return (
+    <Link
+      href={`/mes-ressources/${course.id}`}
+      className={`group flex items-center gap-3 rounded-nk-lg border border-line border-l-4 border-l-brand bg-card px-4 py-3 shadow-nk-sm transition duration-150 hover:border-brand sm:gap-4 sm:px-5 sm:py-4 ${className ?? ""} rounded-l-sm`}
+    >
+      <span
+        className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-card text-brand"
+        aria-hidden="true"
+      >
+        <FormatGlyph format={course.format} className="size-[18px]" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <b className="block text-[13px] font-bold uppercase tracking-[0.06em] text-brand">
+          Reprendre
+        </b>
+        <span className="block truncate text-[15px] font-bold text-ink">{course.title}</span>
+        <span className="block truncate text-[13px] text-ink-2">
+          {/* La progression d'abord : c'est elle qu'on vient lire, et sur
+              téléphone la fin de la ligne est coupée. */}
+          {[percent === null ? "Commencée" : `${percent} % consulté`, formatLabel(course.format), trainer]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      </span>
+      <span className="shrink-0 rounded-full bg-brand px-3.5 py-2 text-[13px] font-bold text-white transition-colors group-hover:bg-brand-dark">
+        Reprendre
+      </span>
+    </Link>
+  );
+}
+
+/**
  * Remplace les deux tuiles « 0 ressource achetée · 0 en cours » et la liste
  * « Reprendre » : un chiffre ne rouvre rien, une carte si. Les ressources
  * incluses dans une communauté y sont, comme dans `/mes-ressources`.

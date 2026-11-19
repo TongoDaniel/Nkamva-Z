@@ -384,6 +384,7 @@ model User {
   messagesSent               Message[]
   liveParticipations         LiveParticipant[]
   liveMessages               LiveMessage[]
+  replayNotes                ReplayNote[]
   invoices                   Invoice[]
   disputesAsLearner          Dispute[]
   supportTickets             SupportTicket[]
@@ -1202,9 +1203,34 @@ model Replay {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  /// Les notes que chaque membre prend en le regardant (`ReplayNote`).
+  notes ReplayNote[]
+
   @@index([communityId, recordedAt])
   @@index([status, purgeAt])
   @@map("replays")
+}
+
+/// Les notes d'un membre sur un replay — revue du 16 novembre 2026.
+///
+/// Elles vivaient dans l'onglet, puis dans le navigateur : fermer la page ou
+/// changer de téléphone les perdait. Une seule note par personne et par
+/// replay, réécrite à chaque enregistrement. Privées : seul leur auteur les
+/// lit, l'animateur compris. Supprimées avec le replay, et à l'effacement du
+/// compte (`purge-deleted-accounts.ts`) ; incluses dans l'export des données.
+model ReplayNote {
+  id        String   @id @default(uuid())
+  replayId  String
+  replay    Replay   @relation(fields: [replayId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([replayId, userId])
+  @@index([userId])
+  @@map("replay_notes")
 }
 
 // --- Wallet ---

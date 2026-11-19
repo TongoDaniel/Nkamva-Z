@@ -22,6 +22,9 @@ import { Avatar } from "@/components/nk/avatar";
 import { Btn } from "@/components/nk/button";
 import { LiveControlButton } from "@/components/nk/live-control";
 import { LiveStage, SharingNotice } from "@/components/nk/live-stage";
+import { DeviceCheck } from "@/components/nk/device-check";
+import { DeviceMenu, PollCard, ReactionButton, ReactionFeed, useQuickPoll, useReactions } from "@/components/nk/live-interactions";
+import { NetworkNotice, useRoomRefresh } from "@/components/nk/live-network";
 import { ReportButton } from "@/components/nk/report-button";
 import { StPill } from "@/components/nk/status-pill";
 import { Tabs } from "@/components/nk/tabs";
@@ -89,10 +92,15 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
   const [countdown, setCountdown] = React.useState<string | null>(null);
 
   const live = room.live;
+  // Quelqu'un vient d'écrire, de lever la main, ou l'animateur de décider : le
+  // signal arrive par le canal de données, et la vue se relit tout de suite
+  // (revue du 16 novembre 2026). Le rafraîchissement périodique reste en filet.
+  const relire = useRoomRefresh();
   const transport = useLiveRoom(
     live ? room.serverUrl : null,
     live ? room.token : null,
     live ? room.id : null,
+    relire,
   );
 
   React.useEffect(() => {
@@ -106,11 +114,15 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
   // La salle bouge sans nous : on recharge la vue serveur régulièrement pour
   // suivre les arrivées, les mains levées et les verrous de micro. Convention
   // du projet : polling, pas de WebSocket applicatif.
+  // La salle d'attente se relit elle aussi : sans cela, elle ne voyait jamais
+  // la séance s'ouvrir, et il fallait recharger la page pour entrer dans le
+  // direct que l'animateur venait de lancer.
+  const suivie = room.status !== "ENDED";
   React.useEffect(() => {
-    if (!live) return;
-    const id = window.setInterval(() => router.refresh(), 15_000);
+    if (!suivie) return;
+    const id = window.setInterval(() => router.refresh(), live ? 15_000 : 10_000);
     return () => window.clearInterval(id);
-  }, [live, router]);
+  }, [suivie, live, router]);
 
   React.useEffect(() => setMessages(room.messages), [room.messages]);
 
@@ -142,7 +154,12 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
     void action.run(key, () => api.post(`/api/lives/${room.id}`, body), {
       success: message,
       error: "L'action n'a pas abouti.",
-      onSuccess: after,
+      onSuccess: () => {
+        // Une main levée ou une demande d'écran doit atteindre l'animateur
+        // tout de suite, pas à son prochain rafraîchissement.
+        transport.signal();
+        after?.();
+      },
     });
   }
 
@@ -158,7 +175,10 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
         success: null,
         error: "Le message n'est pas parti.",
         // Le champ ne se vide qu'à l'arrivée du message.
-        onSuccess: () => setDraft(""),
+        onSuccess: () => {
+          transport.signal();
+          setDraft("");
+        },
       },
     );
   }
@@ -176,6 +196,10 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
     timeZone,
   }).format(room.startsAt);
   const hostTime = hostLabel(room.startsAt);
+
+  const selfName = room.participants.find((p) => p.userId === room.viewerId)?.name ?? "Vous";
+  const reactions = useReactions(transport, selfName);
+  const poll = useQuickPoll(transport, false);
 
   const queue = room.participants.filter((p) => p.handPosition !== null);
   const host = room.participants.find((p) => p.isHost) ?? null;
@@ -356,6 +380,11 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
           <Hand />
         </LiveControlButton>
 
+        {/* Réagir sans prendre la parole : ouvert à tous, même micro coupé,
+            comme la main levée. */}
+        <ReactionButton onReact={reactions.react} disabled={!transport.connected || !room.canSpeak} />
+        <DeviceMenu transport={transport} />
+
         {/* Séparation des deux familles, là où la largeur le permet. */}
         <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-[var(--live-line)] sm:block lg:hidden" />
         {volets}
@@ -368,6 +397,12 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
         Il passe avant les autres avertissements — c'est le seul auquel la
         personne peut quelque chose tout de suite.
       */}
+      <NetworkNotice
+        reconnecting={transport.reconnecting}
+        weak={transport.weakNetwork}
+        camOn={transport.camEnabled}
+        className="border-t border-[var(--live-line)] px-5 py-3"
+      />
       {transport.deviceError ? (
         <p
           role="alert"
@@ -484,7 +519,15 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
               tiles={transport.tiles}
               people={stagePeople}
               hostUserId={host?.userId ?? null}
-              controls={controls}
+              controls={
+                controls ? (
+                  <div className="relative">
+                    <ReactionFeed shown={reactions.shown} />
+                    <PollCard poll={poll} />
+                    {controls}
+                  </div>
+                ) : null
+              }
               empty={
                 <div>
                   <span
@@ -544,6 +587,14 @@ export function LiveRoom({ room }: { room: LiveRoomView }) {
                     <p className="mx-auto max-w-[48ch] text-[13.5px] leading-relaxed text-[var(--live-muted)]">
                       {room.description}
                     </p>
+                  ) : null}
+                  {/* L'attente sert à quelque chose : vérifier son micro et
+                      sa caméra avant que la séance commence. */}
+                  {room.canSpeak ? (
+                    <DeviceCheck
+                      className="mt-6"
+                      intro="En attendant, vérifiez votre micro et votre caméra : vous serez prêt si vous prenez la parole."
+                    />
                   ) : null}
                 </>
               )}

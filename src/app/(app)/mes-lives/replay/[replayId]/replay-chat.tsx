@@ -29,9 +29,16 @@ function horloge(seconds: number): string {
 
 export function ReplayChat({
   messages,
+  durationSeconds,
   onSeek,
 }: {
   messages: ReplayMessage[];
+  /**
+   * La durée de l'enregistrement, en secondes. Un message daté au-delà ne
+   * tombe sur aucune image : il s'affiche sans horodatage cliquable, au lieu
+   * d'un « 218:40:18 » qui renvoyait hors de la vidéo.
+   */
+  durationSeconds?: number;
   /** Emmène la vidéo à cette seconde. Absent tant que rien n'est lisible. */
   onSeek?: (seconds: number) => void;
 }) {
@@ -65,11 +72,13 @@ export function ReplayChat({
           // Ce qui a été écrit avant l'ouverture de la salle ne se situe pas
           // dans la vidéo : on le dit plutôt que de renvoyer à la seconde zéro.
           const avantLeDirect = m.offsetSeconds < 0;
+          const apresLeDirect =
+            durationSeconds !== undefined && durationSeconds > 0 && m.offsetSeconds > durationSeconds;
           return (
             <li key={m.id} className="grid grid-cols-[auto_1fr] items-baseline gap-2.5">
-              {avantLeDirect || !onSeek ? (
+              {avantLeDirect || apresLeDirect || !onSeek ? (
                 <span className="font-display text-[13px] font-semibold text-ink-3">
-                  {avantLeDirect ? "avant" : horloge(m.offsetSeconds)}
+                  {avantLeDirect ? "avant" : apresLeDirect ? "après" : horloge(m.offsetSeconds)}
                 </span>
               ) : (
                 <button

@@ -211,7 +211,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             salleLive && "hidden lg:block",
           )}
         >
-          <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7">
+          <div className="nk-wrap flex h-[62px] items-center gap-4 md:h-[70px] md:gap-7 lg:gap-5 xl:gap-7">
             <Logo href="/accueil" compact />
 
             <nav aria-label="Navigation de mon espace" className="hidden flex-1 gap-1 lg:flex">
@@ -223,12 +223,29 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                     href={item.href}
                     current={current}
                     className={cn(
-                      "rounded-full px-3.5 py-2 text-[14.5px] font-semibold transition duration-150",
+                      "flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-2 text-[14.5px] font-semibold transition duration-150 xl:px-3.5",
                       current ? "bg-ink text-paper" : "text-ink-2 hover:bg-ink/5 hover:text-ink",
                     )}
                     pendingClassName="inset-x-3.5 bottom-[5px]"
                   >
-                    {item.label}
+                    {item.compact ? (
+                      <>
+                        {/* Deux écritures du même nom, une seule lue : le
+                            libellé resserré est muet, le complet reste dans
+                            l'arbre d'accessibilité à toutes les largeurs. */}
+                        <span aria-hidden="true" className="xl:hidden">
+                          {item.compact}
+                        </span>
+                        <span className="sr-only xl:not-sr-only">{item.label}</span>
+                      </>
+                    ) : (
+                      item.label
+                    )}
+                    {/* La messagerie a rejoint la barre : sa pastille de
+                        non-lus la suit, elle ne vivait que dans le menu. */}
+                    {item.href === "/messagerie" ? (
+                      <UnreadBadge count={user.unreadMessages} />
+                    ) : null}
                   </NavLink>
                 );
               })}

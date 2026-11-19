@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { listAgenda, listMyReplays, REPLAY_RETENTION_MONTHS } from "@/lib/lives";
 import { fmtNumber } from "@/lib/format";
 import { AgendaPane } from "./agenda-pane";
+import { TrainerSubnav } from "../formateur/trainer-subnav";
 // Partagé avec le salon « Sessions » d'une communauté, d'où sa place hors de
 // cette route.
 import { ScheduleLive } from "@/components/screens/schedule-live";
@@ -72,6 +73,11 @@ export default async function MesLivesPage({
   const registered = hosted.reduce((total, s) => total + s.attendees, 0);
 
   return (
+    <>
+    {/* L'agenda est aussi une section de l'espace formateur : sa barre de
+        sous-navigation le suit ici, faute de quoi elle disparaîtrait au clic
+        sur « Lives » (voir `trainer-subnav.tsx`). */}
+    {trainerId ? <TrainerSubnav /> : null}
     <div className="nk-wrap pb-10 sm:pb-16">
       <PageHead
         title="Mes lives & agenda"
@@ -135,5 +141,6 @@ export default async function MesLivesPage({
         initialTab={onglet === "replays" ? "replays" : "upcoming"}
       />
     </div>
+    </>
   );
 }

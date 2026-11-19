@@ -131,7 +131,14 @@ export function ResourceList({
             const view = item.courseView;
             const reprise =
               course.format === "video" && view?.watchedSeconds
-                ? `Reprendre à ${fmtDuration(view.watchedSeconds)}`
+                ? // Bornée à la durée : une position enregistrée avant qu'un
+                  // fichier plus court ne remplace le premier annonçait
+                  // « Reprendre à 3 h 07 » sur une vidéo de quatre minutes.
+                  `Reprendre à ${fmtDuration(
+                    course.durationSeconds
+                      ? Math.min(view.watchedSeconds, course.durationSeconds)
+                      : view.watchedSeconds,
+                  )}`
                 : course.format === "pdf" && view?.lastPage
                   ? `Reprendre page ${view.lastPage}${course.pageCount ? ` sur ${course.pageCount}` : ""}`
                   : view?.completedAt

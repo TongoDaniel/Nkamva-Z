@@ -258,7 +258,7 @@ export function UpcomingEvents({
         id="evenements-a-venir"
         title="Événements à venir"
         href={agendaHref}
-        linkLabel="Mon agenda"
+        linkLabel="Mes lives"
         className="mb-2"
       />
       <Tabs

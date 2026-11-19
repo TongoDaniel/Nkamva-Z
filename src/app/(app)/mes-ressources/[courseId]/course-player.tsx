@@ -26,6 +26,7 @@ import { AlertTriangle, CheckCircle2, Download, Loader2, RotateCcw } from "lucid
 import { Btn } from "@/components/nk/button";
 import { BtnLink } from "@/components/nk/button-link";
 import { ProgressRing } from "@/components/nk/progress-ring";
+import { VideoPlayer } from "@/components/nk/video-player";
 import { toast } from "@/components/nk/toast";
 import { api, ApiError } from "@/lib/client";
 import { fmtDuration } from "@/lib/format";
@@ -51,6 +52,8 @@ const ARCHIVE_FORMATS = ["kit", "notion", "tableur"];
 
 export function CoursePlayer({
   courseId,
+  title,
+  poster,
   format,
   durationSeconds,
   pageCount,
@@ -60,6 +63,10 @@ export function CoursePlayer({
   downloaded,
 }: {
   courseId: string;
+  /** Le nom de la ressource, que le lecteur annonce aux lecteurs d'écran. */
+  title: string;
+  /** Sa couverture, posée sur le lecteur avant la première lecture. */
+  poster?: string | null;
   format: string;
   durationSeconds: number | null;
   pageCount: number | null;
@@ -68,7 +75,6 @@ export function CoursePlayer({
   completed: boolean;
   downloaded: boolean;
 }) {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
   const isVideo = format === "video";
   const isPdf = format === "pdf";
   const isArchive = ARCHIVE_FORMATS.includes(format);
@@ -217,40 +223,25 @@ export function CoursePlayer({
     <div className="grid items-start gap-6 lg:grid-cols-[1fr_300px]">
       <div>
         {isVideo ? (
-          <div className="overflow-hidden rounded-nk-lg bg-[#0a121f] shadow-nk">
-            {url ? (
-              <video
-                ref={videoRef}
-                src={url}
-                controls
-                playsInline
-                preload="metadata"
-                className="aspect-video w-full bg-black"
-                onLoadedMetadata={() => {
-                  if (videoRef.current && startAtSeconds > 0) {
-                    videoRef.current.currentTime = startAtSeconds;
-                  }
-                }}
-                onTimeUpdate={(e) => {
-                  const t = e.currentTarget.currentTime;
-                  courantSeconds.current = t;
-                  setWatched((prev) => (t > prev ? t : prev));
-                }}
-                onPause={() => void envoyer()}
-                onEnded={() => {
-                  courantSeconds.current = durationSeconds ?? courantSeconds.current;
-                  void envoyer();
-                }}
-              >
-                <track kind="captions" />
-              </video>
-            ) : (
-              <div className="grid aspect-video place-items-center text-[#7d8bab]">
-                <Loader2 className="size-8 animate-spin" aria-hidden="true" />
-                <span className="sr-only">Chargement du contenu…</span>
-              </div>
-            )}
-          </div>
+          // Le lecteur commun (`nk/video-player.tsx`) : il remplace les
+          // commandes du navigateur, qui proposaient de télécharger le fichier.
+          <VideoPlayer
+            src={url}
+            title={title}
+            poster={poster}
+            knownDuration={durationSeconds}
+            startAt={startAtSeconds}
+            loadingLabel="Chargement de la vidéo…"
+            onProgress={(t) => {
+              courantSeconds.current = t;
+              setWatched((prev) => (t > prev ? t : prev));
+            }}
+            onPause={() => void envoyer()}
+            onEnded={() => {
+              courantSeconds.current = durationSeconds ?? courantSeconds.current;
+              void envoyer();
+            }}
+          />
         ) : null}
 
         {isPdf ? (

@@ -53,7 +53,7 @@ export default async function ConsolePage({ params }: { params: Params }) {
           <PageHead
             crumbs={[
               { label: "Espace formateur", href: "/formateur" },
-              { label: "Mes lives & agenda", href: "/mes-lives" },
+              { label: "Mes lives", href: "/mes-lives" },
               { label: room.title },
             ]}
             title={<span className="sr-only">Animer : {room.title}</span>}

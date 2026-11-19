@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { CreditCard, Lock } from "lucide-react";
+import { ArrowRight, CreditCard, Lock } from "lucide-react";
 import { PageHead } from "@/components/nk/page-head";
 import { HintedHeading } from "@/components/nk/hint";
 import { BtnLink } from "@/components/nk/button-link";
@@ -107,7 +107,35 @@ export default async function EspaceCommunautePage({
           resources={
             <div className="grid gap-[18px] sm:grid-cols-2">
               {includedCourses.map((course) => (
-                <ResourceCard key={course.id} course={course} space="app" />
+                // Incluse dans l'adhésion : la carte affichait son prix au
+                // catalogue et menait à sa fiche de vente, comme s'il restait
+                // quelque chose à payer. Elle s'ouvre, et elle le dit.
+                <ResourceCard
+                  key={course.id}
+                  course={course}
+                  space="app"
+                  // L'animateur n'a pas d'accès de lecteur à sa propre
+                  // ressource : pour lui, la carte mène à sa fiche d'édition.
+                  href={
+                    space.isTrainer
+                      ? `/formateur/ressources/${course.id}`
+                      : `/mes-ressources/${course.id}`
+                  }
+                  footer={
+                    <>
+                      <span className="text-[13px] font-semibold text-ink-2">
+                        {space.isTrainer ? "Incluse pour vos membres" : "Incluse dans votre adhésion"}
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-brand"
+                        aria-hidden="true"
+                      >
+                        {space.isTrainer ? "Gérer" : "Ouvrir"}
+                        <ArrowRight className="size-[15px] transition-transform duration-200 group-hover:translate-x-1" />
+                      </span>
+                    </>
+                  }
+                />
               ))}
             </div>
           }

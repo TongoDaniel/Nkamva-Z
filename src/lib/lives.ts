@@ -689,6 +689,97 @@ export interface LiveRoomView {
   transportConfigured: boolean
 }
 
+/** Minutes avant l'heure prévue à partir desquelles la salle d'attente s'ouvre. */
+export const WAITING_ROOM_OPENS_MINUTES = 15
+
+/**
+ * La fiche d'une séance : ce qu'on en lit **sans y entrer**.
+ *
+ * Revue du 16 novembre 2026. « Voir » une séance programmée ouvrait la salle,
+ * et ouvrir la salle écrit une présence (`joinLiveSession`) : quatre jours avant
+ * l'heure, la séance comptait déjà « 2 participants présents », et l'écran
+ * n'offrait qu'un compte à rebours. La fiche dit de quoi il s'agit et quand,
+ * et la salle d'attente ne s'ouvre qu'à l'approche de l'heure.
+ */
+export interface LiveSessionCard {
+  id: string
+  title: string
+  description: string | null
+  status: LiveSessionStatus
+  startsAt: Date
+  timeZone: string | null
+  durationMinutes: number
+  community: ViewCommunity
+  host: ViewHost
+  isHost: boolean
+  /**
+   * La salle se rejoint-elle maintenant ? Toujours pour l'animateur et pour une
+   * séance ouverte ou close ; pour une séance programmée, à partir de
+   * `WAITING_ROOM_OPENS_MINUTES` avant l'heure.
+   */
+  roomOpen: boolean
+  /** L'instant où la salle d'attente s'ouvre, pour que la fiche s'y rafraîchisse. */
+  roomOpensAt: Date
+}
+
+/**
+ * Même droit d'entrée que la salle (`assertCanAttend`), sans rien écrire : lire
+ * une fiche ne fait de personne un participant.
+ */
+export async function getLiveSessionCard(
+  sessionId: string,
+  userId: string,
+  now = new Date(),
+): Promise<LiveSessionCard> {
+  const session = await db.liveSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      id: true, communityId: true, title: true, description: true, status: true,
+      scheduledStartAt: true, timeZone: true, durationMinutes: true,
+      community: {
+        select: {
+          name: true, slug: true,
+          trainerProfile: {
+            select: {
+              slogan: true,
+              user: { select: { id: true, fullName: true, avatarS3Key: true, avatarUrl: true } },
+            },
+          },
+        },
+      },
+    },
+  })
+  if (!session) throw new Error('LIVE_SESSION_NOT_FOUND')
+  if (session.status === 'CANCELED') throw new Error('LIVE_CANCELED')
+
+  const viewer = await resolveViewer(session.communityId, userId)
+  assertCanAttend(viewer)
+
+  const roomOpensAt = new Date(
+    session.scheduledStartAt.getTime() - WAITING_ROOM_OPENS_MINUTES * 60_000,
+  )
+
+  return {
+    id: session.id,
+    title: session.title,
+    description: session.description,
+    status: session.status as LiveSessionStatus,
+    startsAt: session.scheduledStartAt,
+    timeZone: session.timeZone,
+    durationMinutes: session.durationMinutes,
+    community: { name: session.community.name, slug: session.community.slug },
+    host: {
+      name: session.community.trainerProfile.user.fullName ?? 'Formateur NKAMVA',
+      role: session.community.trainerProfile.slogan ?? 'Formateur',
+      avatarUrl: userAvatarSrc(session.community.trainerProfile.user),
+    },
+    isHost: viewer.isTrainer,
+    roomOpen:
+      viewer.isTrainer || session.status !== 'SCHEDULED' || now.getTime() >= roomOpensAt.getTime(),
+    roomOpensAt,
+  }
+}
+
 /**
  * Ouvre la salle pour un participant : enregistre sa présence, mesure le pic de
  * fréquentation, et rend tout ce que l'écran doit afficher — y compris le jeton.
@@ -1560,6 +1651,59 @@ export async function getReplay(replayId: string, userId: string): Promise<Repla
   if (!replay) throw new Error('REPLAY_NOT_FOUND')
   if (!(await hasReplayAccess(userId, replay))) throw new Error('NOT_MEMBER')
   return toReplay(replay, replay.community.trainerProfile.userId === userId)
+}
+
+/** Longueur maximale d'une note de replay, en caractères. */
+export const REPLAY_NOTE_MAX = 20_000
+
+/**
+ * Les notes de ce membre sur ce replay — revue du 16 novembre 2026.
+ *
+ * Même droit que la lecture (`getReplay`) : qui ne peut plus voir le replay ne
+ * lit plus ses notes dessus. Privées : la requête est bornée à leur auteur, et
+ * l'animateur n'y a pas accès.
+ */
+export async function getReplayNote(
+  replayId: string,
+  userId: string,
+): Promise<{ body: string; updatedAt: Date | null }> {
+  const replay = await db.replay.findFirst({
+    where: { id: replayId, purgedAt: null },
+    select: { communityId: true, recordedAt: true },
+  })
+  if (!replay) throw new Error('REPLAY_NOT_FOUND')
+  if (!(await hasReplayAccess(userId, replay))) throw new Error('NOT_MEMBER')
+  const note = await db.replayNote.findUnique({
+    where: { replayId_userId: { replayId, userId } },
+    select: { body: true, updatedAt: true },
+  })
+  return { body: note?.body ?? '', updatedAt: note?.updatedAt ?? null }
+}
+
+/** Enregistre la note, ou la retire quand elle est vide : une ligne vide n'apprend rien. */
+export async function saveReplayNote(
+  replayId: string,
+  userId: string,
+  body: string,
+): Promise<{ updatedAt: Date | null }> {
+  const replay = await db.replay.findFirst({
+    where: { id: replayId, purgedAt: null },
+    select: { communityId: true, recordedAt: true },
+  })
+  if (!replay) throw new Error('REPLAY_NOT_FOUND')
+  if (!(await hasReplayAccess(userId, replay))) throw new Error('NOT_MEMBER')
+
+  if (body.trim() === '') {
+    await db.replayNote.deleteMany({ where: { replayId, userId } })
+    return { updatedAt: null }
+  }
+  const note = await db.replayNote.upsert({
+    where: { replayId_userId: { replayId, userId } },
+    create: { replayId, userId, body },
+    update: { body },
+    select: { updatedAt: true },
+  })
+  return { updatedAt: note.updatedAt }
 }
 
 /** Un message du salon d'une séance, tel que le replay le rend. */

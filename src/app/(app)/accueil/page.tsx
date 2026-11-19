@@ -17,6 +17,7 @@ import {
   JoinCommunityPrompt,
   LiveNowBanner,
   OwnedResourcesRow,
+  ResumeBanner,
   TrendingCoursesRow,
   TrendingTrainersList,
 } from "./blocs";
@@ -43,7 +44,8 @@ const SECTION = "mt-9 sm:mt-12";
 /**
  * L'accueil d'un apprenant — arbitrage 142.
  * ==========================================================================
- * De haut en bas : une séance en cours s'il y en a une, ses communautés, les
+ * De haut en bas : une séance en cours s'il y en a une, la ressource à
+ * reprendre s'il y en a une (revue du 16 novembre 2026), ses communautés, les
  * événements à venir (les siens, et ceux des communautés en tendance), ses
  * ressources, puis ce qui se passe ailleurs — formateurs et ressources.
  *
@@ -127,6 +129,7 @@ export default async function AccueilPage({
       {accessDenied}
 
       {liveNow ? <LiveNowBanner event={liveNow} className="mt-3 sm:mt-4" /> : null}
+      <ResumeBanner items={mine.items as unknown as ResourceItem[]} className="mt-3 sm:mt-4" />
 
       {tiles.length > 0 ? (
         <CommunitiesRow tiles={tiles} className="mt-4 sm:mt-6" />

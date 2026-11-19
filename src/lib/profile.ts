@@ -161,7 +161,7 @@ export async function changePassword(
  * suite, et aucune copie de ses données ne dort dans un bucket.
  */
 export async function buildGdprExport(userId: string) {
-  const [user, purchases, views, notifications, subscriptions, activity] = await Promise.all([
+  const [user, purchases, views, notifications, subscriptions, activity, replayNotes] = await Promise.all([
     db.user.findUnique({
       where: { id: userId },
       select: {
@@ -218,6 +218,13 @@ export async function buildGdprExport(userId: string) {
       orderBy: { createdAt: 'asc' },
       take: 5000,
     }),
+    // Les notes prises sur les replays : écrites par la personne, elles sont à
+    // elle (revue du 16 novembre 2026).
+    db.replayNote.findMany({
+      where: { userId },
+      select: { body: true, createdAt: true, updatedAt: true, replay: { select: { title: true, recordedAt: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
   ])
 
   if (!user) return null
@@ -266,6 +273,7 @@ export async function buildGdprExport(userId: string) {
     compte: user,
     achats: purchases,
     consultations: views,
+    notesDeReplay: replayNotes,
     abonnementsCommunaute: subscriptions,
     invitationsEnvoyees: invitationsIssued,
     invitationsRecues: invitationsReceived,
