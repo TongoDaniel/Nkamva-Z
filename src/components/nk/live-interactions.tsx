@@ -76,6 +76,29 @@ const POPOVER =
 const SELECT =
   "w-full cursor-pointer rounded-xl border-[1.5px] border-line bg-card px-3 py-2 text-[13.5px] font-semibold text-ink outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/25";
 
+/**
+ * Où ouvrir les menus de la salle.
+ *
+ * En plein écran natif, seul l'élément mis en plein écran est affiché : la
+ * scène (`live-stage.tsx`) y met son cadre, et un menu ouvert à la racine de
+ * la page restait invisible. Le menu s'ouvre donc dans l'élément en plein
+ * écran quand il y en a un, et à la racine sinon (le plein cadre de repli, lui,
+ * est déjà sur `body`).
+ */
+function subscribeFullscreen(onChange: () => void) {
+  document.addEventListener("fullscreenchange", onChange);
+  return () => document.removeEventListener("fullscreenchange", onChange);
+}
+
+function StagePortal({ children }: { children: React.ReactNode }) {
+  const container = React.useSyncExternalStore(
+    subscribeFullscreen,
+    () => document.fullscreenElement as HTMLElement | null,
+    () => null,
+  );
+  return <Popover.Portal container={container ?? undefined}>{children}</Popover.Portal>;
+}
+
 /* ------------------------------------------------------------------------ */
 /* 1. Le micro et la caméra                                                  */
 /* ------------------------------------------------------------------------ */
@@ -95,7 +118,7 @@ export function DeviceMenu({ transport }: { transport: LiveRoomState }) {
           </LiveControlButton>
         </span>
       </Popover.Trigger>
-      <Popover.Portal>
+      <StagePortal>
         <Popover.Content side="top" sideOffset={10} className={POPOVER}>
           <p className="mb-2.5 text-[13.5px] font-bold">Micro et caméra</p>
           {micros.length > 1 ? (
@@ -140,7 +163,7 @@ export function DeviceMenu({ transport }: { transport: LiveRoomState }) {
             Le changement se fait sans quitter la salle, et il est retenu pour la prochaine séance.
           </p>
         </Popover.Content>
-      </Popover.Portal>
+      </StagePortal>
     </Popover.Root>
   );
 }
@@ -224,7 +247,7 @@ export function ReactionButton({
           </LiveControlButton>
         </span>
       </Popover.Trigger>
-      <Popover.Portal>
+      <StagePortal>
         <Popover.Content side="top" sideOffset={10} className={cn(POPOVER, "w-auto p-2")}>
           <ul className="grid grid-cols-2 gap-1.5">
             {REACTIONS.map(({ id, label, icon: Icon }) => (
@@ -244,7 +267,7 @@ export function ReactionButton({
             ))}
           </ul>
         </Popover.Content>
-      </Popover.Portal>
+      </StagePortal>
     </Popover.Root>
   );
 }
@@ -443,7 +466,7 @@ export function HostPollButton({ poll, disabled }: { poll: QuickPoll; disabled?:
           </LiveControlButton>
         </span>
       </Popover.Trigger>
-      <Popover.Portal>
+      <StagePortal>
         <Popover.Content side="top" sideOffset={10} className={cn(POPOVER, "w-[min(340px,calc(100vw-24px))]")}>
           {poll.poll ? (
             <div>
@@ -531,7 +554,7 @@ export function HostPollButton({ poll, disabled }: { poll: QuickPoll; disabled?:
             </form>
           )}
         </Popover.Content>
-      </Popover.Portal>
+      </StagePortal>
     </Popover.Root>
   );
 }
