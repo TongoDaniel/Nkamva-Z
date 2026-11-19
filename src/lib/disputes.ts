@@ -872,7 +872,7 @@ export async function resolveDispute(disputeId: string, input: ResolveDisputeInp
     if (input.actorAdminRole !== 'SUPER_ADMIN') throw new Error('OVERRIDE_FORBIDDEN')
     if (!input.overrideJustification) throw new Error('OVERRIDE_JUSTIFICATION_REQUIRED')
   } else if (full) {
-    // FULL_REFUND sans override : la règle 14j + 30 % doit être satisfaite.
+    // FULL_REFUND sans override : la règle du délai et des 30 % doit être satisfaite.
     //
     // La fenêtre se mesure de l'achat à **l'ouverture du litige**, pas à
     // l'instant de la décision. Comparer à `now` faisait perdre son droit à un

@@ -32,6 +32,30 @@ const nextConfig: NextConfig = {
   // proxy en tête, y compris en build standalone.
   async headers() {
     const isDev = process.env.NODE_ENV !== "production";
+    // En développement, le stockage S3 local (SeaweedFS) répond en http sur
+    // l'adresse du poste : sans lui dans la liste, la page refuse toutes les
+    // images, vidéos et dépôts de fichiers qui y pointent. La production, elle,
+    // passe par R2 en https et n'a besoin de rien de plus.
+    let localStorageOrigin = "";
+    if (isDev && process.env.AWS_ENDPOINT_URL?.startsWith("http://")) {
+      try {
+        localStorageOrigin = " " + new URL(process.env.AWS_ENDPOINT_URL).origin;
+      } catch {
+        localStorageOrigin = "";
+      }
+    }
+    // Même raison pour un serveur LiveKit local (`livekit-server --dev`), qui
+    // répond en ws:// et http:// sur le poste. Le client ouvre la salle en ws,
+    // et interroge la même origine en http quand la connexion échoue.
+    let localLiveOrigin = "";
+    if (isDev && process.env.LIVEKIT_URL?.startsWith("ws://")) {
+      try {
+        const live = new URL(process.env.LIVEKIT_URL);
+        localLiveOrigin = ` ${live.origin} http://${live.host}`;
+      } catch {
+        localLiveOrigin = "";
+      }
+    }
     const csp = [
       "default-src 'self'",
       "base-uri 'self'",
@@ -47,12 +71,12 @@ const nextConfig: NextConfig = {
       // navigation de staging vérifiée, aucune requête vers Google Fonts. On ne
       // garde donc pas fonts.googleapis.com / fonts.gstatic.com.
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
+      `img-src 'self' data: blob: https:${localStorageOrigin}`,
       "font-src 'self' data:",
-      "media-src 'self' blob: https:",
+      `media-src 'self' blob: https:${localStorageOrigin}`,
       "worker-src 'self' blob:",
       // LiveKit (wss), R2/S3 et Stripe passent par https/wss vers l'extérieur.
-      "connect-src 'self' https: wss:",
+      `connect-src 'self' https: wss:${localStorageOrigin}${localLiveOrigin}`,
       "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
       // Chaque violation laisse une ligne `[csp]` dans les journaux du serveur.
       "report-uri /api/csp-report",
