@@ -1271,7 +1271,7 @@ async function summarize() {
       ${addressFor('moderation')}   Modération
 
     Super-admins réels — rétablis à chaque passage, mot de passe indépendant
-    (BOOTSTRAP_ADMIN_PASSWORD, à défaut celui de scripts/bootstrap-admins.mjs)
+    (BOOTSTRAP_ADMIN_PASSWORD, à défaut le mot de passe commun ci-dessus)
 ${SUPER_ADMINS.map((a) => `      ${a.email}${' '.repeat(Math.max(1, 30 - a.email.length))}${a.fullName}`).join('\n')}
 
     Formateurs
@@ -1315,8 +1315,11 @@ async function main() {
   // rétablis par le même script que celui du déploiement : deux chemins qui
   // créeraient ces comptes chacun à sa façon finiraient par diverger.
   await seedAccounts(passwordHash)
+  // Le script de déploiement n'a plus de mot de passe par défaut : c'est le seed,
+  // et lui seul, qui retombe sur celui de la démonstration. Il refuse déjà la
+  // production (ci-dessus), et `||` traite la ligne vide du .env comme absente.
   const bootstrapped = await bootstrapSuperAdmins(db, {
-    password: process.env.BOOTSTRAP_ADMIN_PASSWORD,
+    password: process.env.BOOTSTRAP_ADMIN_PASSWORD || DEV_PASSWORD,
   })
   for (const account of bootstrapped) note(`Super-admin ${account.email} — ${account.action}`)
   await seedPricing()
